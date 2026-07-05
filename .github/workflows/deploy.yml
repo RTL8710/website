@@ -34,10 +34,28 @@ jobs:
           # 若仓库尚未开启 Pages，自动启用（source = GitHub Actions）
           enablement: true
 
+      - name: Prune unpublished marketing sources (deploy-only)
+        run: |
+          # marketing/ 是视频素材源工程(remotion + 各种副本),网站实际只引用
+          # 「横版功能视频 + 3 个 PDF」,其余约 300MB 没被任何页面引用。
+          # 这里在「上传前的 CI 临时检出」里删掉未引用部分,缩小 Pages 产物、加快部署;
+          # git 仓库中的源文件全部保留,不受影响。
+          if [ -d marketing ]; then
+            find marketing -mindepth 1 -maxdepth 1 \
+              ! -name feature-videos \
+              ! -name cases.pdf \
+              ! -name cooperation-invite.pdf \
+              ! -name solution-overview.pdf \
+              -exec rm -rf {} +
+            # feature-videos 仅保留横版(demos 页引用),删除未引用的竖版及其它
+            find marketing/feature-videos -type f ! -name '*-horizontal.mp4' -delete
+            echo "剪枝后 marketing 体积:"; du -sh marketing || true
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # 上传整个仓库根目录作为静态站点
+          # 上传整个仓库根目录作为静态站点(已剔除未引用的 marketing 素材)
           path: .
 
       - name: Deploy to GitHub Pages
