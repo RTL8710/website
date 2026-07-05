@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的网站 · My Website</title>
+  <meta name="description" content="一个由 GitHub Pages 自动部署的简单网站。" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-gradient"></div>
+
+  <header class="hero">
+    <div class="badge">✅ 已自动部署上线</div>
+    <h1>你好，世界 👋</h1>
+    <p class="subtitle">这是一个简单的网站，通过 GitHub Actions 自动部署到 GitHub Pages。</p>
+    <div class="cta">
+      <a class="btn primary" href="#features">了解更多</a>
+      <a class="btn" href="https://github.com/RTL8710/website" target="_blank" rel="noopener">查看源码</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="features" class="features">
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h3>自动部署</h3>
+        <p>每次推送代码到仓库，网站都会自动重新构建并上线，无需手动操作。</p>
+      </div>
+      <div class="card">
+        <div class="icon">🌐</div>
+        <h3>公网访问</h3>
+        <p>通过 GitHub Pages 提供免费的公网域名，任何人都可以随时打开访问。</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎨</div>
+        <h3>易于定制</h3>
+        <p>纯静态的 HTML / CSS，结构清晰，你可以随时修改内容和样式。</p>
+      </div>
+    </section>
+
+    <section class="counter-section">
+      <h2>点我试试 ✨</h2>
+      <p>一个小小的交互，证明 JavaScript 也在正常工作。</p>
+      <button id="counter" class="btn primary big">点击次数：0</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>由 <a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> 提供托管 · 使用 GitHub Actions 自动部署</p>
+    <p class="muted">© <span id="year"></span> RTL8710 · 用 ❤️ 构建</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
