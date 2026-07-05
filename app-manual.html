@@ -1,33 +1,248 @@
 <!doctype html>
+<!--
+  产品操作说明书(手机 App)· 真机高清截屏生成 2026-06-20
+  截图来自真实设备 App(smartCamera · 设备 smartRobot · 固件 0.1.50)。图片在 app-shots/ 目录。
+  用法:Chrome 打开 → 阅读,或「打印 → 存为 PDF」交付给客户。与 product-manual.html(Web 控制台版)成套。
+-->
 <html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>App 功能说明书 · 整理中 | App Manual</title>
+<title>App 功能说明书 · Mobile App Guide</title>
 <style>
-  :root{--bg:#0a0e17;--card:#121a2a;--ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;--line:#1f2c42;--accent:#22d3ee;--gold:#f5c451}
+  :root{--ink:#1a2230;--dim:#5b6b7e;--line:#e3e8ef;--accent:#0ea5b7;--bg:#f6f8fb;--card:#fff;}
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:26px;
-    background-image:radial-gradient(70% 90% at 50% 0%,rgba(34,211,238,.14),transparent 60%)}
-  .box{max-width:560px;text-align:center}
-  .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
-  h1{font-size:32px;font-weight:850;letter-spacing:-.02em;margin:22px 0 10px}
-  p{color:var(--dim);font-size:15px;max-width:460px;margin:0 auto 8px}
-  .links{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
-  .links a{font-size:14px;color:#0a0e17;background:linear-gradient(90deg,var(--accent),#7dd3fc);padding:10px 20px;border-radius:10px;font-weight:700;text-decoration:none}
-  .links a.ghost{color:var(--ink);background:var(--card);border:1px solid var(--line)}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
+  a{color:var(--accent);text-decoration:none}
+  .cover{text-align:center;padding:80px 20px 60px;border-bottom:2px solid var(--line);margin-bottom:8px}
+  .cover .kchip{display:inline-block;font-size:13px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:5px 16px;margin-bottom:22px;letter-spacing:.04em}
+  .cover h1{font-size:38px;font-weight:800;letter-spacing:-.02em}
+  .cover .en{color:var(--dim);font-size:17px;margin-top:8px;font-weight:500}
+  .cover .meta{margin-top:26px;display:inline-flex;gap:24px;flex-wrap:wrap;justify-content:center;font-size:13.5px;color:var(--dim)}
+  .cover .meta b{color:var(--ink)}
+  .ov{margin:34px 0 10px}
+  .ov .lead{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;font-size:14.5px;color:#3a4556}
+  .ov .lead b{color:var(--ink)}
+  .ov h2{font-size:14px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin:30px 0 14px}
+  .hl{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .hl .c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .hl .c .ic{font-size:22px}
+  .hl .c h4{font-size:15px;margin:8px 0 4px;font-weight:700}
+  .hl .c h4 small{color:var(--dim);font-weight:500;font-size:12px;display:block}
+  .hl .c p{font-size:12.5px;color:#5b6b7e}
+  .specs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 28px}
+  .specs .r{display:flex;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .specs .r .k{color:var(--accent);font-weight:600;min-width:104px;flex-shrink:0}
+  .specs .r .v{color:#3a4556}
+  @media(max-width:760px){.hl{grid-template-columns:1fr}.specs{grid-template-columns:1fr}}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin:30px 0}
+  .toc h2{font-size:14px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+  .toc .grp{font-size:12px;color:var(--accent);letter-spacing:.08em;margin:14px 0 6px;font-weight:700}
+  .toc ol{list-style:none;columns:2;column-gap:36px}
+  .toc li{font-size:14px;padding:3px 0;break-inside:avoid}
+  .toc li span{color:var(--dim);margin-right:8px}
+  .ghead{font-size:13px;letter-spacing:.16em;color:#fff;background:var(--accent);text-transform:uppercase;padding:8px 16px;border-radius:8px;margin:46px 0 8px;font-weight:700}
+  .page{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:18px 0;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .page .hd{padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+  .page .hd .no{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.05em}
+  .page .hd h3{font-size:20px;font-weight:700;margin-top:2px}
+  .page .hd h3 small{color:var(--dim);font-weight:500;font-size:14px;margin-left:8px}
+  .page .body{display:grid;grid-template-columns:0.78fr 1fr;gap:0}
+  /* 竖屏手机截图:深色背景里放一个手机框 */
+  .page .shot{padding:26px 16px;background:radial-gradient(120% 90% at 50% 0%,#16202f 0%,#0c121d 100%);display:flex;align-items:center;justify-content:center}
+  .page .phone{position:relative;width:236px;max-width:100%;border-radius:30px;padding:9px;background:linear-gradient(160deg,#3a4658,#11171f);box-shadow:0 18px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+  .page .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:64px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);z-index:2}
+  .page .phone img{width:100%;border-radius:23px;display:block}
+  .page .desc{padding:22px 24px}
+  .page .desc p{font-size:13.5px;color:var(--ink);margin-bottom:12px}
+  .page .desc ul{list-style:none}
+  .page .desc li{font-size:13px;color:#3a4556;padding:4px 0 4px 16px;position:relative}
+  .page .desc li::before{content:"";position:absolute;left:0;top:11px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .page .desc li b{color:var(--ink)}
+  .page .tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+  .page .tags span{font-size:11px;color:var(--accent);background:rgba(14,165,183,.09);border:1px solid rgba(14,165,183,.22);border-radius:6px;padding:3px 9px}
+  .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:50px;border-top:1px solid var(--line);padding-top:22px}
+  @media (max-width:760px){.page .body{grid-template-columns:1fr}.toc ol{columns:1}.page .shot{padding:22px}}
+  @media print{body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page .shot{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
 </style>
 </head>
 <body>
-  <div class="box">
-    <span class="kchip">App Manual · App 功能说明书</span>
-    <h1>这份物料正在整理中</h1>
-    <p>手机 App 功能说明书(真机高清截图 10 页)还没放上来。Web 控制台的完整说明书已经可以查看。</p>
-    <div class="links">
-      <a href="product-manual.html">Web 控制台说明书</a>
-      <a class="ghost" href="solution-overview.html">解决方案总览</a>
-      <a class="ghost" href="index.html">返回首页</a>
+
+  <div class="cover">
+    <div class="kchip">设备端 AI 视觉 · 手机 App</div>
+    <h1>App 功能说明书</h1>
+    <div class="en">Mobile App — Feature Guide</div>
+    <div class="meta">
+      <div>App 名称 / App:<b>smartCamera</b></div>
+      <div>设备型号 / Model:<b>smartRobot</b></div>
+      <div>固件 / Firmware:<b>v0.1.50</b></div>
+      <div>品牌 / Brand:<b>____(可白标)</b></div>
     </div>
   </div>
+
+<div class="wrap">
+
+  <!-- ============ OVERVIEW ============ -->
+  <div class="ov">
+    <div class="lead">
+      这是配套设备的<b>手机端 App</b>:从设备列表、<b>多路实时直播</b>、<b>设备端 AI 检测与视觉大模型对话</b>,到<b>本地/云端多路同步回放</b>、录像与设备设置、<b>OTA 在线升级</b>与<b>全球多区域接入</b>,把设备能力完整握在手机里。
+      它最大的不同在于:<b>AI 在设备本地算力上运行</b>——App 看到的检测框与场景问答,都来自设备端本地推理,拔了网线也能用;同时<b>整套 App 可白标</b>成你的品牌、主题色与语言。
+    </div>
+
+    <h2>核心亮点 · Core Highlights</h2>
+    <div class="hl">
+      <div class="c"><div class="ic">📡</div><h4>多路实时直播<small>Multi-stream Live</small></h4><p>单设备<b>多路同屏</b>实时直播(当前演示 2 路),WebRTC 远程低延迟,随时随地看,无需端口映射。</p></div>
+      <div class="c"><div class="ic">🎯</div><h4>设备端 AI 检测<small>Edge AI · YOLO</small></h4><p>YOLO 多类目标检测,检测框直接画在实时画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。</p></div>
+      <div class="c"><div class="ic">🧠</div><h4>视觉大模型对话<small>On-device VLM</small></h4><p>拿实时画面直接问它:看懂场景、<b>读出画面文字(OCR)</b>、自然语言问答,本地 + OpenAI 双模式,断网可用。</p></div>
+      <div class="c"><div class="ic">📹</div><h4>多路同步回放<small>Sync Playback</small></h4><p>本地/云端回放,<b>多路同屏同步</b>复盘共用一条时间轴;单日数千段、三模式分色不丢录像。</p></div>
+      <div class="c"><div class="ic">🛡️</div><h4>录像模式全<small>Recording Modes</small></h4><p>循环 / 缩时 / 预录 / 手动 + 事件录像;本地 / 云端 / 双存;累计 14.7 万文件无损。</p></div>
+      <div class="c"><div class="ic">🌐</div><h4>运维 + 全球白标<small>OTA · Global</small></h4><p>OTA 在线升级、全球三区域(东京/美洲/巴黎)就近接入;整套 App 可白标(品牌/主题/语言)。</p></div>
+    </div>
+
+    <h2>功能特点一览 · Specifications</h2>
+    <div class="specs">
+      <div class="r"><div class="k">实时直播</div><div class="v">多路同屏 · WebRTC 远程低延迟 · 截图/录制/对讲</div></div>
+      <div class="r"><div class="k">设备端 AI</div><div class="v">YOLO 多类检测 + OSD 检测框 · 视觉大模型问答/读字 · Foxglove</div></div>
+      <div class="r"><div class="k">回放检索</div><div class="v">本地 / 云端回放 · 多路同步 · 24h 时间轴 · 按日期+设备筛选</div></div>
+      <div class="r"><div class="k">录像模式</div><div class="v">循环 / 缩时 / 预录 / 手动 / 事件报警(EMR)</div></div>
+      <div class="r"><div class="k">录像规格</div><div class="v">1920×1080 · H.265 / H.264 · 本地 / 云端 / 双存 · 累计 147,006 文件</div></div>
+      <div class="r"><div class="k">设备管理</div><div class="v">多设备列表 · 在线状态 · 设备设置 · 解绑/分享</div></div>
+      <div class="r"><div class="k">远程运维</div><div class="v">OTA 在线升级(版本检测/一键升级) · 远程查看</div></div>
+      <div class="r"><div class="k">全球部署</div><div class="v">东南亚(东京) / 美洲 / 欧洲(巴黎)三区域就近接入</div></div>
+      <div class="r"><div class="k">本地优先</div><div class="v">本地缓存秒显 · 下拉刷新云端 · 弱网/断网可用</div></div>
+      <div class="r"><div class="k">交付方式</div><div class="v">App 整套可白标(品牌 / 主题色 / 多语言)</div></div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h2>目录 · Contents</h2>
+    <div class="grp">LIVE & AI · 实时与 AI</div>
+    <ol>
+      <li><span>01</span><a href="#p1">设备列表 Device List</a></li>
+      <li><span>02</span><a href="#p2">实时视频 · 多路同屏 Live</a></li>
+      <li><span>03</span><a href="#p3">AI 检测 · OSD 检测框 Detection</a></li>
+      <li><span>04</span><a href="#p4">AI 对话 · 视觉大模型 VLM Chat</a></li>
+    </ol>
+    <div class="grp">PLAYBACK · 回放</div>
+    <ol>
+      <li><span>05</span><a href="#p5">本地回放 · 多路同步 Local</a></li>
+      <li><span>06</span><a href="#p6">云端回放 Cloud Playback</a></li>
+    </ol>
+    <div class="grp">SETTINGS & OPS · 设置与运维</div>
+    <ol>
+      <li><span>07</span><a href="#p7">录像设置 · 多模式 Recording</a></li>
+      <li><span>08</span><a href="#p8">设备设置 Device Settings</a></li>
+      <li><span>09</span><a href="#p9">OTA 在线升级 Upgrade</a></li>
+      <li><span>10</span><a href="#p10">全球区域 Region</a></li>
+    </ol>
+  </div>
+
+  <!-- ============ LIVE & AI ============ -->
+  <div class="ghead">LIVE & AI · 实时与 AI</div>
+
+  <div class="page" id="p1"><div class="hd"><div class="no">01</div><h3>设备列表<small>Device List</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_01_devlist.png" alt="设备列表"></div></div>
+    <div class="desc"><p>App 首页,集中管理你绑定的所有设备,在线状态一目了然。</p><ul>
+      <li>多设备<b>列表 + 实时在线状态</b>,缩略图秒显</li>
+      <li><b>本地优先</b>:先读本地缓存渲染,下拉刷新才拉云端,弱网也有内容</li>
+      <li>点入设备直达<b>实时视频 / 回放 / 设置</b></li>
+    </ul><div class="tags"><span>多设备</span><span>在线状态</span><span>本地缓存秒显</span></div></div></div>
+  </div>
+
+  <div class="page" id="p2"><div class="hd"><div class="no">02</div><h3>实时视频 · 多路同屏<small>Multi-stream Live</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_02_live.png" alt="实时视频"></div></div>
+    <div class="desc"><p>单设备<b>多路摄像头同屏直播</b>(当前演示 2 路),不是切换、是真并发。</p><ul>
+      <li><b>多路同时直播</b>:主画面 + 第二路同屏,选择器 1/2 同时点亮</li>
+      <li><b>WebRTC 远程低延迟</b>,无需端口映射,随时随地看</li>
+      <li>快捷:<b>截图 / 录制 / 对讲 / 全屏 / 切云端</b></li>
+    </ul><div class="tags"><span>多路同屏</span><span>WebRTC</span><span>对讲</span></div></div></div>
+  </div>
+
+  <div class="page" id="p3"><div class="hd"><div class="no">03</div><h3>AI 检测 · OSD 检测框<small>Edge AI · YOLO</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_03_aidetect.png" alt="AI 检测"></div></div>
+    <div class="desc"><p>实时画面上<b>自动画出检测框 + 标签</b>——全部由设备端本地算力实时推理,拔网也能跑。</p><ul>
+      <li><b>YOLO 多类目标检测</b>,检测框直接绘制在画面(OSD)</li>
+      <li>支持 <b>Foxglove / ROS 推送</b>:检测结果可进机器人可视化栈</li>
+      <li>设备端本地算力,<b>不上云、不卡顿、不泄露</b></li>
+    </ul><div class="tags"><span>YOLO 多类</span><span>OSD 检测框</span><span>Foxglove</span><span>本地算力</span></div></div></div>
+  </div>
+
+  <div class="page" id="p4"><div class="hd"><div class="no">04</div><h3>AI 对话 · 视觉大模型<small>On-device VLM Chat</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_10_chat.png" alt="AI 对话"></div></div>
+    <div class="desc"><p>拿一帧实时画面<b>直接问它</b>——设备里跑着视觉大模型,看懂整个场景,不只是数物体。</p><ul>
+      <li><b>开放式场景问答</b>:描述画面、推断这是什么地方</li>
+      <li><b>读出画面里的文字(OCR)</b>:招牌 / 铭牌 / 车牌</li>
+      <li><b>本地 + OpenAI 双模式</b>:断网走本地、联网可挂云端</li>
+    </ul><div class="tags"><span>VLM</span><span>场景理解</span><span>OCR 读字</span><span>断网可用</span></div></div></div>
+  </div>
+
+  <!-- ============ PLAYBACK ============ -->
+  <div class="ghead">PLAYBACK · 回放</div>
+
+  <div class="page" id="p5"><div class="hd"><div class="no">05</div><h3>本地回放 · 多路同步<small>Local Sync Playback</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_04_playback.png" alt="本地回放"></div></div>
+    <div class="desc"><p>回设备本地存储复盘:<b>多路同屏同步回放</b>,共用一条时间轴,录像极密不丢。</p><ul>
+      <li><b>多路同步回放</b>(CAM1/CAM2 同屏,一条时间轴)</li>
+      <li>单日<b>数千段</b>录像,<b>三模式分色</b>(Loop / EMR / Timelapse)</li>
+      <li>24h 时间轴标尺,<b>1920×1080</b>,点段即播</li>
+    </ul><div class="tags"><span>多路同步</span><span>三模式分色</span><span>24h 时间轴</span></div></div></div>
+  </div>
+
+  <div class="page" id="p6"><div class="hd"><div class="no">06</div><h3>云端回放<small>Cloud Playback</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_05_cloud.png" alt="云端回放"></div></div>
+    <div class="desc"><p>云端存的是 <b>1080P 事件录像</b>,可按日期、设备检索,云端录像不怕丢。</p><ul>
+      <li><b>事件录像(EMR)</b>上云,<b>1920×1080</b>、分通道 CH0</li>
+      <li>按<b>日期 + 设备</b>多维筛选,快速定位</li>
+      <li>与本地回放无缝切换,本地/云端两手都有</li>
+    </ul><div class="tags"><span>事件录像上云</span><span>1080P</span><span>按日期/设备筛选</span></div></div></div>
+  </div>
+
+  <!-- ============ SETTINGS & OPS ============ -->
+  <div class="ghead">SETTINGS & OPS · 设置与运维</div>
+
+  <div class="page" id="p7"><div class="hd"><div class="no">07</div><h3>录像设置 · 多模式<small>Recording Modes</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_06_record.png" alt="录像设置"></div></div>
+    <div class="desc"><p>录像策略按场景灵活配置,工业现场要的「连续录不丢」在这里坐实。</p><ul>
+      <li>四种模式:<b>循环 / 手动 / 缩时 / 预录</b></li>
+      <li>录像类型:<b>本地 / 云端 / 本地+云端</b>可选</li>
+      <li>累计录像文件数 <b>147,006</b>,长期运行无损</li>
+    </ul><div class="tags"><span>循环/缩时/预录/手动</span><span>本地+云端</span><span>14.7 万文件</span></div></div></div>
+  </div>
+
+  <div class="page" id="p8"><div class="hd"><div class="no">08</div><h3>设备设置<small>Device Settings</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_07_settings.png" alt="设备设置"></div></div>
+    <div class="desc"><p>设备的统一控制入口:从这里进入录像、AI、网络、存储、升级等全部配置。</p><ul>
+      <li>集中管理:<b>视频 / AI 检测 / 录像 / 网络 / 存储 / 升级</b></li>
+      <li>设备信息、固件版本、解绑/分享一站式</li>
+      <li>改动即时下发设备,云边端同步</li>
+    </ul><div class="tags"><span>统一入口</span><span>即时下发</span><span>设备分享</span></div></div></div>
+  </div>
+
+  <div class="page" id="p9"><div class="hd"><div class="no">09</div><h3>OTA 在线升级<small>Over-the-air Upgrade</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_08_ota.png" alt="OTA 升级"></div></div>
+    <div class="desc"><p>出货后远程统一升级,不用召回——量产客户的运维刚需。</p><ul>
+      <li>显示<b>当前版本 0.1.50</b> → 检测云端新版本</li>
+      <li>「有新版本」提示,<b>一键 Check / 升级</b></li>
+      <li>升级信息可查,批量设备远程统一维护</li>
+    </ul><div class="tags"><span>版本检测</span><span>一键升级</span><span>远程运维</span></div></div></div>
+  </div>
+
+  <div class="page" id="p10"><div class="hd"><div class="no">10</div><h3>全球区域<small>Global Region</small></h3></div>
+    <div class="body"><div class="shot"><div class="phone"><img src="app-shots/hi_09_region.png" alt="全球区域"></div></div>
+    <div class="desc"><p>全球可部署:就近接入、低延迟、数据合规——海外客户的强信号。</p><ul>
+      <li>三区域可选:<b>东南亚(东京) / 美洲 / 欧洲(巴黎)</b></li>
+      <li>就近接入<b>低延迟</b>,数据合规按区落地</li>
+      <li>同一套 App / 固件,全球开箱即用</li>
+    </ul><div class="tags"><span>全球三区域</span><span>就近接入</span><span>数据合规</span></div></div></div>
+  </div>
+
+  <div class="foot">
+    smartCamera App · 设备 smartRobot · 固件 v0.1.50 · 全部截图来自真实设备 · 整套可白标(品牌 / 主题色 / 多语言)<br>
+    与《产品操作说明书 · Web 控制台版》(product-manual.html)成套交付 · 生成日期 2026-06-20
+  </div>
+
+</div>
+<script src="fallback.js"></script>
 </body>
 </html>

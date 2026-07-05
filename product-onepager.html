@@ -1,33 +1,205 @@
 <!doctype html>
+<!--
+  产品一页纸 · 钩子版(静态)· 发给潜在客户用
+  定位:10 秒钩子页 —— 场景钩子 + 3 个硬亮点 + 全功能清单 + 一句合作。勾到了再发 solution-overview 深聊。
+  用法:Chrome 打开 → 直接发链接,或「打印 → 存为 PDF」发文件,或长截图发微信。
+  口径:与 solution-overview 一致 —— 不写云服务/语言/三方 API 等技术选型;数字以真实测得为准。
+-->
 <html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>产品单页 · 整理中 | Product One-pager</title>
+<title>设备端 AI 视觉全栈 · 产品一页纸</title>
 <style>
-  :root{--bg:#0a0e17;--card:#121a2a;--ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;--line:#1f2c42;--accent:#22d3ee;--gold:#f5c451}
+  :root{--bg:#0a0e14;--card:#111722;--card2:#0e1420;--ink:#e8eef6;--dim:#8a9bb0;--line:rgba(34,211,238,.18);--accent:#22d3ee;--accent2:#34d399;}
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:26px;
-    background-image:radial-gradient(70% 90% at 50% 0%,rgba(34,211,238,.14),transparent 60%)}
-  .box{max-width:560px;text-align:center}
-  .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
-  h1{font-size:32px;font-weight:850;letter-spacing:-.02em;margin:22px 0 10px}
-  p{color:var(--dim);font-size:15px;max-width:460px;margin:0 auto 8px}
-  .links{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
-  .links a{font-size:14px;color:#0a0e17;background:linear-gradient(90deg,var(--accent),#7dd3fc);padding:10px 20px;border-radius:10px;font-weight:700;text-decoration:none}
-  .links a.ghost{color:var(--ink);background:var(--card);border:1px solid var(--line)}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 28px 56px}
+  .en{color:var(--dim);font-size:.82em;letter-spacing:.02em}
+  .accent{color:var(--accent)}
+  /* header */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:34px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#22d3ee,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:22px}
+  .brand b{font-size:18px;letter-spacing:.01em}
+  .brand .en{display:block;margin-top:-2px}
+  .tagchip{font-size:12.5px;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:6px 14px;background:rgba(34,211,238,.06)}
+  /* hero */
+  .hero{border:1px solid var(--line);border-radius:20px;background:linear-gradient(160deg,#0f1826,#0a0e14);padding:40px 34px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;background:radial-gradient(circle,rgba(34,211,238,.16),transparent 70%)}
+  .hero h1{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.18}
+  .hero h1 span{color:var(--accent)}
+  .hero .sub{margin-top:16px;font-size:16px;color:var(--ink);max-width:700px}
+  .hero .subline{margin-top:6px}
+  .hero .who{margin-top:20px;font-size:14.5px;color:var(--dim);border-top:1px dashed var(--line);padding-top:16px}
+  .hero .who b{color:var(--ink)}
+  /* section */
+  h2{font-size:13px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;margin:38px 0 16px;font-weight:700}
+  /* capability grid (3 硬亮点) */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .cap{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:22px 20px 20px}
+  .cap .ic{font-size:24px}
+  .cap h3{font-size:16px;margin:11px 0 5px;font-weight:700;line-height:1.3}
+  .cap h3 .en{font-weight:500;display:block;font-size:.78em}
+  .cap p{font-size:13.5px;color:var(--dim)}
+  .chips{margin-top:13px;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:11.5px;color:var(--accent);background:rgba(34,211,238,.08);border-radius:6px;padding:3px 9px;white-space:nowrap}
+  .chip.g{color:var(--accent2);background:rgba(52,211,153,.08)}
+  /* full feature list */
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .fcol{border:1px solid var(--line);border-radius:14px;background:var(--card2);padding:16px 18px}
+  .fcol h4{font-size:13.5px;color:var(--accent);margin-bottom:9px;font-weight:700}
+  .fcol ul{list-style:none}
+  .fcol li{font-size:12.5px;color:#cdd9e6;padding:3.5px 0 3.5px 15px;position:relative;line-height:1.5}
+  .fcol li::before{content:"";position:absolute;left:0;top:11px;width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.55}
+  .fcol li b{color:#fff;font-weight:600}
+  /* deal (soft, 一句合作) */
+  .deal{border:1px solid var(--line);border-radius:18px;background:linear-gradient(160deg,#101a28,#0a0e14);padding:28px 28px;margin-top:6px}
+  .deal h3{font-size:19px;font-weight:800;line-height:1.4}
+  .deal h3 .en{font-weight:500;font-size:.74em}
+  .deal .modes{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .mode{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .mode .k{color:var(--accent);font-size:13px;font-weight:700}
+  .mode .v{font-size:12.5px;color:var(--dim);margin-top:5px}
+  .cta{margin-top:22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;border-top:1px dashed var(--line);padding-top:20px}
+  .cta .big{font-size:18px;font-weight:700}
+  .cta .contact{font-size:13.5px;color:var(--dim)}
+  .cta .contact b{color:var(--accent)}
+  .foot{margin-top:28px;text-align:center;color:var(--dim);font-size:12px}
+  @media (max-width:680px){.grid,.feats{grid-template-columns:1fr}.hero h1{font-size:28px}.mode{min-width:100%}}
+  @media print{body{background:#fff;color:#111}.hero,.cap,.deal,.fcol{break-inside:avoid}}
 </style>
 </head>
 <body>
-  <div class="box">
-    <span class="kchip">Product One-pager · 产品单页</span>
-    <h1>这份物料正在整理中</h1>
-    <p>产品单页(首次触达用的一页纸钩子)还没放上来。完整内容请先看《解决方案总览》与《实战案例》。</p>
-    <div class="links">
-      <a href="solution-overview.html">解决方案总览</a>
-      <a class="ghost" href="cases.html">实战案例</a>
-      <a class="ghost" href="index.html">返回首页</a>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="top">
+    <div class="brand">
+      <div class="logo">🤖</div>
+      <div><b>你的品牌 / Your Brand</b><span class="en">设备端 AI 视觉全栈 · On-device AI Vision Stack</span></div>
+    </div>
+    <div class="tagchip">17 年安防摄像头深度 · 17 yrs in security cameras</div>
+  </div>
+
+  <!-- HERO · 场景钩子 -->
+  <div class="hero">
+    <h1>拔了网线,<span>它还在认人。</span></h1>
+    <div class="sub">把别人做不出来的 <b class="accent">设备端 AI 视觉难题</b>,做进你的量产设备里——<br class="subline">多平台固件 · 设备端 YOLO + 视觉大模型 · 云边端一体,断网照常。</div>
+    <div class="who"><b>你有市场和渠道,我有这套别人做不出的 AI 全栈。</b> 不接通用外包,只解硬题。<span class="en">You own the market. I own the on-device AI stack others can't build.</span></div>
+  </div>
+
+  <!-- 3 硬亮点 -->
+  <h2>三个别人给不了的硬亮点 · Why me(均为真机验证)</h2>
+  <div class="grid">
+
+    <div class="cap">
+      <div class="ic">🧠</div>
+      <h3>设备端视觉大模型<span class="en">On-device VLM</span></h3>
+      <p>不只是识别物体——设备看着画面,看懂整个场景,还能读出画面里的文字、开放式问答。<b class="accent">断网可用</b>,这是云端 API 做不到的。</p>
+      <div class="chips"><span class="chip">场景理解</span><span class="chip">画面读字 OCR</span><span class="chip">本地 + 云端双模式</span></div>
+    </div>
+
+    <div class="cap">
+      <div class="ic">🧩</div>
+      <h3>一套固件,六大平台<span class="en">One Firmware, 6 SoCs</span></h3>
+      <p>君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达——六大平台共用一套固件,换芯片不重写,出货不卡脖子、不被供应链绑死。</p>
+      <div class="chips"><span class="chip">6 大 SoC 平台</span><span class="chip">编译期选型</span><span class="chip">OTA 在线升级</span></div>
+    </div>
+
+    <div class="cap">
+      <div class="ic">🌐</div>
+      <h3>云边端整套白标<span class="en">Full-stack White-label</span></h3>
+      <p>设备 + App + Web 门户整套换成你的品牌、你的色、你的语言;全球部署、就近接入。你卖的是你的产品,不是别人的影子。</p>
+      <div class="chips"><span class="chip">整套白标</span><span class="chip">全球部署</span><span class="chip">美洲/亚洲/欧洲</span></div>
+    </div>
+
+  </div>
+
+  <!-- FULL FEATURE LIST · 它独有的杀手锏 -->
+  <h2>全功能清单 · Full Feature List</h2>
+  <div class="feats">
+
+    <div class="fcol">
+      <h4>📡 实时与远程</h4>
+      <ul>
+        <li><b>WebRTC 远程实时查看</b>(随时随地)</li>
+        <li>多路摄像头<b>同屏直播</b></li>
+        <li>RTC / RTSP <b>多传输自动回退</b></li>
+        <li>安全隧道:<b>零开放端口</b>远程运维</li>
+      </ul>
+    </div>
+
+    <div class="fcol">
+      <h4>📹 录像</h4>
+      <ul>
+        <li><b>循环 / 缩时 / 预录 / 手动</b>录像</li>
+        <li><b>事件报警录像(EMR)</b></li>
+        <li>本地 / 云端 / <b>本地+云端</b>可选</li>
+        <li><b>H.265 & H.264</b> · 1080P</li>
+      </ul>
+    </div>
+
+    <div class="fcol">
+      <h4>⏪ 回放与检索</h4>
+      <ul>
+        <li>本地回放 · 云回放 · 图片回放</li>
+        <li>24h 时间轴 + <b>本地高速索引</b></li>
+        <li><b>多路同步回放</b></li>
+        <li>按<b>日期 / 设备 / 通道</b>筛选</li>
+      </ul>
+    </div>
+
+    <div class="fcol">
+      <h4>🧠 设备端 AI</h4>
+      <ul>
+        <li><b>YOLO 多类目标检测</b> + OSD 检测框</li>
+        <li><b>视觉大模型场景问答</b> + 画面读字(OCR)</li>
+        <li>本地 / 云端大模型 <b>双模式</b></li>
+        <li><b>Foxglove / ROS</b> 推送</li>
+      </ul>
+    </div>
+
+    <div class="fcol">
+      <h4>🧩 平台 · 云 · 门户</h4>
+      <ul>
+        <li><b>六大 SoC 一套固件</b>(君正/海思/瑞芯微/全志/联咏/英伟达)</li>
+        <li><b>OTA 在线升级</b> · 设备配网 · 工厂测试</li>
+        <li>云端接入 · <b>全球部署</b>(美洲/亚洲/欧洲)</li>
+        <li><b>整套白标</b>:品牌 / 主题色 / 多语言门户</li>
+      </ul>
+    </div>
+
+    <div class="fcol">
+      <h4>🛡️ 可靠性与运维</h4>
+      <ul>
+        <li><b>看门狗自愈</b> · 数据库自动修复</li>
+        <li>优雅关机 · <b>断电保护</b></li>
+        <li>连续 <b>1 年不重启不丢录像</b></li>
+        <li>累计 <b>14.7 万文件无损</b> · 存储自动管理</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- DEAL · 一句合作(软) -->
+  <h2>合作方式 · How we work</h2>
+  <div class="deal">
+    <h3>按你的方式来,把这套能力变成你的产品。<span class="en"> Your model — co-dev, module license, or full buyout.</span></h3>
+    <div class="modes">
+      <div class="mode"><div class="k">联合开发</div><div class="v">按你的设备和场景定制落地,一起把方案跑通。</div></div>
+      <div class="mode"><div class="k">模块授权</div><div class="v">把难能力做成可集成模块,授权进你的产品线。</div></div>
+      <div class="mode"><div class="k">代码买断</div><div class="v">整套源码交付,后续你自己掌控、自由迭代。</div></div>
+    </div>
+    <div class="cta">
+      <div class="big">你有难题,我有 17 年。先聊聊你卡在哪一环?</div>
+      <div class="contact">联系 / Contact:<b>微信 13826173658</b> · 邮箱 493148469@qq.com</div>
     </div>
   </div>
+
+  <div class="foot">设备端 AI 视觉全栈 · 内容基于真机验证 · 完整方案见《解决方案总览》 · © 你的品牌</div>
+
+</div>
+<script src="fallback.js"></script>
 </body>
 </html>
