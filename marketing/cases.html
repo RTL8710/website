@@ -1,0 +1,290 @@
+<!doctype html>
+<!--
+  实战案例 · Cases · 2026-06-20
+  4 个真实客户案例(对外已脱敏):行车记录仪、人形机器人、安防摄像头、智能眼镜。
+  提示(仅你自己看):各段下方 HTML 注释里保留了真名(VIOFO/众擎/维拍/加南);确认对方同意公开署名后,再换回真名。
+  与 solution-overview / onepager / cooperation-invite 成套。
+-->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>实战案例 · 4 个真实客户,把别人做不出的 AI 做进了量产设备 | Cases</title>
+<style>
+  :root{--bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;--ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;--line:#1f2c42;--accent:#22d3ee;--gold:#f5c451;--green:#34d399;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 26px}
+  b{color:#fff;font-weight:700}
+  .eyebrow{font-size:12.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-weight:700}
+  section{padding:46px 0;border-top:1px solid var(--line)}
+  section h2{font-size:24px;font-weight:800;margin:6px 0 8px}
+  section .sub{color:var(--dim);font-size:14.5px;max-width:740px;margin-bottom:24px}
+
+  /* HERO */
+  .hero{background:radial-gradient(80% 120% at 80% -10%,rgba(34,211,238,.16),transparent 60%),radial-gradient(70% 90% at 0% 0%,rgba(14,165,183,.12),transparent 55%),linear-gradient(180deg,#0b1120,#0a0e17);padding:66px 0 48px;border-top:none}
+  .hero .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
+  .hero h1{font-size:40px;line-height:1.16;font-weight:850;letter-spacing:-.02em;margin:22px 0 14px;max-width:880px}
+  .hero h1 .hl{background:linear-gradient(90deg,#22d3ee,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .lead{font-size:16.5px;color:var(--dim);max-width:740px}
+  .hero .lead b{color:#dbeafe}
+  .hero .me{margin-top:22px;display:inline-flex;flex-wrap:wrap;gap:10px}
+  .hero .me span{font-size:13px;color:#cfeaf2;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.22);border-radius:999px;padding:7px 15px}
+  .hero .me span b{color:var(--accent)}
+
+  /* CASE CARD */
+  .case{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:18px}
+  .case .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:22px 26px 0}
+  .case .seg{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--accent);background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);border-radius:7px;padding:4px 10px}
+  .badge{font-size:11px;font-weight:700;border-radius:7px;padding:4px 10px;letter-spacing:.04em}
+  .badge.money{color:#0a0e17;background:var(--gold)}
+  .badge.client{color:var(--accent);background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.35)}
+  .case .body{padding:14px 26px 24px}
+  .case .client{font-size:12.5px;color:var(--green);font-weight:700;letter-spacing:.02em;margin-bottom:2px}
+  .case .plat{font-size:11.5px;color:var(--dim);margin:2px 0 2px}
+  .case .plat b{color:#cde9f1;font-weight:600}
+  .case h3{font-size:21px;font-weight:800;margin:2px 0 2px}
+  .case h3 small{display:block;font-size:12px;color:var(--faint);font-weight:500;letter-spacing:.05em;margin-top:3px}
+  .case .grid{display:grid;grid-template-columns:1fr 1.25fr;gap:18px;margin-top:16px}
+  .blk .lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px}
+  .blk.pain .lab{color:var(--gold)}
+  .blk.did .lab{color:var(--accent)}
+  .blk p{font-size:13px;color:var(--dim)}
+  .blk p b{color:#cde9f1}
+  .blk.pain{border-left:2px solid rgba(245,196,81,.5);padding-left:14px}
+  .did ul{list-style:none;margin-top:2px}
+  .did li{font-size:12.5px;color:var(--dim);padding:3px 0 3px 16px;position:relative}
+  .did li::before{content:"✓";position:absolute;left:0;top:3px;color:var(--green);font-weight:800;font-size:12px}
+  .did li b{color:#eaf6fb}
+  /* result strip */
+  .res{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+  .res .r{flex:1;min-width:150px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .res .r .n{font-size:22px;font-weight:850;color:#fff;letter-spacing:-.02em}
+  .res .r .n small{font-size:13px;color:var(--accent);font-weight:700;margin-left:3px}
+  .res .r .l{font-size:11.5px;color:var(--dim);margin-top:3px}
+  .chips{margin-top:16px;display:flex;flex-wrap:wrap;gap:7px}
+  .chips .c{font-size:11.5px;color:var(--accent);background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);border-radius:7px;padding:4px 10px}
+  .fill{color:var(--gold);border-bottom:1px dashed rgba(245,196,81,.7);padding:0 3px;font-style:normal}
+
+  .legend{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:12.5px;color:var(--dim);margin-top:6px}
+  .legend b{color:var(--gold)}
+
+  .cta{text-align:center;background:radial-gradient(70% 130% at 50% 0%,rgba(34,211,238,.14),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
+  .cta h2{font-size:27px;max-width:760px;margin:8px auto 12px}
+  .cta .line{color:var(--dim);font-size:15px;max-width:660px;margin:0 auto 20px}
+  .cta .ct{font-size:14px;color:var(--dim)}
+  .cta .ct b{color:var(--accent)}
+  .foot{padding:30px 0 56px;color:var(--faint);font-size:12px;text-align:center}
+
+  @media(max-width:820px){.case .grid{grid-template-columns:1fr}.hero h1{font-size:31px}.res .r{min-width:100%}}
+  @media print{
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+    @page{margin:10mm}
+    section{padding:10px 0 !important;break-inside:auto;border-top-color:#1f2c42}
+    .hero{padding:22px 0 18px !important}
+    .hero h1{font-size:28px;margin:14px 0 12px}
+    .eyebrow{margin-bottom:0}
+    section h2{font-size:18px;margin:2px 0 8px !important}
+    /* PDF 页宽 <820px 会误触手机单列布局,这里强制恢复横向,避免卡片过高 */
+    .case .grid{grid-template-columns:1fr 1.25fr !important;margin-top:10px;gap:14px}
+    .res{flex-wrap:wrap}
+    .res .r{min-width:120px !important;padding:9px 13px}
+    /* 整张卡尽量不跨页;放不下时保护内部小块不被从中间切断 */
+    .case{break-inside:avoid;margin-bottom:8px}
+    .case .head,.case .grid,.res,.chips{break-inside:avoid}
+    .case .head{padding:14px 22px 0}
+    .case .body{padding:10px 22px 16px}
+    .case h3{font-size:17px;margin:4px 0 0}
+    .did li{padding:2px 0 2px 16px}
+    .chips{margin-top:10px}
+    .cta{padding:22px 0 !important}
+    .foot{padding:12px 0 !important}
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <span class="kchip">Cases · 实战案例</span>
+    <h1>4 个真实客户,<br><span class="hl">把别人做不出的 AI 做进了量产设备</span>。</h1>
+    <p class="lead">不是 PPT 构想——<b>行车记录仪</b>、<b>人形机器人</b>、<b>安防摄像头</b>、<b>智能眼镜</b>:同一套「系统架构 + 音视频编解码 + 端侧 AI 视觉 + 可靠录像 + WebRTC + 云端」的能力,落进了四类完全不同的设备里——从联咏/瑞芯微到英伟达/地平线/海思/君正,均已真机跑通。</p>
+    <div class="me">
+      <span><b>17 年</b> 安防摄像头深度</span>
+      <span><b>云·边·端</b> 一体全栈</span>
+      <span>设备端 <b>YOLO + 视觉大模型</b></span>
+      <span>覆盖产线合计 <b>~15 万台/月</b> 量产出货</span>
+    </div>
+  </div>
+</div>
+
+<!-- CASE 1 · VIOFO 行车记录仪 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Case 01 · 客户方案</div>
+    <h2 style="margin-bottom:18px">行车记录仪 —— 把端侧 AI 做进量产记录仪</h2>
+    <div class="case">
+      <div class="head"><span class="seg">交通 / 商用车</span><span class="badge client">客户方案 · Client project</span></div>
+      <div class="body">
+        <!-- 真名 VIOFO:确认对方同意公开署名后,可把下一行换回真名 -->
+        <div class="client">客户:国内头部行车记录仪品牌</div>
+        <div class="plat">运行平台:<b>联咏 Novatek / 瑞芯微 Rockchip</b></div>
+        <h3>把端侧 AI 视觉与可靠录像做进低算力量产记录仪<small>On-device AI vision + rugged recording for mass-produced dashcams</small></h3>
+        <div class="grid">
+          <div class="blk pain">
+            <div class="lab">难点 · 卡在哪</div>
+            <p>记录仪算力低、成本敏感,音视频编解码要稳、AI 要在<b>设备本地</b>跑,还得解决<b>掉电丢录像</b>、预录、缩时这些量产硬骨头。</p>
+          </div>
+          <div class="blk did">
+            <div class="lab">我解决了什么</div>
+            <ul>
+              <li><b>音视频编解码</b>:记录仪核心链路调稳</li>
+              <li><b>AI 智能视觉</b>:端侧识别落地</li>
+              <li><b>掉电不丢录像</b> · <b>预录</b> · <b>缩时录像</b></li>
+              <li><b>WebRTC</b> 远程实时查看 · <b>云端录像</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="res">
+          <div class="r"><div class="n">~300<small>ms</small></div><div class="l">音视频对接延迟(实测)</div></div>
+          <div class="r"><div class="n">5<small>万/月</small></div><div class="l">量产出货(记录仪产线)</div></div>
+          <div class="r"><div class="n">2<small>个月</small></div><div class="l">开发完成 · 上线</div></div>
+        </div>
+        <div class="chips"><span class="c">音视频编解码</span><span class="c">端侧 AI 视觉</span><span class="c">掉电不丢录像</span><span class="c">预录/缩时</span><span class="c">WebRTC</span><span class="c">云端录像</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CASE 2 · 众擎 具身智能机器人 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Case 02 · 客户方案</div>
+    <h2 style="margin-bottom:18px">具身智能机器人 —— 给机器人一双"看得懂"的眼睛</h2>
+    <div class="case">
+      <div class="head"><span class="seg">智能机器人 / 具身智能</span><span class="badge client">客户方案 · Client project</span></div>
+      <div class="body">
+        <!-- 真名 众擎智能:确认授权后可换回 -->
+        <div class="client">客户:国内人形机器人厂商</div>
+        <div class="plat">运行平台:<b>英伟达 NVIDIA / 地平线 Horizon / 瑞芯微 Rockchip</b></div>
+        <h3>机器人视觉架构 + 边缘 AI,直连感知与决策<small>Robot vision architecture + edge AI for perception & decision</small></h3>
+        <div class="grid">
+          <div class="blk pain">
+            <div class="lab">难点 · 机器人现场要求</div>
+            <p>机器人要<b>本地实时视觉、低延迟</b>,视觉要融进整机架构、参与<b>环境感知与决策</b>,现场还得长期稳、不丢数据。</p>
+          </div>
+          <div class="blk did">
+            <div class="lab">我解决了什么</div>
+            <ul>
+              <li><b>机器人视觉架构</b>:从 0 搭整套视觉链路</li>
+              <li><b>音视频编解码</b> · <b>AI 智能视觉(环境感知 / 决策)</b></li>
+              <li><b>掉电不丢录像</b> · <b>预录</b> · <b>缩时录像</b></li>
+              <li><b>WebRTC</b> 远程实时 · <b>云端录像</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="res">
+          <div class="r"><div class="n">~300<small>ms</small></div><div class="l">音视频对接延迟(实测)</div></div>
+          <div class="r"><div class="n">1–3<small>s</small></div><div class="l">AI 场景理解推理延迟</div></div>
+          <div class="r"><div class="n">500<small>台/月</small></div><div class="l">量产出货(机器人产线)</div></div>
+          <div class="r"><div class="n">2<small>个月</small></div><div class="l">开发完成 · 上线</div></div>
+        </div>
+        <div class="chips"><span class="c">机器人视觉架构</span><span class="c">环境感知/决策</span><span class="c">音视频编解码</span><span class="c">掉电不丢录像</span><span class="c">WebRTC</span><span class="c">云端录像</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CASE 3 · 维拍 安防摄像头 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Case 03 · 客户方案</div>
+    <h2 style="margin-bottom:18px">安防摄像头 —— 不只是"数人头",是"看懂现场"</h2>
+    <div class="case">
+      <div class="head"><span class="seg">智能安防</span><span class="badge client">客户方案 · Client project</span></div>
+      <div class="body">
+        <!-- 真名 维拍智能:确认授权后可换回 -->
+        <div class="client">客户:智能安防摄像头厂商</div>
+        <div class="plat">运行平台:<b>君正 Ingenic / 海思 HiSilicon / 瑞芯微 Rockchip</b></div>
+        <h3>摄像头系统架构 + 端侧 AI,断网也能认人读字<small>Camera system architecture + edge AI, works offline</small></h3>
+        <div class="grid">
+          <div class="blk pain">
+            <div class="lab">难点 · 行业通病</div>
+            <p>整套摄像头系统架构要从底层搭起,音视频编解码要稳;AI 不能只"数物体"、要<b>看懂场景</b>;还得解决掉电丢录像、预录、缩时。</p>
+          </div>
+          <div class="blk did">
+            <div class="lab">我解决了什么</div>
+            <ul>
+              <li><b>摄像头系统架构</b>:整套从底层搭通</li>
+              <li><b>音视频编解码</b> · <b>AI 智能视觉</b>(检测 + 看懂场景/读字)</li>
+              <li><b>掉电不丢录像</b> · <b>预录</b> · <b>缩时录像</b></li>
+              <li><b>WebRTC</b> 远程实时 · <b>云端录像</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="res">
+          <div class="r"><div class="n">14.7<small>万</small></div><div class="l">累计录像文件无损(真机)</div></div>
+          <div class="r"><div class="n">100<small>%</small></div><div class="l">AI 设备本地推理 · 断网可用</div></div>
+          <div class="r"><div class="n">10<small>万/月</small></div><div class="l">量产出货(摄像头产线)</div></div>
+          <div class="r"><div class="n">2<small>个月</small></div><div class="l">开发完成 · 上线</div></div>
+        </div>
+        <div class="chips"><span class="c">摄像头系统架构</span><span class="c">音视频编解码</span><span class="c">端侧 AI 视觉</span><span class="c">掉电不丢录像</span><span class="c">WebRTC</span><span class="c">云端录像</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CASE 4 · 加南 智能眼镜 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Case 04 · 客户方案</div>
+    <h2 style="margin-bottom:18px">智能眼镜 —— 戴在脸上的"会对话的视觉"</h2>
+    <div class="case">
+      <div class="head"><span class="seg">智能眼镜 / 可穿戴</span><span class="badge client">客户方案 · Client project</span></div>
+      <div class="body">
+        <!-- 真名 加南科技:确认授权后可换回 -->
+        <div class="client">客户:智能眼镜厂商</div>
+        <div class="plat">运行平台:<b>君正 Ingenic</b></div>
+        <h3>极致功耗体积下的系统架构 + AI 视觉对话<small>System architecture + visual-LLM chat under wearable constraints</small></h3>
+        <div class="grid">
+          <div class="blk pain">
+            <div class="lab">难点 · 可穿戴约束</div>
+            <p>眼镜体积/功耗极限,系统架构与音视频编解码都要极致精简;AI 要做到<b>看着画面直接对话</b>,还得解决掉电丢录像、预录、缩时。</p>
+          </div>
+          <div class="blk did">
+            <div class="lab">我解决了什么</div>
+            <ul>
+              <li><b>摄像头系统架构</b>:可穿戴形态下搭通</li>
+              <li><b>音视频编解码</b> · <b>AI 智能视觉对话</b>(看懂画面、读字、问答)</li>
+              <li><b>掉电不丢录像</b> · <b>预录</b> · <b>缩时录像</b></li>
+              <li><b>WebRTC</b> 远程实时 · <b>云端录像</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="res">
+          <div class="r"><div class="n">VLM</div><div class="l">视觉大模型对话 · 看懂+读字</div></div>
+          <div class="r"><div class="n">断网</div><div class="l">本地可跑 · 不必依赖云</div></div>
+          <div class="r"><div class="n">5000<small>台/月</small></div><div class="l">量产出货(眼镜产线)</div></div>
+          <div class="r"><div class="n">2<small>个月</small></div><div class="l">开发完成 · 上线</div></div>
+        </div>
+        <div class="chips"><span class="c">可穿戴系统架构</span><span class="c">音视频编解码</span><span class="c">AI 视觉对话</span><span class="c">掉电不丢录像</span><span class="c">WebRTC</span><span class="c">云端录像</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="wrap">
+    <div class="eyebrow">Let's talk</div>
+    <h2>记录仪、机器人、摄像头、眼镜都跑通了——你的设备是下一个。</h2>
+    <p class="line">四类完全不同的设备,用的是同一套端侧 AI 视觉栈。换成你的硬件,只是把这套成熟能力搬过去。先聊聊你卡在哪一环。</p>
+    <p class="ct">联系 / Contact:<b>微信 13826173658</b> · 邮箱 493148469@qq.com · 深圳</p>
+  </div>
+</section>
+
+<div class="foot">实战案例 · 内容均为真机验证 · 完整方案见《解决方案总览》</div>
+
+</body>
+</html>

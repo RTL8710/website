@@ -1,0 +1,23 @@
+{
+  "name": "promo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "render:v": "remotion render PromoVertical out/promo-vertical.mp4",
+    "render:h": "remotion render PromoHorizontal out/promo-horizontal.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.481",
+    "@remotion/google-fonts": "^4.0.481",
+    "@remotion/media": "^4.0.481",
+    "@remotion/transitions": "^4.0.481",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "remotion": "^4.0.481"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3"
+  }
+}
