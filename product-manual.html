@@ -1,0 +1,352 @@
+<!doctype html>
+<!--
+  产品操作说明书(Web 控制台)· 自动逐页截屏生成 2026-06-20
+  截图来自真实设备 Web 门户(smartRobot · 固件 0.1.50)。图片在 manual-shots/ 目录。
+  用法:Chrome 打开 → 阅读,或「打印 → 存为 PDF」交付给客户。描述文字可按需精修。
+-->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>产品操作说明书 · Device Web Console Manual</title>
+<style>
+  :root{--ink:#1a2230;--dim:#5b6b7e;--line:#e3e8ef;--accent:#0ea5b7;--bg:#f6f8fb;--card:#fff;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
+  a{color:var(--accent);text-decoration:none}
+  .cover{text-align:center;padding:80px 20px 60px;border-bottom:2px solid var(--line);margin-bottom:8px}
+  .cover .kchip{display:inline-block;font-size:13px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:5px 16px;margin-bottom:22px;letter-spacing:.04em}
+  .cover h1{font-size:38px;font-weight:800;letter-spacing:-.02em}
+  .cover .en{color:var(--dim);font-size:17px;margin-top:8px;font-weight:500}
+  .cover .meta{margin-top:26px;display:inline-flex;gap:24px;flex-wrap:wrap;justify-content:center;font-size:13.5px;color:var(--dim)}
+  .cover .meta b{color:var(--ink)}
+  .ov{margin:34px 0 10px}
+  .ov .lead{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;font-size:14.5px;color:#3a4556}
+  .ov .lead b{color:var(--ink)}
+  .ov h2{font-size:14px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin:30px 0 14px}
+  .hl{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .hl .c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .hl .c .ic{font-size:22px}
+  .hl .c h4{font-size:15px;margin:8px 0 4px;font-weight:700}
+  .hl .c h4 small{color:var(--dim);font-weight:500;font-size:12px;display:block}
+  .hl .c p{font-size:12.5px;color:#5b6b7e}
+  .specs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 28px}
+  .specs .r{display:flex;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .specs .r .k{color:var(--accent);font-weight:600;min-width:104px;flex-shrink:0}
+  .specs .r .v{color:#3a4556}
+  @media(max-width:760px){.hl{grid-template-columns:1fr}.specs{grid-template-columns:1fr}}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin:30px 0}
+  .toc h2{font-size:14px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+  .toc .grp{font-size:12px;color:var(--accent);letter-spacing:.08em;margin:14px 0 6px;font-weight:700}
+  .toc ol{list-style:none;columns:2;column-gap:36px}
+  .toc li{font-size:14px;padding:3px 0;break-inside:avoid}
+  .toc li span{color:var(--dim);margin-right:8px}
+  .ghead{font-size:13px;letter-spacing:.16em;color:#fff;background:var(--accent);text-transform:uppercase;padding:8px 16px;border-radius:8px;margin:46px 0 8px;font-weight:700}
+  .page{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:18px 0;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .page .hd{padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+  .page .hd .no{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.05em}
+  .page .hd h3{font-size:20px;font-weight:700;margin-top:2px}
+  .page .hd h3 small{color:var(--dim);font-weight:500;font-size:14px;margin-left:8px}
+  .page .body{display:grid;grid-template-columns:1.35fr 1fr;gap:0}
+  .page .shot{padding:16px;background:#0c121d;display:flex;align-items:flex-start;justify-content:center}
+  .page .shot img{width:100%;border-radius:8px;border:1px solid rgba(255,255,255,.08);display:block}
+  .page .desc{padding:20px 22px}
+  .page .desc p{font-size:13.5px;color:var(--ink);margin-bottom:12px}
+  .page .desc ul{list-style:none}
+  .page .desc li{font-size:13px;color:#3a4556;padding:4px 0 4px 16px;position:relative}
+  .page .desc li::before{content:"";position:absolute;left:0;top:11px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .page .desc li b{color:var(--ink)}
+  .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:50px;border-top:1px solid var(--line);padding-top:22px}
+  @media (max-width:760px){.page .body{grid-template-columns:1fr}.toc ol{columns:1}}
+  @media print{body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
+</style>
+</head>
+<body>
+
+  <div class="cover">
+    <div class="kchip">设备端 AI 视觉 · Web 控制台</div>
+    <h1>产品操作说明书</h1>
+    <div class="en">Device Web Console — User Manual</div>
+    <div class="meta">
+      <div>设备型号 / Model:<b>smartRobot</b></div>
+      <div>固件 / Firmware:<b>v0.1.50</b></div>
+      <div>控制台 / Console:<b>LAN & WAN · 多语言</b></div>
+      <div>品牌 / Brand:<b>____(可白标)</b></div>
+    </div>
+  </div>
+
+<div class="wrap">
+
+  <!-- ============ OVERVIEW ============ -->
+  <div class="ov">
+    <div class="lead">
+      这是一套<b>设备端 AI 视觉一体化产品</b>:从<b>多平台固件(瑞芯微 / 海思 / 英伟达等)</b>、<b>设备端边缘 AI(YOLO 检测 + 视觉大模型)</b>,到 <b>AWS 云</b>、<b>Flutter App</b> 与本 <b>Web 控制台</b>,云边端全链路打通。
+      它最大的不同在于:<b>AI 在设备本地算力上运行</b>——拔了网线也能检测、也能对画面做自然语言问答;同时具备工业级录像可靠性(多模式录像、连续运行不丢录像)与<b>整套可白标</b>的交付能力。
+    </div>
+
+    <h2>核心亮点 · Core Highlights</h2>
+    <div class="hl">
+      <div class="c"><div class="ic">📡</div><h4>WebRTC 实时视频<small>Low-latency Live</small></h4><p>基于 WebRTC 的远程实时查看:P2P 低延迟、自带内网穿透,<b>无需端口映射</b>即可随时随地看;RTC / RTSP 多传输自动回退。</p></div>
+      <div class="c"><div class="ic">🧠</div><h4>设备端视觉大模型<small>On-device VLM</small></h4><p>对实时画面开放式问答,看懂场景、读出画面文字(OCR),本地 + OpenAI 双模式,断网可用。</p></div>
+      <div class="c"><div class="ic">🎯</div><h4>设备端 AI 检测<small>Edge AI · YOLO</small></h4><p>YOLO 多类目标检测,检测框直接画在画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。</p></div>
+      <div class="c"><div class="ic">📹</div><h4>多摄像头同屏<small>Multi-stream</small></h4><p>单设备多路:实时多路同屏直播,本地回放多路同步复盘,共用一条时间轴。</p></div>
+      <div class="c"><div class="ic">🛡️</div><h4>录像可靠不丢<small>Never-lose</small></h4><p>循环 / 缩时 / 预录 / 手动 + 事件录像;本地+云端;看门狗自愈、断电保护,连续运行不丢录像。</p></div>
+      <div class="c"><div class="ic">🧩</div><h4>一套固件多平台<small>One Firmware</small></h4><p>君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达六大平台一套固件,换芯片不重写。</p></div>
+      <div class="c"><div class="ic">🌐</div><h4>云边端 + 全球白标<small>White-label</small></h4><p>设备 + App + Web 门户整套可白标(品牌/主题色/多语言),全球三区域,OTA 在线升级。</p></div>
+    </div>
+
+    <h2>功能特点一览 · Specifications</h2>
+    <div class="specs">
+      <div class="r"><div class="k">实时直播</div><div class="v">WebRTC 远程查看 · 多路同屏 · RTC/RTSP 多传输回退</div></div>
+      <div class="r"><div class="k">设备端 AI</div><div class="v">YOLO 多类检测 + OSD · 视觉大模型问答/读字 · Foxglove</div></div>
+      <div class="r"><div class="k">录像模式</div><div class="v">循环 / 缩时 / 预录 / 手动 / 事件报警(EMR)</div></div>
+      <div class="r"><div class="k">录像规格</div><div class="v">1920×1080 · H.265 / H.264 · 本地 / 云端 / 双存</div></div>
+      <div class="r"><div class="k">回放检索</div><div class="v">本地 / 云端 / 图片回放 · 24h 时间轴 · 多路同步 · 多维筛选</div></div>
+      <div class="r"><div class="k">存储</div><div class="v">本地存储管理 · 自动覆盖 · 云存储</div></div>
+      <div class="r"><div class="k">远程运维</div><div class="v">AWS IoT 安全隧道(零开放端口) · OTA 在线升级</div></div>
+      <div class="r"><div class="k">芯片平台</div><div class="v">君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达(一套固件)</div></div>
+      <div class="r"><div class="k">云与门户</div><div class="v">AWS 接入 · 全球三区域(东京/美洲/巴黎) · 多语言门户</div></div>
+      <div class="r"><div class="k">可靠性</div><div class="v">看门狗自愈 · 数据库自动修复 · 断电保护 · 长期运行不丢录像</div></div>
+      <div class="r"><div class="k">交付方式</div><div class="v">设备 + App + Web 整套白标(品牌 / 主题色 / 语言可换)</div></div>
+      <div class="r"><div class="k">访问方式</div><div class="v">局域网 LAN + 广域网 WAN · 安全登录</div></div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h2>目录 · Contents</h2>
+    <div class="grp">MONITOR · 监控</div>
+    <ol>
+      <li><span>01</span><a href="#p1">Home 实时监控</a></li>
+      <li><span>02</span><a href="#p2">Video Playback 本地回放</a></li>
+      <li><span>03</span><a href="#p3">Cloud Playback 云端回放</a></li>
+      <li><span>04</span><a href="#p4">Image Playback 图片回放</a></li>
+      <li><span>05</span><a href="#p5">Chat Device 视觉大模型对话</a></li>
+    </ol>
+    <div class="grp">SETTINGS · 设置</div>
+    <ol>
+      <li><span>06</span><a href="#p6">Video Settings 视频设置</a></li>
+      <li><span>07</span><a href="#p7">AI Detection AI 检测</a></li>
+      <li><span>08</span><a href="#p8">OpenAI Service 云端大模型</a></li>
+      <li><span>09</span><a href="#p9">Audio Settings 音频设置</a></li>
+      <li><span>10</span><a href="#p10">Record Settings 录像设置</a></li>
+      <li><span>11</span><a href="#p11">Storage 存储</a></li>
+      <li><span>12</span><a href="#p12">Network 网络</a></li>
+      <li><span>13</span><a href="#p13">Cloud 云接入</a></li>
+    </ol>
+    <div class="grp">SYSTEM · 系统</div>
+    <ol>
+      <li><span>14</span><a href="#p14">Device Info 设备信息</a></li>
+      <li><span>15</span><a href="#p15">OTA Upgrade 在线升级</a></li>
+      <li><span>16</span><a href="#p16">Provisioning 配网激活</a></li>
+      <li><span>17</span><a href="#p17">Factory Test 工厂测试</a></li>
+      <li><span>18</span><a href="#p18">Debug Settings 调试设置</a></li>
+      <li><span>19</span><a href="#p19">Log 系统日志</a></li>
+      <li><span>20</span><a href="#p20">User 用户管理</a></li>
+      <li><span>21</span><a href="#p21">Help 帮助</a></li>
+      <li><span>22</span><a href="#p22">About 关于</a></li>
+    </ol>
+  </div>
+
+  <div class="ghead">MONITOR · 监控</div>
+
+  <div class="page" id="p1"><div class="hd"><div class="no">01</div><h3>Home<small>实时监控总览</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/01-home.png" alt="Home"></div>
+    <div class="desc"><p>登录后的实时监控主页,直接查看设备实时画面。</p><ul>
+      <li>多路摄像头<b>实时直播</b>(WebRTC,随时随地)</li>
+      <li>左右快捷工具:<b>截图 / 录制 / 对讲 / AI 画面布局 / 全屏 / 云端</b></li>
+      <li>底部 <b>Play / Mute</b> 控制播放与声音</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p2"><div class="hd"><div class="no">02</div><h3>Video Playback<small>本地录像回放</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/02-video-playback.png" alt="Video Playback"></div>
+    <div class="desc"><p>检索并回放设备本地录像,带 24 小时可视化时间轴。</p><ul>
+      <li>时间轴 <b>00:00–24:00</b>,分 <b>CAM1 / CAM2</b> 两路,<b>Loop / EMR / Timelapse</b> 三色区分</li>
+      <li>录像列表:每段含<b>时间 / 分辨率 1920×1080 / 编码 H.264 / 时长 / 大小 / 文件号</b></li>
+      <li>单段可 <b>截图(Jpeg) / 下载(Video) / 删除(Del)</b>;支持按类型筛选与翻页</li>
+      <li>累计文件号已达 <b>14.7 万+</b>,印证长期录制不丢</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p3"><div class="hd"><div class="no">03</div><h3>Cloud Playback<small>云端录像回放</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/03-cloud-playback.png" alt="Cloud Playback"></div>
+    <div class="desc"><p>回放已上云的录像,设备损坏/丢失也不影响取证。</p><ul>
+      <li>按<b>时间区间</b>检索云端录像</li>
+      <li>云端存<b>事件录像(EMR)· 1080P</b>,可分通道</li>
+      <li>与本地录像互为备份</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p4"><div class="hd"><div class="no">04</div><h3>Image Playback<small>抓拍图片回放</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/04-image-playback.png" alt="Image Playback"></div>
+    <div class="desc"><p>检索并查看设备抓拍的 JPEG 图片。</p><ul>
+      <li>按<b>时间</b>检索抓拍图</li>
+      <li>支持事件/定时抓拍图片浏览</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p5"><div class="hd"><div class="no">05</div><h3>Chat Device<small>视觉大模型对话</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/05-chat-device.png" alt="Chat Device"></div>
+    <div class="desc"><p><b>核心亮点。</b>对设备实时画面进行开放式自然语言问答。</p><ul>
+      <li>发一帧画面提问,设备端<b>视觉大模型</b>看懂场景并回答</li>
+      <li>可<b>描述场景类型、读出画面里的文字(OCR)</b>、推断环境</li>
+      <li>本地 VLM + OpenAI <b>双模式</b>,断网也可用</li>
+      <li>不是"数人头",是真正"看懂画面"</li>
+    </ul></div></div>
+  </div>
+
+  <div class="ghead">SETTINGS · 设置</div>
+
+  <div class="page" id="p6"><div class="hd"><div class="no">06</div><h3>Video Settings<small>视频设置</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/06-video-settings.png" alt="Video Settings"></div>
+    <div class="desc"><p>配置每路摄像头的视频参数。</p><ul>
+      <li><b>分辨率 / 码率 / 帧率</b></li>
+      <li>编码 <b>H.265 / H.264</b></li>
+      <li>画质 / OSD 叠加等</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p7"><div class="hd"><div class="no">07</div><h3>AI Detection<small>设备端 AI 检测</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/07-ai-detection.png" alt="AI Detection"></div>
+    <div class="desc"><p>设备本地算力上的 AI 目标检测配置。</p><ul>
+      <li><b>启用 AI 检测</b>(YOLO 多类目标)</li>
+      <li><b>绘制检测框(OSD)</b>:检测框直接画在画面上</li>
+      <li><b>Foxglove 推送</b>:检测结果进 ROS/机器人可视化栈</li>
+      <li>可按摄像头分别配置 + 高级参数</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p8"><div class="hd"><div class="no">08</div><h3>OpenAI Service<small>云端大模型接入</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/08-openai-service.png" alt="OpenAI Service"></div>
+    <div class="desc"><p>接入云端大模型服务,与本地 VLM 并存。</p><ul>
+      <li>配置 <b>OpenAI</b> 服务(对话 / 实时)</li>
+      <li>联网走云端大模型,断网回落本地 VLM</li>
+      <li>按成本 / 合规自由选择</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p9"><div class="hd"><div class="no">09</div><h3>Audio Settings<small>音频设置</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/09-audio-settings.png" alt="Audio Settings"></div>
+    <div class="desc"><p>音频采集与对讲相关配置。</p><ul>
+      <li><b>音量 / 编码 / 采样</b></li>
+      <li>实时音频 / 对讲</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p10"><div class="hd"><div class="no">10</div><h3>Record Settings<small>录像设置</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/10-record-settings.png" alt="Record Settings"></div>
+    <div class="desc"><p>录像策略与模式配置。</p><ul>
+      <li>模式:<b>循环 / 缩时 / 预录 / 手动 + 事件报警(EMR)</b></li>
+      <li>录像类型:<b>本地 / 云端 / 本地+云端</b></li>
+      <li>录像时长 / 预录时长 / 缩时帧率等参数</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p11"><div class="hd"><div class="no">11</div><h3>Storage<small>存储管理</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/11-storage.png" alt="Storage"></div>
+    <div class="desc"><p>本地存储容量与策略。</p><ul>
+      <li>容量 / 已用 / 剩余</li>
+      <li><b>自动覆盖</b>(满了循环写)</li>
+      <li>格式化 / 维护</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p12"><div class="hd"><div class="no">12</div><h3>Network<small>网络设置</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/12-network.png" alt="Network"></div>
+    <div class="desc"><p>设备网络配置。</p><ul>
+      <li>有线 / WiFi</li>
+      <li><b>IP / DHCP / DNS</b></li>
+      <li>多传输回退(RTC / RTSP)</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p13"><div class="hd"><div class="no">13</div><h3>Cloud<small>云接入</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/13-cloud.png" alt="Cloud"></div>
+    <div class="desc"><p>AWS 云接入与云存储配置。</p><ul>
+      <li>绑定云账号 / <b>全球区域</b>(东京 / 美洲 / 巴黎)</li>
+      <li>云录像 / 云存储开关</li>
+      <li>AWS IoT 安全隧道(零开放端口远程)</li>
+    </ul></div></div>
+  </div>
+
+  <div class="ghead">SYSTEM · 系统</div>
+
+  <div class="page" id="p14"><div class="hd"><div class="no">14</div><h3>Device Info<small>设备信息</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/14-device-info.png" alt="Device Info"></div>
+    <div class="desc"><p>设备基本信息与系统操作。</p><ul>
+      <li><b>型号 / 版本 / UUID / 运行时长</b></li>
+      <li>更新 / 刷新信息</li>
+      <li><b>重启设备 / 恢复出厂</b></li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p15"><div class="hd"><div class="no">15</div><h3>OTA Upgrade<small>在线升级</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/15-ota-upgrade.png" alt="OTA Upgrade"></div>
+    <div class="desc"><p>固件在线升级,出货后远程统一维护。</p><ul>
+      <li>显示<b>设备版本 → 云端版本</b>,提示"有新版本"</li>
+      <li><b>Check / 升级</b> 一键操作</li>
+      <li>升级信息查看</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p16"><div class="hd"><div class="no">16</div><h3>Provisioning<small>配网激活</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/16-provisioning.png" alt="Provisioning"></div>
+    <div class="desc"><p>设备首次联网配置与激活。</p><ul>
+      <li>网络配网</li>
+      <li>设备激活 / 绑定</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p17"><div class="hd"><div class="no">17</div><h3>Factory Test<small>工厂测试</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/17-factory-test.png" alt="Factory Test"></div>
+    <div class="desc"><p>产线 / 出厂功能自检工具。</p><ul>
+      <li>摄像头 / 音频 / 网络 / 存储 等模块检测</li>
+      <li>量产质检用</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p18"><div class="hd"><div class="no">18</div><h3>Debug Settings<small>调试设置</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/18-debug-settings.png" alt="Debug Settings"></div>
+    <div class="desc"><p>开发 / 排障调试选项。</p><ul>
+      <li>日志级别 / 诊断开关</li>
+      <li>调试参数</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p19"><div class="hd"><div class="no">19</div><h3>Log<small>系统日志</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/19-log.png" alt="Log"></div>
+    <div class="desc"><p>查看设备运行日志,便于排障。</p><ul>
+      <li>系统 / 运行日志</li>
+      <li>可检索 / 导出</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p20"><div class="hd"><div class="no">20</div><h3>User<small>用户管理</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/20-user.png" alt="User"></div>
+    <div class="desc"><p>账号与密码管理。</p><ul>
+      <li>修改密码</li>
+      <li>用户 / 权限</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p21"><div class="hd"><div class="no">21</div><h3>Help<small>帮助</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/21-help.png" alt="Help"></div>
+    <div class="desc"><p>使用帮助与说明。</p><ul>
+      <li>功能说明 / 常见问题</li>
+    </ul></div></div>
+  </div>
+
+  <div class="page" id="p22"><div class="hd"><div class="no">22</div><h3>About<small>关于</small></h3></div>
+    <div class="body"><div class="shot"><img src="manual-shots/22-about.png" alt="About"></div>
+    <div class="desc"><p>版本与版权信息。</p><ul>
+      <li>固件版本 / 版权</li>
+    </ul></div></div>
+  </div>
+
+  <div class="foot">产品操作说明书 · 截图取自真实设备 Web 控制台(smartRobot · v0.1.50)· © 你的品牌</div>
+
+</div>
+<script src="fallback.js"></script>
+</body>
+</html>
