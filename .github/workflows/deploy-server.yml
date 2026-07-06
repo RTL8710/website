@@ -15,14 +15,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: 检查是否已配置服务器密钥
+      - name: 检查是否已配置服务器密码
         id: cfg
         env:
           HOST: ${{ secrets.SERVER_HOST }}
+          PW: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          if [ -z "$HOST" ]; then
+          if [ -z "$HOST" ] || [ -z "$PW" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "⏭️  未配置 SERVER_* Secrets,跳过服务器部署(这是正常的,配好后就会自动部署)。"
+            echo "⏭️  未配置 SERVER_HOST / SERVER_PASSWORD,跳过服务器部署(配好后自动部署)。"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -31,31 +32,33 @@ jobs:
         if: steps.cfg.outputs.configured == 'true'
         uses: actions/checkout@v4
 
-      - name: 准备 SSH 私钥
+      - name: 安装 sshpass / rsync
         if: steps.cfg.outputs.configured == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.SERVER_PORT }}" -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+        run: sudo apt-get update -y && sudo apt-get install -y sshpass rsync
 
-      - name: 初始化服务器(安装 nginx + 配置站点)
+      - name: 初始化服务器(安装 nginx + 配置站点,监听 8080)
         if: steps.cfg.outputs.configured == 'true'
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SERVER_PORT }}" \
-            -o StrictHostKeyChecking=no \
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+            -p "${{ secrets.SERVER_PORT }}" \
             "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" 'bash -s' < deploy/setup.sh
 
       - name: 同步网站文件到服务器
         if: steps.cfg.outputs.configured == 'true'
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          rsync -az --delete \
+          sshpass -e rsync -az --delete \
             --exclude '.git' \
             --exclude '.github' \
             --exclude 'deploy' \
             --exclude 'node_modules' \
             --exclude '.DS_Store' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password -p ${{ secrets.SERVER_PORT }}" \
             ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/website/"
 
       - name: 完成
