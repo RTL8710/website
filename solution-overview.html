@@ -270,6 +270,7 @@
     <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
     <div class="r">
       <a class="back" href="index.html">← 返回首页</a>
+      <button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;letter-spacing:.03em;cursor:pointer">EN</button>
       <a class="back cta" href="cooperation-invite.html">合作邀约</a>
     </div>
   </div>
@@ -588,6 +589,109 @@
     c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
       c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
   });
+})();
+</script>
+<script>
+/* 中/英 双语切换 */
+(function(){
+  var PAIRS = [
+    [`<span class="dot"></span>云边端 AI 视觉`,`<span class="dot"></span>Edge-AI Vision`],[`← 返回首页`,`← Home`],[`合作邀约`,`Partner`],
+    [`14.7<small>万</small>`,`147<small>K</small>`],[`种芯片`,`SoCs`],[`本地`,`local`],[`区域`,`regions`],
+    // HERO
+    [`整套 AI 视觉方案 · 贴你的牌子就能卖`,`Full AI-vision stack · white-labeled to your brand`],
+    [`一整套 AI 视觉,<br><span class="hl">做进你的产品里</span>。`,`A full AI-vision stack,<br><span class="hl">built into your product</span>.`],
+    [`让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>;<b>不连网也能用、数据不外泄</b>。从设备里的软件、AI,到云端后台、手机 App,<b>一整套做好、整套贴你的牌子</b>。你有市场和渠道,难做的 AI 我全包。`,`Give your cameras / robots / dashcams the ability to <b>see, recognize and answer</b> on their own; <b>working offline, with data that never leaves the device</b>. From the on-device software and AI to the cloud backend and mobile app, <b>the whole set is built and white-labeled to your brand</b>. You bring the market and channels; I take on the hard AI.`],
+    [`<b>断网</b>也能用,不依赖云`,`<b>Works offline</b>, no cloud needed`],[`<b>17 年</b>安防深度,不是通用外包`,`<b>17 years</b> in security, not a generic vendor`],[`云边端<b>整套贴牌</b>`,`<b>Full white-label</b> edge-cloud-app`],
+    [`主流方案一套通用 · 换料不卡出货`,`One codebase across all major SoCs · swap chips freely`],[`AI 在设备里跑 · 断网照常用`,`AI runs on the device · works with no network`],[`累计录像一条没丢 · 长期不丢帧`,`147,000 clips recorded, zero lost · no dropped frames`],[`美洲 / 亚洲 / 欧洲 · 全球部署`,`Americas / Asia / Europe · global deployment`],
+    // STACK
+    [`交付什么 · 我给你一整套`,`What you get · the whole set`],[`从硬件到手机 App,整套都做好给你`,`From hardware to mobile app — the whole stack, done for you`],
+    [`不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好;每块能单独给,也能整套贴你的牌子。`,`Not a single part — the on-device software and AI, the cloud backend, the mobile app: the whole chain, built. Each piece can ship on its own, or the whole set under your brand.`],
+    [`设备`,`Device`],[`云端`,`Cloud`],[`设备里的软件`,`On-device software`],[`把设备从底层跑起来:画面、录像、存储全调好。`,`Brings the device up from the ground: video, recording and storage all tuned.`],
+    [`6 种主流芯片,一套代码通用`,`One codebase across 6 major SoCs`],[`1080P 高清,主流编码`,`1080p HD, mainstream codecs`],[`自动自愈 · 断电保护`,`Self-healing · power-loss protection`],
+    [`设备自带的 AI`,`On-device AI`],[`AI 全在设备里算,不依赖云。`,`All AI runs on the device, no cloud.`],[`认人认物,当场框在画面上`,`Boxes people and objects on screen`],[`看懂现场、读出画面里的字、能问答`,`Understands the scene, reads on-screen text, answers questions`],[`可直接接进机器人系统`,`Plugs straight into robot systems`],
+    [`云端后台(亚马逊云)`,`Cloud backend (AWS)`],[`设备联网管理、录像上云、远程维护全托管。`,`Device fleet, cloud recording and remote maintenance — fully managed.`],[`设备联网、账号、录像存储全托管`,`Connectivity, accounts and clip storage fully managed`],[`重要录像上云,随时能翻能搜`,`Key clips to the cloud, searchable anytime`],[`远程升级 · 安全不开端口`,`Remote updates · secure, no open ports`],
+    [`手机 App 和电脑后台`,`Mobile app & web console`],[`把设备能力交到用户手机和电脑上。`,`Puts the device in users' hands, on phone and desktop.`],[`手机看直播、回放、设置`,`Live, playback and settings on the phone`],[`电脑后台,多语言、可贴牌`,`Web console, multilingual and white-label`],[`远程看画面不卡`,`Smooth remote viewing`],
+    [`6 种主流芯片,一套通用:`,`6 major SoCs, one codebase:`],[`换芯片不重写`,`Swap chips, no rewrite`],
+    // MOAT
+    [`为什么找我,不找普通外包`,`Why me, not a generic vendor`],[`难的不是写代码,是把 AI 塞进便宜设备还跑得稳`,`The hard part isn't the code — it's fitting AI into cheap devices and keeping it stable`],
+    [`把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。`,`Squeezing heavy AI into mass-produced low-cost devices and keeping it rock-solid long term — that's exactly what I've done for 17 years.`],
+    [`拔了网线,它还在认人<small>断网也能用</small>`,`Unplug it, it still recognizes people<small>works offline</small>`],[`认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。这种隐私和离线,云端服务给不了。`,`Recognition and scene understanding all happen <b>on the device</b> — no cloud, no leaks, works offline. Privacy and offline like this, a cloud service can't give you.`],
+    [`不只是认出来,还能"看懂"<small>会读字、能问答</small>`,`Not just detection — it "understands"<small>reads text, answers questions</small>`],[`不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。比"数人头"高一个档次。`,`Beyond boxing people and objects, it <b>reads signage, nameplates and license plates</b> on screen — and you can just ask it about the scene. A level above "counting heads."`],
+    [`换芯片不用重做<small>6 种芯片一套通用</small>`,`Swap chips, no rebuild<small>6 SoCs, one codebase</small>`],[`6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货——17 年踩过的坑,变成你量产的确定性。`,`<b>One codebase</b> across 6 major SoCs — even a supply swap won't stall shipments. 17 years of hard-won lessons become your production certainty.`],
+    [`长期稳定,录像不丢<small>工业级可靠</small>`,`Stable long term, no lost footage<small>industrial-grade</small>`],[`设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。工业、机器人现场要的就是这个。`,`Devices self-heal, with power-loss protection; <b>147,000 clips recorded and not one lost</b>. Exactly what industrial and robotics sites need.`],
+    // VS
+    [`凭什么不一样`,`What sets it apart`],[`同样叫"AI 摄像头",差距在这一栏`,`They all say "AI camera" — the difference is this column`],
+    [`市面上多数是"接个云端服务"或"外包凑功能";这套是把 AI 真正做进设备本身,还能整套交到你品牌名下。`,`Most out there just "wire up a cloud service" or "outsource some features"; this puts AI into the device itself — and hands the whole thing to you under your brand.`],
+    [`常见做法`,`Common approach`],[`云端服务 / 通用外包`,`Cloud service / generic vendor`],
+    [`AI 跑在云端,<b>断网就瘫</b>、有延迟、数据要出门`,`AI in the cloud — <b>dead offline</b>, laggy, data leaves the site`],[`只会"数个数",<b>看不懂现场、读不了字</b>`,`Only "counts things" — <b>can't understand the scene or read text</b>`],[`换芯片要重做,出货卡脖子`,`Chip swaps mean a rebuild, shipments stall`],[`一锤子买断或按工时,<b>后面没得赚</b>`,`One-off buyout or hourly — <b>no upside later</b>`],[`挂别人牌子,核心不在你手里`,`Someone else's brand; the core isn't yours`],
+    [`这套方案`,`This solution`],[`AI 全做进设备 · 可贴牌`,`All AI on the device · white-label`],
+    [`AI 在<b>设备本地跑</b>,拔网照跑、不上云、不外泄`,`AI runs <b>on the device</b> — works unplugged, no cloud, no leaks`],[`能<b>看懂现场 + 读出画面里的字</b>`,`<b>Understands the scene + reads on-screen text</b>`],[`<b>6 种芯片一套通用</b>,换芯片不重做`,`<b>One codebase, 6 SoCs</b> — swap chips, no rebuild`],[`<b>按台授权</b>,出多少台分多少,长期有得赚`,`<b>Per-unit licensing</b> — you earn on every unit shipped`],[`设备/App/后台/云<b>整套贴成你的品牌</b>`,`Device / app / console / cloud — <b>all under your brand</b>`],
+    // CAPS
+    [`能做什么 · 真机截图,不是效果图`,`What it does · real device screenshots, not mockups`],[`从看直播、认目标到回放、升级,一套全包`,`From live view and AI detection to playback and OTA — all in one`],[`下面每一项都是真机已经在用的功能,手机和电脑后台都有。`,`Every item below is a feature already running on real devices — in the app and the web console.`],
+    [`随时看直播<small>Live</small>`,`Live view anytime<small>Live</small>`],[`手机同屏看多个画面,远程也不卡,能截图、录像、喊话。`,`Watch multiple streams at once on your phone, smooth even remotely — snapshot, record and talk back.`],
+    [`会认人认物<small>本地 AI</small>`,`Detects people & objects<small>on-device AI</small>`],[`画面里有人有车有物,当场框出来,还能接进机器人系统。`,`People, cars and objects in view are boxed on the spot — and it plugs into robot systems.`],
+    [`会看懂会读字<small>AI 对话</small>`,`Understands & reads text<small>AI chat</small>`],[`对着画面直接问:看懂现场、读出画面里的字,本地/云端两种都行。`,`Ask about the live image: understands the scene, reads on-screen text — local or cloud.`],
+    [`回放随便倒<small>Playback</small>`,`Scrub playback freely<small>Playback</small>`],[`本地/云端回放,多路同屏共用一条时间轴,一天的录像一目了然。`,`Local or cloud playback, multiple streams on one timeline — a whole day at a glance.`],
+    [`怎么录都行<small>Recording</small>`,`Record any way<small>Recording</small>`],[`循环、缩时、预录、手动加事件录像;存本地、存云端都行,长期不丢。`,`Loop, time-lapse, pre-record, manual plus event recording — local or cloud, nothing lost.`],
+    [`远程升级不召回<small>全球可用</small>`,`OTA, no recalls<small>worldwide</small>`],[`出货后统一远程升级;美洲/亚洲/欧洲三区就近连。`,`Update the whole fleet remotely after shipping; nearest of three regions — Americas / Asia / Europe.`],
+    // SCENES
+    [`By Scenario · 场景解决方案`,`By Scenario · solutions`],[`同一套端侧 AI 视觉,落进你的行业`,`The same on-device AI vision, dropped into your industry`],
+    [`不是四套不同的东西——同一套能力,针对四类场景各自落地;而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">记录仪 / 机器人 / 摄像头 / 眼镜 四领域量产客户</a>)。`,`Not four different products — one capability, adapted to four scenarios, and <b>all four have real customers in production</b> (<a href="cases.html">dashcam / robot / camera / glasses — four sectors in production</a>).`],
+    [`智能安防解决方案<small>Smart Security · 周界 / 园区 / 商铺 / 出入口</small>`,`Smart security<small>Smart Security · perimeter / campus / retail / entry</small>`],[`<b>痛点:</b>只会"数人头"误报多、看不懂现场;录像全上云有隐私顾虑;录像太多难找。`,`<b>Pain:</b> "head counting" with false alarms and no scene understanding; privacy worries when all clips go to the cloud; too much footage to search.`],[`实时认出<b>人、车、翻墙入侵</b>,框直接画在画面;还能<b>看懂现场、读出招牌/车牌/铭牌的字</b>;<b>断网在本地处理</b>不外泄;重要录像上云<b>随时能搜</b>,14.7 万段一条没丢。`,`Detects <b>people, vehicles and fence-climbing intrusions</b> in real time, boxed right on screen; also <b>understands the scene and reads signs / plates / nameplates</b>; <b>processed locally offline</b> with no leaks; key clips are <b>searchable in the cloud</b>, 147,000 recorded and not one lost.`],
+    [`周界入侵 / 人车识别`,`Perimeter intrusion / people & vehicles`],[`画面读字`,`On-screen text`],[`断网可用 · 不外泄`,`Offline · no leaks`],[`平台 君正/海思/瑞芯微`,`SoCs: Ingenic / HiSilicon / Rockchip`],
+    [`智能机器人解决方案<small>Smart Robotics · 巡检 / 配送 / 服务机器人</small>`,`Smart robots<small>Smart Robotics · inspection / delivery / service</small>`],[`<b>痛点:</b>机器人要本地实时看、延迟低,要能接进机器人系统,现场环境差还得长期稳。`,`<b>Pain:</b> robots need low-latency local vision, must plug into the robot stack, and stay stable in rough environments.`],[`AI 在机器人身上<b>直接算</b>(画面约 0.3 秒、看懂现场约 1–3 秒);<b>直接接进机器人系统</b>,成为它的眼睛;主控芯片<b>英伟达 / 地平线 / 瑞芯微</b>都支持;<b>自动自愈 · 断电保护</b>工业级稳;还能看懂现场辅助决策。`,`AI runs <b>on the robot itself</b> (~0.3s for video, ~1–3s to understand a scene); <b>plugs straight into the robot stack</b> as its eyes; supports <b>NVIDIA / Horizon / Rockchip</b> hosts; <b>self-healing · power-loss protection</b>, industrial-grade; and it understands the scene to aid decisions.`],
+    [`本地实时 · 约 0.3 秒`,`Local real-time · ~0.3s`],[`接进机器人系统`,`Into the robot stack`],[`工业级稳定`,`Industrial-grade`],[`平台 英伟达/地平线/瑞芯微`,`SoCs: NVIDIA / Horizon / Rockchip`],
+    [`行车记录仪 / 智能交通解决方案<small>Smart Dashcam · 商用车 / 车队 / 记录仪</small>`,`Dashcams / smart transport<small>Smart Dashcam · commercial / fleet / dashcam</small>`],[`<b>痛点:</b>记录仪算力低、成本敏感;AI 要在设备本地跑还得量产稳;掉电丢录像、预录、缩时都是难啃的硬骨头。`,`<b>Pain:</b> dashcams are low-power and cost-sensitive; AI must run locally and stay production-stable; power-loss footage, pre-record and time-lapse are all tough nuts.`],[`<b>便宜的车载设备也能跑 AI</b>、画面调稳;<b>掉电不丢录像 · 预录 · 缩时</b>一并解决;<b>远程实时看</b> + 云端录像。<b style="color:#cde9f1">已在头部行车记录仪品牌量产落地。</b>`,`<b>AI runs even on low-cost in-vehicle hardware</b>, with stable video; <b>power-loss-proof recording · pre-record · time-lapse</b> all solved; <b>live remote view</b> + cloud recording. <b style="color:#cde9f1">Already in mass production with a top dashcam brand.</b>`],
+    [`便宜设备也能跑 AI`,`AI on low-cost hardware`],[`画面稳定`,`Stable video`],[`掉电不丢录像`,`Power-loss-proof`],[`预录 / 缩时 · 远程看`,`Pre-record / time-lapse · remote view`],[`平台 联咏/瑞芯微`,`SoCs: Novatek / Rockchip`],
+    [`智能眼镜 / 可穿戴解决方案<small>Smart Glasses · 可穿戴 / 第一视角</small>`,`Smart glasses / wearables<small>Smart Glasses · wearable / first-person</small>`],[`<b>痛点:</b>眼镜又小又要省电,整个系统都得极致精简;AI 还要做到<b>看着画面就能直接问答</b>。`,`<b>Pain:</b> glasses are tiny and power-thrifty, so the whole system must be lean; and the AI still has to <b>answer questions straight from the view</b>.`],[`在这么小、这么省电的形态里<b>把系统跑通</b>;<b>看懂画面、读字、直接问答</b>,<b>断网也能用</b>;掉电不丢录像 · 预录 · 缩时 · 远程看 · 云端录像都有。<b style="color:#cde9f1">已落地智能眼镜厂商量产。</b>`,`<b>Got the whole system running</b> in this tiny, power-thrifty form; <b>understands the view, reads text, answers directly</b>, <b>offline too</b>; power-loss-proof recording, pre-record, time-lapse, remote view and cloud recording all included. <b style="color:#cde9f1">Already in production with a smart-glasses maker.</b>`],
+    [`超小超省电`,`Ultra-small, ultra-low-power`],[`看图问答`,`Ask about the view`],[`断网可用`,`Works offline`],[`预录 / 缩时 · 云端录像`,`Pre-record / time-lapse · cloud`],[`平台 君正`,`SoC: Ingenic`],
+    // PROOF
+    [`真实证据 · 不是演示稿`,`Real proof · not a slide deck`],[`设备自己"看懂"了画面,还读出了画面里的字`,`The device "understood" the scene — and read the text in it`],[`这不是查数据库,是设备里的 AI 真的看懂了现场——下面是真实问答和真机画面。`,`This isn't a database lookup — the on-device AI genuinely understood the scene. Below: a real Q&A and real device frames.`],
+    [`★ 王牌 · 设备里的 AI 真实问答`,`★ Ace · a real Q&A from the on-device AI`],[`拿实时画面,直接问它`,`Ask it directly about the live image`],
+    [`问:画面里有桌子吗?这是什么地方?`,`Q: Is there a table in the frame? What kind of place is this?`],[`答:AI <b>描述出整个场景</b>(玻璃幕墙的商场/展厅、灰色地面、吊灯),<b>读出画面里招牌/铭牌上的文字</b>,并据此推断这是什么地方——不是只答"有/没有"。`,`A: The AI <b>describes the whole scene</b> (a glass-fronted mall/showroom, grey floor, pendant lights), <b>reads the text on signs and nameplates</b> in the frame, and infers what kind of place it is — not just "yes/no."`],
+    [`同一画面,断网时用设备本地 AI,联网时可接云端大模型——按你的成本和合规自己选。不只是检测,设备能看懂现场、读懂画面里的字。`,`Same frame: on-device AI when offline, a cloud model when connected — your call on cost and compliance. Not just detection: the device understands the scene and reads the text in it.`],
+    [`<b>看懂现场 + 读字</b> · 电脑后台真实对话`,`<b>Scene understanding + text reading</b> · a real chat in the web console`],[`<b>手机端 AI 对话</b> · 拿实时画面直接问,设备里的 AI 看懂现场`,`<b>AI chat on mobile</b> · ask about the live image; the on-device AI understands the scene`],
+    // WHITE-LABEL
+    [`White-label · 整套贴牌交付`,`White-label · the whole set, your brand`],[`设备、App、云门户——整套换成你的品牌`,`Device, app, cloud console — all rebranded to you`],
+    [`<b>设备软件</b>:6 种芯片一套,按你的硬件出货`,`<b>Device software</b>: one codebase for 6 SoCs, shipped on your hardware`],[`<b>手机 App</b>:品牌名、图标、<b>主题色、多语言</b>全可换`,`<b>Mobile app</b>: name, icon, <b>theme color and languages</b> all swappable`],[`<b>电脑后台</b>:换品牌色、切中英文`,`<b>Web console</b>: brand colors, switch Chinese / English`],[`<b>云端后台(亚马逊云)</b>:全球三区域,数据按区合规落地`,`<b>Cloud backend (AWS)</b>: three global regions, data localized for compliance`],[`<b>远程升级</b>:出货后统一维护,不用召回`,`<b>Remote updates</b>: maintain the fleet after shipping, no recalls`],[`交付即是<b>你的产品线</b>,不是"某供应商的方案"`,`What you get is <b>your product line</b>, not "some vendor's solution"`],
+    // DEAL
+    [`Partnership · 合作方式`,`Partnership · how we work`],[`合作方式灵活 —— 按你的方式来`,`Flexible partnership — your way`],[`不绑死一种模式,看你的项目阶段和需求,选最省心的一种。`,`No lock-in to one model — pick what fits your stage and needs.`],
+    [`合作开发`,`Co-development`],[`按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。`,`Build the hard capability into your device to your spec — <b>phased delivery, milestone-based payment</b>.`],
+    [`模块授权`,`Module licensing`],[`把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。`,`Package proven capability as a <b>module / SDK</b> to drop into your product — no building from scratch.`],
+    [`代码买断`,`Source buyout`],[`需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。`,`Need full ownership? <b>Buy out</b> the module's source outright — clean and simple.`],
+    [`<b>适合谁:</b>有市场、能量产、卡在某个难点上的安防/视觉/机器人厂——识别不准/误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型。具体怎么合作,<b>聊清你的需求再定。</b>`,`<b>Who it's for:</b> security / vision / robotics makers with a market and the ability to mass-produce, stuck on a hard problem — poor accuracy / false alarms, hardware too cheap to run it, no algorithm for a special scene, or wanting a large AI model on the device. How we work together, <b>we decide once your needs are clear.</b>`],
+    // FILES
+    [`Materials · 配套物料`,`Materials · the full kit`],[`这份总览之外,还有成套可发资料`,`Beyond this brief, a full set of shareable materials`],[`同一套真机素材、统一视觉,按场景挑着发。`,`One set of real-device assets, one visual language — pick what fits the moment.`],
+    [`产品单页(钩子)`,`One-pager (hook)`],[`一页讲清卖点,适合首次触达陌生客户。`,`One page that nails the pitch — great for first contact.`],
+    [`实战案例`,`Cases`],[`记录仪/机器人/摄像头/眼镜 四真实客户,真机跑通。`,`Dashcam / robot / camera / glasses — four real customers, all proven on real devices.`],
+    [`Web 控制台说明书`,`Web console manual`],[`22 页逐页讲解,可打印 PDF 交付。`,`22 pages, screen by screen — printable PDF to hand over.`],
+    [`App 功能说明书`,`App manual`],[`手机端 10 页功能详解,真机高清截图。`,`10 pages of mobile features, real hi-res screenshots.`],
+    [`Web 总览视频`,`Web overview video`],[`约 38 秒,控制台功能巡览。`,`~38s tour of the console.`],
+    [`App 总览视频`,`App overview video`],[`约 33 秒,含真 AI 检测录屏 + AI 对话。`,`~33s, with real AI-detection screen recording + AI chat.`],
+    [`本页 · 解决方案总览`,`This page · Solution overview`],[`统领页:架构 + 证据 + 商业模式一份。`,`The hub: architecture + proof + business model in one.`],
+    // CTA
+    [`Let's talk · 收口`,`Let's talk`],[`你有市场和渠道,难做的 AI 全栈交给我。`,`You bring the market and channels; leave the hard AI stack to me.`],
+    [`先说清你卡在哪——<b>识别不准/误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型</b>。看清难点,合作开发、模块授权还是买断都好谈,把它做进你的产品里。`,`Start with where you're stuck — <b>poor accuracy / false alarms, hardware too cheap to run it, no algorithm for a special scene, or wanting a large AI model on the device</b>. Once the hard part's clear, co-dev, licensing or buyout are all easy to discuss — and we build it into your product.`],
+    [`安防 / 视觉厂`,`Security / vision makers`],[`机器人 / 工业`,`Robotics / industrial`],[`有市场缺 AI 硬骨头`,`Have the market, need the hard AI`],[`要整套白标`,`Want full white-label`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button,li'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
 })();
 </script>
 <script src="fallback.js"></script>
