@@ -28,12 +28,12 @@
 <style>
   :root{--ink:#1a2230;--dim:#5b6b7e;--line:#e3e8ef;--accent:#0ea5b7;--bg:#f6f8fb;--card:#fff;}
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.62;-webkit-font-smoothing:antialiased;font-feature-settings:"cv02","cv03","ss01"}
   .wrap{max-width:1000px;margin:0 auto;padding:0 24px 80px}
   a{color:var(--accent);text-decoration:none}
   .cover{text-align:center;padding:80px 20px 60px;border-bottom:2px solid var(--line);margin-bottom:8px}
   .cover .kchip{display:inline-block;font-size:13px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:5px 16px;margin-bottom:22px;letter-spacing:.04em}
-  .cover h1{font-size:38px;font-weight:800;letter-spacing:-.02em}
+  .cover h1{font-size:clamp(30px,5vw,40px);font-weight:850;letter-spacing:-.03em}
   .cover .en{color:var(--dim);font-size:17px;margin-top:8px;font-weight:500}
   .cover .meta{margin-top:26px;display:inline-flex;gap:24px;flex-wrap:wrap;justify-content:center;font-size:13.5px;color:var(--dim)}
   .cover .meta b{color:var(--ink)}
@@ -42,8 +42,8 @@
   .ov .lead b{color:var(--ink)}
   .ov h2{font-size:14px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin:30px 0 14px}
   .hl{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .hl .c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(20,30,50,.04)}
-  .hl .c .ic{font-size:22px}
+  .hl .c{background:var(--card);border:1px solid #e6ebf2;border-radius:16px;padding:20px 22px;box-shadow:0 4px 14px -6px rgba(20,40,80,.1),0 1px 2px rgba(20,40,80,.05);transition:transform .2s ease,box-shadow .2s ease}.hl .c:hover{transform:translateY(-3px);box-shadow:0 14px 30px -12px rgba(14,165,183,.22),0 2px 6px rgba(20,40,80,.06)}
+  .hl .c .ic{display:inline-flex;width:42px;height:42px;border-radius:12px;align-items:center;justify-content:center;color:var(--accent);background:linear-gradient(180deg,#e6f7fb,#f3fbfd);border:1px solid #cdeef4}.hl .c .ic svg{width:23px;height:23px;display:block}
   .hl .c h4{font-size:15px;margin:8px 0 4px;font-weight:700}
   .hl .c h4 small{color:var(--dim);font-weight:500;font-size:12px;display:block}
   .hl .c p{font-size:12.5px;color:#5b6b7e}
@@ -59,7 +59,7 @@
   .toc li{font-size:14px;padding:3px 0;break-inside:avoid}
   .toc li span{color:var(--dim);margin-right:8px}
   .ghead{font-size:13px;letter-spacing:.16em;color:#fff;background:var(--accent);text-transform:uppercase;padding:8px 16px;border-radius:8px;margin:46px 0 8px;font-weight:700}
-  .page{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:18px 0;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .page{background:var(--card);border:1px solid #e6ebf2;border-radius:18px;overflow:hidden;margin:20px 0;box-shadow:0 6px 20px -10px rgba(20,40,80,.12),0 1px 2px rgba(20,40,80,.05);transition:box-shadow .2s ease}.page:hover{box-shadow:0 16px 40px -16px rgba(14,165,183,.2),0 2px 6px rgba(20,40,80,.06)}
   .page .hd{padding:18px 22px 14px;border-bottom:1px solid var(--line)}
   .page .hd .no{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.05em}
   .page .hd h3{font-size:20px;font-weight:700;margin-top:2px}
@@ -108,12 +108,12 @@
 
     <h2>核心亮点 · Core Highlights</h2>
     <div class="hl">
-      <div class="c"><div class="ic">📡</div><h4>多路实时直播<small>Multi-stream Live</small></h4><p>单设备<b>多路同屏</b>实时直播(当前演示 2 路),WebRTC 远程低延迟,随时随地看,无需端口映射。</p></div>
-      <div class="c"><div class="ic">🎯</div><h4>设备端 AI 检测<small>Edge AI · YOLO</small></h4><p>YOLO 多类目标检测,检测框直接画在实时画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。</p></div>
-      <div class="c"><div class="ic">🧠</div><h4>视觉大模型对话<small>On-device VLM</small></h4><p>拿实时画面直接问它:看懂场景、<b>读出画面文字(OCR)</b>、自然语言问答,本地 + OpenAI 双模式,断网可用。</p></div>
-      <div class="c"><div class="ic">📹</div><h4>多路同步回放<small>Sync Playback</small></h4><p>本地/云端回放,<b>多路同屏同步</b>复盘共用一条时间轴;单日数千段、三模式分色不丢录像。</p></div>
-      <div class="c"><div class="ic">🛡️</div><h4>录像模式全<small>Recording Modes</small></h4><p>循环 / 缩时 / 预录 / 手动 + 事件录像;本地 / 云端 / 双存;累计 14.7 万文件无损。</p></div>
-      <div class="c"><div class="ic">🌐</div><h4>运维 + 全球白标<small>OTA · Global</small></h4><p>OTA 在线升级、全球三区域(东京/美洲/巴黎)就近接入;整套 App 可白标(品牌/主题/语言)。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 7-7M5 16a3 3 0 0 1 3-3M4 8a11 11 0 0 1 11-1"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg></div><h4>多路实时直播<small>Multi-stream Live</small></h4><p>单设备<b>多路同屏</b>实时直播(当前演示 2 路),WebRTC 远程低延迟,随时随地看,无需端口映射。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div><h4>设备端 AI 检测<small>Edge AI · YOLO</small></h4><p>YOLO 多类目标检测,检测框直接画在实时画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.4L18 9l-4.3 1.6L12 15l-1.7-4.4L6 9l4.3-1.6z"/><path d="M18 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg></div><h4>视觉大模型对话<small>On-device VLM</small></h4><p>拿实时画面直接问它:看懂场景、<b>读出画面文字(OCR)</b>、自然语言问答,本地 + OpenAI 双模式,断网可用。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></div><h4>多路同步回放<small>Sync Playback</small></h4><p>本地/云端回放,<b>多路同屏同步</b>复盘共用一条时间轴;单日数千段、三模式分色不丢录像。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/></svg></div><h4>录像模式全<small>Recording Modes</small></h4><p>循环 / 缩时 / 预录 / 手动 + 事件录像;本地 / 云端 / 双存;累计 14.7 万文件无损。</p></div>
+      <div class="c"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.6 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.6-4-9s1.4-6.6 4-9z"/></svg></div><h4>运维 + 全球白标<small>OTA · Global</small></h4><p>OTA 在线升级、全球三区域(东京/美洲/巴黎)就近接入;整套 App 可白标(品牌/主题/语言)。</p></div>
     </div>
 
     <h2>功能特点一览 · Specifications</h2>
