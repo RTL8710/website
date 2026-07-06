@@ -23,32 +23,50 @@
 <style>
   :root{
     --bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;--card2:#0e1626;
-    --ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;
+    --ink:#e8eef7;--dim:#9aa9bf;--faint:#7f8ea6;
     --line:#1f2c42;--accent:#22d3ee;--gold:#f5c451;
+    --hair:1px solid rgba(255,255,255,.07);
+    --surface:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0));
+    --sh-rest:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.3);
+    --sh-tint:inset 0 1px 0 rgba(255,255,255,.07),0 26px 60px -20px rgba(34,211,238,.22),0 10px 26px -12px rgba(0,0,0,.55);
+    --ease:cubic-bezier(.2,.7,.2,1);
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"cv02","cv03","ss01"}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
   a{color:var(--accent);text-decoration:none}
   b{color:#fff;font-weight:700}
   .wrap{max-width:1180px;margin:0 auto;padding:0 26px}
   /* NAV */
-  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.72);backdrop-filter:blur(14px) saturate(1.3);border-bottom:var(--hair)}
   .nav .in{max-width:1180px;margin:0 auto;padding:13px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-  .nav .brand{font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px}
-  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
-  .nav .back{font-size:13.5px;color:var(--dim)}
-  .nav .back:hover{color:#fff}
+  .nav .brand{font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:9px}
+  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(34,211,238,.15),0 0 12px var(--accent)}
+  .nav .back{font-size:13.5px;color:var(--dim);padding:7px 11px;border-radius:9px;font-weight:500}
+  .nav .back:hover{color:#fff;background:rgba(255,255,255,.04)}
   /* HEAD */
-  .head{padding:56px 0 10px;background:radial-gradient(70% 120% at 80% -10%,rgba(34,211,238,.16),transparent 60%),linear-gradient(180deg,#0b1120,#0a0e17)}
-  .eyebrow{font-size:12.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-weight:700}
-  .head h1{font-size:38px;font-weight:850;letter-spacing:-.02em;margin:8px 0 8px}
-  .head p{color:var(--dim);font-size:14.5px;max-width:720px}
-  .head .hint{margin-top:14px;font-size:12.5px;color:var(--faint)}
+  .head{position:relative;overflow:hidden;padding:56px 0 10px;background:radial-gradient(60% 100% at 82% -10%,rgba(34,211,238,.13),transparent 58%),linear-gradient(180deg,#0b1120,#0a0e17)}
+  .head::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .head .wrap{position:relative;z-index:2}
+  .aurora{position:absolute;inset:-40% -12% -20%;z-index:0;pointer-events:none;filter:blur(64px);opacity:.42}
+  .aurora i{position:absolute;display:block;border-radius:50%;mix-blend-mode:screen}
+  .aurora i:nth-child(1){width:40vw;height:40vw;right:2%;top:-20%;background:radial-gradient(circle,rgba(34,211,238,.5),transparent 62%);animation:au1 19s ease-in-out infinite alternate}
+  .aurora i:nth-child(2){width:32vw;height:32vw;left:-6%;top:0;background:radial-gradient(circle,rgba(14,165,183,.46),transparent 62%);animation:au2 23s ease-in-out infinite alternate}
+  @keyframes au1{to{transform:translate(-9%,12%) scale(1.18)}}
+  @keyframes au2{to{transform:translate(11%,-7%) scale(1.12)}}
+  .scan{position:absolute;left:0;right:0;top:-2px;height:2px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(34,211,238,.6),transparent);box-shadow:0 0 20px rgba(34,211,238,.5);animation:heroScan 7.5s linear infinite}
+  @keyframes heroScan{0%{top:-2px;opacity:0}9%{opacity:.85}91%{opacity:.85}100%{top:100%;opacity:0}}
+  .eyebrow{font-size:12px;letter-spacing:.24em;color:var(--accent);text-transform:uppercase;font-weight:600}
+  .head h1{font-size:clamp(28px,4vw,38px);font-weight:850;letter-spacing:-.02em;margin:8px 0 8px;color:#fff}
+  .head p{color:var(--dim);font-size:14.5px;font-weight:450;max-width:720px}
+  .head .hint{margin-top:14px;font-size:12.5px;color:var(--faint);font-weight:450}
   /* GRID */
   .fv{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:34px 0 70px}
-  .fvc{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .2s ease}
-  .fvc:hover{transform:translateY(-4px);border-color:rgba(34,211,238,.45);box-shadow:0 18px 44px rgba(34,211,238,.08)}
-  .fvc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .fvc{position:relative;background:var(--surface),var(--card);border:var(--hair);border-radius:18px;overflow:hidden;cursor:pointer;--mx:50%;--my:50%;box-shadow:var(--sh-rest);transition:transform .26s var(--ease),border-color .26s var(--ease),box-shadow .26s var(--ease)}
+  .fvc:hover{transform:translateY(-5px);border-color:rgba(34,211,238,.4);box-shadow:var(--sh-tint)}
+  .fvc::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s var(--ease);background:radial-gradient(340px circle at var(--mx) var(--my),rgba(34,211,238,.14),transparent 55%);z-index:2}
+  .fvc:hover::after{opacity:1}
   .fvc .vwrap{position:relative;aspect-ratio:16/9;background:#070b13;overflow:hidden}
   .fvc .thumb{width:100%;height:100%;object-fit:cover;display:block}
   .fvc .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
@@ -56,9 +74,16 @@
   .fvc:hover .play::before{transform:scale(1.08);background:rgba(34,211,238,.85);color:#08121a;border-color:transparent}
   .fvc .lab{padding:13px 15px;font-size:13.5px;color:#dbe6f0;font-weight:700}
   .fvc .lab small{display:block;color:var(--faint);font-weight:400;font-size:11.5px;margin-top:3px}
-  .foot{padding:24px 0 56px;color:var(--faint);font-size:12px;text-align:center;border-top:1px solid var(--line)}
+  .foot{padding:24px 0 56px;color:var(--faint);font-size:12px;font-weight:450;text-align:center;border-top:var(--hair)}
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
   @media(max-width:900px){.fv{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:560px){.fv{grid-template-columns:1fr;gap:14px}.head h1{font-size:30px}}
+  @media(max-width:560px){.fv{grid-template-columns:1fr;gap:14px}.head h1{font-size:28px}}
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    .reveal{opacity:1!important;transform:none!important}.scan{display:none}
+  }
 
   /* MODAL / LIGHTBOX */
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;
@@ -87,47 +112,52 @@
 </head>
 <body>
 
-<div class="nav">
+<nav class="nav">
   <div class="in">
-    <div class="brand"><span class="dot"></span>云边端 AI 视觉</div>
+    <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
     <a class="back" href="index.html">← 返回首页</a>
   </div>
-</div>
+</nav>
 
-<div class="head">
+<main>
+<header class="head">
+  <div class="aurora" aria-hidden="true"><i></i><i></i></div>
+  <div class="scan" aria-hidden="true"></div>
   <div class="wrap">
-    <div class="eyebrow">Feature Demos · 逐功能真机录屏</div>
-    <h1>每个功能,一段真机演示</h1>
-    <p>不是效果图——下面每一段都是真机屏幕录制。从实时直播、设备端 AI,到录像、云端、运维,逐个看清。</p>
-    <div class="hint">💡 点击任意功能打开大图演示,可全屏、带声音、拖进度;弹窗内用 ← → 切换、Esc 关闭。视频按需加载,不影响页面打开速度。</div>
+    <div class="eyebrow reveal">Feature Demos · 逐功能真机录屏</div>
+    <h1 class="reveal">每个功能,一段真机演示</h1>
+    <p class="reveal">不是效果图——下面每一段都是真机屏幕录制。从实时直播、设备端 AI,到录像、云端、运维,逐个看清。</p>
+    <div class="hint reveal">💡 点击任意功能打开大图演示,可全屏、带声音、拖进度;弹窗内用 ← → 切换、Esc 关闭。视频按需加载,不影响页面打开速度。</div>
   </div>
-</div>
+</header>
 
 <div class="wrap">
   <div class="fv" id="grid">
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-live-horizontal.mp4" data-title="多路实时直播" data-sub="多个画面同屏,远程也不卡"><div class="vwrap"><img class="thumb" src="footage/demos/feat-live-horizontal.jpg" alt="多路实时直播" loading="lazy"><span class="play"></span></div><div class="lab">多路实时直播<small>多个画面同屏,远程也不卡</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-aidet-horizontal.mp4" data-title="设备端 AI 检测" data-sub="画面里的人和物,当场框出来"><div class="vwrap"><img class="thumb" src="footage/demos/feat-aidet-horizontal.jpg" alt="设备端 AI 检测" loading="lazy"><span class="play"></span></div><div class="lab">设备端 AI 检测<small>画面里的人和物,当场框出来</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-chat-horizontal.mp4" data-title="视觉大模型对话" data-sub="看懂现场,还能读出画面里的字"><div class="vwrap"><img class="thumb" src="footage/demos/feat-chat-horizontal.jpg" alt="视觉大模型对话" loading="lazy"><span class="play"></span></div><div class="lab">视觉大模型对话<small>看懂现场,还能读出画面里的字</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-localrec-horizontal.mp4" data-title="本地录像回放" data-sub="多路一起倒回看,共用一条时间轴"><div class="vwrap"><img class="thumb" src="footage/demos/feat-localrec-horizontal.jpg" alt="本地录像回放" loading="lazy"><span class="play"></span></div><div class="lab">本地录像回放<small>多路一起倒回看,共用一条时间轴</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-cloudrec-horizontal.mp4" data-title="云端录像回放" data-sub="录像存云端,随时能翻能搜"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrec-horizontal.jpg" alt="云端录像回放" loading="lazy"><span class="play"></span></div><div class="lab">云端录像回放<small>录像存云端,随时能翻能搜</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-cloudrecset-horizontal.mp4" data-title="云端录像设置" data-sub="设置哪些录像、什么时候上云"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrecset-horizontal.jpg" alt="云端录像设置" loading="lazy"><span class="play"></span></div><div class="lab">云端录像设置<small>设置哪些录像、什么时候上云</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-recset-horizontal.mp4" data-title="录像模式设置" data-sub="循环、缩时、预录、事件都能录"><div class="vwrap"><img class="thumb" src="footage/demos/feat-recset-horizontal.jpg" alt="录像模式设置" loading="lazy"><span class="play"></span></div><div class="lab">录像模式设置<small>循环、缩时、预录、事件都能录</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-storage-horizontal.mp4" data-title="存储管理" data-sub="存满自动覆盖,长期不丢"><div class="vwrap"><img class="thumb" src="footage/demos/feat-storage-horizontal.jpg" alt="存储管理" loading="lazy"><span class="play"></span></div><div class="lab">存储管理<small>存满自动覆盖,长期不丢</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-vidset-horizontal.mp4" data-title="视频参数设置" data-sub="画面清晰度、流畅度随你调"><div class="vwrap"><img class="thumb" src="footage/demos/feat-vidset-horizontal.jpg" alt="视频参数设置" loading="lazy"><span class="play"></span></div><div class="lab">视频参数设置<small>画面清晰度、流畅度随你调</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-audio-horizontal.mp4" data-title="音频与对讲" data-sub="能听现场声,也能远程喊话"><div class="vwrap"><img class="thumb" src="footage/demos/feat-audio-horizontal.jpg" alt="音频与对讲" loading="lazy"><span class="play"></span></div><div class="lab">音频与对讲<small>能听现场声,也能远程喊话</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ptz-horizontal.mp4" data-title="云台控制" data-sub="远程控制镜头上下左右转"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ptz-horizontal.jpg" alt="云台控制" loading="lazy"><span class="play"></span></div><div class="lab">云台控制<small>远程控制镜头上下左右转</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-network-horizontal.mp4" data-title="网络设置" data-sub="有线、WiFi 都能连"><div class="vwrap"><img class="thumb" src="footage/demos/feat-network-horizontal.jpg" alt="网络设置" loading="lazy"><span class="play"></span></div><div class="lab">网络设置<small>有线、WiFi 都能连</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-rtsp-horizontal.mp4" data-title="接入第三方系统" data-sub="用通用方式接进你现有系统"><div class="vwrap"><img class="thumb" src="footage/demos/feat-rtsp-horizontal.jpg" alt="接入第三方系统" loading="lazy"><span class="play"></span></div><div class="lab">接入第三方系统<small>用通用方式接进你现有系统</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ntp-horizontal.mp4" data-title="时间同步" data-sub="自动对时,时间不跑偏"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ntp-horizontal.jpg" alt="时间同步" loading="lazy"><span class="play"></span></div><div class="lab">时间同步<small>自动对时,时间不跑偏</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ota-horizontal.mp4" data-title="OTA 在线升级" data-sub="出货后远程升级,不用召回"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ota-horizontal.jpg" alt="OTA 在线升级" loading="lazy"><span class="play"></span></div><div class="lab">OTA 在线升级<small>出货后远程升级,不用召回</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-devinfo-horizontal.mp4" data-title="设备信息" data-sub="型号、版本、开机多久都能看"><div class="vwrap"><img class="thumb" src="footage/demos/feat-devinfo-horizontal.jpg" alt="设备信息" loading="lazy"><span class="play"></span></div><div class="lab">设备信息<small>型号、版本、开机多久都能看</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-peripheral-horizontal.mp4" data-title="外设管理" data-sub="外接的设备统一管理"><div class="vwrap"><img class="thumb" src="footage/demos/feat-peripheral-horizontal.jpg" alt="外设管理" loading="lazy"><span class="play"></span></div><div class="lab">外设管理<small>外接的设备统一管理</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-battery-horizontal.mp4" data-title="电量管理" data-sub="省电,还能看剩多少电"><div class="vwrap"><img class="thumb" src="footage/demos/feat-battery-horizontal.jpg" alt="电量管理" loading="lazy"><span class="play"></span></div><div class="lab">电量管理<small>省电,还能看剩多少电</small></div></div>
-    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-notify-horizontal.mp4" data-title="消息通知" data-sub="有情况马上推消息提醒"><div class="vwrap"><img class="thumb" src="footage/demos/feat-notify-horizontal.jpg" alt="消息通知" loading="lazy"><span class="play"></span></div><div class="lab">消息通知<small>有情况马上推消息提醒</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-live-horizontal.mp4" data-title="多路实时直播" data-sub="多个画面同屏,远程也不卡"><div class="vwrap"><img class="thumb" src="footage/demos/feat-live-horizontal.jpg" alt="多路实时直播" loading="lazy"><span class="play"></span></div><div class="lab">多路实时直播<small>多个画面同屏,远程也不卡</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-aidet-horizontal.mp4" data-title="设备端 AI 检测" data-sub="画面里的人和物,当场框出来"><div class="vwrap"><img class="thumb" src="footage/demos/feat-aidet-horizontal.jpg" alt="设备端 AI 检测" loading="lazy"><span class="play"></span></div><div class="lab">设备端 AI 检测<small>画面里的人和物,当场框出来</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-chat-horizontal.mp4" data-title="视觉大模型对话" data-sub="看懂现场,还能读出画面里的字"><div class="vwrap"><img class="thumb" src="footage/demos/feat-chat-horizontal.jpg" alt="视觉大模型对话" loading="lazy"><span class="play"></span></div><div class="lab">视觉大模型对话<small>看懂现场,还能读出画面里的字</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-localrec-horizontal.mp4" data-title="本地录像回放" data-sub="多路一起倒回看,共用一条时间轴"><div class="vwrap"><img class="thumb" src="footage/demos/feat-localrec-horizontal.jpg" alt="本地录像回放" loading="lazy"><span class="play"></span></div><div class="lab">本地录像回放<small>多路一起倒回看,共用一条时间轴</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-cloudrec-horizontal.mp4" data-title="云端录像回放" data-sub="录像存云端,随时能翻能搜"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrec-horizontal.jpg" alt="云端录像回放" loading="lazy"><span class="play"></span></div><div class="lab">云端录像回放<small>录像存云端,随时能翻能搜</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-cloudrecset-horizontal.mp4" data-title="云端录像设置" data-sub="设置哪些录像、什么时候上云"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrecset-horizontal.jpg" alt="云端录像设置" loading="lazy"><span class="play"></span></div><div class="lab">云端录像设置<small>设置哪些录像、什么时候上云</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-recset-horizontal.mp4" data-title="录像模式设置" data-sub="循环、缩时、预录、事件都能录"><div class="vwrap"><img class="thumb" src="footage/demos/feat-recset-horizontal.jpg" alt="录像模式设置" loading="lazy"><span class="play"></span></div><div class="lab">录像模式设置<small>循环、缩时、预录、事件都能录</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-storage-horizontal.mp4" data-title="存储管理" data-sub="存满自动覆盖,长期不丢"><div class="vwrap"><img class="thumb" src="footage/demos/feat-storage-horizontal.jpg" alt="存储管理" loading="lazy"><span class="play"></span></div><div class="lab">存储管理<small>存满自动覆盖,长期不丢</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-vidset-horizontal.mp4" data-title="视频参数设置" data-sub="画面清晰度、流畅度随你调"><div class="vwrap"><img class="thumb" src="footage/demos/feat-vidset-horizontal.jpg" alt="视频参数设置" loading="lazy"><span class="play"></span></div><div class="lab">视频参数设置<small>画面清晰度、流畅度随你调</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-audio-horizontal.mp4" data-title="音频与对讲" data-sub="能听现场声,也能远程喊话"><div class="vwrap"><img class="thumb" src="footage/demos/feat-audio-horizontal.jpg" alt="音频与对讲" loading="lazy"><span class="play"></span></div><div class="lab">音频与对讲<small>能听现场声,也能远程喊话</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-ptz-horizontal.mp4" data-title="云台控制" data-sub="远程控制镜头上下左右转"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ptz-horizontal.jpg" alt="云台控制" loading="lazy"><span class="play"></span></div><div class="lab">云台控制<small>远程控制镜头上下左右转</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-network-horizontal.mp4" data-title="网络设置" data-sub="有线、WiFi 都能连"><div class="vwrap"><img class="thumb" src="footage/demos/feat-network-horizontal.jpg" alt="网络设置" loading="lazy"><span class="play"></span></div><div class="lab">网络设置<small>有线、WiFi 都能连</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-rtsp-horizontal.mp4" data-title="接入第三方系统" data-sub="用通用方式接进你现有系统"><div class="vwrap"><img class="thumb" src="footage/demos/feat-rtsp-horizontal.jpg" alt="接入第三方系统" loading="lazy"><span class="play"></span></div><div class="lab">接入第三方系统<small>用通用方式接进你现有系统</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-ntp-horizontal.mp4" data-title="时间同步" data-sub="自动对时,时间不跑偏"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ntp-horizontal.jpg" alt="时间同步" loading="lazy"><span class="play"></span></div><div class="lab">时间同步<small>自动对时,时间不跑偏</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-ota-horizontal.mp4" data-title="OTA 在线升级" data-sub="出货后远程升级,不用召回"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ota-horizontal.jpg" alt="OTA 在线升级" loading="lazy"><span class="play"></span></div><div class="lab">OTA 在线升级<small>出货后远程升级,不用召回</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-devinfo-horizontal.mp4" data-title="设备信息" data-sub="型号、版本、开机多久都能看"><div class="vwrap"><img class="thumb" src="footage/demos/feat-devinfo-horizontal.jpg" alt="设备信息" loading="lazy"><span class="play"></span></div><div class="lab">设备信息<small>型号、版本、开机多久都能看</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-peripheral-horizontal.mp4" data-title="外设管理" data-sub="外接的设备统一管理"><div class="vwrap"><img class="thumb" src="footage/demos/feat-peripheral-horizontal.jpg" alt="外设管理" loading="lazy"><span class="play"></span></div><div class="lab">外设管理<small>外接的设备统一管理</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-battery-horizontal.mp4" data-title="电量管理" data-sub="省电,还能看剩多少电"><div class="vwrap"><img class="thumb" src="footage/demos/feat-battery-horizontal.jpg" alt="电量管理" loading="lazy"><span class="play"></span></div><div class="lab">电量管理<small>省电,还能看剩多少电</small></div></div>
+    <div class="fvc reveal" tabindex="0" data-src="marketing/feature-videos/feat-notify-horizontal.mp4" data-title="消息通知" data-sub="有情况马上推消息提醒"><div class="vwrap"><img class="thumb" src="footage/demos/feat-notify-horizontal.jpg" alt="消息通知" loading="lazy"><span class="play"></span></div><div class="lab">消息通知<small>有情况马上推消息提醒</small></div></div>
   </div>
 </div>
 
-<div class="foot">功能演示 · 均为真机屏幕录制 · <a href="index.html">返回首页</a> · <a href="solution-overview.html">解决方案总览</a></div>
+</main>
+
+<footer class="foot">功能演示 · 均为真机屏幕录制 · <a href="index.html">返回首页</a> · <a href="solution-overview.html">解决方案总览</a></footer>
 
 <!-- LIGHTBOX -->
 <div class="modal" id="modal" aria-hidden="true">
@@ -185,6 +215,21 @@
     else if (e.key === 'ArrowRight') show(idx + 1);
     else if (e.key === 'ArrowLeft') show(idx - 1);
   });
+
+  // 入场 + 光标聚光
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var rvs = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  if (reduce || !('IntersectionObserver' in window)) { rvs.forEach(function(e){ e.classList.add('in'); }); }
+  else {
+    var rio = new IntersectionObserver(function(en){ en.forEach(function(x){ if(!x.isIntersecting)return;
+      var el=x.target, sib=Array.prototype.filter.call(el.parentNode.children,function(c){return c.classList.contains('reveal')});
+      el.style.transitionDelay=Math.min(sib.indexOf(el),6)*40+'ms'; el.classList.add('in'); rio.unobserve(el); }); },
+      { threshold:.12, rootMargin:'0px 0px -6% 0px' });
+    rvs.forEach(function(e){ rio.observe(e); });
+  }
+  cards.forEach(function(c){ c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
+    c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); }); });
 </script>
+<script src="fallback.js"></script>
 </body>
 </html>
