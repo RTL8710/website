@@ -25,145 +25,233 @@
 <meta name="twitter:title" content="合作邀约 · 你的自有品牌 AI 视觉,这块我来">
 <meta name="twitter:description" content="合作开发 / 模块授权 / 代码买断,17 年安防深度 × 设备端 AI 全栈。">
 <meta name="twitter:image" content="https://rtl8710.github.io/website/og-cover.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2784%27>👁️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='84'>👁️</text></svg>">
 <style>
-  :root{--bg:#0a0e17;--card:#121a2a;--ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;--line:#1f2c42;--accent:#22d3ee;--gold:#f5c451;--green:#34d399;}
+  :root{
+    --bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;--card2:#0e1626;
+    --ink:#e8eef7;--dim:#9aa9bf;--faint:#7f8ea6;
+    --line:#1f2c42;--accent:#22d3ee;--gold:#f5c451;--green:#34d399;
+    --r-lg:22px;--r-md:14px;--hair:1px solid rgba(255,255,255,.07);
+    --surface:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0));
+    --sh-rest:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.3);
+    --sh-tint:inset 0 1px 0 rgba(255,255,255,.07),0 26px 60px -20px rgba(34,211,238,.2),0 10px 26px -12px rgba(0,0,0,.55);
+    --ease:cubic-bezier(.2,.7,.2,1);--maxw:1000px;
+  }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:980px;margin:0 auto;padding:0 26px}
-  b{color:#fff;font-weight:700}
-  .eyebrow{font-size:12.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-weight:700}
-  section{padding:46px 0;border-top:1px solid var(--line)}
-  section h2{font-size:24px;font-weight:800;margin:6px 0 8px}
-  section .sub{color:var(--dim);font-size:14.5px;max-width:720px;margin-bottom:24px}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"cv02","cv03","ss01"}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,30px)}
+  a{color:var(--accent);text-decoration:none}
+  b{color:#fff;font-weight:650}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+  .eyebrow{font-size:12px;letter-spacing:.24em;color:var(--accent);text-transform:uppercase;font-weight:600}
+  section{padding:clamp(44px,5.5vw,64px) 0;position:relative}
+  section + section{border-top:var(--hair)}
+  section h2{font-size:clamp(21px,2.8vw,25px);font-weight:800;letter-spacing:-.01em;margin:8px 0 8px;color:#fff}
+  section .sub{color:var(--dim);font-size:14.5px;font-weight:450;max-width:720px;margin-bottom:24px}
 
-  .hero{background:radial-gradient(80% 120% at 80% -10%,rgba(34,211,238,.16),transparent 60%),radial-gradient(70% 90% at 0% 0%,rgba(14,165,183,.12),transparent 55%),linear-gradient(180deg,#0b1120,#0a0e17);padding:70px 0 54px;border-top:none}
-  .hero .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
-  .hero h1{font-size:42px;line-height:1.18;font-weight:850;letter-spacing:-.02em;margin:22px 0 14px;max-width:840px}
-  .hero h1 .hl{background:linear-gradient(90deg,#22d3ee,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero .lead{font-size:16.5px;color:var(--dim);max-width:700px}
-  .hero .lead b{color:#dbeafe}
+  .ic{display:inline-flex;align-items:center;justify-content:center;color:var(--accent)}
+  .ic.box{width:44px;height:44px;border-radius:12px;background:linear-gradient(180deg,rgba(34,211,238,.14),rgba(34,211,238,.04));border:1px solid rgba(34,211,238,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+  .ic svg{width:24px;height:24px;display:block}
+
+  /* NAV */
+  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.72);backdrop-filter:blur(14px) saturate(1.3);border-bottom:var(--hair)}
+  .nav .in{max-width:var(--maxw);margin:0 auto;padding:12px clamp(20px,4vw,30px);display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .nav .brand{font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:9px}
+  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(34,211,238,.15),0 0 12px var(--accent)}
+  .nav .r{display:flex;align-items:center;gap:8px}
+  .nav .r a{font-size:13.5px;color:var(--dim);padding:7px 11px;border-radius:9px;font-weight:500;transition:color .2s var(--ease),background .2s var(--ease)}
+  .nav .r a.back:hover{color:#fff;background:rgba(255,255,255,.04)}
+  .nav .cta{color:#04212a!important;background:linear-gradient(180deg,#7fe6f7,var(--accent));font-weight:700!important;box-shadow:0 6px 18px -6px rgba(34,211,238,.5)}
+
+  /* HERO */
+  .hero{position:relative;overflow:hidden;border-bottom:var(--hair);
+    background:radial-gradient(58% 88% at 85% -8%,rgba(34,211,238,.12),transparent 56%),radial-gradient(46% 68% at -2% 2%,rgba(14,165,183,.09),transparent 55%),linear-gradient(180deg,#0b1120,#0a0e17);
+    padding:clamp(52px,6.5vw,70px) 0 clamp(44px,5.5vw,56px)}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .hero .wrap{position:relative;z-index:2}
+  .aurora{position:absolute;inset:-25% -12% -10%;z-index:0;pointer-events:none;filter:blur(66px);opacity:.46}
+  .aurora i{position:absolute;display:block;border-radius:50%;mix-blend-mode:screen}
+  .aurora i:nth-child(1){width:44vw;height:44vw;right:1%;top:-16%;background:radial-gradient(circle,rgba(34,211,238,.55),transparent 62%);animation:au1 19s ease-in-out infinite alternate}
+  .aurora i:nth-child(2){width:36vw;height:36vw;left:-6%;top:8%;background:radial-gradient(circle,rgba(14,165,183,.5),transparent 62%);animation:au2 23s ease-in-out infinite alternate}
+  @keyframes au1{to{transform:translate(-9%,12%) scale(1.18)}}
+  @keyframes au2{to{transform:translate(11%,-7%) scale(1.12)}}
+  .scan{position:absolute;left:0;right:0;top:-2px;height:2px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(34,211,238,.6),transparent);box-shadow:0 0 20px rgba(34,211,238,.5);animation:heroScan 7.5s linear infinite}
+  @keyframes heroScan{0%{top:-2px;opacity:0}9%{opacity:.85}91%{opacity:.85}100%{top:100%;opacity:0}}
+  .kchip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:#bdeef7;border:1px solid rgba(34,211,238,.35);border-radius:999px;padding:6px 15px 6px 12px;font-weight:500;background:rgba(34,211,238,.06)}
+  .kchip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .hero h1{font-size:clamp(30px,4.6vw,44px);line-height:1.16;font-weight:850;letter-spacing:-.02em;margin:20px 0 14px;max-width:840px}
+  .hero h1 .hl{background:linear-gradient(96deg,#22d3ee,#7dd3fc,#22d3ee);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
+  @keyframes shine{to{background-position:220% center}}
+  .hero .lead{font-size:clamp(15px,1.4vw,16.5px);color:var(--dim);font-weight:450;max-width:700px}
+  .hero .lead b{color:#dbeafe;font-weight:600}
   .hero .me{margin-top:22px;display:inline-flex;flex-wrap:wrap;gap:10px}
-  .hero .me span{font-size:13px;color:#cfeaf2;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.22);border-radius:999px;padding:7px 15px}
-  .hero .me span b{color:var(--accent)}
+  .hero .me span{font-size:12.5px;color:#cfeaf2;font-weight:450;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:999px;padding:7px 14px}
+  .hero .me span b{color:var(--accent);font-weight:700}
 
-  .cover{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-  .cover .c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
-  .cover .c .ic{font-size:20px}
-  .cover .c h4{font-size:16px;font-weight:750;margin:8px 0 6px}
-  .cover .c p{font-size:13px;color:var(--dim)}
-  .cover .c p b{color:#cde9f1}
+  /* shared card */
+  .c,.w,.mode,.fl{position:relative;background:var(--surface),var(--card);border:var(--hair);border-radius:var(--r-lg);box-shadow:var(--sh-rest);--mx:50%;--my:50%;overflow:hidden;transition:transform .26s var(--ease),box-shadow .26s var(--ease),border-color .26s var(--ease)}
+  .c::after,.w::after,.mode::after,.fl::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s var(--ease);background:radial-gradient(300px circle at var(--mx) var(--my),rgba(34,211,238,.15),transparent 55%);z-index:1}
+  .c:hover,.w:hover,.mode:hover,.fl:hover{transform:translateY(-5px);border-color:rgba(34,211,238,.35);box-shadow:var(--sh-tint)}
+  .c:hover::after,.w:hover::after,.mode:hover::after,.fl:hover::after{opacity:1}
+  .c>*,.w>*,.mode>*,.fl>*{position:relative;z-index:2}
 
-  .who{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .who .w{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .cover{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .cover .c{padding:22px 24px}
+  .cover .c h4{font-size:16px;font-weight:750;color:#fff;margin:12px 0 6px}
+  .cover .c p{font-size:13px;color:var(--dim);font-weight:450}
+  .cover .c p b{color:#cde9f1;font-weight:600}
+
+  .who{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .who .w{padding:20px 22px}
   .who .w .t{font-size:15px;font-weight:750;color:#fff;margin-bottom:6px}
-  .who .w p{font-size:12.5px;color:var(--dim)}
-  .who .w.best{border-color:rgba(245,196,81,.4);background:linear-gradient(170deg,rgba(245,196,81,.06),transparent),var(--card)}
+  .who .w p{font-size:12.5px;color:var(--dim);font-weight:450}
+  .who .w p b{color:#cde9f1;font-weight:600}
+  .who .w.best{border-color:rgba(245,196,81,.4);background:linear-gradient(170deg,rgba(245,196,81,.07),transparent),var(--card)}
   .who .w.best .tag{font-size:10.5px;letter-spacing:.1em;color:var(--gold);font-weight:700;text-transform:uppercase}
 
-  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .mode{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .mode .n{font-size:13px;font-weight:800;color:#0a0e17;background:var(--gold);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-  .mode h4{font-size:15px;font-weight:750;margin:12px 0 6px}
-  .mode p{font-size:12.5px;color:var(--dim)}
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .mode{padding:22px}
+  .mode .n{font-size:14px;font-weight:800;color:#0a0e17;background:linear-gradient(180deg,#ffe6a3,var(--gold));width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -6px rgba(245,196,81,.6)}
+  .mode h4{font-size:15px;font-weight:750;color:#fff;margin:14px 0 6px}
+  .mode p{font-size:12.5px;color:var(--dim);font-weight:450}
+  .mode p b{color:#cde9f1;font-weight:600}
 
-  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .fl{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;position:relative}
+  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .fl{padding:20px 22px}
   .fl .s{font-size:11px;letter-spacing:.12em;color:var(--accent);font-weight:700;text-transform:uppercase}
-  .fl h4{font-size:15px;font-weight:700;margin:6px 0 5px}
-  .fl p{font-size:12.5px;color:var(--dim)}
+  .fl h4{font-size:15px;font-weight:700;color:#fff;margin:8px 0 5px}
+  .fl p{font-size:12.5px;color:var(--dim);font-weight:450}
+  .fl p b{color:#cde9f1;font-weight:600}
 
-  .contact{background:radial-gradient(70% 130% at 50% 0%,rgba(34,211,238,.14),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
-  .ccard{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px 28px}
-  .ccard h3{font-size:21px;font-weight:800;margin-bottom:6px}
-  .ccard p{font-size:14px;color:var(--dim);margin-bottom:16px}
-  .rows .r{display:flex;gap:12px;font-size:14px;padding:7px 0;border-bottom:1px dashed var(--line)}
-  .rows .r .k{color:var(--accent);font-weight:700;min-width:72px}
-  .rows .r .v{color:#fff}
-  .qr{background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;gap:8px}
-  .qr img{width:100%;max-width:200px;border-radius:8px;display:block}
+  .contact{background:radial-gradient(70% 130% at 50% -10%,rgba(34,211,238,.13),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
+  .ccard{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:center;background:var(--surface),var(--card);border:var(--hair);border-radius:22px;padding:clamp(22px,3vw,30px);box-shadow:var(--sh-rest)}
+  .ccard h3{font-size:clamp(19px,2.2vw,22px);font-weight:800;color:#fff;margin-bottom:8px}
+  .ccard p{font-size:14px;color:var(--dim);font-weight:450;margin-bottom:18px}
+  .rows .r{display:flex;gap:12px;font-size:14px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .rows .r:last-child{border-bottom:none}
+  .rows .r .k{color:var(--accent);font-weight:600;min-width:64px}
+  .rows .r .v{color:#fff;font-variant-numeric:tabular-nums}
+  .qr{background:#fff;border:var(--hair);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px;gap:8px}
+  .qr img{width:100%;max-width:196px;border-radius:10px;display:block}
   .qr .cap{color:#5b6b7e;font-size:11.5px}
-  .links{margin-top:18px;font-size:12px;color:var(--faint)}
-  .links a{color:var(--accent);text-decoration:none;margin-right:14px}
+  .clinks{margin-top:18px;font-size:12px;color:var(--faint)}
+  .clinks a{color:var(--accent);text-decoration:none;margin-right:14px}
 
-  @media(max-width:820px){.cover,.who,.modes,.flow{grid-template-columns:1fr}.ccard{grid-template-columns:1fr}.hero h1{font-size:32px}}
+  .foot{padding:32px 0 58px;color:var(--faint);font-size:12px;font-weight:450;text-align:center;border-top:var(--hair)}
+  .foot a{color:var(--dim)}
+  .foot a:hover{color:var(--accent)}
+
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:820px){.cover,.who,.modes,.flow{grid-template-columns:1fr}.ccard{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    .reveal{opacity:1!important;transform:none!important}.scan{display:none}
+  }
   @media print{
+    :root{--dim:#3a4658;--faint:#5b6b7e;--line:#d9e0ea}
     *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
-    section{break-inside:avoid}.cover .c,.who .w,.mode,.fl,.ccard{break-inside:avoid}
+    body{background:#fff;color:#10151f}
+    .nav,.aurora,.scan,.foot{display:none}
+    .hero,.contact{background:#fff}
+    section{break-inside:avoid;padding:18px 0;border-top-color:#e2e8f1}
+    .hero h1,section h2,.ccard h3,.cover .c h4,.who .w .t,.mode h4,.fl h4{color:#0b1020}
+    .hero h1 .hl{-webkit-text-fill-color:#0e7490;color:#0e7490}
+    .cover .c,.who .w,.mode,.fl,.ccard{break-inside:avoid;background:#fff;border-color:#dde4ee;box-shadow:none;color:#10151f}
+    .ic.box{background:#e8f7fb;border-color:#bfe9f2}
+    .reveal{opacity:1!important;transform:none!important}
   }
 </style>
 </head>
 <body>
 
-<div class="hero">
+<nav class="nav">
+  <div class="in">
+    <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
+    <div class="r">
+      <a class="back" href="index.html">← 返回首页</a>
+      <a class="back" href="solution-overview.html">解决方案总览</a>
+      <a class="back cta" href="#contact">联系我</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="aurora" aria-hidden="true"><i></i><i></i></div>
+  <div class="scan" aria-hidden="true"></div>
   <div class="wrap">
-    <span class="kchip">深圳 · 智能视觉合作邀约</span>
-    <h1>你想做<span class="hl">自有品牌</span>、想做<span class="hl">差异化</span>,<br>却卡在 AI 与固件?<br>——这块,我来。</h1>
-    <p class="lead">你有市场、有渠道、能量产,缺的是把<b>设备端 AI(检测 + 视觉大模型)</b>和<b>云边端全栈</b>做进设备、还能<b>整套白标成你的品牌</b>的人。我做这件事 17 年。<b>你出市场,我出别人做不出的 AI 全栈,一起把它变成你的产品线。</b></p>
-    <div class="me">
+    <span class="kchip reveal">深圳 · 智能视觉合作邀约</span>
+    <h1 class="reveal">你想做<span class="hl">自有品牌</span>、想做<span class="hl">差异化</span>,<br>却卡在 AI 与固件?<br>——这块,我来。</h1>
+    <p class="lead reveal">你有市场、有渠道、能量产,缺的是把<b>设备端 AI(检测 + 视觉大模型)</b>和<b>云边端全栈</b>做进设备、还能<b>整套白标成你的品牌</b>的人。我做这件事 17 年。<b>你出市场,我出别人做不出的 AI 全栈,一起把它变成你的产品线。</b></p>
+    <div class="me reveal">
       <span><b>17 年</b> 安防摄像头研发</span>
       <span>设备端 <b>YOLO + 视觉大模型</b></span>
       <span>云 · 边 · 端 <b>一人打通</b></span>
       <span>整套 <b>可白标</b></span>
     </div>
   </div>
-</div>
+</header>
 
 <section>
   <div class="wrap">
-    <div class="eyebrow">What I bring · 我补上你缺的那块</div>
-    <h2>不是卖你零件,是把你最难的那段做掉</h2>
+    <div class="eyebrow reveal">What I bring · 我补上你缺的那块</div>
+    <h2 class="reveal">不是卖你零件,是把你最难的那段做掉</h2>
     <div class="cover">
-      <div class="c"><div class="ic">🧠</div><h4>设备端 AI 难能力</h4><p>把<b>检测精度/误报、低算力跑不动、某个特殊场景算法、设备端大模型落地</b>这类"做不出的效果"做出来——AI 在设备本地跑,<b>拔网也能用</b>。</p></div>
-      <div class="c"><div class="ic">🌐</div><h4>云边端全栈,一人交付</h4><p>固件 → 设备端 AI → 云后端 → App → Web 门户,<b>整条链路一个人打通</b>,不用你协调一堆供应商。</p></div>
-      <div class="c"><div class="ic">🏷️</div><h4>整套白标成你的品牌</h4><p>设备、App、云门户的<b>品牌名 / 主题色 / 多语言全可换</b>,交付即是你的产品,不是"某供应商方案"。</p></div>
-      <div class="c"><div class="ic">🧩</div><h4>一套固件多平台</h4><p>君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达,<b>换芯片不重写</b>,你出货不卡脖子。</p></div>
+      <div class="c reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.4L18 9l-4.3 1.6L12 15l-1.7-4.4L6 9l4.3-1.6z"/><path d="M18 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg></span><h4>设备端 AI 难能力</h4><p>把<b>检测精度/误报、低算力跑不动、某个特殊场景算法、设备端大模型落地</b>这类"做不出的效果"做出来——AI 在设备本地跑,<b>拔网也能用</b>。</p></div>
+      <div class="c reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.6 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.6-4-9s1.4-6.6 4-9z"/></svg></span><h4>云边端全栈,一人交付</h4><p>固件 → 设备端 AI → 云后端 → App → Web 门户,<b>整条链路一个人打通</b>,不用你协调一堆供应商。</p></div>
+      <div class="c reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l8-8 8 1 1 8-8 8z"/><circle cx="14.5" cy="9.5" r="1.4"/></svg></span><h4>整套白标成你的品牌</h4><p>设备、App、云门户的<b>品牌名 / 主题色 / 多语言全可换</b>,交付即是你的产品,不是"某供应商方案"。</p></div>
+      <div class="c reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4M4 16.5l8 4 8-4"/></svg></span><h4>一套固件多平台</h4><p>君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达,<b>换芯片不重写</b>,你出货不卡脖子。</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="eyebrow">Who · 这样的合作最合适</div>
-    <h2>有市场 / 能量产 / 卡在一块 AI 上的你</h2>
+    <div class="eyebrow reveal">Who · 这样的合作最合适</div>
+    <h2 class="reveal">有市场 / 能量产 / 卡在一块 AI 上的你</h2>
     <div class="who">
-      <div class="w best"><div class="tag">★ 最佳</div><div class="t">品牌商 / 贸易商</div><p>有渠道有订单,想做<b>自有品牌</b>的智能摄像头 / 设备,但没有 AI 与固件团队——整套白标交给我。</p></div>
-      <div class="w"><div class="t">二三线安防厂</div><p>想做<b>差异化突围</b>、给产品加上巨头标品给不了的设备端 AI 卖点。</p></div>
-      <div class="w"><div class="t">机器人 / 工业厂</div><p>需要<b>设备端视觉</b>(多路同步、ROS/Foxglove 推送、本地推理)做进你的机器上。</p></div>
+      <div class="w best reveal"><div class="tag">★ 最佳</div><div class="t">品牌商 / 贸易商</div><p>有渠道有订单,想做<b>自有品牌</b>的智能摄像头 / 设备,但没有 AI 与固件团队——整套白标交给我。</p></div>
+      <div class="w reveal"><div class="t">二三线安防厂</div><p>想做<b>差异化突围</b>、给产品加上巨头标品给不了的设备端 AI 卖点。</p></div>
+      <div class="w reveal"><div class="t">机器人 / 工业厂</div><p>需要<b>设备端视觉</b>(多路同步、ROS/Foxglove 推送、本地推理)做进你的机器上。</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="eyebrow">How · 合作方式灵活</div>
-    <h2>按你的方式来,不绑死一种</h2>
-    <p class="sub">看你的项目阶段和需求,选最省心的一种——具体怎么合作,聊清你的需求再定。</p>
+    <div class="eyebrow reveal">How · 合作方式灵活</div>
+    <h2 class="reveal">按你的方式来,不绑死一种</h2>
+    <p class="sub reveal">看你的项目阶段和需求,选最省心的一种——具体怎么合作,聊清你的需求再定。</p>
     <div class="modes">
-      <div class="mode"><div class="n">①</div><h4>合作开发</h4><p>按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。</p></div>
-      <div class="mode"><div class="n">②</div><h4>模块授权</h4><p>把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。</p></div>
-      <div class="mode"><div class="n">③</div><h4>代码买断</h4><p>需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。</p></div>
+      <div class="mode reveal"><div class="n">①</div><h4>合作开发</h4><p>按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。</p></div>
+      <div class="mode reveal"><div class="n">②</div><h4>模块授权</h4><p>把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。</p></div>
+      <div class="mode reveal"><div class="n">③</div><h4>代码买断</h4><p>需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="eyebrow">Start · 怎么开始</div>
-    <h2>三步,先把难点聊清</h2>
+    <div class="eyebrow reveal">Start · 怎么开始</div>
+    <h2 class="reveal">三步,先把难点聊清</h2>
     <div class="flow">
-      <div class="fl"><div class="s">Step 1</div><h4>说清你卡在哪</h4><p>检测精度 / 误报、低算力、某个场景算法、白标交付……先框住具体难点。</p></div>
-      <div class="fl"><div class="s">Step 2</div><h4>带真机当面演示</h4><p>我在深圳,可<b>当面演示真机</b>(实时 AI 检测 + 视觉大模型对话),眼见为实。</p></div>
-      <div class="fl"><div class="s">Step 3</div><h4>给你合作结构</h4><p>看清难点后,给你「合作开发 / 模块授权 / 买断」里最合适的一种。</p></div>
+      <div class="fl reveal"><div class="s">Step 1</div><h4>说清你卡在哪</h4><p>检测精度 / 误报、低算力、某个场景算法、白标交付……先框住具体难点。</p></div>
+      <div class="fl reveal"><div class="s">Step 2</div><h4>带真机当面演示</h4><p>我在深圳,可<b>当面演示真机</b>(实时 AI 检测 + 视觉大模型对话),眼见为实。</p></div>
+      <div class="fl reveal"><div class="s">Step 3</div><h4>给你合作结构</h4><p>看清难点后,给你「合作开发 / 模块授权 / 买断」里最合适的一种。</p></div>
     </div>
   </div>
 </section>
 
-<section class="contact">
+<section class="contact" id="contact">
   <div class="wrap">
-    <div class="eyebrow">Contact · 聊聊</div>
-    <h2 style="margin-bottom:18px">在深圳,先喝杯茶、聊聊你卡在哪</h2>
-    <div class="ccard">
+    <div class="eyebrow reveal">Contact · 聊聊</div>
+    <h2 class="reveal" style="margin-bottom:18px">在深圳,先喝杯茶、聊聊你卡在哪</h2>
+    <div class="ccard reveal">
       <div>
         <h3>把你最难的那块,交给做了 17 年的人。</h3>
         <p>你有市场,我有这套别人做不出的设备端 AI 全栈。先聊需求,不急着报价。</p>
@@ -173,7 +261,7 @@
           <div class="r"><div class="k">邮箱</div><div class="v">493148469@qq.com</div></div>
           <div class="r"><div class="k">地点</div><div class="v">深圳</div></div>
         </div>
-        <div class="links">
+        <div class="clinks">
           配套资料:<a href="solution-overview.html">解决方案总览</a><a href="app-manual.html">App 功能说明书</a><a href="product-manual.html">Web 控制台说明书</a>
         </div>
       </div>
@@ -182,6 +270,28 @@
   </div>
 </section>
 
+</main>
+
+<footer class="foot">合作邀约 · 深圳 · <a href="index.html">返回首页</a> · <a href="solution-overview.html">解决方案总览</a> · <a href="cases.html">实战案例</a></footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  if (reduce || !('IntersectionObserver' in window)){ els.forEach(function(e){ e.classList.add('in'); }); }
+  else {
+    var io = new IntersectionObserver(function(en){ en.forEach(function(x){ if(!x.isIntersecting)return;
+      var el=x.target, sibs=Array.prototype.filter.call(el.parentNode.children,function(c){return c.classList.contains('reveal')});
+      el.style.transitionDelay=Math.min(sibs.indexOf(el),6)*45+'ms'; el.classList.add('in'); io.unobserve(el); }); },
+      { threshold:.12, rootMargin:'0px 0px -7% 0px' });
+    els.forEach(function(e){ io.observe(e); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.c,.w,.mode,.fl'), function(c){
+    c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
+      c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
+  });
+})();
+</script>
 <script src="fallback.js"></script>
 </body>
 </html>
