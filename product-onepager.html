@@ -150,7 +150,7 @@
 <nav class="nav">
   <div class="in">
     <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
-    <div class="r"><a href="index.html">← 返回首页</a><a href="cooperation-invite.html">合作邀约</a></div>
+    <div class="r"><a href="index.html">← 返回首页</a><button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;cursor:pointer">EN</button><a href="cooperation-invite.html">合作邀约</a></div>
   </div>
 </nav>
 
@@ -300,6 +300,62 @@
     c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
       c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
   });
+})();
+</script>
+<script>
+/* 中/英 双语切换 */
+(function(){
+  var PAIRS = [
+    [`<span class="dot"></span>云边端 AI 视觉`,`<span class="dot"></span>Edge-AI Vision`],[`← 返回首页`,`← Home`],[`合作邀约`,`Partner`],
+    [`你的品牌 / Your Brand`,`Your Brand`],
+    // HERO
+    [`拔了网线,<span>它还在认人。</span>`,`Pull the network cable, <span>it still recognizes people.</span>`],
+    [`把别人做不出来的 <b class="accent">设备端 AI 视觉难题</b>,做进你的量产设备里——<br>多平台固件 · 设备端 YOLO + 视觉大模型 · 云边端一体,断网照常。`,`Build the <b class="accent">on-device AI-vision problems others can't crack</b> into your mass-produced devices —<br>multi-platform firmware · on-device YOLO + vision-LLM · edge-cloud-app in one, offline as usual.`],
+    [`<b>你有市场和渠道,我有这套别人做不出的 AI 全栈。</b> 不接通用外包,只解硬题。<span class="en">You own the market. I own the on-device AI stack others can't build.</span>`,`<b>You have the market and channels; I have the AI stack others can't build.</b> No generic outsourcing — I only solve the hard problems. <span class="en">You own the market. I own the on-device AI stack others can't build.</span>`],
+    // 3 HIGHLIGHTS
+    [`三个别人给不了的硬亮点 · Why me(均为真机验证)`,`Three hard highlights others can't offer · Why me (all proven on real devices)`],
+    [`设备端视觉大模型<span class="en">On-device VLM</span>`,`On-device vision-LLM<span class="en">On-device VLM</span>`],[`不只是识别物体——设备看着画面,看懂整个场景,还能读出画面里的文字、开放式问答。<b class="accent">断网可用</b>,这是云端 API 做不到的。`,`More than object detection — the device looks at the frame, understands the whole scene, reads on-screen text and answers open questions. <b class="accent">Works offline</b>, which a cloud API can't do.`],
+    [`场景理解`,`Scene understanding`],[`画面读字 OCR`,`On-screen text (OCR)`],[`本地 + 云端双模式`,`Local + cloud dual mode`],
+    [`一套固件,六大平台<span class="en">One Firmware, 6 SoCs</span>`,`One firmware, six platforms<span class="en">One Firmware, 6 SoCs</span>`],[`君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达——六大平台共用一套固件,换芯片不重写,出货不卡脖子、不被供应链绑死。`,`Ingenic / HiSilicon / Rockchip / Allwinner / Novatek / NVIDIA — one firmware across six platforms, swap chips without a rewrite, ship without supply-chain lock-in.`],
+    [`6 大 SoC 平台`,`6 SoC platforms`],[`编译期选型`,`Compile-time selection`],[`OTA 在线升级`,`OTA updates`],
+    [`云边端整套白标<span class="en">Full-stack White-label</span>`,`Full-stack white-label<span class="en">Full-stack White-label</span>`],[`设备 + App + Web 门户整套换成你的品牌、你的色、你的语言;全球部署、就近接入。你卖的是你的产品,不是别人的影子。`,`Device + app + web console, all rebranded to your name, colors and languages; global deployment with nearest-node access. You sell your product, not someone else's shadow.`],
+    [`整套白标`,`Full white-label`],[`全球部署`,`Global deployment`],[`美洲/亚洲/欧洲`,`Americas/Asia/Europe`],
+    // FEATURES
+    [`全功能清单 · Full Feature List`,`Full feature list`],
+    [`实时与远程`,`Live & remote`],[`<b>WebRTC 远程实时查看</b>(随时随地)`,`<b>WebRTC live remote view</b> (anytime, anywhere)`],[`多路摄像头<b>同屏直播</b>`,`Multi-camera <b>same-screen live</b>`],[`RTC / RTSP <b>多传输自动回退</b>`,`RTC / RTSP <b>auto transport fallback</b>`],[`安全隧道:<b>零开放端口</b>远程运维`,`Secure tunnel: <b>zero open ports</b> for remote ops`],
+    [`录像`,`Recording`],[`<b>循环 / 缩时 / 预录 / 手动</b>录像`,`<b>Loop / time-lapse / pre-record / manual</b> recording`],[`<b>事件报警录像(EMR)</b>`,`<b>Event/alarm recording (EMR)</b>`],[`本地 / 云端 / <b>本地+云端</b>可选`,`Local / cloud / <b>both</b>`],[`<b>H.265 & H.264</b> · 1080P`,`<b>H.265 & H.264</b> · 1080p`],
+    [`回放与检索`,`Playback & search`],[`本地回放 · 云回放 · 图片回放`,`Local / cloud / image playback`],[`24h 时间轴 + <b>本地高速索引</b>`,`24h timeline + <b>fast local index</b>`],[`<b>多路同步回放</b>`,`<b>Multi-stream sync playback</b>`],[`按<b>日期 / 设备 / 通道</b>筛选`,`Filter by <b>date / device / channel</b>`],
+    [`设备端 AI`,`On-device AI`],[`<b>YOLO 多类目标检测</b> + OSD 检测框`,`<b>YOLO multi-class detection</b> + OSD boxes`],[`<b>视觉大模型场景问答</b> + 画面读字(OCR)`,`<b>Vision-LLM scene Q&A</b> + on-screen text (OCR)`],[`本地 / 云端大模型 <b>双模式</b>`,`Local / cloud model <b>dual mode</b>`],[`<b>Foxglove / ROS</b> 推送`,`<b>Foxglove / ROS</b> push`],
+    [`平台 · 云 · 门户`,`Platform · cloud · console`],[`<b>六大 SoC 一套固件</b>(君正/海思/瑞芯微/全志/联咏/英伟达)`,`<b>Six SoCs, one firmware</b> (Ingenic/HiSilicon/Rockchip/Allwinner/Novatek/NVIDIA)`],[`<b>OTA 在线升级</b> · 设备配网 · 工厂测试`,`<b>OTA updates</b> · provisioning · factory test`],[`云端接入 · <b>全球部署</b>(美洲/亚洲/欧洲)`,`Cloud access · <b>global deployment</b> (Americas/Asia/Europe)`],[`<b>整套白标</b>:品牌 / 主题色 / 多语言门户`,`<b>Full white-label</b>: brand / theme / multilingual console`],
+    [`可靠性与运维`,`Reliability & ops`],[`<b>看门狗自愈</b> · 数据库自动修复`,`<b>Watchdog self-heal</b> · auto DB repair`],[`优雅关机 · <b>断电保护</b>`,`Graceful shutdown · <b>power-loss protection</b>`],[`连续 <b>1 年不重启不丢录像</b>`,`<b>1 year no reboot, no lost footage</b>`],[`累计 <b>14.7 万文件无损</b> · 存储自动管理`,`<b>147K files, zero loss</b> · auto storage management`],
+    // DEAL
+    [`合作方式 · How we work`,`How we work`],
+    [`按你的方式来,把这套能力变成你的产品。<span class="en"> Your model — co-dev, module license, or full buyout.</span>`,`Your way — turn this capability into your product.<span class="en"> Your model — co-dev, module license, or full buyout.</span>`],
+    [`联合开发`,`Co-development`],[`按你的设备和场景定制落地,一起把方案跑通。`,`Customized to your device and scenario — we get it working together.`],
+    [`模块授权`,`Module licensing`],[`把难能力做成可集成模块,授权进你的产品线。`,`The hard capability packaged as an integrable module, licensed into your line.`],
+    [`代码买断`,`Source buyout`],[`整套源码交付,后续你自己掌控、自由迭代。`,`Full source delivered — you own it and iterate freely afterward.`],
+    [`你有难题,我有 17 年。先聊聊你卡在哪一环?`,`You have the problem; I have 17 years. Let's start with where you're stuck.`],
+    [`联系 / Contact:<b>微信 13826173658</b> · 邮箱 493148469@qq.com`,`Contact: <b>WeChat 13826173658</b> · Email 493148469@qq.com`],
+    [`设备端 AI 视觉全栈 · 内容基于真机验证 · 完整方案见《<a href="solution-overview.html">解决方案总览</a>》 · © 你的品牌`,`On-device AI-vision stack · based on real-device validation · full solution in the <a href="solution-overview.html">Solution overview</a> · © Your Brand`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button,li'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
 })();
 </script>
 <script src="fallback.js"></script>
