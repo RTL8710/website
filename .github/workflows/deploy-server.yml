@@ -1,0 +1,63 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+      - claude/website-auto-deploy-vnolom
+  workflow_dispatch:
+
+concurrency:
+  group: server-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查是否已配置服务器密钥
+        id: cfg
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️  未配置 SERVER_* Secrets,跳过服务器部署(这是正常的,配好后就会自动部署)。"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.cfg.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: 准备 SSH 私钥
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.SERVER_PORT }}" -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: 初始化服务器(安装 nginx + 配置站点)
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SERVER_PORT }}" \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" 'bash -s' < deploy/setup.sh
+
+      - name: 同步网站文件到服务器
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'deploy' \
+            --exclude 'node_modules' \
+            --exclude '.DS_Store' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no" \
+            ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/website/"
+
+      - name: 完成
+        if: steps.cfg.outputs.configured == 'true'
+        run: echo "✅ 已部署到服务器 http://${{ secrets.SERVER_HOST }}/"
