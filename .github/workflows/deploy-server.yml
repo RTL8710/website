@@ -60,4 +60,4 @@ jobs:
 
       - name: 完成
         if: steps.cfg.outputs.configured == 'true'
-        run: echo "✅ 已部署到服务器 http://${{ secrets.SERVER_HOST }}/"
+        run: echo "✅ 已部署到服务器 http://${{ secrets.SERVER_HOST }}:8080/"
