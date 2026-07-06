@@ -30,10 +30,10 @@
   body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
   a{color:var(--accent);text-decoration:none}
   b{color:#fff;font-weight:700}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 26px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px}
   /* NAV */
   .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-  .nav .in{max-width:1120px;margin:0 auto;padding:13px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .nav .in{max-width:1180px;margin:0 auto;padding:13px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
   .nav .brand{font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px}
   .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
   .nav .back{font-size:13.5px;color:var(--dim)}
@@ -45,19 +45,44 @@
   .head p{color:var(--dim);font-size:14.5px;max-width:720px}
   .head .hint{margin-top:14px;font-size:12.5px;color:var(--faint)}
   /* GRID */
-  .fv{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:34px 0 70px}
-  .fvc{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .16s ease,border-color .16s ease}
-  .fvc:hover{transform:translateY(-3px);border-color:rgba(34,211,238,.4)}
-  .fvc .vwrap{position:relative;aspect-ratio:16/10;background:#070b13;overflow:hidden}
-  .fvc video{width:100%;height:100%;object-fit:cover;display:block}
-  .fvc .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:opacity .2s}
-  .fvc .play span{width:44px;height:44px;border-radius:50%;background:rgba(10,14,23,.6);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;backdrop-filter:blur(4px)}
-  .fvc.playing .play{opacity:0}
-  .fvc .lab{padding:11px 13px;font-size:12.5px;color:#dbe6f0;font-weight:600}
-  .fvc .lab small{display:block;color:var(--faint);font-weight:400;font-size:11px;margin-top:2px}
+  .fv{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:34px 0 70px}
+  .fvc{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .2s ease}
+  .fvc:hover{transform:translateY(-4px);border-color:rgba(34,211,238,.45);box-shadow:0 18px 44px rgba(34,211,238,.08)}
+  .fvc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .fvc .vwrap{position:relative;aspect-ratio:16/9;background:#070b13;overflow:hidden}
+  .fvc .thumb{width:100%;height:100%;object-fit:cover;display:block}
+  .fvc .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .fvc .play::before{content:"▶";width:56px;height:56px;border-radius:50%;background:rgba(10,14,23,.55);border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;padding-left:4px;backdrop-filter:blur(4px);transition:transform .16s ease,background .16s ease}
+  .fvc:hover .play::before{transform:scale(1.08);background:rgba(34,211,238,.85);color:#08121a;border-color:transparent}
+  .fvc .lab{padding:13px 15px;font-size:13.5px;color:#dbe6f0;font-weight:700}
+  .fvc .lab small{display:block;color:var(--faint);font-weight:400;font-size:11.5px;margin-top:3px}
   .foot{padding:24px 0 56px;color:var(--faint);font-size:12px;text-align:center;border-top:1px solid var(--line)}
-  @media(max-width:1000px){.fv{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:760px){.fv{grid-template-columns:repeat(2,1fr)}.head h1{font-size:30px}}
+  @media(max-width:900px){.fv{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.fv{grid-template-columns:1fr;gap:14px}.head h1{font-size:30px}}
+
+  /* MODAL / LIGHTBOX */
+  .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;
+    background:rgba(6,9,15,.93);backdrop-filter:blur(10px)}
+  .modal.open{display:flex}
+  .mbox{width:min(1120px,94vw);position:relative}
+  .mbox video{width:100%;max-height:78vh;display:block;background:#000;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .mtop{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:14px}
+  .mtop .mt b{display:block;font-size:18px;font-weight:800;color:#fff}
+  .mtop .mt span{font-size:12.5px;color:var(--dim)}
+  .mtop .mcount{font-size:13px;color:var(--faint);font-weight:700;white-space:nowrap;letter-spacing:.05em}
+  .mclose{position:fixed;top:18px;right:20px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(18,26,42,.9);color:#fff;font-size:18px;cursor:pointer;z-index:2;transition:transform .16s ease,border-color .16s ease}
+  .mclose:hover{transform:scale(1.06);border-color:rgba(34,211,238,.5)}
+  .marrow{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;
+    border:1px solid var(--line);background:rgba(18,26,42,.9);color:#fff;font-size:26px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+  .marrow:hover{background:rgba(34,211,238,.85);color:#08121a;border-color:transparent;transform:translateY(-50%) scale(1.06)}
+  .marrow.prev{left:22px}.marrow.next{right:22px}
+  @media(max-width:640px){
+    .marrow{width:42px;height:42px;font-size:22px}.marrow.prev{left:8px}.marrow.next{right:8px}
+    .mclose{top:12px;right:12px;width:40px;height:40px}
+    .mbox video{max-height:60vh}
+  }
 </style>
 </head>
 <body>
@@ -74,46 +99,91 @@
     <div class="eyebrow">Feature Demos · 逐功能真机录屏</div>
     <h1>每个功能,一段真机演示</h1>
     <p>不是效果图——下面每一段都是真机屏幕录制。从实时直播、设备端 AI,到录像、云端、运维,逐个看清。</p>
-    <div class="hint">💡 鼠标悬停即自动播放,移出停止;移动端点击播放。视频按需加载,不影响页面打开速度。</div>
+    <div class="hint">💡 点击任意功能打开大图演示,可全屏、带声音、拖进度;弹窗内用 ← → 切换、Esc 关闭。视频按需加载,不影响页面打开速度。</div>
   </div>
 </div>
 
 <div class="wrap">
-  <div class="fv">
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-live-horizontal.mp4" poster="footage/demos/feat-live-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">多路实时直播<small>WebRTC · 多路同屏</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-aidet-horizontal.mp4" poster="footage/demos/feat-aidet-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">设备端 AI 检测<small>YOLO + OSD 检测框</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-chat-horizontal.mp4" poster="footage/demos/feat-chat-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">视觉大模型对话<small>看懂场景 · 读字 OCR</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-localrec-horizontal.mp4" poster="footage/demos/feat-localrec-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">本地录像回放<small>多路同步 · 时间轴</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-cloudrec-horizontal.mp4" poster="footage/demos/feat-cloudrec-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">云端录像回放<small>事件录像上云可检索</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-cloudrecset-horizontal.mp4" poster="footage/demos/feat-cloudrecset-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">云端录像设置<small>上云策略配置</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-recset-horizontal.mp4" poster="footage/demos/feat-recset-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">录像模式设置<small>循环/缩时/预录/事件</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-storage-horizontal.mp4" poster="footage/demos/feat-storage-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">存储管理<small>自动覆盖 · 长期不丢</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-vidset-horizontal.mp4" poster="footage/demos/feat-vidset-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">视频参数设置<small>分辨率/码率/编码</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-audio-horizontal.mp4" poster="footage/demos/feat-audio-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">音频与对讲<small>采集 · 双向对讲</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-ptz-horizontal.mp4" poster="footage/demos/feat-ptz-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">云台控制<small>PTZ 方向控制</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-network-horizontal.mp4" poster="footage/demos/feat-network-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">网络设置<small>有线/WiFi · IP/DNS</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-rtsp-horizontal.mp4" poster="footage/demos/feat-rtsp-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">RTSP 拉流<small>标准协议接入</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-ntp-horizontal.mp4" poster="footage/demos/feat-ntp-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">时间同步<small>NTP 校时</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-ota-horizontal.mp4" poster="footage/demos/feat-ota-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">OTA 在线升级<small>出货后远程维护</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-devinfo-horizontal.mp4" poster="footage/demos/feat-devinfo-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">设备信息<small>型号/版本/运行时长</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-peripheral-horizontal.mp4" poster="footage/demos/feat-peripheral-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">外设管理<small>外接设备配置</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-battery-horizontal.mp4" poster="footage/demos/feat-battery-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">电量管理<small>低功耗 · 电量监测</small></div></div>
-    <div class="fvc"><div class="vwrap"><video src="marketing/feature-videos/feat-notify-horizontal.mp4" poster="footage/demos/feat-notify-horizontal.jpg" muted loop playsinline preload="none"></video><div class="play"><span>▶</span></div></div><div class="lab">消息通知<small>事件推送提醒</small></div></div>
+  <div class="fv" id="grid">
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-live-horizontal.mp4" data-title="多路实时直播" data-sub="WebRTC · 多路同屏"><div class="vwrap"><img class="thumb" src="footage/demos/feat-live-horizontal.jpg" alt="多路实时直播" loading="lazy"><span class="play"></span></div><div class="lab">多路实时直播<small>WebRTC · 多路同屏</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-aidet-horizontal.mp4" data-title="设备端 AI 检测" data-sub="YOLO + OSD 检测框"><div class="vwrap"><img class="thumb" src="footage/demos/feat-aidet-horizontal.jpg" alt="设备端 AI 检测" loading="lazy"><span class="play"></span></div><div class="lab">设备端 AI 检测<small>YOLO + OSD 检测框</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-chat-horizontal.mp4" data-title="视觉大模型对话" data-sub="看懂场景 · 读字 OCR"><div class="vwrap"><img class="thumb" src="footage/demos/feat-chat-horizontal.jpg" alt="视觉大模型对话" loading="lazy"><span class="play"></span></div><div class="lab">视觉大模型对话<small>看懂场景 · 读字 OCR</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-localrec-horizontal.mp4" data-title="本地录像回放" data-sub="多路同步 · 时间轴"><div class="vwrap"><img class="thumb" src="footage/demos/feat-localrec-horizontal.jpg" alt="本地录像回放" loading="lazy"><span class="play"></span></div><div class="lab">本地录像回放<small>多路同步 · 时间轴</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-cloudrec-horizontal.mp4" data-title="云端录像回放" data-sub="事件录像上云可检索"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrec-horizontal.jpg" alt="云端录像回放" loading="lazy"><span class="play"></span></div><div class="lab">云端录像回放<small>事件录像上云可检索</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-cloudrecset-horizontal.mp4" data-title="云端录像设置" data-sub="上云策略配置"><div class="vwrap"><img class="thumb" src="footage/demos/feat-cloudrecset-horizontal.jpg" alt="云端录像设置" loading="lazy"><span class="play"></span></div><div class="lab">云端录像设置<small>上云策略配置</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-recset-horizontal.mp4" data-title="录像模式设置" data-sub="循环/缩时/预录/事件"><div class="vwrap"><img class="thumb" src="footage/demos/feat-recset-horizontal.jpg" alt="录像模式设置" loading="lazy"><span class="play"></span></div><div class="lab">录像模式设置<small>循环/缩时/预录/事件</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-storage-horizontal.mp4" data-title="存储管理" data-sub="自动覆盖 · 长期不丢"><div class="vwrap"><img class="thumb" src="footage/demos/feat-storage-horizontal.jpg" alt="存储管理" loading="lazy"><span class="play"></span></div><div class="lab">存储管理<small>自动覆盖 · 长期不丢</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-vidset-horizontal.mp4" data-title="视频参数设置" data-sub="分辨率/码率/编码"><div class="vwrap"><img class="thumb" src="footage/demos/feat-vidset-horizontal.jpg" alt="视频参数设置" loading="lazy"><span class="play"></span></div><div class="lab">视频参数设置<small>分辨率/码率/编码</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-audio-horizontal.mp4" data-title="音频与对讲" data-sub="采集 · 双向对讲"><div class="vwrap"><img class="thumb" src="footage/demos/feat-audio-horizontal.jpg" alt="音频与对讲" loading="lazy"><span class="play"></span></div><div class="lab">音频与对讲<small>采集 · 双向对讲</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ptz-horizontal.mp4" data-title="云台控制" data-sub="PTZ 方向控制"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ptz-horizontal.jpg" alt="云台控制" loading="lazy"><span class="play"></span></div><div class="lab">云台控制<small>PTZ 方向控制</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-network-horizontal.mp4" data-title="网络设置" data-sub="有线/WiFi · IP/DNS"><div class="vwrap"><img class="thumb" src="footage/demos/feat-network-horizontal.jpg" alt="网络设置" loading="lazy"><span class="play"></span></div><div class="lab">网络设置<small>有线/WiFi · IP/DNS</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-rtsp-horizontal.mp4" data-title="RTSP 拉流" data-sub="标准协议接入"><div class="vwrap"><img class="thumb" src="footage/demos/feat-rtsp-horizontal.jpg" alt="RTSP 拉流" loading="lazy"><span class="play"></span></div><div class="lab">RTSP 拉流<small>标准协议接入</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ntp-horizontal.mp4" data-title="时间同步" data-sub="NTP 校时"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ntp-horizontal.jpg" alt="时间同步" loading="lazy"><span class="play"></span></div><div class="lab">时间同步<small>NTP 校时</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-ota-horizontal.mp4" data-title="OTA 在线升级" data-sub="出货后远程维护"><div class="vwrap"><img class="thumb" src="footage/demos/feat-ota-horizontal.jpg" alt="OTA 在线升级" loading="lazy"><span class="play"></span></div><div class="lab">OTA 在线升级<small>出货后远程维护</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-devinfo-horizontal.mp4" data-title="设备信息" data-sub="型号/版本/运行时长"><div class="vwrap"><img class="thumb" src="footage/demos/feat-devinfo-horizontal.jpg" alt="设备信息" loading="lazy"><span class="play"></span></div><div class="lab">设备信息<small>型号/版本/运行时长</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-peripheral-horizontal.mp4" data-title="外设管理" data-sub="外接设备配置"><div class="vwrap"><img class="thumb" src="footage/demos/feat-peripheral-horizontal.jpg" alt="外设管理" loading="lazy"><span class="play"></span></div><div class="lab">外设管理<small>外接设备配置</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-battery-horizontal.mp4" data-title="电量管理" data-sub="低功耗 · 电量监测"><div class="vwrap"><img class="thumb" src="footage/demos/feat-battery-horizontal.jpg" alt="电量管理" loading="lazy"><span class="play"></span></div><div class="lab">电量管理<small>低功耗 · 电量监测</small></div></div>
+    <div class="fvc" tabindex="0" data-src="marketing/feature-videos/feat-notify-horizontal.mp4" data-title="消息通知" data-sub="事件推送提醒"><div class="vwrap"><img class="thumb" src="footage/demos/feat-notify-horizontal.jpg" alt="消息通知" loading="lazy"><span class="play"></span></div><div class="lab">消息通知<small>事件推送提醒</small></div></div>
   </div>
 </div>
 
 <div class="foot">功能演示 · 均为真机屏幕录制 · <a href="index.html">返回首页</a> · <a href="solution-overview.html">解决方案总览</a></div>
 
+<!-- LIGHTBOX -->
+<div class="modal" id="modal" aria-hidden="true">
+  <button class="mclose" id="mclose" aria-label="关闭">✕</button>
+  <button class="marrow prev" id="mprev" aria-label="上一个">‹</button>
+  <div class="mbox">
+    <video id="mvideo" controls playsinline preload="auto"></video>
+    <div class="mtop"><div class="mt"><b id="mtitle"></b><span id="msub"></span></div><div class="mcount" id="mcount"></div></div>
+  </div>
+  <button class="marrow next" id="mnext" aria-label="下一个">›</button>
+</div>
+
 <script>
-  // 悬停自动播放;移出暂停并回到起点;点击切换。视频 preload=none,按需加载。
-  document.querySelectorAll('.fvc').forEach(function (card) {
-    var v = card.querySelector('video');
-    if (!v) return;
-    function play(){ v.play().then(function(){ card.classList.add('playing'); }).catch(function(){}); }
-    function stop(){ v.pause(); v.currentTime = 0; card.classList.remove('playing'); }
-    card.addEventListener('mouseenter', play);
-    card.addEventListener('mouseleave', stop);
-    card.addEventListener('click', function(){ if (v.paused) play(); else stop(); });
+  var cards  = Array.prototype.slice.call(document.querySelectorAll('.fvc'));
+  var modal  = document.getElementById('modal');
+  var mvideo = document.getElementById('mvideo');
+  var mtitle = document.getElementById('mtitle');
+  var msub   = document.getElementById('msub');
+  var mcount = document.getElementById('mcount');
+  var idx = -1;
+
+  function show(i){
+    idx = (i + cards.length) % cards.length;
+    var c = cards[idx];
+    mvideo.src = c.getAttribute('data-src');
+    mtitle.textContent = c.getAttribute('data-title');
+    msub.textContent   = c.getAttribute('data-sub');
+    mcount.textContent = (idx + 1) + ' / ' + cards.length;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    var p = mvideo.play(); if (p && p.catch) p.catch(function(){});
+  }
+  function close(){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    mvideo.pause();
+    mvideo.removeAttribute('src');
+    mvideo.load();
+    document.body.style.overflow = '';
+    idx = -1;
+  }
+
+  cards.forEach(function(c, i){
+    c.addEventListener('click', function(){ show(i); });
+    c.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(i); } });
+  });
+  document.getElementById('mclose').addEventListener('click', close);
+  document.getElementById('mprev').addEventListener('click', function(e){ e.stopPropagation(); show(idx - 1); });
+  document.getElementById('mnext').addEventListener('click', function(e){ e.stopPropagation(); show(idx + 1); });
+  modal.addEventListener('click', function(e){ if (e.target === modal) close(); });
+  document.addEventListener('keydown', function(e){
+    if (!modal.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') show(idx + 1);
+    else if (e.key === 'ArrowLeft') show(idx - 1);
   });
 </script>
 </body>
