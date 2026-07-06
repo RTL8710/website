@@ -174,6 +174,7 @@
     <div class="r">
       <a class="back" href="index.html">← 返回首页</a>
       <a class="back" href="solution-overview.html">解决方案总览</a>
+      <button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;letter-spacing:.03em;cursor:pointer">EN</button>
       <a class="back cta" href="#contact">联系我</a>
     </div>
   </div>
@@ -290,6 +291,64 @@
     c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
       c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
   });
+})();
+</script>
+<script>
+/* 中/英 双语切换 */
+(function(){
+  var PAIRS = [
+    [`<span class="dot"></span>云边端 AI 视觉`,`<span class="dot"></span>Edge-AI Vision`],[`← 返回首页`,`← Home`],[`解决方案总览`,`Solution overview`],[`联系我`,`Contact`],
+    // HERO
+    [`深圳 · 智能视觉合作邀约`,`Shenzhen · AI-vision partnership`],
+    [`你想做<span class="hl">自有品牌</span>、想做<span class="hl">差异化</span>,<br>却卡在 AI 与固件?<br>——这块,我来。`,`Want your <span class="hl">own brand</span>, want to <span class="hl">stand out</span>,<br>but stuck on AI and firmware?<br>— That part, I'll handle.`],
+    [`你有市场、有渠道、能量产,缺的是把<b>设备端 AI(检测 + 视觉大模型)</b>和<b>云边端全栈</b>做进设备、还能<b>整套白标成你的品牌</b>的人。我做这件事 17 年。<b>你出市场,我出别人做不出的 AI 全栈,一起把它变成你的产品线。</b>`,`You have the market, the channels and the ability to mass-produce; what's missing is someone to build <b>on-device AI (detection + vision-LLM)</b> and the <b>full edge-cloud-app stack</b> into the device, and <b>white-label the whole thing to your brand</b>. I've done this for 17 years. <b>You bring the market; I bring the AI stack others can't build — and together we turn it into your product line.</b>`],
+    [`<b>17 年</b> 安防摄像头研发`,`<b>17 years</b> in security-camera R&D`],[`设备端 <b>YOLO + 视觉大模型</b>`,`On-device <b>YOLO + vision-LLM</b>`],[`云 · 边 · 端 <b>一人打通</b>`,`Edge · cloud · app <b>done by one</b>`],[`整套 <b>可白标</b>`,`Fully <b>white-label</b>`],
+    // COVER
+    [`What I bring · 我补上你缺的那块`,`What I bring · the piece you're missing`],[`不是卖你零件,是把你最难的那段做掉`,`Not selling you parts — I take out your hardest stretch`],
+    [`设备端 AI 难能力`,`Hard on-device AI`],[`把<b>检测精度/误报、低算力跑不动、某个特殊场景算法、设备端大模型落地</b>这类"做不出的效果"做出来——AI 在设备本地跑,<b>拔网也能用</b>。`,`I deliver the "can't-be-done" results: <b>detection accuracy / false alarms, hardware too weak to run it, a special-scene algorithm, a large model on the device</b> — AI running locally, <b>working unplugged</b>.`],
+    [`云边端全栈,一人交付`,`Full stack, delivered by one`],[`固件 → 设备端 AI → 云后端 → App → Web 门户,<b>整条链路一个人打通</b>,不用你协调一堆供应商。`,`Firmware → on-device AI → cloud backend → app → web console: <b>one person owns the whole chain</b>, so you don't juggle a pile of vendors.`],
+    [`整套白标成你的品牌`,`All white-labeled to your brand`],[`设备、App、云门户的<b>品牌名 / 主题色 / 多语言全可换</b>,交付即是你的产品,不是"某供应商方案"。`,`Name, theme color and languages on the device, app and cloud console are <b>all swappable</b> — what ships is your product, not "some vendor's solution."`],
+    [`一套固件多平台`,`One firmware, many platforms`],[`君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达,<b>换芯片不重写</b>,你出货不卡脖子。`,`Ingenic / HiSilicon / Rockchip / Allwinner / Novatek / NVIDIA — <b>swap chips without a rewrite</b>, so your shipments never stall.`],
+    // WHO
+    [`Who · 这样的合作最合适`,`Who · the best fit`],[`有市场 / 能量产 / 卡在一块 AI 上的你`,`You: with a market, able to mass-produce, stuck on one piece of AI`],
+    [`★ 最佳`,`★ Best fit`],[`品牌商 / 贸易商`,`Brands / traders`],[`有渠道有订单,想做<b>自有品牌</b>的智能摄像头 / 设备,但没有 AI 与固件团队——整套白标交给我。`,`You have channels and orders, want <b>your own brand</b> of smart cameras / devices, but no AI or firmware team — hand the whole white-label to me.`],
+    [`二三线安防厂`,`Tier-2/3 security makers`],[`想做<b>差异化突围</b>、给产品加上巨头标品给不了的设备端 AI 卖点。`,`Want to <b>break out with differentiation</b> — add on-device AI selling points the giants' off-the-shelf products can't.`],
+    [`机器人 / 工业厂`,`Robotics / industrial makers`],[`需要<b>设备端视觉</b>(多路同步、ROS/Foxglove 推送、本地推理)做进你的机器上。`,`Need <b>on-device vision</b> (multi-stream sync, ROS/Foxglove push, local inference) built into your machines.`],
+    // MODES
+    [`How · 合作方式灵活`,`How · flexible models`],[`按你的方式来,不绑死一种`,`Your way — no single lock-in`],[`看你的项目阶段和需求,选最省心的一种——具体怎么合作,聊清你的需求再定。`,`Pick the easiest fit for your stage and needs — we settle the details once your needs are clear.`],
+    [`合作开发`,`Co-development`],[`按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。`,`Build the hard capability into your device to your spec — <b>phased delivery, milestone-based payment</b>.`],
+    [`模块授权`,`Module licensing`],[`把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。`,`Package proven capability as a <b>module / SDK</b> to integrate directly — no building from scratch.`],
+    [`代码买断`,`Source buyout`],[`需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。`,`Need full control? <b>Buy out</b> the module's source outright — clean and simple.`],
+    // FLOW
+    [`Start · 怎么开始`,`Start · how to begin`],[`三步,先把难点聊清`,`Three steps, starting with the hard part`],
+    [`说清你卡在哪`,`Tell me where you're stuck`],[`检测精度 / 误报、低算力、某个场景算法、白标交付……先框住具体难点。`,`Accuracy / false alarms, weak hardware, a scene algorithm, white-label delivery… let's pin down the exact problem first.`],
+    [`带真机当面演示`,`A live demo on real hardware`],[`我在深圳,可<b>当面演示真机</b>(实时 AI 检测 + 视觉大模型对话),眼见为实。`,`I'm in Shenzhen and can <b>demo on real devices in person</b> (live AI detection + vision-LLM chat) — seeing is believing.`],
+    [`给你合作结构`,`A partnership structure for you`],[`看清难点后,给你「合作开发 / 模块授权 / 买断」里最合适的一种。`,`Once the problem's clear, I propose the best fit among co-dev / licensing / buyout.`],
+    // CONTACT
+    [`Contact · 聊聊`,`Contact · let's talk`],[`在深圳,先喝杯茶、聊聊你卡在哪`,`In Shenzhen — grab a tea and tell me where you're stuck`],
+    [`把你最难的那块,交给做了 17 年的人。`,`Hand your hardest part to someone who's done it for 17 years.`],[`你有市场,我有这套别人做不出的设备端 AI 全栈。先聊需求,不急着报价。`,`You have the market; I have the on-device AI stack others can't build. Let's talk needs first — no rush to quote.`],
+    [`微信`,`WeChat`],[`电话`,`Phone`],[`邮箱`,`Email`],[`地点`,`Location`],[`深圳`,`Shenzhen`],
+    [`配套资料:<a href="solution-overview.html">解决方案总览</a><a href="app-manual.html">App 功能说明书</a><a href="product-manual.html">Web 控制台说明书</a>`,`Materials: <a href="solution-overview.html">Solution overview</a><a href="app-manual.html">App manual</a><a href="product-manual.html">Web console manual</a>`],
+    [`微信扫码 · 加我聊聊`,`Scan on WeChat · let's chat`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button,li'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
 })();
 </script>
 <script src="fallback.js"></script>
