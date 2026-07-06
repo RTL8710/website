@@ -288,6 +288,7 @@
       <a href="demos.html">功能演示</a>
       <a href="#stack">整套交付</a>
       <a href="cases.html">实战案例</a>
+      <button type="button" id="langbtn" aria-label="切换语言 / Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:color .2s,border-color .2s">EN</button>
       <a class="cta" href="cooperation-invite.html">合作邀约</a>
     </div>
   </div>
@@ -546,6 +547,102 @@
       hero.addEventListener('pointerleave', function(){ phone.style.transform = ''; });
     }
   }
+})();
+</script>
+<script>
+/* ===== 中/英 双语切换(页内,不改结构;英文就近映射,保留加粗)===== */
+(function(){
+  var PAIRS = [
+    // NAV
+    [`能做什么`,`Capabilities`],[`演示视频`,`Demo Video`],[`功能演示`,`Feature Demos`],[`整套交付`,`Full Stack`],[`实战案例`,`Cases`],[`合作邀约`,`Partner With Us`],
+    // HERO
+    [`整套 AI 视觉方案 · 贴你的牌子就能卖`,`Full AI-vision stack · white-labeled to your brand`],
+    [`拔了网线,<br><span class="hl">它还在认人。</span>`,`Pull the network cable —<br><span class="hl">it still recognizes people.</span>`],
+    [`让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>——不连网也能用,数据不外泄。硬件、手机 App、后台管理<b>我一整套做好,贴上你的品牌就能卖</b>。你负责市场和渠道,难做的 AI 我全包了。`,`Give your cameras / robots / dashcams the ability to <b>see, recognize and answer</b> on their own — working offline, with data that never leaves the device. Firmware, mobile app and admin console: <b>I build the whole set, ready to sell under your brand</b>. You bring the market and channels; I take on the hard AI.`],
+    [`▶ 看真机演示`,`▶ Watch live demo`],[`解决方案总览`,`Solution overview`],
+    [`<b>断网</b>也能用,不依赖云`,`<b>Works offline</b>, no cloud needed`],
+    [`<b>17 年</b>老团队,不是新手`,`<b>17 years</b> of depth, not a rookie`],
+    [`<b>贴你的牌子</b>直接卖`,`<b>Your brand</b>, ready to sell`],
+    [`会认人认物`,`Detects people & objects`],[`画面里的人和物,当场框出来`,`Boxes people and objects in real time`],
+    [`会看懂会读字`,`Understands & reads text`],[`看懂现场、读出画面里的字,断网也行`,`Reads the scene and on-screen text, even offline`],
+    [`● LIVE 识别中`,`● LIVE · detecting`],
+    [`主流方案一套通用 · 换料不卡出货`,`One codebase across all major SoCs · swap chips freely`],
+    [`AI 在设备里跑 · 断网照常用`,`AI runs on the device · works with no network`],
+    [`累计录像一条没丢 · 长期不丢帧`,`147,000 clips recorded, zero lost · no dropped frames`],
+    [`记录仪/机器人/摄像头/眼镜 都在卖`,`Dashcams / robots / cameras / glasses — all shipping`],
+    [`种芯片`,`SoCs`],[`本地`,`local`],[`个行业`,`sectors`],
+    // CAPABILITIES
+    [`能做什么 · 真机截图,不是效果图`,`What it does · real device screenshots, not mockups`],
+    [`从看直播、认目标到回放、升级,一套全包`,`From live view and AI detection to playback and OTA — all in one`],
+    [`下面每一项都是真机已经在用的功能,手机 App 和电脑后台都有。`,`Every item below is a feature already running on real devices — in the mobile app and the web console.`],
+    [`随时看直播<small>Live</small>`,`Live view anytime<small>Live</small>`],[`手机同屏看多个画面,远程也不卡,能截图、录像、喊话。`,`Watch multiple streams at once on your phone, smooth even remotely — snapshot, record and talk back.`],
+    [`会认人认物<small>本地 AI</small>`,`Detects people & objects<small>on-device AI</small>`],[`画面里有人、有车、有东西,当场框出来,全在设备里算。`,`People, cars and objects in view are boxed on the spot — all computed on the device.`],
+    [`会看懂会读字<small>AI 对话</small>`,`Understands & reads text<small>AI chat</small>`],[`对着画面直接问:它看懂现场、读出画面里的字,断网也能用。`,`Ask about the live image: it understands the scene and reads on-screen text — even offline.`],
+    [`回放随便倒<small>Playback</small>`,`Scrub playback freely<small>Playback</small>`],[`多个画面一起倒回看,共用一条时间轴,本地云端都能放。`,`Rewind several streams together on one timeline — local or cloud.`],
+    [`怎么录都行<small>Recording</small>`,`Record any way<small>Recording</small>`],[`循环、缩时、预录、手动加事件录像;存本地、存云端都行。`,`Loop, time-lapse, pre-record, manual plus event recording — store locally or in the cloud.`],
+    [`远程升级不召回<small>全球可用</small>`,`OTA, no recalls<small>worldwide</small>`],[`出货后统一远程升级,不用召回;美洲/亚洲/欧洲就近连。`,`Update the whole fleet remotely after shipping — no recalls; nearest node in the Americas / Asia / Europe.`],
+    // STACK
+    [`交付什么 · 我给你一整套`,`What you get · the whole set`],
+    [`从硬件到手机 App,整套都做好给你`,`From hardware to mobile app — the whole stack, done for you`],
+    [`不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好。每块能单独给,也能整套贴上你的牌子。`,`Not a single part — the on-device software and AI, the cloud backend, the mobile app: the whole chain, built. Each piece can ship on its own, or the whole set under your brand.`],
+    [`设备`,`Device`],[`设备里的软件`,`On-device software`],[`把设备从底层跑起来:画面、录像、存储全调好,6 种主流芯片通用。`,`Brings the device up from the ground: video, recording and storage all tuned, across 6 major SoCs.`],
+    [`设备自带的 AI`,`On-device AI`],[`认人认物、看懂现场、读出画面文字,全在设备里算,不靠云。`,`Recognizes people and objects, understands the scene, reads on-screen text — all on the device, no cloud.`],
+    [`云端`,`Cloud`],[`云端后台`,`Cloud backend`],[`设备联网管理、录像上云能搜、远程升级,安全稳定不开端口。`,`Device fleet management, searchable cloud recordings, remote updates — secure, with no open ports.`],
+    [`手机 App + 电脑后台`,`Mobile app + web console`],[`手机看直播、回放、设置;电脑后台多语言、可贴牌,远程不卡。`,`Live, playback and settings on the phone; a multilingual, white-label web console — smooth even remotely.`],
+    [`6 种主流芯片,一套通用:`,`6 major SoCs, one codebase:`],[`换芯片不重写`,`Swap chips, no rewrite`],
+    // MOAT
+    [`为什么找我,不找普通外包`,`Why me, not a generic vendor`],
+    [`难的不是写代码,是把 AI 塞进便宜设备还跑得稳`,`The hard part isn't the code — it's fitting AI into cheap devices and keeping it stable`],
+    [`把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。`,`Squeezing heavy AI into mass-produced low-cost devices and keeping it rock-solid long term — that's exactly what I've done for 17 years.`],
+    [`拔了网线,它还在认人<small>断网也能用</small>`,`Unplug it, it still recognizes people<small>works offline</small>`],[`认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。`,`Recognition and scene understanding all happen <b>on the device</b> — no cloud, no leaks, works offline.`],
+    [`不只是认出来,还能"看懂"<small>会读字、能问答</small>`,`Not just detection — it "understands"<small>reads text, answers questions</small>`],[`不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。`,`Beyond boxing people and objects, it <b>reads signage, nameplates and license plates</b> on screen — and you can just ask it about the scene.`],
+    [`换芯片不用重做<small>6 种芯片一套通用</small>`,`Swap chips, no rebuild<small>6 SoCs, one codebase</small>`],[`6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货。`,`<b>One codebase</b> across 6 major SoCs — even a supply swap won't stall shipments.`],
+    [`长期稳定,录像不丢<small>工业级可靠</small>`,`Stable long term, no lost footage<small>industrial-grade</small>`],[`设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。`,`Devices self-heal, with power-loss protection; <b>147,000 clips recorded and not one lost</b>.`],
+    // VIDEO
+    [`Story · 一分钟看懂`,`Story · in one minute`],[`一段片子,把这套能力讲清楚`,`One film that makes the whole thing click`],
+    [`一段真机演示:认人认物、看懂现场问答、手机云端联动,眼见为实。想一个个功能细看,进 <a href="demos.html">功能演示 →</a>`,`A real-device demo: detection, scene Q&A, phone-to-cloud in action — seeing is believing. Want feature-by-feature detail? Go to <a href="demos.html">Feature Demos →</a>`],
+    // SCENES
+    [`By Scenario · 场景解决方案`,`By Scenario · solutions`],[`同一套本事,落进你的行业`,`The same capability, dropped into your industry`],
+    [`不是四套不同的东西——同一套能力,针对四类场景各自落地,而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">查看实战案例 →</a>)。`,`Not four different products — one capability, adapted to four scenarios, and <b>all four have real customers in production</b> (<a href="cases.html">see the cases →</a>).`],
+    [`智能安防<small>周界 / 园区 / 商铺 / 出入口</small>`,`Smart security<small>perimeter / campus / retail / entry</small>`],[`实时认出人、车、翻墙入侵,<b>还能看懂现场、读出画面里的字</b>;断网本地处理不外泄,重要录像上云能搜。`,`Detects people, vehicles and intrusions in real time, <b>understands the scene and reads on-screen text</b>; processed locally offline with no leaks, key clips searchable in the cloud.`],
+    [`智能机器人<small>巡检 / 配送 / 服务机器人</small>`,`Smart robots<small>inspection / delivery / service</small>`],[`AI 在机器人身上直接算(画面约 0.3 秒、看懂现场约 1–3 秒),<b>直接接进机器人系统</b>,成为它的一双眼睛。`,`AI runs on the robot itself (~0.3s for video, ~1–3s to understand a scene), <b>plugging straight into the robot stack</b> as its pair of eyes.`],
+    [`行车记录仪 / 智能交通<small>商用车 / 车队 / 记录仪</small>`,`Dashcams / smart transport<small>commercial / fleet / dashcam</small>`],[`便宜的车载设备也能跑 AI,画面稳、<b>掉电不丢录像、能预录能缩时</b>,远程实时看。已在头部品牌量产。`,`AI runs even on low-cost in-vehicle hardware, with stable video, <b>power-loss-proof recording, pre-record and time-lapse</b>, and live remote view. Already in mass production with a top brand.`],
+    [`智能眼镜 / 可穿戴<small>可穿戴 / 第一视角</small>`,`Smart glasses / wearables<small>wearable / first-person</small>`],[`在这么小、这么省电的眼镜里也能跑通,<b>看懂画面、读字、直接问答</b>,断网也能用。已量产。`,`Runs even in tiny, power-thrifty glasses — <b>understands the view, reads text, answers directly</b>, offline too. Already in production.`],
+    // PORTAL
+    [`Materials · 全部资料`,`Materials · everything`],[`想深入了解哪一面,都在这里`,`Whichever side you want to dig into, it's here`],
+    [`同一套真机素材、统一视觉,按需查看或下载 PDF 交付客户。`,`One set of real-device assets, one visual language — view online or download PDFs to hand to clients.`],
+    [`解决方案总览<small>Solution Brief</small>`,`Solution overview<small>Solution Brief</small>`],[`架构 / 差异化 / 证据 / 白标 / 合作,一份看懂全貌。`,`Architecture / edge / proof / white-label / partnership — the whole picture in one read.`],[`进入 →`,`Open →`],
+    [`实战案例<small>Real Cases</small>`,`Cases<small>Real Cases</small>`],[`记录仪/机器人/摄像头/眼镜 4 个真实客户,均已量产。`,`Dashcam / robot / camera / glasses — 4 real customers, all in production.`],[`查看 →`,`View →`],
+    [`产品一页纸<small>One-pager</small>`,`One-pager<small>One-pager</small>`],[`10 秒看懂:一句话卖点 + 3 个硬亮点 + 功能清单。`,`Get it in 10 seconds: one-line pitch + 3 hard highlights + feature list.`],[`打开 →`,`Open →`],
+    [`Web 控制台说明书<small>Console Manual</small>`,`Web console manual<small>Console Manual</small>`],[`22 页逐页讲解,真机截图,可打印 PDF。`,`22 pages, screen by screen, real screenshots — printable PDF.`],[`翻阅 →`,`Read →`],
+    [`App 功能说明书<small>App Guide</small>`,`App manual<small>App Guide</small>`],[`手机端逐页功能详解,真机高清截图。`,`Mobile app, feature by feature, real hi-res screenshots.`],
+    [`合作邀约<small>Let's Partner</small>`,`Partner with us<small>Let's Partner</small>`],[`合作开发 / 模块授权 / 代码买断,按你的方式来。`,`Co-development / module licensing / source buyout — your way.`],[`聊聊 →`,`Talk →`],
+    // CONTACT
+    [`Contact · 聊聊`,`Contact · let's talk`],[`你有市场和渠道,难做的 AI 全栈交给我`,`You bring the market and channels; leave the hard AI stack to me`],
+    [`把你最难的那块,交给做了 17 年的人。`,`Hand your hardest part to someone who's done it for 17 years.`],
+    [`先说清你卡在哪:认得不准 / 误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型。看清难点再谈合作。`,`Start with where you're stuck: poor accuracy / false alarms, cheap hardware that can't run it, no algorithm for a special scene, or wanting a large AI model on the device. We scope the hard part first, then talk partnership.`],
+    [`微信`,`WeChat`],[`电话`,`Phone`],[`邮箱`,`Email`],[`地点`,`Location`],[`深圳`,`Shenzhen`],
+    [`微信扫码 · 加我聊聊`,`Scan on WeChat · let's chat`]
+  ];
+  var T = {}; PAIRS.forEach(function(p){ T[p[0]] = p[1]; });
+  var picked = [];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button'), function(el){
+    if (el.getAttribute('data-zh') != null) return;
+    var html = el.innerHTML.trim();
+    if (Object.prototype.hasOwnProperty.call(T, html)) { el.setAttribute('data-zh', html); picked.push(el); }
+  });
+  function apply(lang){
+    var en = (lang === 'en');
+    picked.forEach(function(el){ el.innerHTML = en ? T[el.getAttribute('data-zh')] : el.getAttribute('data-zh'); });
+    document.documentElement.lang = en ? 'en' : 'zh';
+    var btn = document.getElementById('langbtn'); if (btn) btn.textContent = en ? '中文' : 'EN';
+    try{ localStorage.setItem('site_lang', lang); }catch(e){}
+  }
+  var q = (location.search.match(/[?&]lang=(en|zh)/) || [])[1];
+  var saved = null; try{ saved = localStorage.getItem('site_lang'); }catch(e){}
+  apply(q || saved || 'zh');
+  var b = document.getElementById('langbtn');
+  if (b) b.addEventListener('click', function(){ apply(document.documentElement.lang === 'en' ? 'zh' : 'en'); });
 })();
 </script>
 <script src="fallback.js"></script>
