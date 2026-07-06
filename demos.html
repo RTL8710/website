@@ -115,7 +115,10 @@
 <nav class="nav">
   <div class="in">
     <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
-    <a class="back" href="index.html">← 返回首页</a>
+    <span style="display:flex;align-items:center;gap:8px">
+      <button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;cursor:pointer">EN</button>
+      <a class="back" href="index.html">← 返回首页</a>
+    </span>
   </div>
 </nav>
 
@@ -183,8 +186,10 @@
     idx = (i + cards.length) % cards.length;
     var c = cards[idx];
     mvideo.src = c.getAttribute('data-src');
-    mtitle.textContent = c.getAttribute('data-title');
-    msub.textContent   = c.getAttribute('data-sub');
+    var lab = c.querySelector('.lab');
+    mtitle.textContent = (lab && lab.firstChild) ? lab.firstChild.textContent.trim() : c.getAttribute('data-title');
+    var sm = lab ? lab.querySelector('small') : null;
+    msub.textContent = sm ? sm.textContent : (c.getAttribute('data-sub') || '');
     mcount.textContent = (idx + 1) + ' / ' + cards.length;
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
@@ -229,6 +234,56 @@
   }
   cards.forEach(function(c){ c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
     c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); }); });
+</script>
+<script>
+/* 中/英 双语切换 */
+(function(){
+  var PAIRS = [
+    [`<span class="dot"></span>云边端 AI 视觉`,`<span class="dot"></span>Edge-AI Vision`],[`← 返回首页`,`← Home`],
+    [`Feature Demos · 逐功能真机录屏`,`Feature Demos · feature-by-feature screen recordings`],[`每个功能,一段真机演示`,`Every feature, a real-device demo`],
+    [`不是效果图——下面每一段都是真机屏幕录制。从实时直播、设备端 AI,到录像、云端、运维,逐个看清。`,`Not mockups — every clip below is a real screen recording. From live view and on-device AI to recording, cloud and ops, see each one clearly.`],
+    [`💡 点击任意功能打开大图演示,可全屏、带声音、拖进度;弹窗内用 ← → 切换、Esc 关闭。视频按需加载,不影响页面打开速度。`,`💡 Click any feature to open a large demo — fullscreen, sound, scrubbing; use ← → to switch, Esc to close. Videos load on demand, so page load stays fast.`],
+    [`功能演示 · 均为真机屏幕录制 · <a href="index.html">返回首页</a> · <a href="solution-overview.html">解决方案总览</a>`,`Feature demos · all real screen recordings · <a href="index.html">Home</a> · <a href="solution-overview.html">Solution overview</a>`],
+    // 19 cards
+    [`多路实时直播<small>多个画面同屏,远程也不卡</small>`,`Multi-stream live<small>Several streams at once, smooth even remotely</small>`],
+    [`设备端 AI 检测<small>画面里的人和物,当场框出来</small>`,`On-device AI detection<small>People and objects in view, boxed on the spot</small>`],
+    [`视觉大模型对话<small>看懂现场,还能读出画面里的字</small>`,`Vision-LLM chat<small>Understands the scene and reads on-screen text</small>`],
+    [`本地录像回放<small>多路一起倒回看,共用一条时间轴</small>`,`Local playback<small>Rewind several streams on one timeline</small>`],
+    [`云端录像回放<small>录像存云端,随时能翻能搜</small>`,`Cloud playback<small>Clips in the cloud, searchable anytime</small>`],
+    [`云端录像设置<small>设置哪些录像、什么时候上云</small>`,`Cloud recording settings<small>Choose what and when to upload</small>`],
+    [`录像模式设置<small>循环、缩时、预录、事件都能录</small>`,`Recording modes<small>Loop, time-lapse, pre-record, event</small>`],
+    [`存储管理<small>存满自动覆盖,长期不丢</small>`,`Storage<small>Auto-overwrite when full, nothing lost long-term</small>`],
+    [`视频参数设置<small>画面清晰度、流畅度随你调</small>`,`Video settings<small>Tune clarity and smoothness</small>`],
+    [`音频与对讲<small>能听现场声,也能远程喊话</small>`,`Audio & intercom<small>Hear the scene, talk back remotely</small>`],
+    [`云台控制<small>远程控制镜头上下左右转</small>`,`PTZ control<small>Pan/tilt the lens remotely</small>`],
+    [`网络设置<small>有线、WiFi 都能连</small>`,`Network<small>Wired or Wi-Fi</small>`],
+    [`接入第三方系统<small>用通用方式接进你现有系统</small>`,`Third-party integration<small>Standard protocol into your existing system</small>`],
+    [`时间同步<small>自动对时,时间不跑偏</small>`,`Time sync<small>Auto time correction</small>`],
+    [`OTA 在线升级<small>出货后远程升级,不用召回</small>`,`OTA updates<small>Remote updates after shipping, no recalls</small>`],
+    [`设备信息<small>型号、版本、开机多久都能看</small>`,`Device info<small>Model, version and uptime at a glance</small>`],
+    [`外设管理<small>外接的设备统一管理</small>`,`Peripherals<small>Manage attached devices</small>`],
+    [`电量管理<small>省电,还能看剩多少电</small>`,`Power<small>Power-saving, with battery level</small>`],
+    [`消息通知<small>有情况马上推消息提醒</small>`,`Notifications<small>Instant push when something happens</small>`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button,li'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
+})();
 </script>
 <script src="fallback.js"></script>
 </body>
