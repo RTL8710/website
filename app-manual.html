@@ -80,10 +80,12 @@
   .page .tags span{font-size:11px;color:var(--accent);background:rgba(14,165,183,.09);border:1px solid rgba(14,165,183,.22);border-radius:6px;padding:3px 9px}
   .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:50px;border-top:1px solid var(--line);padding-top:22px}
   @media (max-width:760px){.page .body{grid-template-columns:1fr}.toc ol{columns:1}.page .shot{padding:22px}}
-  @media print{body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page .shot{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
+  @media print{#langbtn{display:none!important}body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page .shot{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
 </style>
 </head>
 <body>
+
+  <button type="button" id="langbtn" aria-label="Switch language" style="position:fixed;top:14px;right:16px;z-index:80;font-family:inherit;font-size:13px;color:#0e7490;background:#fff;border:1px solid #cdeef4;border-radius:9px;padding:7px 13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(20,40,80,.12)">EN</button>
 
   <div class="cover">
     <div class="kchip">设备端 AI 视觉 · 手机 App</div>
@@ -259,6 +261,52 @@
   </div>
 
 </div>
+<script>
+/* 中/英 双语切换(概览部分;逐页步骤保留中文,标题/目录已双语) */
+(function(){
+  var PAIRS = [
+    [`设备端 AI 视觉 · 手机 App`,`On-device AI vision · Mobile app`],[`App 功能说明书`,`App Feature Manual`],
+    [`App 名称 / App:<b>smartCamera</b>`,`App: <b>smartCamera</b>`],[`设备型号 / Model:<b>smartRobot</b>`,`Model: <b>smartRobot</b>`],[`固件 / Firmware:<b>v0.1.50</b>`,`Firmware: <b>v0.1.50</b>`],[`品牌 / Brand:<b>____(可白标)</b>`,`Brand: <b>____ (white-label)</b>`],
+    [`核心亮点 · Core Highlights`,`Core Highlights`],
+    [`多路实时直播<small>Multi-stream Live</small>`,`Multi-stream live<small>Multi-stream Live</small>`],[`单设备<b>多路同屏</b>实时直播(当前演示 2 路),WebRTC 远程低延迟,随时随地看,无需端口映射。`,`<b>Same-screen multi-stream</b> live from one device (2 shown here), WebRTC low latency, watch anywhere, no port mapping.`],
+    [`设备端 AI 检测<small>Edge AI · YOLO</small>`,`On-device AI detection<small>Edge AI · YOLO</small>`],[`YOLO 多类目标检测,检测框直接画在实时画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。`,`YOLO multi-class detection with boxes on the live image (OSD), Foxglove / ROS push, all on-device compute.`],
+    [`视觉大模型对话<small>On-device VLM</small>`,`Vision-LLM chat<small>On-device VLM</small>`],[`拿实时画面直接问它:看懂场景、<b>读出画面文字(OCR)</b>、自然语言问答,本地 + OpenAI 双模式,断网可用。`,`Ask straight from the live image: understands the scene, <b>reads on-screen text (OCR)</b>, natural-language Q&A, local + OpenAI dual mode, works offline.`],
+    [`多路同步回放<small>Sync Playback</small>`,`Sync playback<small>Sync Playback</small>`],[`本地/云端回放,<b>多路同屏同步</b>复盘共用一条时间轴;单日数千段、三模式分色不丢录像。`,`Local/cloud playback, <b>synchronized multi-stream</b> review on one timeline; thousands of clips a day, three modes color-coded, nothing lost.`],
+    [`录像模式全<small>Recording Modes</small>`,`All recording modes<small>Recording Modes</small>`],[`循环 / 缩时 / 预录 / 手动 + 事件录像;本地 / 云端 / 双存;累计 14.7 万文件无损。`,`Loop / time-lapse / pre-record / manual + event recording; local / cloud / both; 147K files recorded, zero loss.`],
+    [`运维 + 全球白标<small>OTA · Global</small>`,`Ops + global white-label<small>OTA · Global</small>`],[`OTA 在线升级、全球三区域(东京/美洲/巴黎)就近接入;整套 App 可白标(品牌/主题/语言)。`,`OTA updates, three global regions (Tokyo/Americas/Paris) nearest access; the whole app is white-label (brand/theme/language).`],
+    [`功能特点一览 · Specifications`,`Specifications`],
+    [`实时直播`,`Live view`],[`多路同屏 · WebRTC 远程低延迟 · 截图/录制/对讲`,`Multi-stream · WebRTC low latency · snapshot/record/intercom`],
+    [`设备端 AI`,`On-device AI`],[`YOLO 多类检测 + OSD 检测框 · 视觉大模型问答/读字 · Foxglove`,`YOLO multi-class + OSD boxes · vision-LLM Q&A/text · Foxglove`],
+    [`回放检索`,`Playback & search`],[`本地 / 云端回放 · 多路同步 · 24h 时间轴 · 按日期+设备筛选`,`Local / cloud playback · multi-stream sync · 24h timeline · filter by date + device`],
+    [`录像模式`,`Recording modes`],[`循环 / 缩时 / 预录 / 手动 / 事件报警(EMR)`,`Loop / time-lapse / pre-record / manual / event (EMR)`],
+    [`录像规格`,`Recording spec`],[`1920×1080 · H.265 / H.264 · 本地 / 云端 / 双存 · 累计 147,006 文件`,`1920×1080 · H.265 / H.264 · local / cloud / both · 147,006 files to date`],
+    [`设备管理`,`Device management`],[`多设备列表 · 在线状态 · 设备设置 · 解绑/分享`,`Multi-device list · online status · settings · unbind/share`],
+    [`远程运维`,`Remote ops`],[`OTA 在线升级(版本检测/一键升级) · 远程查看`,`OTA updates (version check / one-tap) · remote view`],
+    [`全球部署`,`Global deployment`],[`东南亚(东京) / 美洲 / 欧洲(巴黎)三区域就近接入`,`Three regions — SE Asia (Tokyo) / Americas / Europe (Paris) — nearest access`],
+    [`本地优先`,`Local-first`],[`本地缓存秒显 · 下拉刷新云端 · 弱网/断网可用`,`Instant local cache · pull to refresh from cloud · works on weak/no network`],
+    [`交付方式`,`Delivery`],[`App 整套可白标(品牌 / 主题色 / 多语言)`,`Whole app is white-label (brand / theme / languages)`],
+    [`目录 · Contents`,`Contents`],[`LIVE & AI · 实时与 AI`,`LIVE & AI`],[`PLAYBACK · 回放`,`PLAYBACK`],[`SETTINGS & OPS · 设置与运维`,`SETTINGS & OPS`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('div,span,p,h1,h2,h3,h4,small,button,a'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
+})();
+</script>
 <script src="fallback.js"></script>
 </body>
 </html>

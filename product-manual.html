@@ -75,10 +75,12 @@
   .page .desc li b{color:var(--ink)}
   .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:50px;border-top:1px solid var(--line);padding-top:22px}
   @media (max-width:760px){.page .body{grid-template-columns:1fr}.toc ol{columns:1}}
-  @media print{body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
+  @media print{#langbtn{display:none!important}body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
 </style>
 </head>
 <body>
+
+  <button type="button" id="langbtn" aria-label="Switch language" style="position:fixed;top:14px;right:16px;z-index:80;font-family:inherit;font-size:13px;color:#0e7490;background:#fff;border:1px solid #cdeef4;border-radius:9px;padding:7px 13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(20,40,80,.12)">EN</button>
 
   <div class="cover">
     <div class="kchip">设备端 AI 视觉 · Web 控制台</div>
@@ -363,6 +365,55 @@
   <div class="foot">产品操作说明书 · 截图取自真实设备 Web 控制台(smartRobot · v0.1.50)· © 你的品牌</div>
 
 </div>
+<script>
+/* 中/英 双语切换(概览部分;逐页步骤保留中文,标题/目录已双语) */
+(function(){
+  var PAIRS = [
+    [`设备端 AI 视觉 · Web 控制台`,`On-device AI vision · Web console`],[`产品操作说明书`,`Product Operation Manual`],
+    [`设备型号 / Model:<b>smartRobot</b>`,`Model: <b>smartRobot</b>`],[`固件 / Firmware:<b>v0.1.50</b>`,`Firmware: <b>v0.1.50</b>`],[`控制台 / Console:<b>LAN & WAN · 多语言</b>`,`Console: <b>LAN & WAN · multilingual</b>`],[`品牌 / Brand:<b>____(可白标)</b>`,`Brand: <b>____ (white-label)</b>`],
+    [`核心亮点 · Core Highlights`,`Core Highlights`],
+    [`WebRTC 实时视频<small>Low-latency Live</small>`,`WebRTC live video<small>Low-latency Live</small>`],[`基于 WebRTC 的远程实时查看:P2P 低延迟、自带内网穿透,<b>无需端口映射</b>即可随时随地看;RTC / RTSP 多传输自动回退。`,`WebRTC-based remote live view: P2P low latency, built-in NAT traversal, <b>no port mapping needed</b> — watch anytime, anywhere; RTC / RTSP auto transport fallback.`],
+    [`设备端视觉大模型<small>On-device VLM</small>`,`On-device vision-LLM<small>On-device VLM</small>`],[`对实时画面开放式问答,看懂场景、读出画面文字(OCR),本地 + OpenAI 双模式,断网可用。`,`Open Q&A on the live image, understands the scene, reads on-screen text (OCR), local + OpenAI dual mode, works offline.`],
+    [`设备端 AI 检测<small>Edge AI · YOLO</small>`,`On-device AI detection<small>Edge AI · YOLO</small>`],[`YOLO 多类目标检测,检测框直接画在画面(OSD),支持 Foxglove / ROS 推送,全程本地算力。`,`YOLO multi-class detection with boxes drawn on the image (OSD), Foxglove / ROS push, all on-device compute.`],
+    [`多摄像头同屏<small>Multi-stream</small>`,`Multi-camera on one screen<small>Multi-stream</small>`],[`单设备多路:实时多路同屏直播,本地回放多路同步复盘,共用一条时间轴。`,`Multiple streams per device: same-screen live and synchronized local playback on one timeline.`],
+    [`录像可靠不丢<small>Never-lose</small>`,`Reliable recording, nothing lost<small>Never-lose</small>`],[`循环 / 缩时 / 预录 / 手动 + 事件录像;本地+云端;看门狗自愈、断电保护,连续运行不丢录像。`,`Loop / time-lapse / pre-record / manual + event recording; local + cloud; watchdog self-heal, power-loss protection, continuous operation with no lost footage.`],
+    [`一套固件多平台<small>One Firmware</small>`,`One firmware, many platforms<small>One Firmware</small>`],[`君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达六大平台一套固件,换芯片不重写。`,`One firmware across six platforms — Ingenic / HiSilicon / Rockchip / Allwinner / Novatek / NVIDIA — swap chips without a rewrite.`],
+    [`云边端 + 全球白标<small>White-label</small>`,`Edge-cloud-app + global white-label<small>White-label</small>`],[`设备 + App + Web 门户整套可白标(品牌/主题色/多语言),全球三区域,OTA 在线升级。`,`Device + app + web console, fully white-label (brand/theme/languages), three global regions, OTA updates.`],
+    [`功能特点一览 · Specifications`,`Specifications`],
+    [`实时直播`,`Live view`],[`WebRTC 远程查看 · 多路同屏 · RTC/RTSP 多传输回退`,`WebRTC remote view · multi-stream · RTC/RTSP fallback`],
+    [`设备端 AI`,`On-device AI`],[`YOLO 多类检测 + OSD · 视觉大模型问答/读字 · Foxglove`,`YOLO multi-class + OSD · vision-LLM Q&A/text · Foxglove`],
+    [`录像模式`,`Recording modes`],[`循环 / 缩时 / 预录 / 手动 / 事件报警(EMR)`,`Loop / time-lapse / pre-record / manual / event (EMR)`],
+    [`录像规格`,`Recording spec`],[`1920×1080 · H.265 / H.264 · 本地 / 云端 / 双存`,`1920×1080 · H.265 / H.264 · local / cloud / both`],
+    [`回放检索`,`Playback & search`],[`本地 / 云端 / 图片回放 · 24h 时间轴 · 多路同步 · 多维筛选`,`Local / cloud / image playback · 24h timeline · multi-stream sync · multi-filter`],
+    [`存储`,`Storage`],[`本地存储管理 · 自动覆盖 · 云存储`,`Local storage management · auto-overwrite · cloud storage`],
+    [`远程运维`,`Remote ops`],[`AWS IoT 安全隧道(零开放端口) · OTA 在线升级`,`AWS IoT secure tunnel (zero open ports) · OTA updates`],
+    [`芯片平台`,`SoC platforms`],[`君正 / 海思 / 瑞芯微 / 全志 / 联咏 / 英伟达(一套固件)`,`Ingenic / HiSilicon / Rockchip / Allwinner / Novatek / NVIDIA (one firmware)`],
+    [`云与门户`,`Cloud & console`],[`AWS 接入 · 全球三区域(东京/美洲/巴黎) · 多语言门户`,`AWS access · three regions (Tokyo/Americas/Paris) · multilingual console`],
+    [`可靠性`,`Reliability`],[`看门狗自愈 · 数据库自动修复 · 断电保护 · 长期运行不丢录像`,`Watchdog self-heal · auto DB repair · power-loss protection · no lost footage long-term`],
+    [`交付方式`,`Delivery`],[`设备 + App + Web 整套白标(品牌 / 主题色 / 语言可换)`,`Device + app + web, full white-label (brand / theme / language)`],
+    [`访问方式`,`Access`],[`局域网 LAN + 广域网 WAN · 安全登录`,`LAN + WAN · secure login`],
+    [`目录 · Contents`,`Contents`],[`MONITOR · 监控`,`MONITOR`],[`SETTINGS · 设置`,`SETTINGS`],[`SYSTEM · 系统`,`SYSTEM`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('div,span,p,h1,h2,h3,h4,small,button,a'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
+})();
+</script>
 <script src="fallback.js"></script>
 </body>
 </html>
