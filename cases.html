@@ -198,6 +198,7 @@
     <div class="r">
       <a class="back" href="index.html">← 返回首页</a>
       <a class="back" href="solution-overview.html">解决方案总览</a>
+      <button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:700;letter-spacing:.03em;cursor:pointer">EN</button>
       <a class="back cta" href="cooperation-invite.html">合作邀约</a>
     </div>
   </div>
@@ -454,6 +455,95 @@
     c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
       c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
   });
+})();
+</script>
+<script>
+/* 中/英 双语切换 */
+(function(){
+  var PAIRS = [
+    [`<span class="dot"></span>云边端 AI 视觉`,`<span class="dot"></span>Edge-AI Vision`],[`← 返回首页`,`← Home`],[`解决方案总览`,`Solution overview`],[`合作邀约`,`Partner`],
+    // HERO
+    [`Cases · 实战案例`,`Cases · real projects`],
+    [`4 个真实客户,<br><span class="hl">把别人做不出的 AI 做进了量产设备</span>。`,`Four real customers,<br><span class="hl">shipping AI others can't build</span>.`],
+    [`不是 PPT 构想——<b>行车记录仪</b>、<b>人形机器人</b>、<b>安防摄像头</b>、<b>智能眼镜</b>:同一套「系统架构 + 音视频编解码 + 端侧 AI 视觉 + 可靠录像 + WebRTC + 云端」的能力,落进了四类完全不同的设备里——从联咏/瑞芯微到英伟达/地平线/海思/君正,均已真机跑通。`,`Not a slide-deck idea — <b>dashcams</b>, <b>humanoid robots</b>, <b>security cameras</b>, <b>smart glasses</b>: one capability set (system architecture + A/V codecs + on-device AI vision + rugged recording + WebRTC + cloud) dropped into four completely different devices — from Novatek / Rockchip to NVIDIA / Horizon / HiSilicon / Ingenic, all proven on real hardware.`],
+    [`<b>17 年</b> 安防摄像头深度`,`<b>17 years</b> deep in security cameras`],[`<b>云·边·端</b> 一体全栈`,`<b>Edge-cloud-app</b> full stack`],[`设备端 <b>YOLO + 视觉大模型</b>`,`On-device <b>YOLO + vision-LLM</b>`],[`覆盖产线合计 <b>~15 万台/月</b> 量产出货`,`Combined lines shipping <b>~150K units/month</b>`],
+    // SCENARIO
+    [`Story · 一段视频看懂`,`Story · one video`],[`一段片子,看懂 11 个已落地的场景`,`One film, 11 scenarios already in the field`],
+    [`从「会看会说、断网也能识别」的核心能力,到安防主场,再到装进机器人、眼镜、运动相机…… 同一套端侧 AI 视觉栈,已经跑在这些场景里。想看单点功能细节,进 <a href="demos.html">功能演示 →</a>`,`From the core ability to see, speak and recognize even offline, to security as home turf, to being built into robots, glasses and action cams — one on-device AI-vision stack, already running across all of them. Want single-feature detail? Go to <a href="demos.html">Feature Demos →</a>`],
+    [`第一幕 · 核心能力`,`Act I · core capability`],[`会看 · 会说 · 断网也认得`,`Sees · speaks · recognizes offline`],
+    [`第二幕 · 安防主场`,`Act II · security, home turf`],[`看懂现场 · 即时取证`,`Understands the scene · instant evidence`],
+    [`第三幕 · 装进各种设备`,`Act III · into all kinds of devices`],[`一套能力 · 多形态落地`,`One capability · many form factors`],
+    [`设备对话 · 会看会说`,`Device chat · sees & speaks`],[`看着画面<b>直接问答</b>:读字、认物、说出来——像给设备装上眼睛和嘴。`,`<b>Ask straight from the image</b>: it reads text, names objects and speaks — like giving the device eyes and a mouth.`],
+    [`断网识别 · 端侧算力`,`Offline recognition · on-device`],[`全程<b>设备本地推理</b>,断网、无云也照样认得出、听得懂。`,`<b>Everything runs on the device</b> — offline and cloud-free, it still recognizes and understands.`],
+    [`监控中心取证`,`Control-room evidence`],[`多路调看、<b>按人 / 车 / 事件检索</b>,把海量录像变成可取证的线索。`,`Multi-stream review and <b>search by person / vehicle / event</b> — turning mountains of footage into usable evidence.`],
+    [`家门口`,`Front door`],[`门口有人、包裹、异常徘徊,<b>本地识别即时提醒</b>,少误报、不漏报。`,`People, packages or loitering at the door — <b>recognized locally with instant alerts</b>, fewer false alarms, nothing missed.`],
+    [`行车记录仪`,`Dashcam`],[`行车中识别路况与事件,<b>掉电不丢</b>关键片段,预录 / 缩时齐全。`,`Reads road conditions and events while driving, <b>key clips survive power loss</b>, with pre-record and time-lapse.`],
+    [`机器人 / ROS`,`Robots / ROS`],[`视觉直接<b>接入 ROS</b>,参与机器人的环境感知与决策。`,`Vision <b>plugs straight into ROS</b>, feeding the robot's perception and decisions.`],
+    [`智能眼镜`,`Smart glasses`],[`戴着看、张口问,<b>极致功耗体积</b>下也能做视觉对话。`,`Look and ask out loud — visual chat even under <b>extreme size and power limits</b>.`],
+    [`运动相机`,`Action cameras`],[`高动态剧烈抖动场景<b>稳定编码</b> + 端侧识别不掉链子。`,`<b>Stable encoding</b> through high-motion, shaky scenes, with on-device recognition that keeps up.`],
+    [`直播相机`,`Live-stream cameras`],[`实时识别、<b>字幕 / 云端联动</b>,给直播加一层会看的视觉。`,`Real-time recognition with <b>captions / cloud sync</b> — a seeing layer added to live streams.`],
+    [`户外观测`,`Outdoor monitoring`],[`长时值守、<b>低功耗、断网自治</b>,野外无人也持续记录识别。`,`Long unattended watch — <b>low power, offline-autonomous</b> — recording and recognizing even in the wild.`],
+    [`宠物看护`,`Pet care`],[`认宠物 / 行为 / 异常,<b>看家陪伴 + 双向对讲</b>,不在家也安心。`,`Recognizes pets, behavior and anomalies, with <b>home watch + two-way talk</b> — peace of mind while you're out.`],
+    // shared case bits
+    [`客户方案 · Client project`,`Client project`],[`难点 · 卡在哪`,`Challenge · where it stalled`],[`我解决了什么`,`What I solved`],
+    [`<b>掉电不丢录像</b> · <b>预录</b> · <b>缩时录像</b>`,`<b>Power-loss-proof recording</b> · <b>pre-record</b> · <b>time-lapse</b>`],
+    [`开发完成 · 上线`,`Built & shipped`],[`2<small>个月</small>`,`2<small>mo</small>`],[`14.7<small>万</small>`,`147<small>K</small>`],
+    [`音视频编解码`,`A/V codec`],[`掉电不丢录像`,`Power-loss-proof`],[`云端录像`,`Cloud recording`],
+    // CASE 1
+    [`Case 01 · 客户方案`,`Case 01 · client project`],[`行车记录仪 —— 把端侧 AI 做进量产记录仪`,`Dashcam — on-device AI in a mass-produced recorder`],
+    [`交通 / 商用车`,`Transport / commercial`],[`客户:国内头部行车记录仪品牌`,`Client: a top Chinese dashcam brand`],[`运行平台:<b>联咏 Novatek / 瑞芯微 Rockchip</b>`,`Platforms: <b>Novatek / Rockchip</b>`],
+    [`把端侧 AI 视觉与可靠录像做进低算力量产记录仪<small>On-device AI vision + rugged recording for mass-produced dashcams</small>`,`On-device AI vision + rugged recording in low-power mass-produced dashcams<small>On-device AI vision + rugged recording for mass-produced dashcams</small>`],
+    [`记录仪算力低、成本敏感,音视频编解码要稳、AI 要在<b>设备本地</b>跑,还得解决<b>掉电丢录像</b>、预录、缩时这些量产硬骨头。`,`Dashcams are low-power and cost-sensitive; the A/V codec must be stable, AI has to run <b>on the device</b>, and you still have to solve <b>power-loss footage</b>, pre-record and time-lapse — the hard production nuts.`],
+    [`<b>音视频编解码</b>:记录仪核心链路调稳`,`<b>A/V codec</b>: core recorder pipeline stabilized`],[`<b>AI 智能视觉</b>:端侧识别落地`,`<b>AI vision</b>: on-device recognition shipped`],[`<b>WebRTC</b> 远程实时查看 · <b>云端录像</b>`,`<b>WebRTC</b> live remote view · <b>cloud recording</b>`],
+    [`音视频对接延迟(实测)`,`A/V latency (measured)`],[`5<small>万/月</small>`,`50<small>K/mo</small>`],[`量产出货(记录仪产线)`,`In production (dashcam line)`],
+    [`端侧 AI 视觉`,`On-device AI`],[`预录/缩时`,`Pre-record/time-lapse`],
+    // CASE 2
+    [`Case 02 · 客户方案`,`Case 02 · client project`],[`具身智能机器人 —— 给机器人一双"看得懂"的眼睛`,`Embodied robots — eyes that actually understand`],
+    [`智能机器人 / 具身智能`,`Robotics / embodied AI`],[`客户:国内人形机器人厂商`,`Client: a Chinese humanoid-robot maker`],[`运行平台:<b>英伟达 NVIDIA / 地平线 Horizon / 瑞芯微 Rockchip</b>`,`Platforms: <b>NVIDIA / Horizon / Rockchip</b>`],
+    [`机器人视觉架构 + 边缘 AI,直连感知与决策<small>Robot vision architecture + edge AI for perception & decision</small>`,`Robot vision architecture + edge AI, wired into perception & decision<small>Robot vision architecture + edge AI for perception & decision</small>`],
+    [`难点 · 机器人现场要求`,`Challenge · what the robot floor demands`],[`机器人要<b>本地实时视觉、低延迟</b>,视觉要融进整机架构、参与<b>环境感知与决策</b>,现场还得长期稳、不丢数据。`,`Robots need <b>low-latency local vision</b>, folded into the whole-machine architecture to drive <b>perception and decisions</b> — and it has to stay stable and lose no data in the field.`],
+    [`<b>机器人视觉架构</b>:从 0 搭整套视觉链路`,`<b>Robot vision architecture</b>: built the whole vision pipeline from scratch`],[`<b>音视频编解码</b> · <b>AI 智能视觉(环境感知 / 决策)</b>`,`<b>A/V codec</b> · <b>AI vision (perception / decision)</b>`],[`<b>WebRTC</b> 远程实时 · <b>云端录像</b>`,`<b>WebRTC</b> live remote · <b>cloud recording</b>`],
+    [`1–3<small>s</small>`,`1–3<small>s</small>`],[`AI 场景理解推理延迟`,`AI scene-understanding latency`],[`500<small>台/月</small>`,`500<small>/mo</small>`],[`量产出货(机器人产线)`,`In production (robot line)`],
+    [`机器人视觉架构`,`Robot vision architecture`],[`环境感知/决策`,`Perception/decision`],
+    // CASE 3
+    [`Case 03 · 客户方案`,`Case 03 · client project`],[`安防摄像头 —— 不只是"数人头",是"看懂现场"`,`Security cameras — not "head counting" but "understanding the scene"`],
+    [`智能安防`,`Smart security`],[`客户:智能安防摄像头厂商`,`Client: a smart security-camera maker`],[`运行平台:<b>君正 Ingenic / 海思 HiSilicon / 瑞芯微 Rockchip</b>`,`Platforms: <b>Ingenic / HiSilicon / Rockchip</b>`],
+    [`摄像头系统架构 + 端侧 AI,断网也能认人读字<small>Camera system architecture + edge AI, works offline</small>`,`Camera system architecture + on-device AI, recognizes and reads offline<small>Camera system architecture + edge AI, works offline</small>`],
+    [`难点 · 行业通病`,`Challenge · the industry's chronic problem`],[`整套摄像头系统架构要从底层搭起,音视频编解码要稳;AI 不能只"数物体"、要<b>看懂场景</b>;还得解决掉电丢录像、预录、缩时。`,`The whole camera system architecture had to be built from the ground up with a stable A/V codec; the AI can't just "count objects" — it must <b>understand the scene</b>; plus power-loss footage, pre-record and time-lapse.`],
+    [`<b>摄像头系统架构</b>:整套从底层搭通`,`<b>Camera system architecture</b>: whole stack built from the ground up`],[`<b>音视频编解码</b> · <b>AI 智能视觉</b>(检测 + 看懂场景/读字)`,`<b>A/V codec</b> · <b>AI vision</b> (detection + scene understanding / text reading)`],
+    [`累计录像文件无损(真机)`,`Clips recorded, zero loss (real devices)`],[`AI 设备本地推理 · 断网可用`,`AI on-device · works offline`],[`10<small>万/月</small>`,`100<small>K/mo</small>`],[`量产出货(摄像头产线)`,`In production (camera line)`],
+    [`摄像头系统架构`,`Camera system architecture`],
+    // CASE 4
+    [`Case 04 · 客户方案`,`Case 04 · client project`],[`智能眼镜 —— 戴在脸上的"会对话的视觉"`,`Smart glasses — "conversational vision" you wear`],
+    [`智能眼镜 / 可穿戴`,`Smart glasses / wearable`],[`客户:智能眼镜厂商`,`Client: a smart-glasses maker`],[`运行平台:<b>君正 Ingenic</b>`,`Platform: <b>Ingenic</b>`],
+    [`极致功耗体积下的系统架构 + AI 视觉对话<small>System architecture + visual-LLM chat under wearable constraints</small>`,`System architecture + AI visual chat under extreme size/power limits<small>System architecture + visual-LLM chat under wearable constraints</small>`],
+    [`难点 · 可穿戴约束`,`Challenge · wearable constraints`],[`眼镜体积/功耗极限,系统架构与音视频编解码都要极致精简;AI 要做到<b>看着画面直接对话</b>,还得解决掉电丢录像、预录、缩时。`,`Glasses push size and power to the limit, so the architecture and A/V codec must be ultra-lean; the AI has to <b>chat straight from the view</b>; plus power-loss footage, pre-record and time-lapse.`],
+    [`<b>摄像头系统架构</b>:可穿戴形态下搭通`,`<b>Camera system architecture</b>: made to work in a wearable form`],[`<b>音视频编解码</b> · <b>AI 智能视觉对话</b>(看懂画面、读字、问答)`,`<b>A/V codec</b> · <b>AI visual chat</b> (understands the view, reads text, answers)`],
+    [`VLM`,`VLM`],[`视觉大模型对话 · 看懂+读字`,`Vision-LLM chat · understands + reads`],[`断网`,`Offline`],[`本地可跑 · 不必依赖云`,`Runs locally · no cloud needed`],[`5000<small>台/月</small>`,`5,000<small>/mo</small>`],[`量产出货(眼镜产线)`,`In production (glasses line)`],
+    [`可穿戴系统架构`,`Wearable system architecture`],[`AI 视觉对话`,`AI visual chat`],
+    // CTA
+    [`记录仪、机器人、摄像头、眼镜都跑通了——你的设备是下一个。`,`Dashcams, robots, cameras, glasses — all proven. Your device is next.`],
+    [`四类完全不同的设备,用的是同一套端侧 AI 视觉栈。换成你的硬件,只是把这套成熟能力搬过去。先聊聊你卡在哪一环。`,`Four completely different devices, one on-device AI-vision stack. Putting it on your hardware just means porting a proven capability. Let's start with where you're stuck.`],
+    [`联系 / Contact:<b>微信 13826173658</b> · 邮箱 493148469@qq.com · 深圳`,`Contact: <b>WeChat 13826173658</b> · Email 493148469@qq.com · Shenzhen`]
+  ];
+  var T={}; PAIRS.forEach(function(p){T[p[0]]=p[1];});
+  var picked=[];
+  Array.prototype.forEach.call(document.querySelectorAll('a,span,div,p,h1,h2,h3,h4,small,button,li'),function(el){
+    if(el.getAttribute('data-zh')!=null)return;
+    var html=el.innerHTML.trim();
+    if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
+  });
+  function apply(lang){var en=lang==='en';
+    picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
+    document.documentElement.lang=en?'en':'zh';
+    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    try{localStorage.setItem('site_lang',lang);}catch(e){}
+  }
+  var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
+  var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
+  apply(q||saved||'zh');
+  var b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
 })();
 </script>
 <script src="fallback.js"></script>
