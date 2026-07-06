@@ -25,243 +25,316 @@
 <meta name="twitter:title" content="云边端 AI 视觉 · 解决方案总览">
 <meta name="twitter:description" content="设备端 YOLO + 视觉大模型、六平台一套固件、云后端与 App/Web 门户,整套可白标。">
 <meta name="twitter:image" content="https://rtl8710.github.io/website/og-cover.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2784%27>👁️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='84'>👁️</text></svg>">
 <style>
   :root{
-    --bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;
-    --ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;
+    --bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;--card2:#0e1626;
+    --ink:#e8eef7;--dim:#9aa9bf;--faint:#7f8ea6;
     --line:#1f2c42;--accent:#22d3ee;--accent2:#0ea5b7;--gold:#f5c451;--green:#34d399;
+    --r-lg:22px;--r-md:14px;--r-sm:10px;
+    --hair:1px solid rgba(255,255,255,.07);
+    --surface:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0));
+    --sh-rest:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.3);
+    --sh-tint:inset 0 1px 0 rgba(255,255,255,.07),0 26px 60px -20px rgba(34,211,238,.22),0 10px 26px -12px rgba(0,0,0,.55);
+    --ease:cubic-bezier(.2,.7,.2,1);
+    --maxw:1120px;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 26px}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"cv02","cv03","ss01"}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,30px)}
   a{color:var(--accent);text-decoration:none}
-  b{color:#fff;font-weight:700}
-  .eyebrow{font-size:12.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-weight:700}
-  section{padding:54px 0;border-top:1px solid var(--line)}
-  section h2{font-size:27px;font-weight:800;letter-spacing:-.01em;margin:6px 0 6px}
-  section .sub{color:var(--dim);font-size:14.5px;max-width:760px;margin-bottom:26px}
+  b{color:#fff;font-weight:650}
+  img{max-width:100%}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+  .eyebrow{font-size:12px;letter-spacing:.24em;color:var(--accent);text-transform:uppercase;font-weight:600}
+  section{padding:clamp(52px,6.5vw,84px) 0 clamp(60px,8vw,100px);position:relative}
+  section + section{border-top:var(--hair)}
+  section h2{font-size:clamp(22px,3vw,29px);font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;color:#fff}
+  section .sub{color:var(--dim);font-size:14.5px;font-weight:450;max-width:760px;margin-bottom:clamp(26px,3.4vw,38px)}
+  section .sub b{color:#cde9f1;font-weight:600}
+
+  .ic{display:inline-flex;align-items:center;justify-content:center;color:var(--accent)}
+  .ic svg{width:26px;height:26px;display:block}
+  .ic.box{width:46px;height:46px;border-radius:13px;background:linear-gradient(180deg,rgba(34,211,238,.14),rgba(34,211,238,.04));border:1px solid rgba(34,211,238,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+
+  /* NAV */
+  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.72);backdrop-filter:blur(14px) saturate(1.3);border-bottom:var(--hair)}
+  .nav .in{max-width:var(--maxw);margin:0 auto;padding:12px clamp(20px,4vw,30px);display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .nav .brand{font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:9px}
+  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(34,211,238,.15),0 0 12px var(--accent)}
+  .nav .r{display:flex;align-items:center;gap:8px}
+  .nav .r a{font-size:13.5px;color:var(--dim);padding:7px 11px;border-radius:9px;font-weight:500;transition:color .2s var(--ease),background .2s var(--ease)}
+  .nav .r a.back:hover{color:#fff;background:rgba(255,255,255,.04)}
+  .nav .cta{color:#04212a!important;background:linear-gradient(180deg,#7fe6f7,var(--accent));font-weight:700!important;box-shadow:0 6px 18px -6px rgba(34,211,238,.5)}
+  .nav .cta:hover{filter:brightness(1.06)}
 
   /* HERO */
-  .hero{background:
-      radial-gradient(80% 120% at 80% -10%,rgba(34,211,238,.16),transparent 60%),
-      radial-gradient(70% 90% at 0% 0%,rgba(14,165,183,.12),transparent 55%),
-      linear-gradient(180deg,#0b1120,#0a0e17);
-    padding:74px 0 60px;border-top:none}
-  .hero .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
-  .hero h1{font-size:48px;line-height:1.12;font-weight:850;letter-spacing:-.02em;margin:22px 0 10px;max-width:880px}
-  .hero h1 .hl{background:linear-gradient(90deg,#22d3ee,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero .lead{font-size:17px;color:var(--dim);max-width:720px}
-  .hero .lead b{color:#dbeafe}
-  .hero .en{font-size:13.5px;color:var(--faint);margin-top:14px;letter-spacing:.01em;max-width:720px}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:38px}
-  .stats .s{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 18px}
-  .stats .s .n{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.02em}
-  .stats .s .n small{font-size:14px;color:var(--accent);font-weight:700;margin-left:2px}
-  .stats .s .l{font-size:12px;color:var(--dim);margin-top:3px}
+  .hero{position:relative;overflow:hidden;border-bottom:var(--hair);
+    background:radial-gradient(58% 88% at 85% -8%,rgba(34,211,238,.12),transparent 56%),radial-gradient(46% 68% at -2% 2%,rgba(14,165,183,.09),transparent 55%),linear-gradient(180deg,#0b1120,#0a0e17);
+    padding:clamp(52px,6.5vw,74px) 0 clamp(50px,6vw,64px)}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .hero .wrap{position:relative;z-index:2}
+  .kchip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:#bdeef7;border:1px solid rgba(34,211,238,.35);border-radius:999px;padding:6px 15px 6px 12px;font-weight:500;background:rgba(34,211,238,.06)}
+  .kchip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .hero h1{font-size:clamp(33px,5vw,50px);line-height:1.1;font-weight:850;letter-spacing:-.03em;margin:20px 0 12px;max-width:880px}
+  .hero h1 .hl{background:linear-gradient(96deg,#22d3ee,#7dd3fc,#22d3ee);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite}
+  @keyframes shine{to{background-position:220% center}}
+  .hero .lead{font-size:clamp(15px,1.4vw,17px);color:var(--dim);font-weight:450;max-width:720px}
+  .hero .lead b{color:#dbeafe;font-weight:600}
+  .hero .en{font-size:13px;color:var(--faint);font-weight:400;margin-top:14px;max-width:720px}
+  .punch{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}
+  .punch span{font-size:12.5px;color:#cfeaf2;font-weight:450;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);border-radius:999px;padding:7px 14px}
+  .punch span b{color:var(--accent);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:40px;background:var(--surface),var(--card);border:var(--hair);border-radius:18px;overflow:hidden;box-shadow:var(--sh-rest)}
+  .stats .s{padding:20px 22px;position:relative}
+  .stats .s + .s::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:1px;background:linear-gradient(180deg,transparent,var(--line),transparent)}
+  .stats .s .n{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .stats .s .n small{font-size:13px;color:var(--accent);font-weight:600;margin-left:3px;letter-spacing:0}
+  .stats .s .l{font-size:11.5px;color:var(--dim);font-weight:450;margin-top:5px}
+  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.stats .s:nth-child(odd)::before{content:none}}
 
-  /* ARCH */
-  .arch{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-  .layer{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 18px;position:relative;overflow:hidden}
-  .layer::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
-  .layer .ic{font-size:24px}
-  .layer .tag{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;font-weight:700;margin:10px 0 4px}
-  .layer h4{font-size:16px;font-weight:700;margin-bottom:8px}
-  .layer p{font-size:12.5px;color:var(--dim)}
-  .layer ul{list-style:none;margin-top:8px}
-  .layer li{font-size:12px;color:var(--dim);padding:3px 0 3px 14px;position:relative}
-  .layer li::before{content:"";position:absolute;left:0;top:9px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
-  .chipbar{margin-top:18px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-  .chipbar .lab{font-size:12px;color:var(--faint);letter-spacing:.06em;margin-right:6px}
-  .chipbar .c{font-size:12.5px;color:#cfe3ee;border:1px solid var(--line);background:#0e1626;border-radius:8px;padding:5px 12px}
+  /* shared card surface */
+  .layer,.m,.scn,.cap,.step,.file,.col,.ace,.pics .p,.wlbox,.qa{position:relative;background:var(--surface),var(--card);border:var(--hair);border-radius:var(--r-lg);box-shadow:var(--sh-rest);transition:transform .26s var(--ease),box-shadow .26s var(--ease),border-color .26s var(--ease)}
+  .m,.scn,.cap,.file{--mx:50%;--my:50%;overflow:hidden}
+  .m::after,.scn::after,.cap::after,.file::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s var(--ease);background:radial-gradient(320px circle at var(--mx) var(--my),rgba(34,211,238,.15),transparent 55%);z-index:1}
+  .m:hover,.scn:hover,.cap:hover,.file:hover{transform:translateY(-5px);border-color:rgba(34,211,238,.35);box-shadow:var(--sh-tint)}
+  .m:hover::after,.scn:hover::after,.cap:hover::after,.file:hover::after{opacity:1}
+  .m>*,.scn>*,.cap>*,.file>*{position:relative;z-index:2}
+
+  /* STACK · pipeline */
+  .arch{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;position:relative}
+  .layer{padding:22px 20px;overflow:visible}
+  .layer::after{content:"";position:absolute;top:38px;right:-13px;width:18px;height:18px;transform:rotate(45deg);border-top:2px solid rgba(34,211,238,.4);border-right:2px solid rgba(34,211,238,.4);z-index:2}
+  .layer:last-child::after{display:none}
+  .layer .tag{font-size:11px;letter-spacing:.16em;color:var(--accent);text-transform:uppercase;font-weight:600;margin:14px 0 4px}
+  .layer h4{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+  .layer p{font-size:12.5px;color:var(--dim);font-weight:450}
+  .layer ul{list-style:none;margin-top:10px}
+  .layer li{font-size:12px;color:var(--dim);font-weight:450;padding:4px 0 4px 15px;position:relative}
+  .layer li::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:1px;background:var(--accent);box-shadow:0 0 6px rgba(34,211,238,.6)}
+  @media(max-width:860px){.arch{grid-template-columns:repeat(2,1fr)}.layer::after{display:none}}
+  @media(max-width:520px){.arch{grid-template-columns:1fr}}
+  .chipbar{margin-top:20px;background:var(--card2);border:var(--hair);border-radius:16px;padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .chipbar .lab{font-size:12px;color:var(--faint);margin-right:6px;font-weight:500}
+  .chipbar .c{font-size:12.5px;color:#cfe3ee;border:var(--hair);background:rgba(255,255,255,.02);border-radius:9px;padding:6px 12px;transition:border-color .2s var(--ease),transform .2s var(--ease)}
+  .chipbar .c:hover{border-color:rgba(34,211,238,.35);transform:translateY(-1px)}
   .chipbar .c b{color:var(--accent);font-weight:700}
 
   /* MOAT */
   .moat{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-  .moat .m{background-color:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 22px}
-  .moat .m .ic{font-size:22px}
-  .moat .m h4{font-size:17px;font-weight:750;margin:8px 0 6px}
-  .moat .m h4 small{display:block;font-size:12px;color:var(--faint);font-weight:500;letter-spacing:.04em}
-  .moat .m p{font-size:13px;color:var(--dim)}
-  .moat .m p b{color:#cde9f1}
+  .m{padding:24px}
+  .m h4{font-size:17px;font-weight:700;color:#fff;margin:14px 0 6px}
+  .m h4 small{display:block;font-size:12px;color:var(--faint);font-weight:500;margin-top:4px}
+  .m p{font-size:13px;color:var(--dim);font-weight:450}
+  .m p b{color:#cde9f1;font-weight:600}
 
-  /* CAPABILITIES */
-  .caps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .cap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  .cap .thumb{height:320px;background:radial-gradient(120% 90% at 50% 0%,#10192a 0%,#070b13 100%);overflow:hidden;display:flex;align-items:center;justify-content:center;padding:14px}
-  .cap .thumb img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.45);display:block}
-  .cap .cc{padding:14px 16px}
-  .cap .cc h4{font-size:14.5px;font-weight:700}
-  .cap .cc h4 small{color:var(--faint);font-weight:500;font-size:11.5px;margin-left:6px}
-  .cap .cc p{font-size:12px;color:var(--dim);margin-top:4px}
+  /* VS */
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .col{padding:24px}
+  .col.us{border-color:rgba(34,211,238,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 0 0 1px rgba(34,211,238,.08),0 20px 50px -18px rgba(34,211,238,.2)}
+  .col .tt{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+  .col.them .tt{color:var(--faint)}
+  .col.us .tt{color:var(--accent)}
+  .col .h{font-size:18px;font-weight:750;margin-bottom:14px;color:#fff}
+  .col ul{list-style:none}
+  .col li{font-size:13px;padding:9px 0 9px 26px;position:relative;border-bottom:1px dashed var(--line);color:var(--dim);font-weight:450}
+  .col li:last-child{border-bottom:none}
+  .col li b{color:#eaf6fb;font-weight:600}
+  .col.them li::before{content:"✕";position:absolute;left:0;top:9px;color:#8194ac;font-weight:800}
+  .col.us li::before{content:"✓";position:absolute;left:0;top:9px;color:var(--green);font-weight:800}
 
-  /* SCENARIOS */
+  /* CAPS */
+  .caps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .cap{overflow:hidden;display:flex;flex-direction:column}
+  .cap .thumb{height:300px;background:radial-gradient(120% 100% at 50% 0%,#12203a,#070b13);overflow:hidden;display:flex;align-items:center;justify-content:center;padding:16px}
+  .cap .thumb img{max-width:100%;max-height:100%;width:auto;border-radius:11px;box-shadow:0 14px 30px -8px rgba(0,0,0,.6);display:block}
+  .cap .cc{padding:15px 17px}
+  .cap .cc h4{font-size:14.5px;font-weight:700;color:#fff;display:flex;align-items:baseline;gap:8px}
+  .cap .cc h4 small{color:var(--accent);font-weight:600;font-size:11px;background:rgba(34,211,238,.09);padding:2px 8px;border-radius:6px}
+  .cap .cc p{font-size:12px;color:var(--dim);font-weight:450;margin-top:6px}
+
+  /* SCENES */
   .scenes{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-  .scn{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 22px;position:relative;overflow:hidden}
-  .scn::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
-  .scn .ic{font-size:26px}
-  .scn h4{font-size:18px;font-weight:750;margin:10px 0 2px}
-  .scn h4 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;letter-spacing:.06em;margin-top:3px}
-  .scn .pain{font-size:12.5px;color:var(--dim);margin:13px 0;padding-left:12px;border-left:2px solid rgba(245,196,81,.5)}
+  .scn{padding:24px}
+  .scn h4{font-size:18px;font-weight:700;color:#fff;margin:14px 0 2px}
+  .scn h4 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;letter-spacing:.03em;margin-top:4px}
+  .scn .pain{font-size:12.5px;color:var(--dim);font-weight:450;margin:14px 0;padding-left:13px;border-left:2px solid rgba(245,196,81,.5)}
   .scn .pain b{color:#e7d8b0;font-weight:600}
-  .scn .sol{font-size:13px;color:var(--dim)}
-  .scn .sol b{color:#cde9f1}
-  .scn .chips{margin-top:14px;display:flex;flex-wrap:wrap;gap:7px}
-  .scn .chips .c{font-size:11.5px;color:var(--accent);background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);border-radius:7px;padding:4px 10px}
+  .scn .sol{font-size:13px;color:var(--dim);font-weight:450}
+  .scn .sol b{color:#cde9f1;font-weight:600}
+  .scn .chips{margin-top:15px;display:flex;flex-wrap:wrap;gap:7px}
+  .scn .chips .c{font-size:11.5px;color:var(--accent);background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);border-radius:8px;padding:4px 10px}
 
   /* PROOF */
   .proof{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;align-items:start}
-  .proof .ace{background-color:#0f1c2b;border:1px solid rgba(34,211,238,.28);border-radius:18px;padding:24px}
-  .proof .ace .badge{font-size:11px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;font-weight:700}
-  .proof .ace h3{font-size:19px;margin:8px 0 12px;font-weight:750}
-  .qa{background:#0a121d;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+  .ace{padding:24px;border-color:rgba(34,211,238,.28)}
+  .ace .badge{font-size:11px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;font-weight:700}
+  .ace h3{font-size:19px;margin:8px 0 14px;font-weight:750;color:#fff}
+  .qa{padding:15px 17px;margin-bottom:12px;box-shadow:none;background:rgba(6,12,20,.6)}
   .qa .q{font-size:13px;color:#7dd3fc;font-weight:600}
-  .qa .a{font-size:12.5px;color:var(--dim);margin-top:6px}
-  .qa .a b{color:#d7eef6}
-  .proof .ace .note{font-size:11.5px;color:var(--faint);margin-top:6px}
-  .proof .pics{display:flex;flex-direction:column;gap:14px}
-  .proof .pics .p{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-  .proof .pics .p .im{height:230px;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#10192a 0%,#070b13 100%);display:flex;align-items:center;justify-content:center;padding:12px}
-  .proof .pics .p .im img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.4);display:block}
-  .proof .pics .p .cap2{padding:9px 13px;font-size:11.5px;color:var(--dim)}
-  .proof .pics .p .cap2 b{color:#fff}
+  .qa .a{font-size:12.5px;color:var(--dim);font-weight:450;margin-top:7px}
+  .qa .a b{color:#d7eef6;font-weight:600}
+  .ace .note{font-size:11.5px;color:var(--faint);font-weight:450;margin-top:8px;line-height:1.6}
+  .pics{display:flex;flex-direction:column;gap:14px}
+  .pics .p{overflow:hidden;display:flex;flex-direction:column}
+  .pics .p .im{height:230px;overflow:hidden;background:radial-gradient(120% 100% at 50% 0%,#12203a,#070b13);display:flex;align-items:center;justify-content:center;padding:12px}
+  .pics .p .im img{max-width:100%;max-height:100%;width:auto;border-radius:9px;box-shadow:0 10px 24px -8px rgba(0,0,0,.55);display:block}
+  .pics .p .cap2{padding:11px 15px;font-size:11.5px;color:var(--dim);font-weight:450}
+  .pics .p .cap2 b{color:#fff;font-weight:600}
 
   /* WHITE LABEL */
   .wl{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center}
   .wl ul{list-style:none}
-  .wl li{font-size:13.5px;color:var(--dim);padding:7px 0 7px 22px;position:relative;border-bottom:1px dashed var(--line)}
-  .wl li::before{content:"✓";position:absolute;left:0;top:6px;color:var(--green);font-weight:800;font-size:13px}
-  .wl li b{color:#fff}
-  .wlbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px}
-  .wlbox img{width:100%;border-radius:10px;display:block}
+  .wl li{font-size:13.5px;color:var(--dim);font-weight:450;padding:9px 0 9px 24px;position:relative;border-bottom:1px dashed var(--line)}
+  .wl li:last-child{border-bottom:none}
+  .wl li::before{content:"✓";position:absolute;left:0;top:8px;color:var(--green);font-weight:800;font-size:13px}
+  .wl li b{color:#fff;font-weight:600}
+  .wlbox{padding:8px}
+  .wlbox img{width:100%;border-radius:14px;display:block}
 
   /* DEAL */
-  .deal{background:
-      radial-gradient(70% 120% at 100% 0%,rgba(245,196,81,.10),transparent 60%),
-      linear-gradient(180deg,#0c1322,#0a0e17)}
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
-  .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .step .n{font-size:13px;font-weight:800;color:#0a0e17;background:var(--gold);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-  .step h4{font-size:15px;font-weight:750;margin:12px 0 6px}
-  .step p{font-size:12.5px;color:var(--dim)}
-  .dealnote{background:rgba(245,196,81,.07);border:1px solid rgba(245,196,81,.28);border-radius:14px;padding:16px 20px;font-size:13px;color:#e7d8b0}
-  .dealnote b{color:var(--gold)}
+  .deal{background:radial-gradient(70% 120% at 100% 0%,rgba(245,196,81,.1),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+  .step{padding:22px}
+  .step .n{font-size:14px;font-weight:800;color:#0a0e17;background:linear-gradient(180deg,#ffe6a3,var(--gold));width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -6px rgba(245,196,81,.6)}
+  .step h4{font-size:16px;font-weight:750;color:#fff;margin:14px 0 6px}
+  .step p{font-size:12.5px;color:var(--dim);font-weight:450}
+  .dealnote{background:rgba(245,196,81,.07);border:1px solid rgba(245,196,81,.28);border-radius:16px;padding:17px 20px;font-size:13px;color:#e7d8b0;font-weight:450}
+  .dealnote b{color:var(--gold);font-weight:700}
 
-  /* DELIVERABLES */
-  .files{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .file{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 16px;display:block}
-  .file .ic{font-size:18px}
-  .file h4{font-size:14px;font-weight:700;margin:6px 0 3px;color:#fff}
-  .file p{font-size:11.5px;color:var(--dim)}
-  .file .fn{font-size:11px;color:var(--accent);margin-top:7px;font-family:ui-monospace,Menlo,monospace}
+  /* FILES */
+  .files{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .file{padding:18px}
+  .file .ic.box{width:40px;height:40px;border-radius:11px}
+  .file .ic svg{width:22px;height:22px}
+  .file h4{font-size:14.5px;font-weight:700;margin:12px 0 4px;color:#fff}
+  .file p{font-size:11.5px;color:var(--dim);font-weight:450}
+  .file .fn{font-size:11px;color:var(--accent);margin-top:9px;font-family:ui-monospace,Menlo,monospace}
 
-  .foot{padding:34px 0 60px;color:var(--faint);font-size:12px;text-align:center}
-  .foot b{color:var(--dim)}
-
-  /* HERO differentiator strip */
-  .punch{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
-  .punch span{font-size:13px;color:#cfeaf2;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.22);border-radius:999px;padding:7px 15px}
-  .punch span b{color:var(--accent);font-weight:700}
-
-  /* VS comparison */
-  .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .vs .col{border-radius:16px;padding:22px 22px;border:1px solid var(--line);background:var(--card)}
-  .vs .col.them{opacity:.92}
-  .vs .col.us{border-color:rgba(34,211,238,.4);background:linear-gradient(170deg,rgba(34,211,238,.06),rgba(14,165,183,.02)),var(--card);box-shadow:0 0 0 1px rgba(34,211,238,.08),0 20px 50px rgba(34,211,238,.06)}
-  .vs .col .tt{font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
-  .vs .col.them .tt{color:var(--faint)}
-  .vs .col.us .tt{color:var(--accent)}
-  .vs .col .h{font-size:18px;font-weight:750;margin-bottom:14px}
-  .vs .col.us .h{color:#fff}
-  .vs .col ul{list-style:none}
-  .vs .col li{font-size:13px;padding:8px 0 8px 24px;position:relative;border-bottom:1px dashed var(--line);color:var(--dim)}
-  .vs .col li:last-child{border-bottom:none}
-  .vs .col.them li::before{content:"✕";position:absolute;left:0;top:8px;color:#7a8aa0;font-weight:800}
-  .vs .col.us li::before{content:"✓";position:absolute;left:0;top:8px;color:var(--green);font-weight:800}
-  .vs .col.us li b{color:#eaf6fb}
-
-  /* closing CTA */
-  .cta{text-align:center;background:
-      radial-gradient(70% 130% at 50% 0%,rgba(34,211,238,.14),transparent 60%),
-      linear-gradient(180deg,#0c1322,#0a0e17)}
-  .cta h2{font-size:30px;max-width:760px;margin:8px auto 12px}
-  .cta .line{color:var(--dim);font-size:15px;max-width:640px;margin:0 auto 22px}
-  .cta .line b{color:#cde9f1}
+  /* CTA */
+  .cta{text-align:center;background:radial-gradient(70% 130% at 50% -10%,rgba(34,211,238,.13),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
+  .cta h2{font-size:clamp(24px,3.4vw,31px);max-width:760px;margin:12px auto 12px}
+  .cta .line{color:var(--dim);font-size:15px;font-weight:450;max-width:640px;margin:0 auto 22px}
+  .cta .line b{color:#cde9f1;font-weight:600}
   .cta .who{display:inline-flex;flex-wrap:wrap;gap:10px;justify-content:center}
-  .cta .who span{font-size:13px;color:#cfeaf2;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;padding:7px 16px}
+  .cta .who span{font-size:13px;color:#cfeaf2;background:rgba(255,255,255,.04);border:var(--hair);border-radius:999px;padding:8px 16px}
 
-  @media(max-width:860px){
-    .stats,.arch,.caps,.files{grid-template-columns:repeat(2,1fr)}
-    .moat,.proof,.wl,.steps,.scenes{grid-template-columns:1fr}
-    .hero h1{font-size:36px}
+  .foot{padding:34px 0 60px;color:var(--faint);font-size:12px;font-weight:450;text-align:center;border-top:var(--hair)}
+  .foot a{color:var(--dim)}
+  .foot a:hover{color:var(--accent)}
+
+  /* reveal + FX */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+  .hero .aurora{position:absolute;inset:-25% -12% -10%;z-index:0;pointer-events:none;filter:blur(66px);opacity:.48}
+  .hero .aurora i{position:absolute;display:block;border-radius:50%;mix-blend-mode:screen}
+  .hero .aurora i:nth-child(1){width:44vw;height:44vw;right:1%;top:-16%;background:radial-gradient(circle,rgba(34,211,238,.55),transparent 62%);animation:au1 19s ease-in-out infinite alternate}
+  .hero .aurora i:nth-child(2){width:36vw;height:36vw;left:-6%;top:8%;background:radial-gradient(circle,rgba(14,165,183,.5),transparent 62%);animation:au2 23s ease-in-out infinite alternate}
+  .hero .aurora i:nth-child(3){width:26vw;height:26vw;left:34%;top:28%;background:radial-gradient(circle,rgba(125,211,252,.3),transparent 62%);animation:au3 27s ease-in-out infinite alternate}
+  @keyframes au1{to{transform:translate(-9%,12%) scale(1.18)}}
+  @keyframes au2{to{transform:translate(11%,-7%) scale(1.12)}}
+  @keyframes au3{to{transform:translate(-7%,-11%) scale(1.22)}}
+  .hero .scan{position:absolute;left:0;right:0;top:-2px;height:2px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(34,211,238,.6),transparent);box-shadow:0 0 20px rgba(34,211,238,.5);animation:heroScan 7.5s linear infinite}
+  @keyframes heroScan{0%{top:-2px;opacity:0}9%{opacity:.85}91%{opacity:.85}100%{top:100%;opacity:0}}
+
+  @media(max-width:860px){.moat,.scenes,.vs,.proof,.wl,.steps{grid-template-columns:1fr}.caps,.files{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.caps,.files{grid-template-columns:1fr}}
+
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    .reveal{opacity:1!important;transform:none!important}
+    .hero .scan{display:none}
   }
+
+  /* PRINT · 转浅色成套交付 PDF */
   @media print{
-    body{background:#fff;color:#10151f}
-    .hero,.deal{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    section{break-inside:avoid;border-top:1px solid #d9e0ea}
-    .layer,.moat .m,.cap,.scn,.proof .ace,.step,.file,.stats .s{break-inside:avoid;background:#fff;border-color:#dde4ee;color:#10151f}
-    b{color:#000}
+    :root{--dim:#3a4658;--faint:#5b6b7e;--line:#d9e0ea}
+    body{background:#fff;color:#10151f;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .nav,.hero .aurora,.hero .scan,.foot{display:none}
+    .hero,.deal,.cta{background:#fff}
+    section{break-inside:avoid;border-top:1px solid #e2e8f1;padding:22px 0}
+    .layer,.m,.scn,.cap,.step,.file,.col,.ace,.pics .p,.wlbox,.stats,.chipbar,.dealnote{break-inside:avoid;background:#fff;border-color:#dde4ee;box-shadow:none;color:#10151f}
+    .hero h1,section h2,.col .h,.scn h4,.m h4,.step h4,.file h4,.cap .cc h4,.ace h3,.cta h2,.stats .n{color:#0b1020}
+    .hero h1 .hl{-webkit-text-fill-color:#0e7490;color:#0e7490}
+    .reveal{opacity:1!important;transform:none!important}
+    .ic.box{background:#e8f7fb;border-color:#bfe9f2}
   }
 </style>
 </head>
 <body>
 
-<!-- ===================== HERO ===================== -->
-<div class="hero">
-  <div class="wrap">
-    <span class="kchip">整套 AI 视觉方案 · 贴你的牌子就能卖</span>
-    <h1>一整套 AI 视觉,<br><span class="hl">做进你的产品里</span>。</h1>
-    <p class="lead">让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>;<b>不连网也能用、数据不外泄</b>。从设备里的软件、AI,到云端后台、手机 App,<b>一整套做好、整套贴你的牌子</b>。你有市场和渠道,难做的 AI 我全包。</p>
-    <p class="en">17 years in security cameras. On-device YOLO + Vision-LLM that still works with the internet unplugged. Full edge-cloud-app stack, white-labeled to your brand. You own the market — I bring the on-device AI others can't ship.</p>
+<nav class="nav">
+  <div class="in">
+    <a class="brand" href="index.html" style="color:#fff"><span class="dot"></span>云边端 AI 视觉</a>
+    <div class="r">
+      <a class="back" href="index.html">← 返回首页</a>
+      <a class="back cta" href="cooperation-invite.html">合作邀约</a>
+    </div>
+  </div>
+</nav>
 
-    <div class="punch">
+<main>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="scan" aria-hidden="true"></div>
+  <div class="wrap">
+    <span class="kchip reveal">整套 AI 视觉方案 · 贴你的牌子就能卖</span>
+    <h1 class="reveal">一整套 AI 视觉,<br><span class="hl">做进你的产品里</span>。</h1>
+    <p class="lead reveal">让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>;<b>不连网也能用、数据不外泄</b>。从设备里的软件、AI,到云端后台、手机 App,<b>一整套做好、整套贴你的牌子</b>。你有市场和渠道,难做的 AI 我全包。</p>
+    <p class="en reveal">17 years in security cameras. On-device YOLO + Vision-LLM that still works with the internet unplugged. Full edge-cloud-app stack, white-labeled to your brand. You own the market — I bring the on-device AI others can't ship.</p>
+
+    <div class="punch reveal">
       <span><b>断网</b>也能用,不依赖云</span>
       <span><b>17 年</b>安防深度,不是通用外包</span>
       <span>云边端<b>整套贴牌</b></span>
     </div>
 
-    <div class="stats">
+    <div class="stats reveal">
       <div class="s"><div class="n">6<small>种芯片</small></div><div class="l">主流方案一套通用 · 换料不卡出货</div></div>
       <div class="s"><div class="n">100%<small>本地</small></div><div class="l">AI 在设备里跑 · 断网照常用</div></div>
       <div class="s"><div class="n">14.7<small>万</small></div><div class="l">累计录像一条没丢 · 长期不丢帧</div></div>
       <div class="s"><div class="n">3<small>区域</small></div><div class="l">美洲 / 亚洲 / 欧洲 · 全球部署</div></div>
     </div>
   </div>
-</div>
+</header>
 
 <!-- ===================== 这套方案是什么 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">交付什么 · 我给你一整套</div>
-    <h2>从硬件到手机 App,整套都做好给你</h2>
-    <p class="sub">不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好;每块能单独给,也能整套贴你的牌子。</p>
+    <div class="eyebrow reveal">交付什么 · 我给你一整套</div>
+    <h2 class="reveal">从硬件到手机 App,整套都做好给你</h2>
+    <p class="sub reveal">不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好;每块能单独给,也能整套贴你的牌子。</p>
     <div class="arch">
-      <div class="layer">
-        <div class="ic">🔩</div><div class="tag">设备</div>
+      <div class="layer reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/></svg></span><div class="tag">设备</div>
         <h4>设备里的软件</h4>
         <p>把设备从底层跑起来:画面、录像、存储全调好。</p>
         <ul><li>6 种主流芯片,一套代码通用</li><li>1080P 高清,主流编码</li><li>自动自愈 · 断电保护</li></ul>
       </div>
-      <div class="layer">
-        <div class="ic">🧠</div><div class="tag">AI</div>
+      <div class="layer reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.4L18 9l-4.3 1.6L12 15l-1.7-4.4L6 9l4.3-1.6z"/><path d="M18 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg></span><div class="tag">AI</div>
         <h4>设备自带的 AI</h4>
         <p>AI 全在设备里算,不依赖云。</p>
         <ul><li>认人认物,当场框在画面上</li><li>看懂现场、读出画面里的字、能问答</li><li>可直接接进机器人系统</li></ul>
       </div>
-      <div class="layer">
-        <div class="ic">☁️</div><div class="tag">云端</div>
+      <div class="layer reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 18 18H7z"/></svg></span><div class="tag">云端</div>
         <h4>云端后台(亚马逊云)</h4>
         <p>设备联网管理、录像上云、远程维护全托管。</p>
         <ul><li>设备联网、账号、录像存储全托管</li><li>重要录像上云,随时能翻能搜</li><li>远程升级 · 安全不开端口</li></ul>
       </div>
-      <div class="layer">
-        <div class="ic">📱</div><div class="tag">App</div>
+      <div class="layer reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.6"/><path d="M11 18h2"/></svg></span><div class="tag">App</div>
         <h4>手机 App 和电脑后台</h4>
         <p>把设备能力交到用户手机和电脑上。</p>
         <ul><li>手机看直播、回放、设置</li><li>电脑后台,多语言、可贴牌</li><li>远程看画面不卡</li></ul>
       </div>
     </div>
-    <div class="chipbar">
+    <div class="chipbar reveal">
       <span class="lab">6 种主流芯片,一套通用:</span>
       <span class="c"><b>君正</b> Ingenic</span><span class="c"><b>海思</b> HiSilicon</span>
       <span class="c"><b>瑞芯微</b> Rockchip</span><span class="c"><b>全志</b> Allwinner</span>
@@ -274,14 +347,14 @@
 <!-- ===================== 为什么不一样 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">为什么找我,不找普通外包</div>
-    <h2>难的不是写代码,是把 AI 塞进便宜设备还跑得稳</h2>
-    <p class="sub">把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。</p>
+    <div class="eyebrow reveal">为什么找我,不找普通外包</div>
+    <h2 class="reveal">难的不是写代码,是把 AI 塞进便宜设备还跑得稳</h2>
+    <p class="sub reveal">把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。</p>
     <div class="moat">
-      <div class="m"><div class="ic">🔌</div><h4>拔了网线,它还在认人<small>断网也能用</small></h4><p>认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。这种隐私和离线,云端服务给不了。</p></div>
-      <div class="m"><div class="ic">👁️</div><h4>不只是认出来,还能"看懂"<small>会读字、能问答</small></h4><p>不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。比"数人头"高一个档次。</p></div>
-      <div class="m"><div class="ic">🧩</div><h4>换芯片不用重做<small>6 种芯片一套通用</small></h4><p>6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货——17 年踩过的坑,变成你量产的确定性。</p></div>
-      <div class="m"><div class="ic">🛡️</div><h4>长期稳定,录像不丢<small>工业级可靠</small></h4><p>设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。工业、机器人现场要的就是这个。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M8 8h8v2.5a4 4 0 0 1-8 0z"/><path d="M12 14.5V21"/></svg></span><h4>拔了网线,它还在认人<small>断网也能用</small></h4><p>认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。这种隐私和离线,云端服务给不了。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.6 10-6.6S22 12 22 12s-3.6 6.6-10 6.6S2 12 2 12z"/><circle cx="12" cy="12" r="2.7"/></svg></span><h4>不只是认出来,还能"看懂"<small>会读字、能问答</small></h4><p>不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。比"数人头"高一个档次。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4M4 16.5l8 4 8-4"/></svg></span><h4>换芯片不用重做<small>6 种芯片一套通用</small></h4><p>6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货——17 年踩过的坑,变成你量产的确定性。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/><path d="M9.2 12l2 2 3.6-3.6"/></svg></span><h4>长期稳定,录像不丢<small>工业级可靠</small></h4><p>设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。工业、机器人现场要的就是这个。</p></div>
     </div>
   </div>
 </section>
@@ -289,11 +362,11 @@
 <!-- ===================== 对比 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">凭什么不一样</div>
-    <h2>同样叫"AI 摄像头",差距在这一栏</h2>
-    <p class="sub">市面上多数是"接个云端服务"或"外包凑功能";这套是把 AI 真正做进设备本身,还能整套交到你品牌名下。</p>
+    <div class="eyebrow reveal">凭什么不一样</div>
+    <h2 class="reveal">同样叫"AI 摄像头",差距在这一栏</h2>
+    <p class="sub reveal">市面上多数是"接个云端服务"或"外包凑功能";这套是把 AI 真正做进设备本身,还能整套交到你品牌名下。</p>
     <div class="vs">
-      <div class="col them">
+      <div class="col them reveal">
         <div class="tt">常见做法</div>
         <div class="h">云端服务 / 通用外包</div>
         <ul>
@@ -304,7 +377,7 @@
           <li>挂别人牌子,核心不在你手里</li>
         </ul>
       </div>
-      <div class="col us">
+      <div class="col us reveal">
         <div class="tt">这套方案</div>
         <div class="h">AI 全做进设备 · 可贴牌</div>
         <ul>
@@ -322,16 +395,16 @@
 <!-- ===================== 能力全景 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">能做什么 · 真机截图,不是效果图</div>
-    <h2>从看直播、认目标到回放、升级,一套全包</h2>
-    <p class="sub">下面每一项都是真机已经在用的功能,手机和电脑后台都有。</p>
+    <div class="eyebrow reveal">能做什么 · 真机截图,不是效果图</div>
+    <h2 class="reveal">从看直播、认目标到回放、升级,一套全包</h2>
+    <p class="sub reveal">下面每一项都是真机已经在用的功能,手机和电脑后台都有。</p>
     <div class="caps">
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_02_live.jpg" alt="多路直播"></div><div class="cc"><h4>随时看直播<small>Live</small></h4><p>手机同屏看多个画面,远程也不卡,能截图、录像、喊话。</p></div></div>
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_03_aidetect.jpg" alt="AI 检测"></div><div class="cc"><h4>会认人认物<small>本地 AI</small></h4><p>画面里有人有车有物,当场框出来,还能接进机器人系统。</p></div></div>
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="AI 对话"></div><div class="cc"><h4>会看懂会读字<small>AI 对话</small></h4><p>对着画面直接问:看懂现场、读出画面里的字,本地/云端两种都行。</p></div></div>
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_04_playback.jpg" alt="本地回放"></div><div class="cc"><h4>回放随便倒<small>Playback</small></h4><p>本地/云端回放,多路同屏共用一条时间轴,一天的录像一目了然。</p></div></div>
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_06_record.jpg" alt="录像设置"></div><div class="cc"><h4>怎么录都行<small>Recording</small></h4><p>循环、缩时、预录、手动加事件录像;存本地、存云端都行,长期不丢。</p></div></div>
-      <div class="cap"><div class="thumb"><img loading="lazy" src="app-shots/hi_08_ota.jpg" alt="OTA"></div><div class="cc"><h4>远程升级不召回<small>全球可用</small></h4><p>出货后统一远程升级;美洲/亚洲/欧洲三区就近连。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_02_live.jpg" alt="多路直播"></div><div class="cc"><h4>随时看直播<small>Live</small></h4><p>手机同屏看多个画面,远程也不卡,能截图、录像、喊话。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_03_aidetect.jpg" alt="AI 检测"></div><div class="cc"><h4>会认人认物<small>本地 AI</small></h4><p>画面里有人有车有物,当场框出来,还能接进机器人系统。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="AI 对话"></div><div class="cc"><h4>会看懂会读字<small>AI 对话</small></h4><p>对着画面直接问:看懂现场、读出画面里的字,本地/云端两种都行。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_04_playback.jpg" alt="本地回放"></div><div class="cc"><h4>回放随便倒<small>Playback</small></h4><p>本地/云端回放,多路同屏共用一条时间轴,一天的录像一目了然。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_06_record.jpg" alt="录像设置"></div><div class="cc"><h4>怎么录都行<small>Recording</small></h4><p>循环、缩时、预录、手动加事件录像;存本地、存云端都行,长期不丢。</p></div></div>
+      <div class="cap reveal"><div class="thumb"><img loading="lazy" src="app-shots/hi_08_ota.jpg" alt="OTA"></div><div class="cc"><h4>远程升级不召回<small>全球可用</small></h4><p>出货后统一远程升级;美洲/亚洲/欧洲三区就近连。</p></div></div>
     </div>
   </div>
 </section>
@@ -339,37 +412,37 @@
 <!-- ===================== 场景解决方案 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">By Scenario · 场景解决方案</div>
-    <h2>同一套端侧 AI 视觉,落进你的行业</h2>
-    <p class="sub">不是四套不同的东西——同一套能力,针对四类场景各自落地;而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">记录仪 / 机器人 / 摄像头 / 眼镜 四领域量产客户</a>)。</p>
+    <div class="eyebrow reveal">By Scenario · 场景解决方案</div>
+    <h2 class="reveal">同一套端侧 AI 视觉,落进你的行业</h2>
+    <p class="sub reveal">不是四套不同的东西——同一套能力,针对四类场景各自落地;而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">记录仪 / 机器人 / 摄像头 / 眼镜 四领域量产客户</a>)。</p>
     <div class="scenes">
 
-      <div class="scn">
-        <div class="ic">🛡️</div>
+      <div class="scn reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/></svg></span>
         <h4>智能安防解决方案<small>Smart Security · 周界 / 园区 / 商铺 / 出入口</small></h4>
         <div class="pain"><b>痛点:</b>只会"数人头"误报多、看不懂现场;录像全上云有隐私顾虑;录像太多难找。</div>
         <div class="sol">实时认出<b>人、车、翻墙入侵</b>,框直接画在画面;还能<b>看懂现场、读出招牌/车牌/铭牌的字</b>;<b>断网在本地处理</b>不外泄;重要录像上云<b>随时能搜</b>,14.7 万段一条没丢。</div>
         <div class="chips"><span class="c">周界入侵 / 人车识别</span><span class="c">画面读字</span><span class="c">断网可用 · 不外泄</span><span class="c" style="color:var(--gold);border-color:rgba(245,196,81,.3);background:rgba(245,196,81,.06)">平台 君正/海思/瑞芯微</span></div>
       </div>
 
-      <div class="scn">
-        <div class="ic">🤖</div>
+      <div class="scn reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5.5M12 5.5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M3 12v3M21 12v3"/></svg></span>
         <h4>智能机器人解决方案<small>Smart Robotics · 巡检 / 配送 / 服务机器人</small></h4>
         <div class="pain"><b>痛点:</b>机器人要本地实时看、延迟低,要能接进机器人系统,现场环境差还得长期稳。</div>
         <div class="sol">AI 在机器人身上<b>直接算</b>(画面约 0.3 秒、看懂现场约 1–3 秒);<b>直接接进机器人系统</b>,成为它的眼睛;主控芯片<b>英伟达 / 地平线 / 瑞芯微</b>都支持;<b>自动自愈 · 断电保护</b>工业级稳;还能看懂现场辅助决策。</div>
         <div class="chips"><span class="c">本地实时 · 约 0.3 秒</span><span class="c">接进机器人系统</span><span class="c">工业级稳定</span><span class="c" style="color:var(--gold);border-color:rgba(245,196,81,.3);background:rgba(245,196,81,.06)">平台 英伟达/地平线/瑞芯微</span></div>
       </div>
 
-      <div class="scn">
-        <div class="ic">🚗</div>
+      <div class="scn reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l1.7-4.4A2 2 0 0 1 7.6 7.3h8.8a2 2 0 0 1 1.9 1.3L20 13v5h-2M6 18H4v-5h16"/><circle cx="7.5" cy="18" r="1.7"/><circle cx="16.5" cy="18" r="1.7"/></svg></span>
         <h4>行车记录仪 / 智能交通解决方案<small>Smart Dashcam · 商用车 / 车队 / 记录仪</small></h4>
         <div class="pain"><b>痛点:</b>记录仪算力低、成本敏感;AI 要在设备本地跑还得量产稳;掉电丢录像、预录、缩时都是难啃的硬骨头。</div>
         <div class="sol"><b>便宜的车载设备也能跑 AI</b>、画面调稳;<b>掉电不丢录像 · 预录 · 缩时</b>一并解决;<b>远程实时看</b> + 云端录像。<b style="color:#cde9f1">已在头部行车记录仪品牌量产落地。</b></div>
         <div class="chips"><span class="c">便宜设备也能跑 AI</span><span class="c">画面稳定</span><span class="c">掉电不丢录像</span><span class="c">预录 / 缩时 · 远程看</span><span class="c" style="color:var(--gold);border-color:rgba(245,196,81,.3);background:rgba(245,196,81,.06)">平台 联咏/瑞芯微</span></div>
       </div>
 
-      <div class="scn">
-        <div class="ic">👓</div>
+      <div class="scn reveal">
+        <span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="14" r="3.3"/><circle cx="17.5" cy="14" r="3.3"/><path d="M9.8 13.6c.7-1 3.7-1 4.4 0M3.2 12l2.1-4.6M20.8 12l-2.1-4.6"/></svg></span>
         <h4>智能眼镜 / 可穿戴解决方案<small>Smart Glasses · 可穿戴 / 第一视角</small></h4>
         <div class="pain"><b>痛点:</b>眼镜又小又要省电,整个系统都得极致精简;AI 还要做到<b>看着画面就能直接问答</b>。</div>
         <div class="sol">在这么小、这么省电的形态里<b>把系统跑通</b>;<b>看懂画面、读字、直接问答</b>,<b>断网也能用</b>;掉电不丢录像 · 预录 · 缩时 · 远程看 · 云端录像都有。<b style="color:#cde9f1">已落地智能眼镜厂商量产。</b></div>
@@ -383,11 +456,11 @@
 <!-- ===================== 王牌证据 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">真实证据 · 不是演示稿</div>
-    <h2>设备自己"看懂"了画面,还读出了画面里的字</h2>
-    <p class="sub">这不是查数据库,是设备里的 AI 真的看懂了现场——下面是真实问答和真机画面。</p>
+    <div class="eyebrow reveal">真实证据 · 不是演示稿</div>
+    <h2 class="reveal">设备自己"看懂"了画面,还读出了画面里的字</h2>
+    <p class="sub reveal">这不是查数据库,是设备里的 AI 真的看懂了现场——下面是真实问答和真机画面。</p>
     <div class="proof">
-      <div class="ace">
+      <div class="ace reveal">
         <div class="badge">★ 王牌 · 设备里的 AI 真实问答</div>
         <h3>拿实时画面,直接问它</h3>
         <div class="qa">
@@ -397,8 +470,8 @@
         <p class="note">同一画面,断网时用设备本地 AI,联网时可接云端大模型——按你的成本和合规自己选。不只是检测,设备能看懂现场、读懂画面里的字。</p>
       </div>
       <div class="pics">
-        <div class="p"><div class="im"><img loading="lazy" src="footage/chat-device.jpg" alt="AI 看懂现场问答"></div><div class="cap2"><b>看懂现场 + 读字</b> · 电脑后台真实对话</div></div>
-        <div class="p"><div class="im"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="手机端 AI 对话"></div><div class="cap2"><b>手机端 AI 对话</b> · 拿实时画面直接问,设备里的 AI 看懂现场</div></div>
+        <div class="p reveal"><div class="im"><img loading="lazy" src="footage/chat-device.jpg" alt="AI 看懂现场问答"></div><div class="cap2"><b>看懂现场 + 读字</b> · 电脑后台真实对话</div></div>
+        <div class="p reveal"><div class="im"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="手机端 AI 对话"></div><div class="cap2"><b>手机端 AI 对话</b> · 拿实时画面直接问,设备里的 AI 看懂现场</div></div>
       </div>
     </div>
   </div>
@@ -407,10 +480,10 @@
 <!-- ===================== 白标交付 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">White-label · 整套贴牌交付</div>
-    <h2>设备、App、云门户——整套换成你的品牌</h2>
+    <div class="eyebrow reveal">White-label · 整套贴牌交付</div>
+    <h2 class="reveal">设备、App、云门户——整套换成你的品牌</h2>
     <div class="wl">
-      <ul>
+      <ul class="reveal">
         <li><b>设备软件</b>:6 种芯片一套,按你的硬件出货</li>
         <li><b>手机 App</b>:品牌名、图标、<b>主题色、多语言</b>全可换</li>
         <li><b>电脑后台</b>:换品牌色、切中英文</li>
@@ -418,7 +491,7 @@
         <li><b>远程升级</b>:出货后统一维护,不用召回</li>
         <li>交付即是<b>你的产品线</b>,不是"某供应商的方案"</li>
       </ul>
-      <div class="wlbox"><img loading="lazy" src="manual-shots/01-home.jpg" alt="可白标 Web 门户"></div>
+      <div class="wlbox reveal"><img loading="lazy" src="manual-shots/01-home.jpg" alt="可白标 Web 门户"></div>
     </div>
   </div>
 </section>
@@ -426,15 +499,15 @@
 <!-- ===================== 合作方式 ===================== -->
 <section class="deal">
   <div class="wrap">
-    <div class="eyebrow" style="color:var(--gold)">Partnership · 合作方式</div>
-    <h2>合作方式灵活 —— 按你的方式来</h2>
-    <p class="sub">不绑死一种模式,看你的项目阶段和需求,选最省心的一种。</p>
+    <div class="eyebrow reveal" style="color:var(--gold)">Partnership · 合作方式</div>
+    <h2 class="reveal">合作方式灵活 —— 按你的方式来</h2>
+    <p class="sub reveal">不绑死一种模式,看你的项目阶段和需求,选最省心的一种。</p>
     <div class="steps">
-      <div class="step"><div class="n">①</div><h4>合作开发</h4><p>按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。</p></div>
-      <div class="step"><div class="n">②</div><h4>模块授权</h4><p>把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。</p></div>
-      <div class="step"><div class="n">③</div><h4>代码买断</h4><p>需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。</p></div>
+      <div class="step reveal"><div class="n">①</div><h4>合作开发</h4><p>按你的产品定义,把难能力做进你的设备里,<b>分阶段交付、按节点结算</b>。</p></div>
+      <div class="step reveal"><div class="n">②</div><h4>模块授权</h4><p>把成熟能力做成<b>模块 / SDK</b> 直接集成进你的产品,省去从零自研。</p></div>
+      <div class="step reveal"><div class="n">③</div><h4>代码买断</h4><p>需要完全自主的,也可<b>一次性买断</b>对应模块代码,干净利落。</p></div>
     </div>
-    <div class="dealnote">
+    <div class="dealnote reveal">
       <b>适合谁:</b>有市场、能量产、卡在某个难点上的安防/视觉/机器人厂——识别不准/误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型。具体怎么合作,<b>聊清你的需求再定。</b>
     </div>
   </div>
@@ -443,17 +516,17 @@
 <!-- ===================== 配套物料 ===================== -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">Materials · 配套物料</div>
-    <h2>这份总览之外,还有成套可发资料</h2>
-    <p class="sub">同一套真机素材、统一视觉,按场景挑着发。</p>
+    <div class="eyebrow reveal">Materials · 配套物料</div>
+    <h2 class="reveal">这份总览之外,还有成套可发资料</h2>
+    <p class="sub reveal">同一套真机素材、统一视觉,按场景挑着发。</p>
     <div class="files">
-      <a class="file" href="product-onepager.html"><div class="ic">📄</div><h4>产品单页(钩子)</h4><p>一页讲清卖点,适合首次触达陌生客户。</p><div class="fn">product-onepager.html</div></a>
-      <a class="file" href="cases.html"><div class="ic">🏆</div><h4>实战案例</h4><p>记录仪/机器人/摄像头/眼镜 四真实客户,真机跑通。</p><div class="fn">cases.html</div></a>
-      <a class="file" href="product-manual.html"><div class="ic">🖥️</div><h4>Web 控制台说明书</h4><p>22 页逐页讲解,可打印 PDF 交付。</p><div class="fn">product-manual.html</div></a>
-      <a class="file" href="app-manual.html"><div class="ic">📱</div><h4>App 功能说明书</h4><p>手机端 10 页功能详解,真机高清截图。</p><div class="fn">app-manual.html</div></a>
-      <a class="file" href="product-intro.mp4"><div class="ic">🎬</div><h4>Web 总览视频</h4><p>约 38 秒,控制台功能巡览。</p><div class="fn">product-intro.mp4</div></a>
-      <a class="file" href="product-intro-app.mp4"><div class="ic">🎬</div><h4>App 总览视频</h4><p>约 33 秒,含真 AI 检测录屏 + AI 对话。</p><div class="fn">product-intro-app.mp4</div></a>
-      <a class="file" href="#"><div class="ic">🧩</div><h4>本页 · 解决方案总览</h4><p>统领页:架构 + 证据 + 商业模式一份。</p><div class="fn">solution-overview.html</div></a>
+      <a class="file reveal" href="product-onepager.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l4 4v14H7z"/><path d="M13 3v4h4M9.5 12h5M9.5 15.5h5"/></svg></span><h4>产品单页(钩子)</h4><p>一页讲清卖点,适合首次触达陌生客户。</p><div class="fn">product-onepager.html</div></a>
+      <a class="file reveal" href="cases.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v4a4 4 0 0 1-8 0z"/><path d="M8 5H5v1a3 3 0 0 0 3 3M16 5h3v1a3 3 0 0 1-3 3M9 20h6M12 16v-2"/></svg></span><h4>实战案例</h4><p>记录仪/机器人/摄像头/眼镜 四真实客户,真机跑通。</p><div class="fn">cases.html</div></a>
+      <a class="file reveal" href="product-manual.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg></span><h4>Web 控制台说明书</h4><p>22 页逐页讲解,可打印 PDF 交付。</p><div class="fn">product-manual.html</div></a>
+      <a class="file reveal" href="app-manual.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.6"/><path d="M11 18h2"/></svg></span><h4>App 功能说明书</h4><p>手机端 10 页功能详解,真机高清截图。</p><div class="fn">app-manual.html</div></a>
+      <a class="file reveal" href="product-intro.mp4"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 13h4M17 9h4M17 13h4"/></svg></span><h4>Web 总览视频</h4><p>约 38 秒,控制台功能巡览。</p><div class="fn">product-intro.mp4</div></a>
+      <a class="file reveal" href="product-intro-app.mp4"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 13h4M17 9h4M17 13h4"/></svg></span><h4>App 总览视频</h4><p>约 33 秒,含真 AI 检测录屏 + AI 对话。</p><div class="fn">product-intro-app.mp4</div></a>
+      <a class="file reveal" href="#"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="5" rx="1.6"/><rect x="13" y="10" width="8" height="11" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/></svg></span><h4>本页 · 解决方案总览</h4><p>统领页:架构 + 证据 + 商业模式一份。</p><div class="fn">solution-overview.html</div></a>
     </div>
   </div>
 </section>
@@ -461,15 +534,62 @@
 <!-- ===================== 收口 CTA ===================== -->
 <section class="cta">
   <div class="wrap">
-    <div class="eyebrow">Let's talk · 收口</div>
-    <h2>你有市场和渠道,难做的 AI 全栈交给我。</h2>
-    <p class="line">先说清你卡在哪——<b>识别不准/误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型</b>。看清难点,合作开发、模块授权还是买断都好谈,把它做进你的产品里。</p>
-    <div class="who">
+    <div class="eyebrow reveal">Let's talk · 收口</div>
+    <h2 class="reveal">你有市场和渠道,难做的 AI 全栈交给我。</h2>
+    <p class="line reveal">先说清你卡在哪——<b>识别不准/误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型</b>。看清难点,合作开发、模块授权还是买断都好谈,把它做进你的产品里。</p>
+    <div class="who reveal">
       <span>安防 / 视觉厂</span><span>机器人 / 工业</span><span>有市场缺 AI 硬骨头</span><span>要整套白标</span>
     </div>
   </div>
 </section>
 
+</main>
+
+<footer class="foot">
+  云边端 AI 视觉 · 解决方案总览 · 内容均为真机验证 &nbsp;|&nbsp;
+  <a href="index.html">返回首页</a> ·
+  <a href="cases.html">实战案例</a> ·
+  <a href="cooperation-invite.html">合作邀约</a>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  if (reduce || !('IntersectionObserver' in window)){
+    els.forEach(function(e){ e.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(x){
+        if (!x.isIntersecting) return;
+        var el = x.target;
+        var sibs = Array.prototype.filter.call(el.parentNode.children, function(c){ return c.classList.contains('reveal'); });
+        el.style.transitionDelay = Math.min(sibs.indexOf(el),6) * 45 + 'ms';
+        el.classList.add('in');
+        if (el.classList.contains('stats')) countStats(el);
+        io.unobserve(el);
+      });
+    }, { threshold:.12, rootMargin:'0px 0px -7% 0px' });
+    els.forEach(function(e){ io.observe(e); });
+  }
+  function countStats(box){
+    if (reduce) return;
+    box.querySelectorAll('.n').forEach(function(nEl){
+      var node = nEl.firstChild; if (!node || node.nodeType !== 3) return;
+      var raw = node.textContent.trim(), pct = /%$/.test(raw), num = parseFloat(raw);
+      if (isNaN(num)) return;
+      var dec = (raw.split('.')[1] || '').length, t0 = null;
+      function tick(t){ if(t0===null)t0=t; var p=Math.min(1,(t-t0)/1100), e=1-Math.pow(1-p,3);
+        node.textContent=(num*e).toFixed(dec)+(pct?'%':''); if(p<1)requestAnimationFrame(tick); }
+      requestAnimationFrame(tick);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.m,.scn,.cap,.file'), function(c){
+    c.addEventListener('pointermove', function(e){ var r=c.getBoundingClientRect();
+      c.style.setProperty('--mx',(e.clientX-r.left)+'px'); c.style.setProperty('--my',(e.clientY-r.top)+'px'); });
+  });
+})();
+</script>
 <script src="fallback.js"></script>
 </body>
 </html>
