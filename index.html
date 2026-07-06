@@ -24,169 +24,215 @@
 <style>
   :root{
     --bg:#0a0e17;--bg2:#0e1421;--card:#121a2a;--card2:#0e1626;
-    --ink:#e8eef7;--dim:#9aa9bf;--faint:#64748b;
+    --ink:#e8eef7;--dim:#9aa9bf;--faint:#7f8ea6;
     --line:#1f2c42;--accent:#22d3ee;--accent2:#0ea5b7;--gold:#f5c451;--green:#34d399;
+    --r-lg:22px;--r-md:14px;--r-sm:10px;
+    --hair:1px solid rgba(255,255,255,.07);
+    --surface:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,0));
+    --sh-rest:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.3);
+    --sh-tint:inset 0 1px 0 rgba(255,255,255,.07),0 26px 60px -20px rgba(34,211,238,.22),0 10px 26px -12px rgba(0,0,0,.55);
+    --ease:cubic-bezier(.2,.7,.2,1);
+    --maxw:1140px;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 26px}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC",-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"cv02","cv03","ss01"}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,30px)}
   a{color:var(--accent);text-decoration:none}
-  b{color:#fff;font-weight:700}
-  .eyebrow{font-size:12.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;font-weight:700}
-  section{padding:60px 0;border-top:1px solid var(--line)}
-  section h2{font-size:28px;font-weight:800;letter-spacing:-.01em;margin:6px 0 6px}
-  section .sub{color:var(--dim);font-size:14.5px;max-width:780px;margin-bottom:30px}
+  b{color:#fff;font-weight:650}
+  img{max-width:100%}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+
+  .eyebrow{font-size:12px;letter-spacing:.24em;color:var(--accent);text-transform:uppercase;font-weight:600}
+  section{padding:clamp(58px,7vw,90px) 0 clamp(66px,8.5vw,108px);position:relative}
+  section + section{border-top:var(--hair)}
+  section h2{font-size:clamp(23px,3.1vw,30px);font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;color:#fff}
+  section .sub{color:var(--dim);font-size:15px;font-weight:450;max-width:760px;margin-bottom:clamp(28px,3.5vw,40px)}
+
+  /* icon system */
+  .ic{display:inline-flex;align-items:center;justify-content:center;color:var(--accent)}
+  .ic svg{width:26px;height:26px;display:block}
+  .ic.box{width:46px;height:46px;border-radius:13px;background:linear-gradient(180deg,rgba(34,211,238,.14),rgba(34,211,238,.04));border:1px solid rgba(34,211,238,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 
   /* NAV */
-  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-  .nav .in{max-width:1120px;margin:0 auto;padding:13px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-  .nav .brand{font-size:15px;font-weight:800;color:#fff;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
-  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
-  .nav .links{display:flex;gap:22px;align-items:center}
-  .nav .links a{font-size:13.5px;color:var(--dim)}
-  .nav .links a:hover{color:#fff}
-  .nav .cta{font-size:13px;color:#0a0e17;background:linear-gradient(90deg,var(--accent),#7dd3fc);padding:7px 15px;border-radius:9px;font-weight:700}
+  .nav{position:sticky;top:0;z-index:60;background:rgba(10,14,23,.72);backdrop-filter:blur(14px) saturate(1.3);border-bottom:var(--hair)}
+  .nav .in{max-width:var(--maxw);margin:0 auto;padding:13px clamp(20px,4vw,30px);display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .nav .brand{font-size:15px;font-weight:800;color:#fff;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
+  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(34,211,238,.15),0 0 12px var(--accent)}
+  .nav .links{display:flex;gap:6px;align-items:center}
+  .nav .links a{position:relative;font-size:13.5px;color:var(--dim);padding:7px 11px;border-radius:9px;font-weight:500;transition:color .2s var(--ease),background .2s var(--ease)}
+  .nav .links a:not(.cta):hover{color:#fff;background:rgba(255,255,255,.04)}
+  .nav .links a.cur{color:#fff}
+  .nav .links a.cur::after{content:"";position:absolute;left:11px;right:11px;bottom:2px;height:2px;border-radius:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .nav .cta{font-size:13px;color:#04212a;background:linear-gradient(180deg,#7fe6f7,var(--accent));padding:8px 16px;border-radius:10px;font-weight:700;box-shadow:0 6px 18px -6px rgba(34,211,238,.5)}
+  .nav .cta:hover{filter:brightness(1.06)}
+  .nav a:active{transform:translateY(1px)}
   @media(max-width:900px){.nav .links a:not(.cta){display:none}}
 
   /* HERO */
-  .hero{background:
-      radial-gradient(70% 110% at 82% -10%,rgba(34,211,238,.18),transparent 60%),
-      radial-gradient(60% 80% at 0% 0%,rgba(14,165,183,.12),transparent 55%),
+  .hero{position:relative;overflow:hidden;border-bottom:var(--hair);
+    background:
+      radial-gradient(58% 88% at 85% -8%,rgba(34,211,238,.13),transparent 56%),
+      radial-gradient(46% 68% at -2% 2%,rgba(14,165,183,.09),transparent 55%),
       linear-gradient(180deg,#0b1120,#0a0e17);
-    padding:70px 0 64px;border-top:none;overflow:hidden}
-  .hero .grid{display:grid;grid-template-columns:1.12fr .88fr;gap:40px;align-items:center}
-  .hero .kchip{display:inline-block;font-size:12.5px;color:var(--accent);border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:6px 16px;letter-spacing:.05em;background:rgba(34,211,238,.06)}
-  .hero h1{font-size:54px;line-height:1.1;font-weight:850;letter-spacing:-.02em;margin:22px 0 14px}
-  .hero h1 .hl{background:linear-gradient(90deg,#22d3ee,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero .lead{font-size:16.5px;color:var(--dim);max-width:560px}
-  .hero .lead b{color:#dbeafe}
-  .hero .btns{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px}
-  .btn{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;padding:12px 22px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:transform .16s ease,border-color .16s ease}
-  .btn:hover{transform:translateY(-2px);border-color:rgba(34,211,238,.4)}
-  .btn.primary{color:#0a0e17;background:linear-gradient(90deg,var(--accent),#7dd3fc);border:none;box-shadow:0 10px 30px rgba(34,211,238,.22)}
-  .hero .punch{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}
-  .hero .punch span{font-size:12.5px;color:#cfeaf2;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.2);border-radius:999px;padding:6px 13px}
-  .hero .punch span b{color:var(--accent);font-weight:700}
+    padding:clamp(56px,7vw,80px) 0 clamp(58px,7vw,74px)}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .hero .wrap{position:relative;z-index:1}
+  .hero .grid{display:grid;grid-template-columns:1.12fr .88fr;gap:clamp(28px,4vw,48px);align-items:center}
+  .kchip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:#bdeef7;border:1px solid rgba(34,211,238,.35);border-radius:999px;padding:6px 15px 6px 12px;letter-spacing:.02em;font-weight:500;background:rgba(34,211,238,.06)}
+  .kchip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .hero h1{font-size:clamp(35px,5.6vw,56px);line-height:1.08;font-weight:850;letter-spacing:-.03em;margin:20px 0 16px}
+  .hero h1 .hl{background:linear-gradient(96deg,#22d3ee,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .lead{font-size:clamp(15px,1.4vw,17px);color:var(--dim);font-weight:450;max-width:560px}
+  .hero .lead b{color:#dbeafe;font-weight:600}
+  .btns{margin-top:30px;display:flex;flex-wrap:wrap;gap:12px}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;font-weight:650;padding:13px 24px;border-radius:12px;border:var(--hair);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0)),var(--card);color:var(--ink);cursor:pointer;transition:transform .18s var(--ease),box-shadow .22s var(--ease),border-color .18s var(--ease)}
+  .btn:hover{transform:translateY(-2px);border-color:rgba(34,211,238,.4);box-shadow:var(--sh-tint)}
+  .btn:active{transform:translateY(0) scale(.985)}
+  .btn.primary{color:#04212a;background:linear-gradient(180deg,#7fe6f7,var(--accent));border:none;box-shadow:0 14px 34px -10px rgba(34,211,238,.55)}
+  .btn.primary:hover{box-shadow:0 18px 40px -10px rgba(34,211,238,.62)}
+  .punch{display:flex;flex-wrap:wrap;gap:9px;margin-top:28px}
+  .punch span{font-size:12.5px;color:#cfeaf2;font-weight:450;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);border-radius:999px;padding:7px 14px}
+  .punch span b{color:var(--accent);font-weight:700}
 
   /* phone mockup */
   .device{position:relative;justify-self:center}
-  .phone{position:relative;width:270px;max-width:74vw;border-radius:34px;padding:10px;background:linear-gradient(160deg,#38475d,#0f1620);box-shadow:0 30px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.14);z-index:2}
-  .phone::before{content:"";position:absolute;top:16px;left:50%;transform:translateX(-50%);width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);z-index:3}
-  .phone img{width:100%;border-radius:26px;display:block}
-  .float{position:absolute;background:rgba(15,26,40,.92);border:1px solid rgba(34,211,238,.3);border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px);box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:3;max-width:210px}
-  .float .t{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.04em;margin-bottom:3px}
-  .float .d{font-size:12px;color:var(--dim);line-height:1.45}
-  .float.a{top:16px;left:-38px}
-  .float.b{bottom:26px;right:-30px}
-  @media(max-width:920px){.hero .grid{grid-template-columns:1fr;gap:24px}.hero h1{font-size:38px}.float.a{left:-6px}.float.b{right:-6px}}
+  .phone{position:relative;width:272px;max-width:74vw;border-radius:38px;padding:10px;
+    background:linear-gradient(155deg,#3b4a5f,#0e151f);
+    box-shadow:0 40px 90px -30px rgba(34,211,238,.28),0 30px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.16);z-index:2}
+  .phone::before{content:"";position:absolute;top:17px;left:50%;transform:translateX(-50%);width:72px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);z-index:3}
+  .phone img{width:100%;border-radius:28px;display:block}
+  .float{position:absolute;background:linear-gradient(180deg,rgba(21,33,49,.86),rgba(13,21,33,.92));border:1px solid rgba(34,211,238,.3);border-radius:15px;padding:12px 15px;backdrop-filter:blur(12px) saturate(1.3);box-shadow:0 20px 44px -14px rgba(34,211,238,.3),0 10px 30px rgba(0,0,0,.55);z-index:3;max-width:212px}
+  .float .t{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent);font-weight:650;letter-spacing:.02em;margin-bottom:4px}
+  .float .t::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .float .d{font-size:12px;color:var(--dim);line-height:1.5}
+  .float.a{top:14px;left:-40px}
+  .float.b{bottom:24px;right:-32px}
+  @media(max-width:920px){.hero .grid{grid-template-columns:1fr;gap:26px}.float.a{left:-4px}.float.b{right:-4px}}
 
-  /* STATS */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:40px}
-  .stats .s{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .stats .s .n{font-size:25px;font-weight:800;color:#fff;letter-spacing:-.02em}
-  .stats .s .n small{font-size:13px;color:var(--accent);font-weight:700;margin-left:2px}
-  .stats .s .l{font-size:11.5px;color:var(--dim);margin-top:3px}
+  /* STAT BAR (unified glass bar) */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:44px;
+    background:var(--surface),var(--card);border:var(--hair);border-radius:18px;overflow:hidden;box-shadow:var(--sh-rest)}
+  .stats .s{padding:20px 22px;position:relative}
+  .stats .s + .s::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:1px;background:linear-gradient(180deg,transparent,var(--line),transparent)}
+  .stats .s .n{font-size:27px;font-weight:800;color:#fff;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .stats .s .n small{font-size:13px;color:var(--accent);font-weight:600;margin-left:3px;letter-spacing:0}
+  .stats .s .l{font-size:11.5px;color:var(--dim);font-weight:450;margin-top:5px}
+  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.stats .s:nth-child(3)::before,.stats .s:nth-child(2)::before{content:none}.stats .s:nth-child(odd)::before{content:none}}
 
-  /* GALLERY (real app screenshots) */
-  .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .gcard{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:transform .18s ease,border-color .18s ease}
-  .gcard:hover{transform:translateY(-4px);border-color:rgba(34,211,238,.35)}
-  .gcard .im{background:radial-gradient(120% 90% at 50% 0%,#10192a,#070b13);padding:16px;display:flex;justify-content:center}
-  .gcard .im img{max-height:340px;width:auto;max-width:100%;border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.45)}
-  .gcard .cc{padding:14px 16px}
-  .gcard .cc h4{font-size:14.5px;font-weight:700}
-  .gcard .cc h4 small{color:var(--faint);font-weight:500;font-size:11.5px;margin-left:6px}
-  .gcard .cc p{font-size:12px;color:var(--dim);margin-top:4px}
+  /* shared card surface */
+  .gcard,.layer,.m,.scn,.pc{position:relative;background:var(--surface),var(--card);border:var(--hair);border-radius:var(--r-lg);box-shadow:var(--sh-rest);transition:transform .26s var(--ease),box-shadow .26s var(--ease),border-color .26s var(--ease)}
+  .gcard:hover,.scn:hover,.m:hover,.pc:hover{transform:translateY(-5px);border-color:rgba(34,211,238,.35);box-shadow:var(--sh-tint)}
+  .pc:active{transform:translateY(-1px) scale(.995)}
 
-  /* FEATURE VIDEOS */
-  .fv{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-  .fvc{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .16s ease,border-color .16s ease}
-  .fvc:hover{transform:translateY(-3px);border-color:rgba(34,211,238,.4)}
-  .fvc .vwrap{position:relative;aspect-ratio:16/10;background:#070b13;overflow:hidden}
-  .fvc video{width:100%;height:100%;object-fit:cover;display:block}
-  .fvc .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:opacity .2s}
-  .fvc .play span{width:44px;height:44px;border-radius:50%;background:rgba(10,14,23,.6);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;backdrop-filter:blur(4px)}
-  .fvc.playing .play{opacity:0}
-  .fvc .lab{padding:11px 13px;font-size:12.5px;color:#dbe6f0;font-weight:600}
-  .fvc .lab small{display:block;color:var(--faint);font-weight:400;font-size:11px;margin-top:2px}
-  @media(max-width:900px){.fv{grid-template-columns:repeat(2,1fr)}}
+  /* CAPABILITIES · bento */
+  .gal{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:1fr;gap:16px}
+  .gcard{overflow:hidden;display:flex;flex-direction:column}
+  .gcard .im{flex:1;min-height:150px;background:radial-gradient(120% 100% at 50% 0%,#12203a,#070b13);padding:16px;display:flex;align-items:center;justify-content:center}
+  .gcard .im img{max-height:300px;width:auto;max-width:100%;border-radius:12px;box-shadow:0 14px 30px -8px rgba(0,0,0,.6);display:block}
+  .gcard .cc{padding:15px 17px 17px}
+  .gcard .cc h4{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:baseline;gap:8px}
+  .gcard .cc h4 small{color:var(--accent);font-weight:600;font-size:11px;letter-spacing:.04em;background:rgba(34,211,238,.09);padding:2px 8px;border-radius:6px}
+  .gcard .cc p{font-size:12.5px;color:var(--dim);font-weight:450;margin-top:6px;line-height:1.55}
+  .gcard:nth-child(1){grid-column:span 3;grid-row:span 2}
+  .gcard:nth-child(1) .im img{max-height:440px}
+  .gcard:nth-child(2){grid-column:span 3}
+  .gcard:nth-child(3){grid-column:span 3}
+  .gcard:nth-child(4),.gcard:nth-child(5),.gcard:nth-child(6){grid-column:span 2}
+  @media(max-width:960px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:auto}.gal .gcard{grid-column:auto!important;grid-row:auto!important}.gcard:nth-child(1) .im img{max-height:300px}}
+  @media(max-width:560px){.gal{grid-template-columns:1fr}}
 
-  /* STACK */
-  .arch{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-  .layer{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 18px;position:relative;overflow:hidden}
-  .layer::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
-  .layer .ic{font-size:24px}
-  .layer .tag{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;font-weight:700;margin:10px 0 4px}
-  .layer h4{font-size:16px;font-weight:700;margin-bottom:8px}
-  .layer p{font-size:12.5px;color:var(--dim)}
-  .chipbar{margin-top:18px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-  .chipbar .lab{font-size:12px;color:var(--faint);letter-spacing:.06em;margin-right:6px}
-  .chipbar .c{font-size:12.5px;color:#cfe3ee;border:1px solid var(--line);background:var(--card2);border-radius:8px;padding:5px 12px}
+  /* STACK · pipeline */
+  .arch{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;position:relative}
+  .layer{padding:22px 20px;overflow:visible}
+  .layer::after{content:"";position:absolute;top:50%;right:-13px;width:20px;height:20px;transform:translateY(-50%) rotate(45deg);
+    border-top:2px solid rgba(34,211,238,.4);border-right:2px solid rgba(34,211,238,.4);z-index:2;background:transparent}
+  .layer:last-child::after{display:none}
+  .layer .tag{font-size:11px;letter-spacing:.16em;color:var(--accent);text-transform:uppercase;font-weight:600;margin:14px 0 4px}
+  .layer h4{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+  .layer p{font-size:12.5px;color:var(--dim);font-weight:450;line-height:1.55}
+  @media(max-width:860px){.arch{grid-template-columns:repeat(2,1fr)}.layer::after{display:none}}
+  @media(max-width:520px){.arch{grid-template-columns:1fr}}
+  .chipbar{margin-top:20px;background:var(--card2);border:var(--hair);border-radius:16px;padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .chipbar .lab{font-size:12px;color:var(--faint);letter-spacing:.04em;margin-right:6px;font-weight:500}
+  .chipbar .c{font-size:12.5px;color:#cfe3ee;border:var(--hair);background:rgba(255,255,255,.02);border-radius:9px;padding:6px 12px;transition:border-color .2s var(--ease),transform .2s var(--ease)}
+  .chipbar .c:hover{border-color:rgba(34,211,238,.35);transform:translateY(-1px)}
   .chipbar .c b{color:var(--accent);font-weight:700}
 
   /* MOAT */
   .moat{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-  .moat .m{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
-  .moat .m .ic{font-size:22px}
-  .moat .m h4{font-size:17px;font-weight:750;margin:8px 0 6px}
-  .moat .m h4 small{display:block;font-size:12px;color:var(--faint);font-weight:500;letter-spacing:.04em}
-  .moat .m p{font-size:13px;color:var(--dim)}
-  .moat .m p b{color:#cde9f1}
+  .m{padding:24px}
+  .m h4{font-size:17px;font-weight:700;color:#fff;margin:14px 0 6px}
+  .m h4 small{display:block;font-size:12px;color:var(--faint);font-weight:500;letter-spacing:.02em;margin-top:4px}
+  .m p{font-size:13px;color:var(--dim);font-weight:450;line-height:1.6}
+  .m p b{color:#cde9f1;font-weight:600}
 
   /* PROMO VIDEO */
-  .promo{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;overflow:hidden}
-  .promo video{width:100%;display:block;border-radius:12px;background:#000;max-height:560px}
+  .promo{background:var(--surface),var(--card);border:var(--hair);border-radius:20px;padding:12px;overflow:hidden;box-shadow:var(--sh-rest)}
+  .promo video{width:100%;display:block;border-radius:14px;background:#000;max-height:560px}
 
   /* SCENES */
   .scenes{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-  .scn{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;position:relative;overflow:hidden}
-  .scn::before{content:"";position:absolute;left:0;top:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
-  .scn .ic{font-size:24px}
-  .scn h4{font-size:17px;font-weight:750;margin:10px 0 2px}
-  .scn h4 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;letter-spacing:.04em;margin-top:3px}
-  .scn p{font-size:12.5px;color:var(--dim);margin-top:10px}
-  .scn p b{color:#cde9f1}
+  .scn{padding:24px;overflow:hidden}
+  .scn::before{content:"";position:absolute;left:0;top:0;width:38%;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
+  .scn h4{font-size:17px;font-weight:700;color:#fff;margin:14px 0 2px}
+  .scn h4 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;letter-spacing:.03em;margin-top:4px}
+  .scn p{font-size:12.5px;color:var(--dim);font-weight:450;margin-top:12px;line-height:1.6}
+  .scn p b{color:#cde9f1;font-weight:600}
 
   /* PORTAL */
-  .portal{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .pc{display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;transition:transform .16s ease,border-color .16s ease}
-  .pc:hover{transform:translateY(-4px);border-color:rgba(34,211,238,.4)}
-  .pc .ic{font-size:24px}
-  .pc h3{font-size:16.5px;font-weight:750;margin:10px 0 4px;color:#fff}
-  .pc h3 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;margin-top:3px}
-  .pc p{font-size:12.5px;color:var(--dim);margin-top:6px}
-  .pc .go{margin-top:12px;font-size:12.5px;color:var(--accent);font-weight:700}
-  .dls{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px}
-  .dl{font-size:12.5px;color:var(--dim);border:1px solid var(--line);background:var(--card2);border-radius:9px;padding:8px 14px;display:inline-flex;gap:7px;align-items:center}
-  .dl:hover{color:#fff;border-color:rgba(34,211,238,.35)}
+  .portal{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .pc{display:block;padding:22px}
+  .pc h3{font-size:16.5px;font-weight:700;margin:14px 0 4px;color:#fff}
+  .pc h3 small{display:block;font-size:11.5px;color:var(--faint);font-weight:500;margin-top:4px}
+  .pc p{font-size:12.5px;color:var(--dim);font-weight:450;margin-top:8px;line-height:1.55}
+  .pc .go{margin-top:14px;font-size:12.5px;color:var(--accent);font-weight:650;display:inline-flex;align-items:center;gap:5px;transition:gap .2s var(--ease)}
+  .pc:hover .go{gap:9px}
+  .dls{margin-top:18px;display:flex;flex-wrap:wrap;gap:10px}
+  .dl{font-size:12.5px;color:var(--dim);font-weight:500;border:var(--hair);background:var(--card2);border-radius:10px;padding:9px 15px;display:inline-flex;gap:8px;align-items:center;transition:color .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease)}
+  .dl:hover{color:#fff;border-color:rgba(34,211,238,.4);transform:translateY(-2px)}
+  .dl:active{transform:translateY(0)}
+  .dl .ic svg{width:15px;height:15px}
 
   /* CONTACT */
-  .contact{background:radial-gradient(70% 130% at 50% 0%,rgba(34,211,238,.14),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
-  .ccard{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px}
-  .ccard h3{font-size:22px;font-weight:800;margin-bottom:6px}
-  .ccard p{font-size:14px;color:var(--dim);margin-bottom:16px}
-  .rows .r{display:flex;gap:12px;font-size:14px;padding:8px 0;border-bottom:1px dashed var(--line)}
-  .rows .r .k{color:var(--accent);font-weight:700;min-width:72px}
-  .rows .r .v{color:#fff}
-  .qr{background:var(--bg2);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;gap:10px}
-  .qr img{width:100%;max-width:190px;border-radius:8px;display:block}
-  .qr .cap{color:var(--dim);font-size:11.5px}
+  .contact{background:radial-gradient(70% 130% at 50% -10%,rgba(34,211,238,.12),transparent 60%),linear-gradient(180deg,#0c1322,#0a0e17)}
+  .ccard{display:grid;grid-template-columns:1.5fr .5fr;gap:28px;align-items:center;background:var(--surface),var(--card);border:var(--hair);border-radius:22px;padding:clamp(22px,3vw,32px);box-shadow:var(--sh-rest)}
+  .ccard h3{font-size:clamp(19px,2.2vw,23px);font-weight:800;letter-spacing:-.01em;margin-bottom:8px;color:#fff}
+  .ccard p{font-size:14px;color:var(--dim);font-weight:450;margin-bottom:18px;line-height:1.6}
+  .rows .r{display:flex;gap:12px;font-size:14px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .rows .r:last-child{border-bottom:none}
+  .rows .r .k{color:var(--accent);font-weight:600;min-width:64px;display:flex;align-items:center;gap:7px}
+  .rows .r .v{color:#fff;font-variant-numeric:tabular-nums}
+  .qr{background:var(--card2);border:var(--hair);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;gap:10px}
+  .qr img{width:100%;max-width:186px;border-radius:10px;display:block}
+  .qr .cap{color:var(--dim);font-size:11.5px;font-weight:450}
+  @media(max-width:720px){.ccard{grid-template-columns:1fr}}
 
-  .foot{padding:34px 0 60px;color:var(--faint);font-size:12px;text-align:center}
-  .foot b{color:var(--dim)}
+  .foot{padding:36px 0 64px;color:var(--faint);font-size:12px;font-weight:450;text-align:center;border-top:var(--hair)}
+  .foot b{color:var(--dim);font-weight:600}
+  .foot a{color:var(--dim)}
+  .foot a:hover{color:var(--accent)}
+
+  /* reveal / motion */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
 
   @media(max-width:860px){
-    .stats,.arch{grid-template-columns:repeat(2,1fr)}
-    .gal,.portal{grid-template-columns:1fr}
-    .moat,.scenes,.ccard{grid-template-columns:1fr}
+    .moat,.scenes{grid-template-columns:1fr}
+    .portal{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+    .reveal{opacity:1!important;transform:none!important}
   }
 </style>
 </head>
 <body>
 
 <!-- NAV -->
-<div class="nav">
+<nav class="nav">
   <div class="in">
     <div class="brand"><span class="dot"></span>云边端 AI 视觉</div>
     <div class="links">
@@ -198,55 +244,57 @@
       <a class="cta" href="cooperation-invite.html">合作邀约</a>
     </div>
   </div>
-</div>
+</nav>
+
+<main>
 
 <!-- HERO -->
-<div class="hero">
+<header class="hero">
   <div class="wrap">
     <div class="grid">
       <div>
-        <span class="kchip">整套 AI 视觉方案 · 贴你的牌子就能卖</span>
-        <h1>拔了网线,<br><span class="hl">它还在认人。</span></h1>
-        <p class="lead">让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>——不连网也能用,数据不外泄。硬件、手机 App、后台管理<b>我一整套做好,贴上你的品牌就能卖</b>。你负责市场和渠道,难做的 AI 我全包了。</p>
-        <div class="btns">
+        <span class="kchip reveal">整套 AI 视觉方案 · 贴你的牌子就能卖</span>
+        <h1 class="reveal">拔了网线,<br><span class="hl">它还在认人。</span></h1>
+        <p class="lead reveal">让你的摄像头 / 机器人 / 记录仪自己<b>看得懂、认得出、还能回答</b>——不连网也能用,数据不外泄。硬件、手机 App、后台管理<b>我一整套做好,贴上你的品牌就能卖</b>。你负责市场和渠道,难做的 AI 我全包了。</p>
+        <div class="btns reveal">
           <a class="btn primary" href="#video">▶ 看真机演示</a>
           <a class="btn" href="solution-overview.html">解决方案总览</a>
         </div>
-        <div class="punch">
+        <div class="punch reveal">
           <span><b>断网</b>也能用,不依赖云</span>
           <span><b>17 年</b>老团队,不是新手</span>
           <span><b>贴你的牌子</b>直接卖</span>
         </div>
       </div>
-      <div class="device">
+      <div class="device reveal">
         <div class="phone"><img loading="lazy" src="app-shots/hi_03_aidetect.jpg" alt="设备端 AI 检测"></div>
-        <div class="float a"><div class="t">● 会认人认物</div><div class="d">画面里的人和物,当场框出来</div></div>
-        <div class="float b"><div class="t">● 会看懂会读字</div><div class="d">看懂现场、读出画面里的字,断网也行</div></div>
+        <div class="float a"><div class="t">会认人认物</div><div class="d">画面里的人和物,当场框出来</div></div>
+        <div class="float b"><div class="t">会看懂会读字</div><div class="d">看懂现场、读出画面里的字,断网也行</div></div>
       </div>
     </div>
 
-    <div class="stats">
+    <div class="stats reveal">
       <div class="s"><div class="n">6<small>种芯片</small></div><div class="l">主流方案一套通用 · 换料不卡出货</div></div>
       <div class="s"><div class="n">100%<small>本地</small></div><div class="l">AI 在设备里跑 · 断网照常用</div></div>
       <div class="s"><div class="n">14.7<small>万</small></div><div class="l">累计录像一条没丢 · 长期不丢帧</div></div>
       <div class="s"><div class="n">4<small>个行业</small></div><div class="l">记录仪/机器人/摄像头/眼镜 都在卖</div></div>
     </div>
   </div>
-</div>
+</header>
 
 <!-- CAPABILITIES (real app screenshots) -->
 <section id="caps">
   <div class="wrap">
-    <div class="eyebrow">能做什么 · 真机截图,不是效果图</div>
-    <h2>从看直播、认目标到回放、升级,一套全包</h2>
-    <p class="sub">下面每一项都是真机已经在用的功能,手机 App 和电脑后台都有。</p>
+    <div class="eyebrow reveal">能做什么 · 真机截图,不是效果图</div>
+    <h2 class="reveal">从看直播、认目标到回放、升级,一套全包</h2>
+    <p class="sub reveal">下面每一项都是真机已经在用的功能,手机 App 和电脑后台都有。</p>
     <div class="gal">
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_02_live.jpg" alt="多路实时直播"></div><div class="cc"><h4>随时看直播<small>Live</small></h4><p>手机同屏看多个画面,远程也不卡,能截图、录像、喊话。</p></div></div>
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_03_aidetect.jpg" alt="设备端 AI 检测"></div><div class="cc"><h4>会认人认物<small>本地 AI</small></h4><p>画面里有人、有车、有东西,当场框出来,全在设备里算。</p></div></div>
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="视觉大模型对话"></div><div class="cc"><h4>会看懂会读字<small>AI 对话</small></h4><p>对着画面直接问:它看懂现场、读出画面里的字,断网也能用。</p></div></div>
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_04_playback.jpg" alt="多路同步回放"></div><div class="cc"><h4>回放随便倒<small>Playback</small></h4><p>多个画面一起倒回看,共用一条时间轴,本地云端都能放。</p></div></div>
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_06_record.jpg" alt="录像模式"></div><div class="cc"><h4>怎么录都行<small>Recording</small></h4><p>循环、缩时、预录、手动加事件录像;存本地、存云端都行。</p></div></div>
-      <div class="gcard"><div class="im"><img loading="lazy" src="app-shots/hi_08_ota.jpg" alt="OTA 与全球运维"></div><div class="cc"><h4>远程升级不召回<small>全球可用</small></h4><p>出货后统一远程升级,不用召回;美洲/亚洲/欧洲就近连。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_02_live.jpg" alt="多路实时直播"></div><div class="cc"><h4>随时看直播<small>Live</small></h4><p>手机同屏看多个画面,远程也不卡,能截图、录像、喊话。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_03_aidetect.jpg" alt="设备端 AI 检测"></div><div class="cc"><h4>会认人认物<small>本地 AI</small></h4><p>画面里有人、有车、有东西,当场框出来,全在设备里算。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_10_chat.jpg" alt="视觉大模型对话"></div><div class="cc"><h4>会看懂会读字<small>AI 对话</small></h4><p>对着画面直接问:它看懂现场、读出画面里的字,断网也能用。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_04_playback.jpg" alt="多路同步回放"></div><div class="cc"><h4>回放随便倒<small>Playback</small></h4><p>多个画面一起倒回看,共用一条时间轴,本地云端都能放。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_06_record.jpg" alt="录像模式"></div><div class="cc"><h4>怎么录都行<small>Recording</small></h4><p>循环、缩时、预录、手动加事件录像;存本地、存云端都行。</p></div></div>
+      <div class="gcard reveal"><div class="im"><img loading="lazy" src="app-shots/hi_08_ota.jpg" alt="OTA 与全球运维"></div><div class="cc"><h4>远程升级不召回<small>全球可用</small></h4><p>出货后统一远程升级,不用召回;美洲/亚洲/欧洲就近连。</p></div></div>
     </div>
   </div>
 </section>
@@ -254,16 +302,16 @@
 <!-- STACK -->
 <section id="stack">
   <div class="wrap">
-    <div class="eyebrow">交付什么 · 我给你一整套</div>
-    <h2>从硬件到手机 App,整套都做好给你</h2>
-    <p class="sub">不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好。每块能单独给,也能整套贴上你的牌子。</p>
+    <div class="eyebrow reveal">交付什么 · 我给你一整套</div>
+    <h2 class="reveal">从硬件到手机 App,整套都做好给你</h2>
+    <p class="sub reveal">不是卖你一个零件——设备里的软件、AI,到云端后台、手机 App,一整条都做好。每块能单独给,也能整套贴上你的牌子。</p>
     <div class="arch">
-      <div class="layer"><div class="ic">🔩</div><div class="tag">设备</div><h4>设备里的软件</h4><p>把设备从底层跑起来:画面、录像、存储全调好,6 种主流芯片通用。</p></div>
-      <div class="layer"><div class="ic">🧠</div><div class="tag">AI</div><h4>设备自带的 AI</h4><p>认人认物、看懂现场、读出画面文字,全在设备里算,不靠云。</p></div>
-      <div class="layer"><div class="ic">☁️</div><div class="tag">云端</div><h4>云端后台</h4><p>设备联网管理、录像上云能搜、远程升级,安全稳定不开端口。</p></div>
-      <div class="layer"><div class="ic">📱</div><div class="tag">App</div><h4>手机 App + 电脑后台</h4><p>手机看直播、回放、设置;电脑后台多语言、可贴牌,远程不卡。</p></div>
+      <div class="layer reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/></svg></span><div class="tag">设备</div><h4>设备里的软件</h4><p>把设备从底层跑起来:画面、录像、存储全调好,6 种主流芯片通用。</p></div>
+      <div class="layer reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.4L18 9l-4.3 1.6L12 15l-1.7-4.4L6 9l4.3-1.6z"/><path d="M18 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg></span><div class="tag">AI</div><h4>设备自带的 AI</h4><p>认人认物、看懂现场、读出画面文字,全在设备里算,不靠云。</p></div>
+      <div class="layer reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.5 3.5 0 0 1 18 18H7z"/></svg></span><div class="tag">云端</div><h4>云端后台</h4><p>设备联网管理、录像上云能搜、远程升级,安全稳定不开端口。</p></div>
+      <div class="layer reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.6"/><path d="M11 18h2"/></svg></span><div class="tag">App</div><h4>手机 App + 电脑后台</h4><p>手机看直播、回放、设置;电脑后台多语言、可贴牌,远程不卡。</p></div>
     </div>
-    <div class="chipbar">
+    <div class="chipbar reveal">
       <span class="lab">6 种主流芯片,一套通用:</span>
       <span class="c"><b>君正</b> Ingenic</span><span class="c"><b>海思</b> HiSilicon</span>
       <span class="c"><b>瑞芯微</b> Rockchip</span><span class="c"><b>全志</b> Allwinner</span>
@@ -276,14 +324,14 @@
 <!-- MOAT -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">为什么找我,不找普通外包</div>
-    <h2>难的不是写代码,是把 AI 塞进便宜设备还跑得稳</h2>
-    <p class="sub">把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。</p>
+    <div class="eyebrow reveal">为什么找我,不找普通外包</div>
+    <h2 class="reveal">难的不是写代码,是把 AI 塞进便宜设备还跑得稳</h2>
+    <p class="sub reveal">把这么重的 AI 装进量产的便宜设备里、还得长期稳定不出事——这正是我做了 17 年的地方。</p>
     <div class="moat">
-      <div class="m"><div class="ic">🔌</div><h4>拔了网线,它还在认人<small>断网也能用</small></h4><p>认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。</p></div>
-      <div class="m"><div class="ic">👁️</div><h4>不只是认出来,还能"看懂"<small>会读字、能问答</small></h4><p>不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。</p></div>
-      <div class="m"><div class="ic">🧩</div><h4>换芯片不用重做<small>6 种芯片一套通用</small></h4><p>6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货。</p></div>
-      <div class="m"><div class="ic">🛡️</div><h4>长期稳定,录像不丢<small>工业级可靠</small></h4><p>设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M8 8h8v2.5a4 4 0 0 1-8 0z"/><path d="M12 14.5V21"/></svg></span><h4>拔了网线,它还在认人<small>断网也能用</small></h4><p>认人、看懂现场都在<b>设备本地</b>完成,不上云、不外泄、断网照用。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.6 10-6.6S22 12 22 12s-3.6 6.6-10 6.6S2 12 2 12z"/><circle cx="12" cy="12" r="2.7"/></svg></span><h4>不只是认出来,还能"看懂"<small>会读字、能问答</small></h4><p>不光框出人和物,还能<b>读出画面里的招牌、铭牌、车牌字</b>,你能直接问它现场情况。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4M4 16.5l8 4 8-4"/></svg></span><h4>换芯片不用重做<small>6 种芯片一套通用</small></h4><p>6 种主流芯片<b>一套代码</b>通用,缺货换料也不卡出货。</p></div>
+      <div class="m reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/><path d="M9.2 12l2 2 3.6-3.6"/></svg></span><h4>长期稳定,录像不丢<small>工业级可靠</small></h4><p>设备会自愈、断电有保护;<b>累计 14.7 万段录像一条没丢</b>。</p></div>
     </div>
   </div>
 </section>
@@ -291,10 +339,10 @@
 <!-- MAIN VIDEO -->
 <section id="video">
   <div class="wrap">
-    <div class="eyebrow">Story · 一分钟看懂</div>
-    <h2>一段片子,把这套能力讲清楚</h2>
-    <p class="sub">一段真机演示:认人认物、看懂现场问答、手机云端联动,眼见为实。想一个个功能细看,进 <a href="demos.html">功能演示 →</a></p>
-    <div class="promo">
+    <div class="eyebrow reveal">Story · 一分钟看懂</div>
+    <h2 class="reveal">一段片子,把这套能力讲清楚</h2>
+    <p class="sub reveal">一段真机演示:认人认物、看懂现场问答、手机云端联动,眼见为实。想一个个功能细看,进 <a href="demos.html">功能演示 →</a></p>
+    <div class="promo reveal">
       <video controls preload="none" playsinline poster="footage/scenario-poster.jpg">
         <source src="scenario-stories.mp4" type="video/mp4">
         你的浏览器不支持视频,<a href="scenario-stories.mp4">点此下载观看</a>。
@@ -306,14 +354,14 @@
 <!-- SCENES -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">By Scenario · 场景解决方案</div>
-    <h2>同一套本事,落进你的行业</h2>
-    <p class="sub">不是四套不同的东西——同一套能力,针对四类场景各自落地,而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">查看实战案例 →</a>)。</p>
+    <div class="eyebrow reveal">By Scenario · 场景解决方案</div>
+    <h2 class="reveal">同一套本事,落进你的行业</h2>
+    <p class="sub reveal">不是四套不同的东西——同一套能力,针对四类场景各自落地,而且<b>四个场景都有真实客户在用</b>(<a href="cases.html">查看实战案例 →</a>)。</p>
     <div class="scenes">
-      <div class="scn"><div class="ic">🛡️</div><h4>智能安防<small>周界 / 园区 / 商铺 / 出入口</small></h4><p>实时认出人、车、翻墙入侵,<b>还能看懂现场、读出画面里的字</b>;断网本地处理不外泄,重要录像上云能搜。</p></div>
-      <div class="scn"><div class="ic">🤖</div><h4>智能机器人<small>巡检 / 配送 / 服务机器人</small></h4><p>AI 在机器人身上直接算(画面约 0.3 秒、看懂现场约 1–3 秒),<b>直接接进机器人系统</b>,成为它的一双眼睛。</p></div>
-      <div class="scn"><div class="ic">🚗</div><h4>行车记录仪 / 智能交通<small>商用车 / 车队 / 记录仪</small></h4><p>便宜的车载设备也能跑 AI,画面稳、<b>掉电不丢录像、能预录能缩时</b>,远程实时看。已在头部品牌量产。</p></div>
-      <div class="scn"><div class="ic">👓</div><h4>智能眼镜 / 可穿戴<small>可穿戴 / 第一视角</small></h4><p>在这么小、这么省电的眼镜里也能跑通,<b>看懂画面、读字、直接问答</b>,断网也能用。已量产。</p></div>
+      <div class="scn reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/></svg></span><h4>智能安防<small>周界 / 园区 / 商铺 / 出入口</small></h4><p>实时认出人、车、翻墙入侵,<b>还能看懂现场、读出画面里的字</b>;断网本地处理不外泄,重要录像上云能搜。</p></div>
+      <div class="scn reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5.5M12 5.5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M3 12v3M21 12v3"/></svg></span><h4>智能机器人<small>巡检 / 配送 / 服务机器人</small></h4><p>AI 在机器人身上直接算(画面约 0.3 秒、看懂现场约 1–3 秒),<b>直接接进机器人系统</b>,成为它的一双眼睛。</p></div>
+      <div class="scn reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l1.7-4.4A2 2 0 0 1 7.6 7.3h8.8a2 2 0 0 1 1.9 1.3L20 13v5h-2M6 18H4v-5h16"/><circle cx="7.5" cy="18" r="1.7"/><circle cx="16.5" cy="18" r="1.7"/></svg></span><h4>行车记录仪 / 智能交通<small>商用车 / 车队 / 记录仪</small></h4><p>便宜的车载设备也能跑 AI,画面稳、<b>掉电不丢录像、能预录能缩时</b>,远程实时看。已在头部品牌量产。</p></div>
+      <div class="scn reveal"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="14" r="3.3"/><circle cx="17.5" cy="14" r="3.3"/><path d="M9.8 13.6c.7-1 3.7-1 4.4 0M3.2 12l2.1-4.6M20.8 12l-2.1-4.6"/></svg></span><h4>智能眼镜 / 可穿戴<small>可穿戴 / 第一视角</small></h4><p>在这么小、这么省电的眼镜里也能跑通,<b>看懂画面、读字、直接问答</b>,断网也能用。已量产。</p></div>
     </div>
   </div>
 </section>
@@ -321,21 +369,21 @@
 <!-- PORTAL -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">Materials · 全部资料</div>
-    <h2>想深入了解哪一面,都在这里</h2>
-    <p class="sub">同一套真机素材、统一视觉,按需查看或下载 PDF 交付客户。</p>
+    <div class="eyebrow reveal">Materials · 全部资料</div>
+    <h2 class="reveal">想深入了解哪一面,都在这里</h2>
+    <p class="sub reveal">同一套真机素材、统一视觉,按需查看或下载 PDF 交付客户。</p>
     <div class="portal">
-      <a class="pc" href="solution-overview.html"><div class="ic">🧩</div><h3>解决方案总览<small>Solution Brief</small></h3><p>架构 / 差异化 / 证据 / 白标 / 合作,一份看懂全貌。</p><div class="go">进入 →</div></a>
-      <a class="pc" href="cases.html"><div class="ic">🏆</div><h3>实战案例<small>Real Cases</small></h3><p>记录仪/机器人/摄像头/眼镜 4 个真实客户,均已量产。</p><div class="go">查看 →</div></a>
-      <a class="pc" href="product-onepager.html"><div class="ic">📄</div><h3>产品一页纸<small>One-pager</small></h3><p>10 秒看懂:一句话卖点 + 3 个硬亮点 + 功能清单。</p><div class="go">打开 →</div></a>
-      <a class="pc" href="product-manual.html"><div class="ic">🖥️</div><h3>Web 控制台说明书<small>Console Manual</small></h3><p>22 页逐页讲解,真机截图,可打印 PDF。</p><div class="go">翻阅 →</div></a>
-      <a class="pc" href="app-manual.html"><div class="ic">📱</div><h3>App 功能说明书<small>App Guide</small></h3><p>手机端逐页功能详解,真机高清截图。</p><div class="go">翻阅 →</div></a>
-      <a class="pc" href="cooperation-invite.html"><div class="ic">🤝</div><h3>合作邀约<small>Let's Partner</small></h3><p>合作开发 / 模块授权 / 代码买断,按你的方式来。</p><div class="go">聊聊 →</div></a>
+      <a class="pc reveal" href="solution-overview.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="5" rx="1.6"/><rect x="13" y="10" width="8" height="11" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/></svg></span><h3>解决方案总览<small>Solution Brief</small></h3><p>架构 / 差异化 / 证据 / 白标 / 合作,一份看懂全貌。</p><div class="go">进入 →</div></a>
+      <a class="pc reveal" href="cases.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v4a4 4 0 0 1-8 0z"/><path d="M8 5H5v1a3 3 0 0 0 3 3M16 5h3v1a3 3 0 0 1-3 3M9 20h6M12 16v-2"/></svg></span><h3>实战案例<small>Real Cases</small></h3><p>记录仪/机器人/摄像头/眼镜 4 个真实客户,均已量产。</p><div class="go">查看 →</div></a>
+      <a class="pc reveal" href="product-onepager.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l4 4v14H7z"/><path d="M13 3v4h4M9.5 12h5M9.5 15.5h5"/></svg></span><h3>产品一页纸<small>One-pager</small></h3><p>10 秒看懂:一句话卖点 + 3 个硬亮点 + 功能清单。</p><div class="go">打开 →</div></a>
+      <a class="pc reveal" href="product-manual.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg></span><h3>Web 控制台说明书<small>Console Manual</small></h3><p>22 页逐页讲解,真机截图,可打印 PDF。</p><div class="go">翻阅 →</div></a>
+      <a class="pc reveal" href="app-manual.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.6"/><path d="M11 18h2"/></svg></span><h3>App 功能说明书<small>App Guide</small></h3><p>手机端逐页功能详解,真机高清截图。</p><div class="go">翻阅 →</div></a>
+      <a class="pc reveal" href="cooperation-invite.html"><span class="ic box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg></span><h3>合作邀约<small>Let's Partner</small></h3><p>合作开发 / 模块授权 / 代码买断,按你的方式来。</p><div class="go">聊聊 →</div></a>
     </div>
-    <div class="dls">
-      <a class="dl" href="marketing/solution-overview.pdf" target="_blank">⬇ 解决方案总览 PDF</a>
-      <a class="dl" href="marketing/cases.pdf" target="_blank">⬇ 实战案例 PDF</a>
-      <a class="dl" href="marketing/cooperation-invite.pdf" target="_blank">⬇ 合作邀约 PDF</a>
+    <div class="dls reveal">
+      <a class="dl" href="marketing/solution-overview.pdf" target="_blank"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg></span>解决方案总览 PDF</a>
+      <a class="dl" href="marketing/cases.pdf" target="_blank"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg></span>实战案例 PDF</a>
+      <a class="dl" href="marketing/cooperation-invite.pdf" target="_blank"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg></span>合作邀约 PDF</a>
     </div>
   </div>
 </section>
@@ -343,9 +391,9 @@
 <!-- CONTACT -->
 <section class="contact">
   <div class="wrap">
-    <div class="eyebrow">Contact · 聊聊</div>
-    <h2 style="margin-bottom:18px">你有市场和渠道,难做的 AI 全栈交给我</h2>
-    <div class="ccard">
+    <div class="eyebrow reveal">Contact · 聊聊</div>
+    <h2 class="reveal" style="margin-bottom:20px">你有市场和渠道,难做的 AI 全栈交给我</h2>
+    <div class="ccard reveal">
       <div>
         <h3>把你最难的那块,交给做了 17 年的人。</h3>
         <p>先说清你卡在哪:认得不准 / 误报多、便宜设备跑不动、特殊场景没算法、想在设备里上 AI 大模型。看清难点再谈合作。</p>
@@ -361,7 +409,9 @@
   </div>
 </section>
 
-<div class="foot">
+</main>
+
+<footer class="foot">
   云边端 AI 视觉 · 端到端解决方案 · 内容均为真机验证 &nbsp;|&nbsp;
   <b>资料:</b>
   <a href="solution-overview.html">总览</a> ·
@@ -369,8 +419,44 @@
   <a href="product-manual.html">Web 说明书</a> ·
   <a href="app-manual.html">App 说明书</a> ·
   <a href="cooperation-invite.html">合作</a>
-</div>
+</footer>
 
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  if (reduce || !('IntersectionObserver' in window)){
+    els.forEach(function(e){ e.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(x){
+        if (!x.isIntersecting) return;
+        var el = x.target;
+        var sibs = Array.prototype.filter.call(el.parentNode.children, function(c){ return c.classList.contains('reveal'); });
+        var i = sibs.indexOf(el);
+        el.style.transitionDelay = Math.min(i,6) * 45 + 'ms';
+        el.classList.add('in');
+        io.unobserve(el);
+      });
+    }, { threshold:.14, rootMargin:'0px 0px -7% 0px' });
+    els.forEach(function(e){ io.observe(e); });
+  }
+
+  // scrollspy: highlight current in-page nav item
+  var ids = ['caps','video','stack'];
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav .links a[href^="#"]'));
+  var secs = ids.map(function(id){ return document.getElementById(id); }).filter(Boolean);
+  if ('IntersectionObserver' in window && secs.length){
+    var so = new IntersectionObserver(function(entries){
+      entries.forEach(function(x){
+        if (!x.isIntersecting) return;
+        links.forEach(function(a){ a.classList.toggle('cur', a.getAttribute('href') === '#' + x.target.id); });
+      });
+    }, { rootMargin:'-45% 0px -50% 0px' });
+    secs.forEach(function(s){ so.observe(s); });
+  }
+})();
+</script>
 <script src="fallback.js"></script>
 </body>
 </html>
