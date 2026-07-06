@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<!--
+  远程看护 App · UI 实现(从 Claude Design 项目 f424f10e 导入并落地)
+  4 个界面:① 首页 ② 实时视频(遥控+通话)③ 警报(时间线+回放)④ 机器人设置
+  原设计:Elizabeth Nwachukwu。已去除 design-canvas 运行时(x-dc/support.js),转为可独立运行的标准 HTML。
+-->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>远程看护 App · UI</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='84'>🤖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{--sp:1}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 700px at 78% -8%,#16223F 0%,rgba(22,34,63,0) 60%),radial-gradient(900px 600px at 10% 110%,#131b34 0%,rgba(19,27,52,0) 55%),#05070E;font-family:'Nunito','Noto Sans SC',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+::selection{background:#FF8A4C;color:#2B1206}
+@keyframes rc-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+@keyframes rc-breathe{0%,100%{box-shadow:0 0 0 0 rgba(58,107,240,.45)}50%{box-shadow:0 0 0 12px rgba(58,107,240,0)}}
+.rc svg{width:1em;height:1em;display:block;stroke-width:2}
+.stage{display:flex;flex-wrap:wrap;gap:calc(44px*var(--sp,1));padding:60px 64px;align-items:flex-start;justify-content:center}
+.col{display:flex;flex-direction:column;align-items:center;gap:16px}
+.cap{font-size:14px;font-weight:700;color:#6E7A9B;letter-spacing:.02em}
+.mono{font-family:'JetBrains Mono',monospace}
+.phone{width:396px;height:824px;background:#0A1020;border-radius:48px;border:11px solid #10192F;box-shadow:0 34px 70px -22px rgba(0,0,0,.7),0 0 0 1px rgba(58,107,240,.12);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:120px;height:30px;background:#10192F;border-radius:16px;z-index:6}
+.status{height:54px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 9px;font-size:14px;font-weight:800;color:#EDF1FB}
+.status .r{display:flex;gap:8px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:13px}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.tabbar{flex:none;height:84px;background:#0B1428;border-top:1px solid #16223F;display:flex;padding:12px 8px 0}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#6E7A9B;cursor:pointer}
+.tab .rc{font-size:24px;color:#6E7A9B}
+.tab.on{color:#5C86F7}.tab.on .rc{color:#5C86F7}
+.card{background:linear-gradient(180deg,#16223F 0%,#0E1730 100%);border:1px solid #23325A;border-radius:20px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:5px 11px;border-radius:999px}
+.btn{border:none;border-radius:12px;font-family:inherit;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;transition:filter .16s ease,background .16s ease,border-color .16s ease}
+.btn:hover{filter:brightness(1.09)}
+.mut{color:#6E7A9B}.mid{color:#AEB9D4}
+.pagehead{color:#AEB9D4;text-align:center;padding:34px 20px 4px;font-weight:700}
+.pagehead h1{margin:0 0 6px;font-size:22px;font-weight:900;color:#EDF1FB;letter-spacing:-.01em}
+.pagehead p{margin:0;font-size:13.5px;color:#6E7A9B;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>远程看护 App</h1>
+  <p>机器人陪护 · 实时视频 · 主动报警 —— 4 个核心界面</p>
+</div>
+
+<div class="stage">
+
+<!-- ===================== 首页 ===================== -->
+<div class="col">
+<div class="phone">
+<div class="notch"></div>
+<div class="status"><span class="mono">9:41</span><span class="r"><span class="rc" style="font-size:15px"><i data-lucide="wifi"></i></span><span class="rc" style="font-size:15px"><i data-lucide="battery-medium"></i></span>82%</span></div>
+<div class="body">
+<div style="flex:1;overflow-y:auto;padding:6px 22px 18px">
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 calc(22px*var(--sp,1))">
+<div>
+<div class="mut" style="font-size:14px;font-weight:700">早上好，念念</div>
+<div style="font-size:26px;font-weight:900;color:#EDF1FB;letter-spacing:-.02em">妈妈一切安好</div>
+</div>
+<div style="width:48px;height:48px;border-radius:16px;background:rgba(58,107,240,.16);border:1px solid #2C3E68;display:flex;align-items:center;justify-content:center;font-weight:800;color:#93B0FA;font-size:15px">妈</div>
+</div>
+
+<!-- 机器人状态卡 -->
+<div style="border-radius:20px;background:linear-gradient(180deg,#16223F 0%,#0E1730 100%);border:1px solid #23325A;padding:calc(22px*var(--sp,1));position:relative;overflow:hidden;margin-bottom:calc(16px*var(--sp,1))">
+<div style="position:absolute;top:-44px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(58,107,240,.32),transparent 70%)"></div>
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;position:relative">
+<div style="width:56px;height:56px;border-radius:18px;background:linear-gradient(150deg,#3A6BF0,#2A54C6);display:flex;align-items:center;justify-content:center;animation:rc-breathe 3s ease infinite"><span class="rc" style="font-size:28px;color:#fff"><i data-lucide="bot"></i></span></div>
+<div style="flex:1;line-height:1.2">
+<div style="font-size:18px;font-weight:900;color:#EDF1FB">Nova · 客厅</div>
+<div style="font-size:13px;font-weight:700;color:#6E7A9B">待命中 · 一切正常</div>
+</div>
+<span class="chip" style="background:rgba(53,208,138,.14);border:1px solid rgba(53,208,138,.3)"><span style="width:7px;height:7px;border-radius:50%;background:#35D08A;animation:rc-pulse 2s ease infinite"></span><span style="color:#5EE0A8">在线</span></span>
+</div>
+<div style="display:flex;gap:10px;position:relative">
+<div style="flex:1;padding:12px 14px;border-radius:12px;background:rgba(5,7,14,.5)"><div style="font-size:11px;font-weight:700;color:#6E7A9B;margin-bottom:5px">电量</div><div class="mono" style="font-size:19px;font-weight:700;color:#35D08A">82%</div></div>
+<div style="flex:1;padding:12px 14px;border-radius:12px;background:rgba(5,7,14,.5)"><div style="font-size:11px;font-weight:700;color:#6E7A9B;margin-bottom:5px">室温</div><div class="mono" style="font-size:19px;font-weight:700;color:#EDF1FB">24.5°</div></div>
+<div style="flex:1;padding:12px 14px;border-radius:12px;background:rgba(5,7,14,.5)"><div style="font-size:11px;font-weight:700;color:#6E7A9B;margin-bottom:5px">巡视</div><div class="mono" style="font-size:19px;font-weight:700;color:#EDF1FB">12′前</div></div>
+</div>
+<button class="btn" data-nav="set" style="width:100%;margin-top:calc(12px*var(--sp,1));height:46px;background:rgba(5,7,14,.5);border:1px solid #2C3E68;color:#AEB9D4;font-size:14px;justify-content:space-between;padding:0 16px;position:relative"><span style="display:flex;align-items:center;gap:10px"><span class="rc" style="font-size:18px;color:#93B0FA"><i data-lucide="settings"></i></span>机器人设置</span><span class="rc" style="font-size:18px;color:#6E7A9B"><i data-lucide="chevron-right"></i></span></button>
+</div>
+
+<!-- 实时视频入口 -->
+<button class="btn" data-nav="video" style="width:100%;height:60px;background:#3A6BF0;color:#fff;font-size:17px;margin-bottom:calc(26px*var(--sp,1));box-shadow:0 12px 26px -8px rgba(58,107,240,.6)"><span class="rc" style="font-size:21px"><i data-lucide="video"></i></span>进入实时视频</button>
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+<span style="font-size:17px;font-weight:900;color:#EDF1FB">今日活动摘要</span>
+<span class="mono" style="font-size:12px;color:#6E7A9B">7月6日</span>
+</div>
+
+<div class="card" style="padding:4px 18px">
+<div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #16223F">
+<div style="width:42px;height:42px;border-radius:13px;background:rgba(255,138,76,.14);display:flex;align-items:center;justify-content:center;flex:none"><span class="rc" style="font-size:21px;color:#FFA36E"><i data-lucide="utensils"></i></span></div>
+<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#EDF1FB">早餐已进食</div><div class="mut" style="font-size:13px;font-weight:600">08:10 · 小米粥 + 鸡蛋</div></div>
+<span class="rc" style="font-size:18px;color:#5EE0A8"><i data-lucide="check-circle-2"></i></span>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #16223F">
+<div style="width:42px;height:42px;border-radius:13px;background:rgba(58,107,240,.14);display:flex;align-items:center;justify-content:center;flex:none"><span class="rc" style="font-size:21px;color:#93B0FA"><i data-lucide="pill"></i></span></div>
+<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#EDF1FB">按时服药</div><div class="mut" style="font-size:13px;font-weight:600">08:30 · 降压药 1 粒</div></div>
+<span class="rc" style="font-size:18px;color:#5EE0A8"><i data-lucide="check-circle-2"></i></span>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:15px 0">
+<div style="width:42px;height:42px;border-radius:13px;background:rgba(53,208,138,.14);display:flex;align-items:center;justify-content:center;flex:none"><span class="rc" style="font-size:21px;color:#5EE0A8"><i data-lucide="footprints"></i></span></div>
+<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#EDF1FB">室内活动 <span class="mono">1,240</span> 步</div><div class="mut" style="font-size:13px;font-weight:600">目标 2,000 步 · 62%</div></div>
+<div style="width:40px;height:40px;flex:none;border-radius:50%;background:conic-gradient(#3A6BF0 62%,#1E2D4F 0)"></div>
+</div>
+</div>
+
+</div>
+</div>
+<div class="tabbar">
+<div class="tab on"><span class="rc"><i data-lucide="home"></i></span>首页</div>
+<div class="tab"><span class="rc"><i data-lucide="video"></i></span>视频</div>
+<div class="tab" style="position:relative"><span style="position:absolute;top:-2px;right:24px;width:8px;height:8px;border-radius:50%;background:#FF5D6B;border:1.5px solid #0B1428"></span><span class="rc"><i data-lucide="bell"></i></span>警报</div>
+<div class="tab"><span class="rc"><i data-lucide="user"></i></span>我的</div>
+</div>
+</div>
+<div class="cap">① 首页</div>
+</div>
+
+<!-- ===================== 实时视频 ===================== -->
+<div class="col">
+<div class="phone" style="background:#05070E">
+<div class="notch"></div>
+<div class="status"><span class="mono">9:41</span><span class="r"><span class="rc" style="font-size:15px"><i data-lucide="wifi"></i></span><span class="rc" style="font-size:15px"><i data-lucide="battery-medium"></i></span>82%</span></div>
+<div class="body">
+<div style="padding:6px 18px 0;display:flex;justify-content:space-between;align-items:center">
+<button class="btn" style="width:42px;height:42px;background:#131b34;border:1px solid #2C3E68;color:#EDF1FB;font-size:19px"><span class="rc"><i data-lucide="chevron-left"></i></span></button>
+<div style="text-align:center"><div style="color:#EDF1FB;font-weight:900;font-size:16px">客厅摄像头</div><div class="mono" style="color:#5EE0A8;font-size:12px;margin-top:2px">HD · 已连接 02:14</div></div>
+<button class="btn" style="width:42px;height:42px;background:#131b34;border:1px solid #2C3E68;color:#EDF1FB;font-size:18px"><span class="rc"><i data-lucide="maximize"></i></span></button>
+</div>
+
+<!-- WebRTC 画面 -->
+<div style="margin:14px 18px;border-radius:22px;overflow:hidden;position:relative;flex:1;min-height:0;background:linear-gradient(160deg,#1E2D4F,#0A1020);border:1px solid #23325A">
+<div style="position:absolute;inset:0;background:radial-gradient(circle at 42% 34%,rgba(58,107,240,.14),transparent 60%)"></div>
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#4A5573"><span class="rc" style="font-size:48px"><i data-lucide="sofa"></i></span><div style="font-size:13px;font-weight:700">实时画面 · WebRTC</div></div>
+<div style="position:absolute;top:14px;left:14px;display:flex;gap:8px;align-items:center;background:rgba(5,7,14,.55);padding:5px 11px;border-radius:999px;backdrop-filter:blur(6px)"><span style="width:8px;height:8px;border-radius:50%;background:#FF5D6B;animation:rc-pulse 1.6s ease infinite"></span><span style="color:#EDF1FB;font-size:12px;font-weight:800">录制中</span></div>
+<div style="position:absolute;top:14px;right:14px;width:98px;height:68px;border-radius:14px;border:2px solid rgba(237,241,251,.55);background:linear-gradient(150deg,#2C3E68,#131b34);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#AEB9D4">你的画面</div>
+<!-- 遥控方向键 叠加 -->
+<div style="position:absolute;left:16px;bottom:16px;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:6px">
+<span></span><button class="btn dk" style="background:rgba(58,107,240,.28);border:1px solid rgba(147,176,250,.4);color:#EDF1FB;font-size:20px;backdrop-filter:blur(6px);height:46px;border-radius:14px"><span class="rc"><i data-lucide="chevron-up"></i></span></button><span></span>
+<button class="btn dk" style="background:rgba(58,107,240,.28);border:1px solid rgba(147,176,250,.4);color:#EDF1FB;font-size:20px;backdrop-filter:blur(6px);height:46px;border-radius:14px"><span class="rc"><i data-lucide="chevron-left"></i></span></button><button class="btn dk" style="background:rgba(5,7,14,.5);border:1px solid #2C3E68;color:#6E7A9B;font-size:11px;font-weight:800;height:46px;border-radius:14px">遥控</button><button class="btn dk" style="background:rgba(58,107,240,.28);border:1px solid rgba(147,176,250,.4);color:#EDF1FB;font-size:20px;backdrop-filter:blur(6px);height:46px;border-radius:14px"><span class="rc"><i data-lucide="chevron-right"></i></span></button>
+<span></span><button class="btn dk" style="background:rgba(58,107,240,.28);border:1px solid rgba(147,176,250,.4);color:#EDF1FB;font-size:20px;backdrop-filter:blur(6px);height:46px;border-radius:14px"><span class="rc"><i data-lucide="chevron-down"></i></span></button><span></span>
+</div>
+</div>
+
+<!-- 通话控制 -->
+<div style="padding:6px 26px 28px;display:flex;justify-content:center;align-items:center;gap:26px">
+<button class="btn" style="width:58px;height:58px;border-radius:50%;background:#131b34;border:1px solid #2C3E68;color:#EDF1FB;font-size:22px"><span class="rc"><i data-lucide="volume-2"></i></span></button>
+<button class="btn" style="width:80px;height:80px;border-radius:50%;background:#3A6BF0;color:#fff;box-shadow:0 12px 28px -6px rgba(58,107,240,.65);flex-direction:column;gap:3px"><span class="rc" style="font-size:26px"><i data-lucide="mic"></i></span><span style="font-size:11px;font-weight:800">双向通话</span></button>
+<button class="btn" style="width:58px;height:58px;border-radius:50%;background:#FF5D6B;color:#fff;font-size:22px"><span class="rc"><i data-lucide="phone-off"></i></span></button>
+</div>
+</div>
+</div>
+<div class="cap">② 实时视频 · 遥控 + 通话</div>
+</div>
+
+<!-- ===================== 警报 ===================== -->
+<div class="col">
+<div class="phone">
+<div class="notch"></div>
+<div class="status"><span class="mono">9:41</span><span class="r"><span class="rc" style="font-size:15px"><i data-lucide="wifi"></i></span><span class="rc" style="font-size:15px"><i data-lucide="battery-medium"></i></span>82%</span></div>
+<div class="body">
+<div style="flex:1;overflow-y:auto;padding:6px 22px 18px">
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 16px">
+<div style="font-size:26px;font-weight:900;color:#EDF1FB;letter-spacing:-.02em">警报</div>
+<button class="btn" style="height:34px;padding:0 14px;background:#131b34;border:1px solid #2C3E68;color:#AEB9D4;font-size:13px;border-radius:10px">全部已读</button>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:22px">
+<span class="chip" style="background:#3A6BF0;color:#fff">全部 3</span>
+<span class="chip" style="background:#131b34;color:#AEB9D4;border:1px solid #2C3E68">跌倒</span>
+<span class="chip" style="background:#131b34;color:#AEB9D4;border:1px solid #2C3E68">用药</span>
+<span class="chip" style="background:#131b34;color:#AEB9D4;border:1px solid #2C3E68">离床</span>
+</div>
+
+<!-- 时间线 -->
+<div style="position:relative;padding-left:28px">
+<div style="position:absolute;left:6px;top:10px;bottom:10px;width:2px;background:#23325A"></div>
+
+<!-- 紧急事件 -->
+<div style="position:relative;margin-bottom:calc(22px*var(--sp,1))">
+<div style="position:absolute;left:-28px;top:6px;width:14px;height:14px;border-radius:50%;background:#FF5D6B;box-shadow:0 0 0 4px rgba(255,93,107,.2)"></div>
+<div style="border-radius:20px;background:linear-gradient(180deg,#2A0E12 0%,#0E1730 60%);border:1px solid rgba(255,93,107,.4);overflow:hidden;box-shadow:0 12px 30px -14px rgba(255,93,107,.4)">
+<div style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center">
+<span class="chip" style="background:rgba(255,93,107,.16);border:1px solid rgba(255,93,107,.4)"><span class="rc" style="font-size:15px;color:#FF8A93"><i data-lucide="siren"></i></span><span style="color:#FF8A93">跌倒检测</span></span>
+<span class="mono" style="font-weight:700;color:#FF8A93;font-size:13px">今天 14:32</span>
+</div>
+<div style="padding:0 16px 16px">
+<div style="border-radius:14px;overflow:hidden;height:116px;background:linear-gradient(160deg,#1E2D4F,#0A1020);border:1px solid #23325A;position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:12px">
+<button class="btn" style="width:54px;height:54px;border-radius:50%;background:rgba(237,241,251,.94);color:#2A54C6;font-size:22px;padding-left:4px"><span class="rc"><i data-lucide="play"></i></span></button>
+<span class="mono" style="position:absolute;bottom:8px;right:10px;background:rgba(5,7,14,.6);color:#EDF1FB;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700">00:18</span>
+</div>
+<div class="mid" style="font-size:14px;font-weight:600;margin-bottom:14px;line-height:1.5">卧室检测到疑似跌倒。Nova 已前往查看，老人已自行起身。</div>
+<div style="display:flex;gap:10px">
+<button class="btn" style="flex:1;height:44px;background:#131b34;border:1px solid #2C3E68;color:#EDF1FB;font-size:14px">标记已处理</button>
+<button class="btn" data-nav="video" style="flex:1;height:44px;background:#FF8A4C;color:#2B1206;font-size:14px"><span class="rc" style="font-size:17px"><i data-lucide="video"></i></span>发起视频</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 用药提醒 -->
+<div style="position:relative;margin-bottom:calc(22px*var(--sp,1))">
+<div style="position:absolute;left:-28px;top:6px;width:14px;height:14px;border-radius:50%;background:#FFC24B;box-shadow:0 0 0 4px rgba(255,194,75,.18)"></div>
+<div class="card" style="padding:15px 16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="chip" style="background:rgba(255,194,75,.14);border:1px solid rgba(255,194,75,.3)"><span class="rc" style="font-size:14px;color:#FFD37A"><i data-lucide="pill"></i></span><span style="color:#FFD37A">用药提醒</span></span><span class="mono mut" style="font-size:12px">今天 12:00</span></div>
+<div style="font-weight:800;font-size:15px;color:#EDF1FB;margin-bottom:3px">午间药物已按时服用</div>
+<div class="mut" style="font-size:13px;font-weight:600">Nova 语音提醒后 3 分钟内完成</div>
+</div>
+</div>
+
+<!-- 离床 -->
+<div style="position:relative">
+<div style="position:absolute;left:-28px;top:6px;width:14px;height:14px;border-radius:50%;background:#2C3E68;box-shadow:0 0 0 4px rgba(44,62,104,.35)"></div>
+<div class="card" style="padding:15px 16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="chip" style="background:#131b34;border:1px solid #2C3E68"><span class="rc" style="font-size:14px;color:#93B0FA"><i data-lucide="sunrise"></i></span><span style="color:#AEB9D4">离床活动</span></span><span class="mono mut" style="font-size:12px">今天 07:40</span></div>
+<div style="font-weight:800;font-size:15px;color:#EDF1FB;margin-bottom:3px">正常起床</div>
+<div class="mut" style="font-size:13px;font-weight:600">作息规律，无异常</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+<div class="tabbar">
+<div class="tab"><span class="rc"><i data-lucide="home"></i></span>首页</div>
+<div class="tab"><span class="rc"><i data-lucide="video"></i></span>视频</div>
+<div class="tab on"><span class="rc"><i data-lucide="bell"></i></span>警报</div>
+<div class="tab"><span class="rc"><i data-lucide="user"></i></span>我的</div>
+</div>
+</div>
+<div class="cap">③ 警报 · 事件时间线 + 回放</div>
+</div>
+
+<!-- ===================== 机器人设置 ===================== -->
+<div class="col">
+<div class="phone">
+<div class="notch"></div>
+<div class="status"><span class="mono">9:41</span><span class="r"><span class="rc" style="font-size:15px"><i data-lucide="wifi"></i></span><span class="rc" style="font-size:15px"><i data-lucide="battery-medium"></i></span>82%</span></div>
+<div class="body">
+<div style="padding:6px 18px 0;display:flex;justify-content:space-between;align-items:center;flex:none">
+<button class="btn" style="width:42px;height:42px;background:#131b34;border:1px solid #2C3E68;color:#EDF1FB;font-size:19px"><span class="rc"><i data-lucide="chevron-left"></i></span></button>
+<div style="color:#EDF1FB;font-weight:900;font-size:16px">机器人设置</div>
+<div style="width:42px"></div>
+</div>
+
+<div style="flex:1;overflow-y:auto;padding:16px 18px 22px">
+
+<!-- Nova 身份条 -->
+<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:22px;border-radius:16px;background:linear-gradient(180deg,#16223F,#0E1730);border:1px solid #23325A">
+<div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(150deg,#3A6BF0,#2A54C6);display:flex;align-items:center;justify-content:center;flex:none"><span class="rc" style="font-size:22px;color:#fff"><i data-lucide="bot"></i></span></div>
+<div style="flex:1;line-height:1.25"><div style="font-size:16px;font-weight:900;color:#EDF1FB">Nova · 客厅</div><div class="mono mut" style="font-size:12px">固件 v2.4.1 · 已连接</div></div>
+<span class="chip" style="background:rgba(53,208,138,.14);border:1px solid rgba(53,208,138,.3)"><span style="width:7px;height:7px;border-radius:50%;background:#35D08A"></span><span style="color:#5EE0A8">在线</span></span>
+</div>
+
+<!-- 音视频 -->
+<div style="display:flex;align-items:center;gap:9px;margin:0 0 12px 2px"><span class="rc" style="font-size:18px;color:#93B0FA"><i data-lucide="volume-2"></i></span><span style="font-size:15px;font-weight:900;color:#EDF1FB">音视频</span></div>
+<div class="card" style="padding:2px 16px;margin-bottom:22px">
+<div style="padding:15px 0;border-bottom:1px solid #16223F">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px"><span style="font-size:14px;font-weight:700;color:#EDF1FB">麦克风音量</span><span class="mono" style="font-size:13px;color:#93B0FA">70%</span></div>
+<div style="height:6px;border-radius:3px;background:#1E2D4F;position:relative"><div style="position:absolute;inset:0 30% 0 0;border-radius:3px;background:#3A6BF0"></div><div style="position:absolute;left:70%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div></div>
+</div>
+<div style="padding:15px 0;border-bottom:1px solid #16223F">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px"><span style="font-size:14px;font-weight:700;color:#EDF1FB">扬声器音量</span><span class="mono" style="font-size:13px;color:#93B0FA">85%</span></div>
+<div style="height:6px;border-radius:3px;background:#1E2D4F;position:relative"><div style="position:absolute;inset:0 15% 0 0;border-radius:3px;background:#3A6BF0"></div><div style="position:absolute;left:85%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><span style="font-size:14px;font-weight:700;color:#EDF1FB">视频画质</span>
+<div style="display:flex;background:rgba(5,7,14,.5);border:1px solid #2C3E68;border-radius:10px;padding:3px;gap:2px"><span style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;color:#6E7A9B">流畅</span><span style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;background:#3A6BF0;color:#fff">高清</span><span style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;color:#6E7A9B">超清</span></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">夜视模式</div><div class="mut" style="font-size:12px;font-weight:600">光线不足时自动开启</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+</div>
+
+<!-- 录像 -->
+<div style="display:flex;align-items:center;gap:9px;margin:0 0 12px 2px"><span class="rc" style="font-size:18px;color:#93B0FA"><i data-lucide="disc"></i></span><span style="font-size:15px;font-weight:900;color:#EDF1FB">录像</span></div>
+<div class="card" style="padding:2px 16px;margin-bottom:22px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">自动录像</div><div class="mut" style="font-size:12px;font-weight:600">7×24 小时持续录制</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">移动侦测录像</div><div class="mut" style="font-size:12px;font-weight:600">检测到活动时留存片段</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">云端保存时长</div><div class="mut" style="font-size:12px;font-weight:600">超期自动清理</div></div>
+<span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#93B0FA">30 天<span class="rc" style="font-size:16px;color:#6E7A9B"><i data-lucide="chevron-right"></i></span></span>
+</div>
+</div>
+
+<!-- 报警触发条件 -->
+<div style="display:flex;align-items:center;gap:9px;margin:0 0 12px 2px"><span class="rc" style="font-size:18px;color:#FFA36E"><i data-lucide="shield-alert"></i></span><span style="font-size:15px;font-weight:900;color:#EDF1FB">报警触发条件</span></div>
+<div class="card" style="padding:2px 16px;margin-bottom:22px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">跌倒检测</div><div class="mut" style="font-size:12px;font-weight:600">识别到跌倒立即推送</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><span style="font-size:14px;font-weight:700;color:#EDF1FB">检测灵敏度</span>
+<div style="display:flex;background:rgba(5,7,14,.5);border:1px solid #2C3E68;border-radius:10px;padding:3px;gap:2px"><span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;color:#6E7A9B">低</span><span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;background:#3A6BF0;color:#fff">中</span><span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;color:#6E7A9B">高</span></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">久坐提醒</div><div class="mut" style="font-size:12px;font-weight:600">超时未活动时提醒</div></div>
+<span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#93B0FA">2 小时<span class="rc" style="font-size:16px;color:#6E7A9B"><i data-lucide="chevron-right"></i></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">离床未归提醒</div><div class="mut" style="font-size:12px;font-weight:600">夜间离床超 20 分钟</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">声音异常检测</div><div class="mut" style="font-size:12px;font-weight:600">呼救 / 摔碎声等</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#2C3E68;position:relative;flex:none"><span style="position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#AEB9D4"></span></span>
+</div>
+</div>
+
+<!-- 系统与升级 -->
+<div style="display:flex;align-items:center;gap:9px;margin:0 0 12px 2px"><span class="rc" style="font-size:18px;color:#93B0FA"><i data-lucide="cpu"></i></span><span style="font-size:15px;font-weight:900;color:#EDF1FB">系统与升级</span></div>
+<!-- OTA 高亮卡 -->
+<div style="border-radius:20px;background:linear-gradient(180deg,#241305 0%,#0E1730 60%);border:1px solid rgba(255,138,76,.3);padding:18px;margin-bottom:14px;position:relative;overflow:hidden">
+<div style="position:absolute;top:-40px;right:-30px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(255,138,76,.28),transparent 70%)"></div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;position:relative"><div style="width:40px;height:40px;border-radius:12px;background:rgba(255,138,76,.16);display:flex;align-items:center;justify-content:center"><span class="rc" style="font-size:20px;color:#FFA36E"><i data-lucide="download"></i></span></div>
+<div style="flex:1"><div style="font-size:15px;font-weight:900;color:#EDF1FB">发现新固件 v2.5.0</div><div class="mono mut" style="font-size:12px">当前 v2.4.1 · 22.4 MB</div></div>
+<span class="chip" style="background:rgba(255,138,76,.16);border:1px solid rgba(255,138,76,.35);color:#FFA36E">可升级</span>
+</div>
+<div class="mid" style="font-size:13px;font-weight:600;line-height:1.5;margin-bottom:16px;position:relative">优化跌倒识别算法，新增声纹呼救检测，修复夜视偶发花屏。</div>
+<button class="btn" style="width:100%;height:46px;background:#FF8A4C;color:#2B1206;font-size:15px;position:relative"><span class="rc" style="font-size:18px"><i data-lucide="download"></i></span>立即升级</button>
+</div>
+<div class="card" style="padding:2px 16px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid #16223F"><div><div style="font-size:14px;font-weight:700;color:#EDF1FB">自动更新</div><div class="mut" style="font-size:12px;font-weight:600">夜间空闲时自动安装</div></div>
+<span style="width:46px;height:27px;border-radius:999px;background:#3A6BF0;position:relative;flex:none"><span style="position:absolute;top:3px;left:22px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 0"><span style="font-size:14px;font-weight:700;color:#FF8A93">重启机器人</span><span class="rc" style="font-size:16px;color:#6E7A9B"><i data-lucide="chevron-right"></i></span></div>
+</div>
+
+</div>
+</div>
+</div>
+<div class="cap">④ 机器人设置 · 参数配置</div>
+</div>
+
+</div>
+
+<script>
+  // 初始化 lucide 图标(替代 design-canvas 运行时)
+  function drawIcons(){ if (window.lucide && window.lucide.createIcons) { try{ window.lucide.createIcons(); }catch(e){} } }
+  window.addEventListener('load', function(){ drawIcons(); setTimeout(drawIcons,300); setTimeout(drawIcons,900); });
+</script>
+</body>
+</html>
