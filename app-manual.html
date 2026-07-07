@@ -80,12 +80,30 @@
   .page .tags span{font-size:11px;color:var(--accent);background:rgba(14,165,183,.09);border:1px solid rgba(14,165,183,.22);border-radius:6px;padding:3px 9px}
   .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:50px;border-top:1px solid var(--line);padding-top:22px}
   @media (max-width:760px){.page .body{grid-template-columns:1fr}.toc ol{columns:1}.page .shot{padding:22px}}
-  @media print{#langbtn{display:none!important}body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page .shot{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
+  @media print{.langsel{display:none!important}body{background:#fff}.page,.toc{break-inside:avoid;box-shadow:none}.ghead{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page .shot{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{padding-top:30px}}
+  .langsel{position:fixed;top:14px;right:16px;z-index:80}
+  #langbtn{display:inline-flex;align-items:center;gap:6px}
+  #langbtn .gl{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+  #langbtn .cav{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.4;transition:transform .2s}
+  .langsel.open #langbtn .cav{transform:rotate(180deg)}
+  .langmenu{position:absolute;top:calc(100% + 8px);right:0;min-width:132px;background:#fff;border:1px solid #cdeef4;border-radius:11px;padding:5px;box-shadow:0 10px 28px rgba(20,40,80,.16);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .16s,transform .16s,visibility .16s}
+  .langsel.open .langmenu{opacity:1;visibility:visible;transform:none}
+  .langopt{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:#37516a;font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;white-space:nowrap;transition:background .15s,color .15s}
+  .langopt:hover{background:#f0f9fb;color:#0e7490}
+  .langopt .ck{margin-left:auto;width:14px;height:14px;stroke:#0e7490;fill:none;stroke-width:2.6;opacity:0}
+  .langopt.on{color:#0e7490}
+  .langopt.on .ck{opacity:1}
 </style>
 </head>
 <body>
 
-  <button type="button" id="langbtn" aria-label="Switch language" style="position:fixed;top:14px;right:16px;z-index:80;font-family:inherit;font-size:13px;color:#0e7490;background:#fff;border:1px solid #cdeef4;border-radius:9px;padding:7px 13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(20,40,80,.12)">EN</button>
+  <div class="langsel" id="langsel">
+    <button type="button" id="langbtn" aria-haspopup="listbox" aria-expanded="false" aria-label="切换语言 / Switch language" style="font-family:inherit;font-size:13px;color:#0e7490;background:#fff;border:1px solid #cdeef4;border-radius:9px;padding:7px 13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(20,40,80,.12)"><svg class="gl" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"/></svg><span id="langlab">中文</span><svg class="cav" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="langmenu" id="langmenu" role="listbox">
+      <button type="button" class="langopt" data-lang="zh" role="option">中文<svg class="ck" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+      <button type="button" class="langopt" data-lang="en" role="option">English<svg class="ck" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+    </div>
+  </div>
 
   <div class="cover">
     <div class="kchip">设备端 AI 视觉 · 手机 App</div>
@@ -297,14 +315,18 @@
   function apply(lang){var en=lang==='en';
     picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
     document.documentElement.lang=en?'en':'zh';
-    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    var lab=document.getElementById('langlab');if(lab)lab.textContent=en?'English':'中文';
+    document.querySelectorAll('.langopt').forEach(function(o){o.classList.toggle('on',o.getAttribute('data-lang')===lang);});
     try{localStorage.setItem('site_lang',lang);}catch(e){}
   }
   var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
   var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
   apply(q||saved||'zh');
-  var b=document.getElementById('langbtn');
-  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
+  var sel=document.getElementById('langsel'),b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(e){e.stopPropagation();var o=sel.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+  document.querySelectorAll('.langopt').forEach(function(o){o.addEventListener('click',function(e){e.stopPropagation();apply(o.getAttribute('data-lang'));sel.classList.remove('open');b.setAttribute('aria-expanded','false');});});
+  document.addEventListener('click',function(){if(sel)sel.classList.remove('open');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&sel){sel.classList.remove('open');b.setAttribute('aria-expanded','false');}});
 })();
 </script>
 <script src="fallback.js"></script>

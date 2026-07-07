@@ -165,6 +165,19 @@
     .reveal{opacity:1!important;transform:none!important}
   }
   @media (max-width:640px){.nav .in{padding-left:15px;padding-right:15px;gap:8px;flex-wrap:nowrap}.nav .brand{font-size:13.5px;gap:7px;min-width:0}.nav .links,.nav .r{gap:10px;flex-shrink:0}.nav .r a.back:not(.cta){display:none}.nav .cta{padding:7px 13px;font-size:12.5px;white-space:nowrap}#langbtn{padding:5px 4px;letter-spacing:.06em}}
+  .langsel{position:relative;display:inline-flex}
+  #langbtn{display:inline-flex;align-items:center;gap:5px}
+  #langbtn .gl{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+  #langbtn .cav{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;transition:transform .2s}
+  .langsel.open #langbtn .cav{transform:rotate(180deg)}
+  .langsel.open #langbtn,#langbtn:hover{color:#fff}
+  .langmenu{position:absolute;top:calc(100% + 9px);right:0;min-width:132px;background:rgba(11,17,27,.97);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:5px;box-shadow:0 14px 34px rgba(0,0,0,.55);backdrop-filter:blur(14px);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .16s var(--ease,ease),transform .16s var(--ease,ease),visibility .16s;z-index:70}
+  .langsel.open .langmenu{opacity:1;visibility:visible;transform:none}
+  .langopt{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:var(--dim);font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;white-space:nowrap;transition:background .15s,color .15s}
+  .langopt:hover{background:rgba(255,255,255,.06);color:#fff}
+  .langopt .ck{margin-left:auto;width:14px;height:14px;stroke:var(--accent);fill:none;stroke-width:2.4;opacity:0}
+  .langopt.on{color:var(--accent)}
+  .langopt.on .ck{opacity:1}
 </style>
 </head>
 <body>
@@ -175,7 +188,13 @@
     <div class="r">
       <a class="back" href="index.html">← 返回首页</a>
       <a class="back" href="solution-overview.html">解决方案总览</a>
-      <button type="button" id="langbtn" aria-label="Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:transparent;border:0;padding:5px 7px;font-weight:600;letter-spacing:.12em;letter-spacing:.03em;cursor:pointer">EN</button>
+      <div class="langsel" id="langsel">
+        <button type="button" id="langbtn" aria-haspopup="listbox" aria-expanded="false" aria-label="切换语言 / Switch language" style="font-family:inherit;font-size:13px;color:var(--dim);background:transparent;border:0;padding:5px 7px;font-weight:600;letter-spacing:.03em;cursor:pointer;transition:color .2s"><svg class="gl" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"/></svg><span id="langlab">中文</span><svg class="cav" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="langmenu" id="langmenu" role="listbox">
+          <button type="button" class="langopt" data-lang="zh" role="option">中文<svg class="ck" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+          <button type="button" class="langopt" data-lang="en" role="option">English<svg class="ck" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+        </div>
+      </div>
       <a class="back cta" href="#contact">联系我</a>
     </div>
   </div>
@@ -342,14 +361,18 @@
   function apply(lang){var en=lang==='en';
     picked.forEach(function(el){el.innerHTML=en?T[el.getAttribute('data-zh')]:el.getAttribute('data-zh');});
     document.documentElement.lang=en?'en':'zh';
-    var btn=document.getElementById('langbtn');if(btn)btn.textContent=en?'中文':'EN';
+    var lab=document.getElementById('langlab');if(lab)lab.textContent=en?'English':'中文';
+    document.querySelectorAll('.langopt').forEach(function(o){o.classList.toggle('on',o.getAttribute('data-lang')===lang);});
     try{localStorage.setItem('site_lang',lang);}catch(e){}
   }
   var q=(location.search.match(/[?&]lang=(en|zh)/)||[])[1];
   var saved=null;try{saved=localStorage.getItem('site_lang');}catch(e){}
   apply(q||saved||'zh');
-  var b=document.getElementById('langbtn');
-  if(b)b.addEventListener('click',function(){apply(document.documentElement.lang==='en'?'zh':'en');});
+  var sel=document.getElementById('langsel'),b=document.getElementById('langbtn');
+  if(b)b.addEventListener('click',function(e){e.stopPropagation();var o=sel.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+  document.querySelectorAll('.langopt').forEach(function(o){o.addEventListener('click',function(e){e.stopPropagation();apply(o.getAttribute('data-lang'));sel.classList.remove('open');b.setAttribute('aria-expanded','false');});});
+  document.addEventListener('click',function(){if(sel)sel.classList.remove('open');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&sel){sel.classList.remove('open');b.setAttribute('aria-expanded','false');}});
 })();
 </script>
 <script src="fallback.js"></script>
