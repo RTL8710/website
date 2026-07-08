@@ -79,9 +79,10 @@ export async function fetchMyDevices(userRowId) {
 function normalizeDevice(d) {
   let info = {};
   try { info = d.deviceGeneralInformation ? JSON.parse(d.deviceGeneralInformation) : {}; } catch (_) {}
+  const s = String(d.deviceConnectStatus == null ? '' : d.deviceConnectStatus).toLowerCase();
   return {
     id: d.id,
-    online: d.deviceConnectStatus === 'online' ? 1 : 0,
+    online: (s === 'online' || s === 'true' || s === '1') ? 1 : 0,
     connectStatus: d.deviceConnectStatus || 'offline',
     picture: d.devicePicture || '',
     ownerUserId: d.ownerUserId || '',
