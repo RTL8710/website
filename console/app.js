@@ -33,17 +33,18 @@ function shell(...body) { return mount(app, topbar(), h('div', { class: 'wrap' }
 
 // ── 登录 ─────────────────────────────────────────────────────────────────────
 function viewLogin() {
-  const email = h('input', { type: 'email', placeholder: 'you@example.com', autocomplete: 'username' });
+  const username = h('input', { type: 'text', placeholder: '用户名', autocomplete: 'username',
+    autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false' });
   const pass = h('input', { type: 'password', placeholder: '••••••••', autocomplete: 'current-password' });
   const err = h('div', { class: 'err' });
   const btn = h('button', { class: 'gbtn primary', style: { width: '100%', marginTop: '22px', height: '46px' } }, '登录');
   async function submit(ev) {
     ev && ev.preventDefault();
     err.classList.remove('show');
-    if (!email.value || !pass.value) { err.textContent = '请输入邮箱和密码'; err.classList.add('show'); return; }
+    if (!username.value || !pass.value) { err.textContent = '请输入用户名和密码'; err.classList.add('show'); return; }
     btn.disabled = true; btn.textContent = '登录中…';
     try {
-      state.session = await signIn(email.value.trim(), pass.value);
+      state.session = await signIn(username.value.trim(), pass.value);
       state.devices = null;
       go('#/devices');
     } catch (e) {
@@ -53,17 +54,17 @@ function viewLogin() {
   }
   const form = h('form', { class: 'glass card-lg', onsubmit: submit },
     h('h1', { class: 'title' }, '登录'),
-    h('div', { class: 'sub' }, '用你的设备账号登录,管理名下设备'),
-    h('div', { class: 'field' }, h('label', {}, '邮箱'), email),
+    h('div', { class: 'sub' }, '用你的设备账号(用户名)登录,管理名下设备'),
+    h('div', { class: 'field' }, h('label', {}, '用户名'), username),
     h('div', { class: 'field' }, h('label', {}, '密码'), pass),
     err, btn,
   );
   mount(app, h('div', { class: 'center' }, form));
-  email.focus();
+  username.focus();
 }
 function mapAuthError(e) {
   const m = (e && e.message) || '';
-  if (/UserNotFound|Incorrect username or password|NotAuthorized/i.test(m)) return '邮箱或密码不正确';
+  if (/UserNotFound|does not exist|Incorrect username or password|NotAuthorized/i.test(m)) return '用户名或密码不正确';
   if (/UserNotConfirmed/i.test(m)) return '账号未验证,请先在 App 内完成验证';
   if (/Network|Failed to fetch/i.test(m)) return '网络错误,请重试';
   return m || '登录失败';

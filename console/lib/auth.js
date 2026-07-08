@@ -18,12 +18,12 @@ async function pool() {
   return _pool;
 }
 
-// 登录(USER_SRP_AUTH)。成功后解析出 User 行(含 User.id)。
-export async function signIn(email, password) {
+// 登录(USER_SRP_AUTH,账号为用户名)。成功后解析出 User 行(含 User.id)。
+export async function signIn(username, password) {
   const C = await cognito();
   const p = await pool();
-  const user = new C.CognitoUser({ Username: email, Pool: p });
-  const details = new C.AuthenticationDetails({ Username: email, Password: password });
+  const user = new C.CognitoUser({ Username: username, Pool: p });
+  const details = new C.AuthenticationDetails({ Username: username, Password: password });
   const session = await new Promise((resolve, reject) => {
     user.authenticateUser(details, {
       onSuccess: resolve,
@@ -36,7 +36,7 @@ export async function signIn(email, password) {
   const sub = session.getIdToken().payload.sub;
   const userRow = await resolveUserRow(sub);
   if (!userRow) throw new Error('登录成功,但未找到该账号的用户档案(User 表无记录)。');
-  return { sub, email, idToken: _idToken, userRow };
+  return { sub, email: userRow.email || username, account: username, idToken: _idToken, userRow };
 }
 
 // 恢复已有会话(刷新页面 / 免重复登录)
