@@ -143,14 +143,14 @@ function paramsPanel(dev) {
     return b;
   }
   const status = h('span', { class: 'muted', style: { fontSize: '13px' } }, '未连接');
-  const out = h('pre', { class: 'glass', style: { marginTop: '14px', padding: '14px 16px', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-md)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: '420px', overflow: 'auto', fontFamily: 'var(--font-display)' } }, '点「读取设备信息」发起一次 AWS IoT 往返(getDeviceGeneralInfo)。');
+  const out = h('pre', { class: 'glass', style: { marginTop: '14px', padding: '14px 16px', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-md)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: '420px', overflow: 'auto', fontFamily: 'var(--font-display)' } }, '点「读取设备信息」发起一次 AWS IoT 往返(getDeviceGeneralInformationCommand)。');
   const btn = h('button', { class: 'gbtn primary' }, '读取设备信息');
   async function run() {
     btn.disabled = true; status.textContent = '连接 IoT…';
     mount(out, loading('等待设备应答(经 AWS IoT MQTT-over-WSS)…'));
     try {
       const t0 = performance.now();
-      const resp = await iotSend(dev.uuid, 'getDeviceGeneralInfo', {});
+      const resp = await iotSend(dev.uuid, 'getDeviceGeneralInformationCommand', {});
       const ms = Math.round(performance.now() - t0);
       status.textContent = `已连接 · 往返 ${ms}ms`;
       out.textContent = JSON.stringify(resp, null, 2);
