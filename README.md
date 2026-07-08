@@ -68,5 +68,5 @@ curl -fsSL https://raw.githubusercontent.com/RTL8710/website/claude/website-auto
 | 脚本 | 用途 |
 |------|------|
 | `ubuntu-setup.sh` | **一键完整部署**（nginx + 网站 + HTTPS）|
-| `server-install.sh` | 精简版（仅 nginx + 网站，站点跑 8080，无 HTTPS）|
+| `server-install.sh` | 部署/更新：跑 80；**若已有证书则自动配 80→443 HTTPS(不破坏 SSL)**，无证书才纯 HTTP。首次签证书仍用 `ubuntu-setup.sh` |
 | `uninstall.sh` | 卸载 / 重置 |
