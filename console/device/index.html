@@ -10336,7 +10336,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     this._dashPlayer.initialize(document.getElementById('cloudPlaybackVideo'), url, true);
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] error:', e);
-                    this.cloudPlayback.error = (e && (e.code ? (e.code + ': ') : '') + (e.message || e)) || String(e);
+                    const msg = (e && (e.message || e.code)) || String(e);
+                    // 云录像视频存在 KVS 流、保留期很短(实测≈1h);超期后片段被删 → getHLS/DASH 报 No fragments。
+                    // 缩略图存 S3 长期可看,但视频本身不可回放。给用户可读提示而非英文异常。
+                    if (/No fragments found/i.test(msg)) {
+                        this.cloudPlayback.error = '该录像视频已超出云端保留期,片段不可回放(当前云存储仅保留最近约 1 小时的视频;缩略图仍可查看)。';
+                    } else {
+                        this.cloudPlayback.error = (e && (e.code ? (e.code + ': ') : '') + (e.message || e)) || String(e);
+                    }
                 }
             },
             // 拉取云录像列表（镜像 fetchRecords，method=getCloudRecordListCommand）
@@ -10363,9 +10370,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 云控制台模式:参考手机 App,从 AppSync CloudRecord 表拉列表(含 S3 缩略图)
                         const items = await this._gqlListCloudRecords(deviceID, new Date(startTime).toISOString(), new Date(endTime).toISOString());
                         const p2 = (n) => (n < 10 ? '0' : '') + n;
-                        const fmtSec = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+                        // 手机 App 云回放列表显示【原始 UTC 时间】(不转本地)。之前转本地导致 +8h "时间不对"。
+                        const fmtSec = (iso) => { const d = new Date(iso); return `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}`; };
                         this.cloudPlayback.records = items.map((it) => ({
                             RecordIndexInformationDateTime: fmtSec(it.dateTime),
+                            _iso: it.dateTime,   // 原始 UTC ISO,播放时精确构造 KVS 时间窗口(避免本地字符串往返偏移)
                             RecordIndexInformationDuration: parseInt(it.duration, 10) || 30,
                             RecordIndexInformationDescription: /emr/i.test(it.type || '') ? 'EMR' : (it.type || ''),
                             // S3 缩略图禁匿名读 → 用注入凭证预签名(算一次,1h 有效),给 <img> 直接用
@@ -10459,6 +10468,18 @@ document.addEventListener('DOMContentLoaded', function() {
             async playCloudRecord(r) {
                 this.cloudPlayback.selected = r;
                 if (r && r._thumb) this.cloudPlayback.posterThumb = r._thumb;   // 选中段封面作播放器 poster
+                // 云控制台模式:用原始 UTC ISO 精确构造窗口(手机 App 方式:SERVER_TIMESTAMP + [dateTime, +duration])。
+                // KVS server timestamp 与记录 dateTime 可能差几秒,前后各留 15s 容差,避免 No fragments。
+                if (this._injectedCreds() && r && r._iso) {
+                    const startMs = new Date(r._iso).getTime();
+                    if (isNaN(startMs)) { this.cloudPlayback.error = 'Invalid record datetime'; return; }
+                    const durMs = (r.RecordIndexInformationDuration || 30) * 1000;
+                    const PAD = 15000;
+                    this.cloudPlayback.startStr = new Date(startMs - PAD).toISOString();       // 带 Z,playCloudRecording 的 new Date() 按 UTC 解析
+                    this.cloudPlayback.endStr = new Date(startMs + durMs + PAD).toISOString();
+                    await this.playCloudRecording();
+                    return;
+                }
                 // r.RecordIndexInformationDateTime 为设备本地时间 "YYYY-MM-DD HH:MM:SS"
                 const dt = r.RecordIndexInformationDateTime || '';
                 const m = dt.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
@@ -12431,6 +12452,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const result = await response.json();
                     if (result && result.params && result.params.success) {
                         entry.answer = result.params.answer;
+                        // 手机方式:ask 返回带 imageUrl(设备已上传 S3),当场存下 → chatImgSrc 预签名即时显示,
+                        // 不必刷新历史(snap 返回的 image 是设备本地路径,云端不可达)。
+                        if (result.params.imageUrl) entry.imageUrl = result.params.imageUrl;
                         if (result.params.image) entry.image = result.params.image;
                         entry.pending = false;
                     } else {
