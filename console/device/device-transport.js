@@ -26,7 +26,7 @@ window.DeviceTransport = {
     pending: {},             // requestId -> {resolve, reject, timer}
     remoteUuid: (function () { try { return localStorage.getItem('lastDeviceUuid') || ''; } catch (e) { return ''; } })(),
     httpProbeTimeoutMs: 3000,
-    rtmReplyTimeoutMs: 8000,
+    rtmReplyTimeoutMs: 20000,   // 云控制台:慢命令(扫SD卡的录像列表/磁盘用量)可能 >8s,放宽到 20s
 
     _setActive: function (a) {
         if (this.active !== a) {
@@ -369,10 +369,21 @@ window.DeviceTransport = {
         var data = await this.awsIotSend(method, params);
         return { ok: true, status: 200, json: async function () { return data; }, text: async function () { return JSON.stringify(data); } };
     },
-    // 远程链路选择：优先 AWS IoT（有凭证时），否则回退 Agora RTM
+    // 远程链路选择：优先 AWS IoT（有凭证时），否则回退 Agora RTM。
+    // 云控制台构建不含 agora-rtm.js:一旦 RTM 懒加载失败即短路,后续 IoT 失败直接抛错,不再反复回退刷屏。
     remoteResponse: async function (init) {
-        if (this.iotAvailable()) { try { return await this.awsIotResponse(init); } catch (e) { console.warn('[transport] IoT 失败，回退 RTM:', e); } }
-        return await this.rtmResponse(init);
+        if (this.iotAvailable()) {
+            try { return await this.awsIotResponse(init); }
+            catch (e) {
+                if (this._rtmUnavailable) throw e;
+                console.warn('[transport] IoT 失败，回退 RTM:', e);
+            }
+        }
+        try { return await this.rtmResponse(init); }
+        catch (e2) {
+            if (/lazy load failed/.test(String(e2 && e2.message))) this._rtmUnavailable = true;
+            throw e2;
+        }
     }
 };
 // 立即安装拦截器（不依赖 Alpine）；UUID 缓存/徽标接线在 Alpine initTransport() 中补充

@@ -7793,6 +7793,19 @@ document.addEventListener('DOMContentLoaded', function() {
         window.dispatchEvent(new CustomEvent('pagechange', { detail: { pageId } }));
     }
 
+    // 深链:?page=<pageId>(或 sessionStorage._test_page)→ 加载后自动切页(云控制台入口/测试用)。
+    // 用 DOMContentLoaded(load 会被慢资源拖住不触发);延时等 Alpine 初始化完。
+    (function () {
+        var p = null;
+        try { p = new URLSearchParams(location.search).get('page') || sessionStorage.getItem('_test_page'); } catch (e) {}
+        if (!p) return;
+        try { sessionStorage.removeItem('_test_page'); } catch (e) {}
+        // Alpine 初始化完成后切页(不用 timer,headless/慢机都可靠)
+        document.addEventListener('alpine:initialized', function () {
+            try { dashGo(p); } catch (e) { try { showPage(p); } catch (e2) {} }
+        });
+    })();
+
     // Dashboard 卡片点击 → 跳到对应设置页(找到同 pageId 的侧栏 nav 一并高亮)
     function dashGo(pageId) {
         const nav = document.querySelector('.dv-nav-item[onclick*="showPage(\'' + pageId + '\'"]');
@@ -10122,8 +10135,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // 云端回放页：展示用 stream/region（缺失时回退 webrtcInformation）
-                this.cloudPlayback.streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName || '';
-                this.cloudPlayback.region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion || '';
+                {
+                    const inj0 = this._injectedCreds();
+                    if (inj0) { // 云控制台模式:显示真实使用的流名/区域(设备 UUID + 凭证 region)
+                        this.cloudPlayback.streamName = this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid || '';
+                        this.cloudPlayback.region = inj0.region || 'ap-northeast-1';
+                    } else {
+                        this.cloudPlayback.streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName || '';
+                        this.cloudPlayback.region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion || '';
+                    }
+                }
             },
 
             // 云数据(Amplify/AppSync 直连)关键信息：endpoint/api_key/region/auth_mode/direct_enable
@@ -10259,8 +10280,14 @@ document.addEventListener('DOMContentLoaded', function() {
             async playCloudRecording() {
                 this.cloudPlayback.error = '';
                 try {
-                    const streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName;
-                    const region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion;
+                    // 云控制台模式:KVS 流名=设备 UUID、region=注入凭证 region(实测正确:9779…@ap-northeast-1 有片段,
+                    // 设备存的 stream_name/region(000…006@ap-east-1)是过期配置,无片段)。LAN 模式沿用设备配置。
+                    const inj = this._injectedCreds();
+                    const streamName = (inj && (this.remoteDeviceUuid || this.deviceGeneralInformation.deviceUuid))
+                        ? (this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid)
+                        : (this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName);
+                    const region = inj ? (inj.region || 'ap-northeast-1')
+                        : (this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion);
                     if (!streamName) throw new Error('Stream name unavailable');
                     if (!region) throw new Error('Region unavailable');
                     this.cloudPlayback.streamName = streamName;
@@ -10323,9 +10350,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     startTime = fmtLocal(yesterday);
                     endTime = fmtLocal(now);
                 }
-                const deviceID = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                const deviceID = this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
                 this.cloudPlayback.loading = true;
                 try {
+                    if (this._injectedCreds()) {
+                        // 云控制台模式:参考手机 App,从 AppSync CloudRecord 表拉列表(含 S3 缩略图)
+                        const items = await this._gqlListCloudRecords(deviceID, new Date(startTime).toISOString(), new Date(endTime).toISOString());
+                        const p2 = (n) => (n < 10 ? '0' : '') + n;
+                        const fmtSec = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+                        this.cloudPlayback.records = items.map((it) => ({
+                            RecordIndexInformationDateTime: fmtSec(it.dateTime),
+                            RecordIndexInformationDuration: parseInt(it.duration, 10) || 30,
+                            RecordIndexInformationDescription: /emr/i.test(it.type || '') ? 'EMR' : (it.type || ''),
+                            _thumb: it.thumbnailUrl || '',
+                        })).sort((a, b) => String(b.RecordIndexInformationDateTime).localeCompare(String(a.RecordIndexInformationDateTime)));
+                    } else {
                     const response = await fetch('/getDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -10343,6 +10382,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     const result = await response.json();
                     this.cloudPlayback.records = (result && result.params && result.params.records) || [];
+                    }
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] list error:', e);
                     this.cloudPlayback.error = (e && (e.message || e)) || String(e);
@@ -10357,6 +10397,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // 与播放器 poster：按云段起止查本地索引(+60s 余量),取窗口内首张有封面的记录;本地文件已轮删的旧段回退云图标。
             // 仅网页端,不改设备/命令。各记录并行查询,结果写回 r._thumb 后 slice 数组触发重渲染(保留对象引用→selected 高亮不丢)。
             async attachCloudThumbs() {
+                if (this._injectedCreds()) {   // 云控制台模式:缩略图已由 S3 thumbnailUrl 提供,勿再打设备 /download
+                    const withT = (this.cloudPlayback.records || []).filter(r => r._thumb);
+                    this.cloudPlayback.posterThumb = withT.length ? withT[0]._thumb : this.cloudPlayback.posterThumb;
+                    return;
+                }
                 const list = this.cloudPlayback.records || [];
                 if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
                 const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
@@ -10428,6 +10473,28 @@ document.addEventListener('DOMContentLoaded', function() {
             cloudTypeOf(r) {
                 if (r && Number.isFinite(r.RecordIndexInformationType)) return r.RecordIndexInformationType;
                 return (r && r.RecordIndexInformationDescription === 'EMR') ? 2 : 1;
+            },
+            // ── 云控制台注入模式(sessionStorage.iot_creds 在场)辅助 ─────────────────────
+            _injectedCreds() {
+                try { return JSON.parse(sessionStorage.getItem('iot_creds') || 'null'); } catch (e) { return null; }
+            },
+            // 参考手机 App:云录像列表直接查云端 AppSync CloudRecord 表(含 S3 缩略图 thumbnailUrl),
+            // 不再经设备命令 + 本地封面就近匹配(那条路在云端拿不到 /download 文件)。API key 与 App 内一致(公开)。
+            async _gqlListCloudRecords(deviceID, startIso, endIso) {
+                const EP = 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql';
+                const KEY = 'da2-rmzpjwx7lva7zbfviuy2nwzbcy';
+                const Q = 'query L($f:ModelCloudRecordFilterInput,$l:Int,$t:String){ listCloudRecords(filter:$f,limit:$l,nextToken:$t){ items{ dateTime duration type thumbnailUrl expireAt } nextToken } }';
+                let t = null, out = [];
+                do {
+                    const r = await fetch(EP, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': KEY },
+                        body: JSON.stringify({ query: Q, variables: { f: { and: [{ deviceID: { eq: deviceID } }, { dateTime: { between: [startIso, endIso] } }] }, l: 1000, t } }) });
+                    const j = await r.json();
+                    if (j.errors && j.errors.length) throw new Error(j.errors.map(e => e.message).join(';'));
+                    out = out.concat((j.data.listCloudRecords.items) || []);
+                    t = j.data.listCloudRecords.nextToken;
+                } while (t);
+                const now = Date.now();
+                return out.filter(x => !x.expireAt || new Date(x.expireAt).getTime() > now);
             },
             // 把云列表合成时间轴段（云端单 KVS 流 → 单轨；p='cloud' 非空→不被 timelineBlocks 过滤，且映射 CAM0）
             buildCloudTimeline() {
