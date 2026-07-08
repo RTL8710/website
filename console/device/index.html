@@ -2878,7 +2878,7 @@
                                     <div class="dash-thumbs">
                                         <template x-for="t in dashThumbs" :key="t.cam">
                                             <div class="dash-thumb-wrap" onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0">
-                                                <img class="dash-thumb" :src="'/download?filePath=' + t.img" onerror="this.style.opacity=0" alt="camera snapshot">
+                                                <img class="dash-thumb" :src="dlSrc(t.img)" onerror="this.style.opacity=0" alt="camera snapshot">
                                                 <span class="dash-thumb-tag" x-text="'CAM' + (t.cam + 1)"></span>
                                                 <span class="dash-thumb-play"><i class="fa-solid fa-play"></i></span>
                                             </div>
@@ -3277,7 +3277,7 @@
                                                                 <div class="d-flex align-items-center w-100" style="height: 80px; padding: 4px 8px;">
                                                                     <!-- 左侧缩略图（含叠加 badge） -->
                                                                     <div style="position:relative;width:100px;height:70px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2);">
-                                                                        <img :src="'/download?filePath=' + record.RecordIndexInformationImage"
+                                                                        <img :src="dlSrc(record.RecordIndexInformationImage)"
                                                                              style="width:100%;height:100%;object-fit:cover;"
                                                                              onerror="this.style.display='none'">
                                                                         <i class="fa fa-lock" x-show="record.isLocked" style="position:absolute;top:21px;left:4px;font-size:11px;color:#ef4444;drop-shadow(0 0 2px rgba(0,0,0,0.8));"></i>
@@ -3547,7 +3547,7 @@
                                                                 <div class="d-flex align-items-center w-100" style="height: 80px; padding: 4px 8px;">
                                                                     <!-- 左侧缩略图（含叠加 badge） -->
                                                                     <div style="position:relative;width:100px;height:70px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2);">
-                                                                        <img :src="'/download?filePath=' + image.RecordIndexInformationImage"
+                                                                        <img :src="dlSrc(image.RecordIndexInformationImage)"
                                                                              alt="thumbnail"
                                                                              style="width:100%;height:100%;object-fit:cover;"
                                                                              onerror="this.style.display='none'">
@@ -4386,12 +4386,12 @@
                                                             <div class="d-flex justify-content-end mb-1">
                                                                 <div class="card shadow" style="max-width:80%;border-radius:16px;background:var(--accent);">
                                                                     <div class="card-body p-2">
-                                                                        <template x-if="h.image">
-                                                                            <img :src="'/download?filePath=' + h.image" alt="snap"
+                                                                        <template x-if="chatImgSrc(h)">
+                                                                            <img :src="chatImgSrc(h)" alt="snap"
                                                                                  class="img-fluid mb-1"
                                                                                  style="border-radius:10px;cursor:pointer;max-height:180px;"
                                                                                  @load="if (h.pending) scrollAskToBottom()"
-                                                                                 @click="downloadFile(h.image)">
+                                                                                 @click="_injectedCreds() ? window.open(chatImgSrc(h), '_blank') : downloadFile(h.image)">
                                                                         </template>
                                                                         <p class="mb-0" style="color:#fff;font-size:13px;" x-text="h.question"></p>
                                                                         <div style="font-size:9px;color:rgba(255,255,255,0.7);text-align:right;" x-text="h.datetime"></div>
@@ -8702,6 +8702,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 直播视频未连流时的占位缩略图(该路最近一张录像缩略图);连上流后 <video> 有帧自动盖住 poster。
             // ci 为 1-based(remoteView/remoteViewSetting/remoteViewAi 用),对应 dashThumbs 的 cam=ci-1。
             camPoster(ci) {
+                if (this._injectedCreds()) return '';   // 云模式:设备本地封面拿不到,无 poster(x-show 会隐藏)
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
                 return (t && t.img) ? ('/download?filePath=' + t.img) : '';
             },
@@ -10481,6 +10482,49 @@ document.addEventListener('DOMContentLoaded', function() {
             // ── 云控制台注入模式(sessionStorage.iot_creds 在场)辅助 ─────────────────────
             _injectedCreds() {
                 try { return JSON.parse(sessionStorage.getItem('iot_creds') || 'null'); } catch (e) { return null; }
+            },
+            // S3 预签名 GET URL(手机方式:桶禁匿名读,<img> 直接用 S3 链接会 403;
+            // 用注入的临时凭证做 SigV4 query 预签名,<img src> 不受 CORS 限制)。凭证缺失时原样返回。
+            _s3PresignUrl(rawUrl) {
+                const inj = this._injectedCreds();
+                if (!inj || !rawUrl || !/^https:\/\//.test(rawUrl)) return rawUrl || '';
+                try {
+                    const u = new URL(rawUrl);
+                    if (!u.host.includes('amazonaws.com')) return rawUrl;
+                    const C = CryptoJS;
+                    const m = u.host.match(/s3[.-]([a-z0-9-]+)\.amazonaws/);
+                    const region = (m && m[1]) || inj.region || 'ap-northeast-1';
+                    const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, ''), date = amz.slice(0, 8);
+                    const scope = `${date}/${region}/s3/aws4_request`;
+                    const q = [
+                        ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
+                        ['X-Amz-Credential', inj.accessKeyId + '/' + scope],
+                        ['X-Amz-Date', amz],
+                        ['X-Amz-Expires', '3600'],
+                        ['X-Amz-Security-Token', inj.sessionToken],
+                        ['X-Amz-SignedHeaders', 'host'],
+                    ].filter(([, v]) => v);
+                    const qs = q.map(([k, v]) => k + '=' + encodeURIComponent(v).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())).sort().join('&');
+                    const canon = 'GET\n' + u.pathname + '\n' + qs + '\nhost:' + u.host + '\n\nhost\nUNSIGNED-PAYLOAD';
+                    const sts = 'AWS4-HMAC-SHA256\n' + amz + '\n' + scope + '\n' + C.SHA256(canon).toString(C.enc.Hex);
+                    const hm = (msg, key) => C.HmacSHA256(msg, key);
+                    const ks = hm('aws4_request', hm('s3', hm(region, hm(date, 'AWS4' + inj.secretAccessKey))));
+                    const sig = hm(sts, ks).toString(C.enc.Hex);
+                    return u.origin + u.pathname + '?' + qs + '&X-Amz-Signature=' + sig;
+                } catch (e) { return rawUrl; }
+            },
+            // 设备本地文件缩略图:LAN 走 /download;云模式无来源(设备本地文件),返回透明占位、零 404 请求
+            dlSrc(p) {
+                const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+                if (!p || this._injectedCreds()) return BLANK;
+                return '/download?filePath=' + p;
+            },
+            // 聊天 snap 图:云模式用记录的 imageUrl(设备已传 S3)+ 预签名;LAN 模式用设备本地 /download
+            chatImgSrc(h) {
+                if (!h) return '';
+                const url = h.imageUrl || ((h.image || '').startsWith('http') ? h.image : '');
+                if (this._injectedCreds()) return url ? this._s3PresignUrl(url) : '';
+                return h.image ? ('/download?filePath=' + h.image) : (url || '');
             },
             // 懒加载:切入页面(pagechange)时才拉取该页参数,并且每次切入都刷新(点标签=自动获取)。
             // 初始已激活的页(dashboard/深链)立即拉。1.5s 节流防连点重复拉。启动不再全量风暴。
