@@ -52,11 +52,16 @@ export async function connect() {
     if (!creds.accessKeyId) throw new Error('无临时凭证,请重新登录');
     const url = signedUrl(creds);
     const clientId = _webUserId + '_' + Math.random().toString(36).slice(2, 6);
+    console.info('[iot] 连接 WSS…', 'clientId=' + clientId);
     const client = window.mqtt.connect(url, { clientId, keepalive: 60, reconnectPeriod: 0, protocolVersion: 4 });
+    let closed = false;
     await new Promise((resolve, reject) => {
-      const to = setTimeout(() => reject(new Error('IoT 连接超时(WSS 握手失败)')), REPLY_TIMEOUT);
-      client.on('connect', () => { clearTimeout(to); resolve(); });
-      client.on('error', (e) => { clearTimeout(to); reject(e); });
+      const to = setTimeout(() => reject(new Error(closed
+        ? 'AWS IoT 在 CONNECT 后断开(无 CONNACK)——服务器拒绝连接,非权限问题(IAM 已确认允许 iot:Connect)'
+        : 'IoT 连接超时')), REPLY_TIMEOUT);
+      client.on('connect', () => { clearTimeout(to); console.info('[iot] ✅ CONNACK,已连接'); resolve(); });
+      client.on('error', (e) => { clearTimeout(to); console.warn('[iot] error', e && e.message); reject(e); });
+      client.on('close', () => { closed = true; console.warn('[iot] ⚠️ WSS 被关闭(CONNECT 后无 CONNACK 即断)'); });
     });
     const respTopic = `v1/devices/${_webUserId}/rpc/response/+`;
     await new Promise((resolve, reject) => client.subscribe(respTopic, { qos: 1 }, (e) => e ? reject(e) : resolve()));
