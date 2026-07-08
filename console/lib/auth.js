@@ -78,3 +78,14 @@ export async function awsCredentials() {
 }
 
 export function currentIdToken() { return _idToken; }
+
+// 解析出原始临时凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)
+export async function resolvedCreds() {
+  const provider = await awsCredentials();
+  const c = await provider();
+  return {
+    accessKeyId: c.accessKeyId,
+    secretAccessKey: c.secretAccessKey,
+    sessionToken: c.sessionToken || '',
+  };
+}

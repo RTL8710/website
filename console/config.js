@@ -5,7 +5,8 @@ export const REGION = 'ap-northeast-1';
 export const COGNITO = {
   region: REGION,
   userPoolId: 'ap-northeast-1_yy1j7zYoi',
-  userPoolClientId: '2np572gii9kvfsi1kddlid3rmk',
+  // Web 端 App Client(ipcwebsite/src/aws-exports.js 验证过用这个;Flutter 用的是 2np572...)
+  userPoolClientId: 'coot74gda6j2e1q36su73m9rs',
   identityPoolId: 'ap-northeast-1:4f20eecf-8245-44f1-af1d-ce335a359b6a',
 };
 

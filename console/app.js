@@ -2,6 +2,7 @@
 import { signIn, restoreSession, signOut } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
+import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
 import { h, mount, icon, deviceCard, statusChip, loading, emptyState } from './lib/ui.js';
 
 const app = document.getElementById('app');
@@ -69,7 +70,7 @@ function mapAuthError(e) {
   if (/Network|Failed to fetch/i.test(m)) return '网络错误,请重试';
   return m || '登录失败';
 }
-async function doSignOut() { await signOut(); state.session = null; state.devices = null; go('#/login'); }
+async function doSignOut() { iotDisconnect(); await signOut(); state.session = null; state.devices = null; go('#/login'); }
 
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
 async function viewDevices() {
@@ -110,10 +111,11 @@ function viewDevice(id) {
   function renderPanel() {
     destroyHls();
     if (active === 0) mount(panel, cloudPlayback(dev));
+    else if (active === 2) mount(panel, paramsPanel(dev));
     else mount(panel, comingSoon(tabs[active]));
   }
   const header = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 6px' } },
-    h('button', { class: 'gbtn icon', title: '返回', onclick: () => go('#/devices') },
+    h('button', { class: 'gbtn icon', title: '返回', onclick: () => { iotDisconnect(); go('#/devices'); } },
       h('span', { style: { transform: 'rotate(180deg)', display: 'inline-flex' } }, icon('chevron'))),
     h('h1', { class: 'title' }, dev.name),
     statusChip(dev.online === 1),
@@ -130,6 +132,38 @@ function comingSoon(name) {
   box.appendChild(h('div', { class: 'faint' }, `${name} · 即将上线`));
   box.appendChild(h('div', { class: 'faint', style: { fontSize: '12px' } }, '需 AWS 侧开通 KVS / IoT 权限后启用'));
   return box;
+}
+
+// 参数设置(IoT)：先用 getDeviceGeneralInfo 做一次往返,验证 AWS IoT 通道打通
+function paramsPanel(dev) {
+  if (!dev.uuid) {
+    const b = h('div', { class: 'glass empty' });
+    b.appendChild(icon('gear', 44));
+    b.appendChild(h('div', { class: 'faint' }, '该设备缺少 UUID(deviceGeneralInformation.deviceUuid),无法通过 IoT 通信'));
+    return b;
+  }
+  const status = h('span', { class: 'muted', style: { fontSize: '13px' } }, '未连接');
+  const out = h('pre', { class: 'glass', style: { marginTop: '14px', padding: '14px 16px', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-md)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: '420px', overflow: 'auto', fontFamily: 'var(--font-display)' } }, '点「读取设备信息」发起一次 AWS IoT 往返(getDeviceGeneralInfo)。');
+  const btn = h('button', { class: 'gbtn primary' }, '读取设备信息');
+  async function run() {
+    btn.disabled = true; status.textContent = '连接 IoT…';
+    mount(out, loading('等待设备应答(经 AWS IoT MQTT-over-WSS)…'));
+    try {
+      const t0 = performance.now();
+      const resp = await iotSend(dev.uuid, 'getDeviceGeneralInfo', {});
+      const ms = Math.round(performance.now() - t0);
+      status.textContent = `已连接 · 往返 ${ms}ms`;
+      out.textContent = JSON.stringify(resp, null, 2);
+    } catch (e) {
+      status.textContent = '失败';
+      mount(out, errorBox('IoT 往返失败', e));
+    } finally { btn.disabled = false; }
+  }
+  btn.addEventListener('click', run);
+  const bar = h('div', { class: 'glass', style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px' } },
+    icon('gear'), h('span', { style: { fontWeight: 700, fontSize: '14px' } }, '设备参数 · AWS IoT'),
+    h('span', { class: 'meta' }, 'UUID ' + dev.uuid), h('span', { style: { flex: 1 } }), status, btn);
+  return h('div', {}, bar, out);
 }
 
 // 云端回放:日期 → 录像列表(时间轴)→ 点选播放 HLS
