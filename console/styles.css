@@ -1,0 +1,131 @@
+/* 设备管理控制台 — glass 设计(移植 lib/app/design/glass_tokens.dart) */
+:root{
+  /* 背景层 */
+  --bg0:#07090D; --bg1:#0D1117; --bg2:#131A24;
+  /* 玻璃填充 / 描边 */
+  --fill-lo:rgba(255,255,255,.04); --fill-md:rgba(255,255,255,.07); --fill-hi:rgba(255,255,255,.10);
+  --border:rgba(255,255,255,.13); --border-strong:rgba(255,255,255,.20);
+  /* 主色 / 语义 */
+  --accent:#2DD4BF; --accent2:#38BDF8;
+  --success:#34D399; --warn:#FBBF24; --error:#F87171; --info:#60A5FA; --offline:#6B7280;
+  /* 文字 */
+  --text-hi:#F2F5F8; --text-md:#B6BFC9; --text-lo:#7E8794;
+  /* 圆角 / 模糊 / 阴影 / 动效 */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-pill:999px;
+  --blur-card:14px; --blur-panel:20px;
+  --sh-card:0 8px 18px rgba(0,0,0,.40);
+  --sh-glow:0 8px 18px rgba(0,0,0,.40), 0 0 16px -2px rgba(45,212,191,.35);
+  --fast:150ms; --base:260ms; --slow:420ms;
+  --ease:cubic-bezier(.2,0,0,1);
+  --font-display:'Space Grotesk','Noto Sans SC',system-ui,-apple-system,sans-serif;
+  --font-body:'Inter','Noto Sans SC','PingFang SC',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font-body); color:var(--text-hi);
+  background:
+    radial-gradient(900px 520px at 12% -12%, rgba(45,212,191,.12), transparent 60%),
+    radial-gradient(760px 480px at 104% 0%, rgba(56,189,248,.09), transparent 55%),
+    var(--bg0);
+  -webkit-font-smoothing:antialiased; font-feature-settings:'tnum','cv02','cv03';
+  min-height:100vh;
+}
+a{color:var(--accent);text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.mono,.num{font-family:var(--font-display);font-feature-settings:'tnum'}
+.disp{font-family:var(--font-display)}
+
+/* 玻璃卡 (glassCard: 渐变 + 高光描边 + radius + 阴影) */
+.glass{
+  position:relative; border-radius:var(--r-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+  border:1px solid var(--border); box-shadow:var(--sh-card);
+  -webkit-backdrop-filter:blur(var(--blur-card)); backdrop-filter:blur(var(--blur-card));
+}
+.glass.glow{border-color:rgba(45,212,191,.40); box-shadow:var(--sh-glow)}
+
+/* 圆形 GlassButton */
+.gbtn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:40px;padding:0 16px;border-radius:var(--r-pill);cursor:pointer;
+  font-family:inherit;font-size:14px;font-weight:600;color:var(--text-hi);
+  background:rgba(255,255,255,.06);border:1px solid var(--border-strong);
+  transition:transform var(--fast) var(--ease), background var(--fast), border-color var(--fast);
+}
+.gbtn:hover{background:rgba(255,255,255,.10)}
+.gbtn:active{transform:scale(.96)}
+.gbtn.primary{color:#04211d;background:linear-gradient(180deg,#7fe6d9,var(--accent));border:none;font-weight:700}
+.gbtn.primary:hover{filter:brightness(1.06)}
+.gbtn.icon{width:40px;height:40px;padding:0}
+.gbtn:disabled{opacity:.5;cursor:not-allowed}
+
+/* chips / 状态灯 */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:var(--r-pill)}
+.chip.count{background:rgba(45,212,191,.10);color:var(--accent);border-radius:11px}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.stat-online .dot{background:var(--success);box-shadow:0 0 8px var(--success)}
+.stat-online{background:rgba(52,211,153,.12);color:#7ee3bf;border:1px solid rgba(52,211,153,.28)}
+.stat-offline .dot{background:var(--offline)}
+.stat-offline{background:rgba(107,114,128,.14);color:#9aa4b2;border:1px solid rgba(107,114,128,.3)}
+.meta{display:inline-block;font-size:11px;color:var(--accent);background:rgba(45,212,191,.08);border-radius:4px;padding:2px 7px;margin:2px 4px 0 0}
+
+/* 布局 */
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(16px,4vw,28px)}
+.topbar{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:rgba(7,9,13,.72);border-bottom:1px solid var(--border)}
+.topbar .in{max-width:1120px;margin:0 auto;padding:12px clamp(16px,4vw,28px);display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px;color:#fff}
+.brand .b{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(45,212,191,.15),0 0 12px var(--accent)}
+.spacer{flex:1}
+.muted{color:var(--text-md)} .faint{color:var(--text-lo)}
+
+/* 设备网格 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:24px 0}
+.devcard{overflow:hidden;cursor:pointer;transition:transform var(--base) var(--ease),border-color var(--base)}
+.devcard:hover{transform:translateY(-3px);border-color:rgba(45,212,191,.35)}
+.devcard .thumb{height:150px;background:
+  radial-gradient(340px 160px at 30% 20%, rgba(45,212,191,.22), transparent 60%),
+  linear-gradient(135deg,#0f1a24,#0a0f16);position:relative;display:flex;align-items:flex-end;padding:12px}
+.devcard .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9}
+.devcard .thumb .badge{position:absolute;top:12px;left:12px;z-index:2}
+.devcard .body{padding:14px 16px}
+.devcard .name{font-weight:700;font-size:16px;color:#fff}
+.devcard .metaline{margin-top:9px}
+
+/* 表单 / 登录 */
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card-lg{width:100%;max-width:400px;padding:28px 26px}
+.field{margin-top:16px}
+.field label{display:block;font-size:12.5px;color:var(--text-md);margin-bottom:6px;font-weight:600}
+.field input{width:100%;height:44px;padding:0 14px;border-radius:var(--r-sm);color:var(--text-hi);
+  background:rgba(5,7,14,.5);border:1px solid var(--border);font-family:inherit;font-size:14px;outline:none;transition:border-color var(--fast)}
+.field input:focus{border-color:var(--accent)}
+.err{margin-top:14px;font-size:13px;color:#fca5a5;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:var(--r-sm);padding:10px 12px;display:none}
+.err.show{display:block}
+h1.title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-spacing:-.02em}
+.sub{color:var(--text-md);font-size:13.5px;margin-top:4px}
+
+/* 时间轴录像列表 */
+.rec-list{display:flex;flex-direction:column;gap:0;padding:6px 0}
+.rec{display:flex;gap:14px;align-items:stretch;padding:2px 0 2px 4px;position:relative}
+.rec .rail{width:24px;flex:none;position:relative;display:flex;justify-content:center}
+.rec .rail::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:rgba(45,212,191,.25)}
+.rec .node{width:14px;height:14px;border-radius:50%;background:var(--bg1);border:2px solid rgba(45,212,191,.5);margin-top:16px;z-index:1;transition:all var(--fast)}
+.rec.on .node{width:22px;height:22px;border-color:var(--accent);background:rgba(45,212,191,.2);margin-top:12px;display:flex;align-items:center;justify-content:center}
+.rec .time{width:56px;flex:none;text-align:right;font-size:8px;padding-top:16px;color:var(--text-md);font-family:var(--font-display)}
+.rec .end{flex:1;margin:8px 0;padding:10px 12px;border-radius:12px;border:1px solid var(--border);cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),var(--bg2));transition:all var(--fast)}
+.rec.on .end{background:linear-gradient(180deg,rgba(45,212,191,.20),rgba(45,212,191,.06));border-color:rgba(45,212,191,.4)}
+
+/* 视频区 */
+.player{aspect-ratio:16/9;background:#000;border-radius:var(--r-md);overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+.player video{width:100%;height:100%;object-fit:contain;background:#000}
+.player .ph{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--text-lo)}
+
+/* 空态 / 加载 */
+.empty{display:flex;flex-direction:column;align-items:center;gap:14px;padding:64px 0;color:var(--text-lo)}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(45,212,191,.25);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.reveal{opacity:0;transform:translateY(8px);animation:reveal var(--base) var(--ease) forwards}
+@keyframes reveal{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
