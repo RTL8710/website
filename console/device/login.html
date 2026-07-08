@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>/* 防主题闪烁:渲染前先按已存主题设 data-theme(dark=无属性,回落 :root) */(function(){try{var t=localStorage.getItem('dv_theme');if(t&&t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pageTitle">Device — Login</title>
+    <link href="css/all.min.css" rel="stylesheet">
+    <!-- 移除外网 Google Fonts：局域网设备无外网时该 render-blocking 请求会卡到超时(login 秒开变 3s)。
+         CJK 改用系统字体回退,不依赖外网。 -->
+    <!-- 登录走 RTM（外网）：加载 RTM SDK + 与 index.html 共用的传输单例（拦截 /api/auth，HTTP 优先回退 RTM） -->
+    <script src="agora-rtm.js"></script>
+    <script src="device-transport.js"></script>
+    <style>
+        /* ───────── Design tokens · 深靖蓝 + 青色科技感 ───────── */
+        :root {
+            --bg-base:    #0B1220;
+            --bg-panel:   #0E1626;
+            --bg-card:    #131C2E;
+            --bg-card2:   #1A2438;
+            --border:     #1E2A44;
+            --border-soft:rgba(255,255,255,0.06);
+            --accent:     #22D3EE;
+            --accent2:    #38BDF8;
+            --accent-deep:#0E7490;
+            --success:    #34D399;
+            --warn:       #FBBF24;
+            --danger:     #F87171;
+            --text:       #E5EDF7;
+            --text2:      #8A9BB4;
+            --text3:      #5B6B85;
+            --radius:     16px;
+            --radius-sm:  10px;
+            --on-accent:  #04222B;                  /* 强调色上的文字 */
+            --ring:       rgba(34,211,238,0.14);    /* 输入聚焦环 */
+            --glow1:      rgba(34,211,238,0.10);     /* hero 光晕 1 */
+            --glow2:      rgba(56,189,248,0.08);     /* hero 光晕 2 */
+            --grid:       rgba(34,211,238,0.045);    /* hero 网格线 */
+            --hero-fade:  #0E1A2E;                   /* hero 渐变顶 */
+            --accent-soft:   rgba(34,211,238,0.10);  /* 功能图标底 */
+            --accent-soft-bd:rgba(34,211,238,0.18);  /* 功能图标边 */
+            --accent-glow:   rgba(34,211,238,0.35);  /* 徽标/按钮光晕 */
+            --font: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+                    'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+        }
+
+        /* ── 亮色主题(data-theme=light,与 index 同机制;青色强调保持不变) ── */
+        [data-theme="light"] {
+            --bg-base:   #EEF2F7;
+            --bg-panel:  #FFFFFF;
+            --bg-card:   #F1F5F9;
+            --bg-card2:  #E6ECF3;
+            --border:    #D5DEEA;
+            --text:      #0F1B2D;
+            --text2:     #47566B;
+            --text3:     #8A99AE;
+        }
+        [data-theme="light"] .login-hero {
+            background:
+                radial-gradient(900px 600px at 78% -10%, rgba(34,211,238,0.14), transparent 60%),
+                radial-gradient(700px 500px at -10% 110%, rgba(56,189,248,0.10), transparent 55%),
+                linear-gradient(160deg, #E8F0F8 0%, #F4F8FC 62%);
+        }
+        [data-theme="light"] .login-hero::before {
+            background-image:
+                linear-gradient(rgba(14,116,144,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,116,144,0.06) 1px, transparent 1px);
+        }
+        [data-theme="light"] .hero-title {
+            background: linear-gradient(120deg, #0F1B2D 0%, #0E7490 55%, #06B6D4 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        [data-theme="light"] .lang-btn { background: rgba(255,255,255,0.85); }
+
+        /* ── 赛博霓虹紫 ── */
+        [data-theme="cyber"] {
+            --bg-base:#0A0612; --bg-panel:#120A1F; --bg-card:#170D29; --bg-card2:#221435;
+            --border:#2A1B45; --accent:#E94FE0; --accent2:#A855F7; --accent-deep:#7E22CE;
+            --success:#34D399; --warn:#FBBF24; --danger:#FB7185;
+            --text:#F0E6FF; --text2:#B9A8D6; --text3:#6E5C8A;
+            --on-accent:#1A0322; --ring:rgba(233,79,224,0.18);
+            --glow1:rgba(233,79,224,0.14); --glow2:rgba(168,85,247,0.12); --grid:rgba(233,79,224,0.05);
+            --hero-fade:#190B2B; --accent-soft:rgba(233,79,224,0.12); --accent-soft-bd:rgba(233,79,224,0.22);
+            --accent-glow:rgba(233,79,224,0.45);
+        }
+        /* ── 工业琥珀橙 ── */
+        [data-theme="amber"] {
+            --bg-base:#0D0D0F; --bg-panel:#16140F; --bg-card:#1A1815; --bg-card2:#26221A;
+            --border:#2E2A1F; --accent:#FFB020; --accent2:#FF7A00; --accent-deep:#B45309;
+            --success:#84CC16; --warn:#FFB020; --danger:#EF4444;
+            --text:#F5EEE0; --text2:#B8AE98; --text3:#756B57;
+            --on-accent:#1A1400; --ring:rgba(255,176,32,0.18);
+            --glow1:rgba(255,176,32,0.12); --glow2:rgba(255,122,0,0.10); --grid:rgba(255,176,32,0.05);
+            --hero-fade:#1C190F; --accent-soft:rgba(255,176,32,0.10); --accent-soft-bd:rgba(255,176,32,0.20);
+            --accent-glow:rgba(255,176,32,0.40);
+        }
+        /* ── 终端极客绿 ── */
+        [data-theme="matrix"] {
+            --bg-base:#06100A; --bg-panel:#0A180F; --bg-card:#0B1A12; --bg-card2:#112A1C;
+            --border:#143826; --accent:#22E584; --accent2:#00FFA3; --accent-deep:#15803D;
+            --success:#22E584; --warn:#E5D922; --danger:#FF5C5C;
+            --text:#C8FFE0; --text2:#79B399; --text3:#4A7A60;
+            --on-accent:#00190E; --ring:rgba(34,229,132,0.16);
+            --glow1:rgba(34,229,132,0.12); --glow2:rgba(0,255,163,0.08); --grid:rgba(34,229,132,0.05);
+            --hero-fade:#0A2014; --accent-soft:rgba(34,229,132,0.10); --accent-soft-bd:rgba(34,229,132,0.20);
+            --accent-glow:rgba(34,229,132,0.38);
+        }
+        /* ── 纯黑 OLED 护眼 ── */
+        [data-theme="oled"] {
+            --bg-base:#000000; --bg-panel:#070707; --bg-card:#0A0A0A; --bg-card2:#141414;
+            --border:#1C1C1C; --accent:#4EA8FF; --accent2:#7CC4FF; --accent-deep:#1D4ED8;
+            --success:#3DD68C; --warn:#FFC542; --danger:#FF6B6B;
+            --text:#D6E4F5; --text2:#8A93A3; --text3:#565E6B;
+            --on-accent:#001124; --ring:rgba(78,168,255,0.16);
+            --glow1:rgba(78,168,255,0.10); --glow2:rgba(124,196,255,0.06); --grid:rgba(78,168,255,0.04);
+            --hero-fade:#060A12; --accent-soft:rgba(78,168,255,0.10); --accent-soft-bd:rgba(78,168,255,0.20);
+            --accent-glow:rgba(78,168,255,0.32);
+        }
+        /* ── 大海:深海蓝底 + 碧波松石绿 ── */
+        [data-theme="ocean"] {
+            --bg-base:#04141F; --bg-panel:#062330; --bg-card:#08303E; --bg-card2:#0E4252;
+            --border:#114452; --accent:#2DD4BF; --accent2:#38BDF8; --accent-deep:#0F766E;
+            --success:#34D399; --warn:#FBBF24; --danger:#FB7185;
+            --text:#DBF4F2; --text2:#82AEB6; --text3:#4A6B73;
+            --on-accent:#022620; --ring:rgba(45,212,191,0.16);
+            --glow1:rgba(45,212,191,0.13); --glow2:rgba(56,189,248,0.10); --grid:rgba(45,212,191,0.05);
+            --hero-fade:#06303C; --accent-soft:rgba(45,212,191,0.10); --accent-soft-bd:rgba(45,212,191,0.20);
+            --accent-glow:rgba(45,212,191,0.40);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; }
+        body {
+            font-family: var(--font);
+            background: var(--bg-base);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ───────── 双栏壳层 ───────── */
+        .login-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── 左侧品牌/能力 Hero ── */
+        .login-hero {
+            position: relative;
+            flex: 1.15;
+            overflow: hidden;
+            padding: 56px 64px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background:
+                radial-gradient(900px 600px at 78% -10%, var(--glow1), transparent 60%),
+                radial-gradient(700px 500px at -10% 110%, var(--glow2), transparent 55%),
+                linear-gradient(160deg, var(--hero-fade) 0%, var(--bg-base) 62%);
+        }
+        /* 网格底纹 */
+        .login-hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: radial-gradient(circle at 60% 40%, #000 30%, transparent 85%);
+            pointer-events: none;
+        }
+        .hero-top, .hero-mid, .hero-bottom { position: relative; z-index: 1; }
+
+        .brand-row { display: flex; align-items: center; gap: 14px; }
+        .brand-badge {
+            width: 48px; height: 48px; border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: var(--on-accent);
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            box-shadow: 0 0 26px var(--accent-glow);
+        }
+        .brand-name { font-size: 20px; font-weight: 800; letter-spacing: .4px; }
+        .brand-sub  { font-size: 11.5px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; }
+
+        .hero-title {
+            font-size: 40px; line-height: 1.18; font-weight: 800; letter-spacing: -.5px;
+            max-width: 9.5em;
+            background: linear-gradient(120deg, #FFFFFF 0%, #BBE9F5 55%, var(--accent) 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .hero-tagline { margin-top: 16px; font-size: 15px; color: var(--text2); max-width: 26em; line-height: 1.6; }
+
+        .feature-list { margin-top: 30px; display: grid; gap: 14px; }
+        .feature-item { display: flex; align-items: center; gap: 14px; }
+        .feature-ic {
+            flex: none; width: 38px; height: 38px; border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; color: var(--accent);
+            background: var(--accent-soft);
+            border: 1px solid var(--accent-soft-bd);
+        }
+        .feature-tx { font-size: 14px; color: var(--text); font-weight: 500; }
+
+        .hero-bottom { font-size: 12px; color: var(--text3); letter-spacing: .3px; }
+
+        /* ── 右侧登录区 ── */
+        .login-main {
+            flex: 0.85;
+            display: flex; align-items: center; justify-content: center;
+            padding: 32px 24px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+        }
+        .login-card {
+            width: 100%; max-width: 380px;
+            animation: rise .45s cubic-bezier(.2,.7,.3,1);
+        }
+        @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+        /* 移动端才显示的卡内品牌(桌面端品牌在 Hero) */
+        .card-brand { display: none; align-items: center; gap: 12px; margin-bottom: 26px; }
+        .card-brand .brand-badge { width: 42px; height: 42px; font-size: 17px; border-radius: 11px; }
+
+        .login-title { font-size: 26px; font-weight: 800; letter-spacing: -.3px; }
+        .login-subtitle { margin-top: 7px; font-size: 13.5px; color: var(--text2); margin-bottom: 26px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: var(--text2); margin-bottom: 8px; letter-spacing: .3px;
+        }
+        .input-wrap { position: relative; }
+        .input-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text3); font-size: 13px; pointer-events: none; transition: color .2s;
+        }
+        .form-input {
+            width: 100%; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 12px 14px 12px 40px; font-size: 14px; color: var(--text);
+            outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
+        }
+        .form-input::placeholder { color: var(--text3); }
+        .form-input:focus {
+            border-color: var(--accent); background: var(--bg-card2);
+            box-shadow: 0 0 0 3px var(--ring);
+        }
+        .input-wrap:focus-within .input-icon { color: var(--accent); }
+        .toggle-pw {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            color: var(--text3); font-size: 13px; cursor: pointer;
+            background: none; border: none; padding: 6px; border-radius: 6px; transition: color .15s;
+        }
+        .toggle-pw:hover { color: var(--accent); }
+
+        .btn-login {
+            width: 100%; padding: 13px; margin-top: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: none; border-radius: var(--radius-sm);
+            color: var(--on-accent); font-size: 14.5px; font-weight: 700; letter-spacing: .4px;
+            cursor: pointer; position: relative; overflow: hidden;
+            transition: filter .2s, box-shadow .2s, transform .08s;
+        }
+        .btn-login:hover { filter: brightness(1.06); box-shadow: 0 8px 28px var(--accent-glow); }
+        .btn-login:active { transform: scale(0.985); }
+        .btn-login:disabled { opacity: .65; cursor: not-allowed; filter: none; box-shadow: none; }
+
+        .login-error {
+            display: none; align-items: center; gap: 9px;
+            background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.28);
+            border-radius: var(--radius-sm); padding: 11px 14px;
+            font-size: 13px; color: #FCA5A5; margin-bottom: 16px; animation: shake .3s ease;
+        }
+        .login-error.show { display: flex; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+        .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid var(--ring); border-top-color: var(--on-accent);
+            border-radius: 50%; animation: spin .6s linear infinite;
+            vertical-align: middle; margin-right: 7px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── 语言切换 ── */
+        .lang-switcher { position: fixed; top: 18px; right: 20px; z-index: 30; }
+        #themeSwitcher { right: 132px; }     /* 主题切换器置于语言左侧 */
+        #themeDropdown { min-width: 172px; }
+        .theme-swatch {
+            width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: linear-gradient(135deg, var(--sw1) 0 50%, var(--sw2) 50% 100%);
+        }
+        @media (max-width: 520px) { #themeBtn span { display: none; } #themeSwitcher { right: 84px; } }
+        .lang-btn {
+            display: flex; align-items: center; gap: 7px;
+            background: rgba(19,28,46,0.72); backdrop-filter: blur(8px);
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 8px 13px; color: var(--text2); font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: border-color .2s, color .2s; letter-spacing: .3px;
+        }
+        .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .lang-dropdown {
+            display: none; position: absolute; top: calc(100% + 7px); right: 0;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); overflow: hidden; min-width: 150px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+        }
+        .lang-switcher.open .lang-dropdown { display: block; }
+        .lang-option {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            font-size: 13px; color: var(--text2); cursor: pointer; transition: background .15s, color .15s;
+        }
+        .lang-option:hover { background: var(--bg-card2); color: var(--text); }
+        .lang-option.active { color: var(--accent); }
+        .lang-flag { font-size: 15px; }
+
+        /* ───────── 自适应 ───────── */
+        @media (max-width: 880px) {
+            .login-hero { display: none; }
+            .login-main { flex: 1; border-left: none; background: var(--bg-base); }
+            .card-brand { display: flex; }
+        }
+        @media (max-width: 400px) {
+            .login-main { padding: 24px 16px; }
+            .login-title { font-size: 23px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .login-card, .login-error, .spinner { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Theme switcher -->
+<div class="lang-switcher" id="themeSwitcher">
+    <button class="lang-btn" id="themeBtn" type="button" title="主题 · Theme">
+        <i class="fas fa-palette"></i>
+        <span id="themeLabel">主题</span>
+        <i class="fas fa-chevron-down" style="font-size:10px;opacity:.6"></i>
+    </button>
+    <div class="lang-dropdown" id="themeDropdown">
+        <div class="lang-option" data-theme-val="dark"   style="--sw1:#0B1220;--sw2:#22D3EE;"><span class="theme-swatch"></span>深靖蓝 · 青</div>
+        <div class="lang-option" data-theme-val="light"  style="--sw1:#EEF2F7;--sw2:#0ea5e9;"><span class="theme-swatch"></span>极简浅色</div>
+        <div class="lang-option" data-theme-val="cyber"  style="--sw1:#0A0612;--sw2:#E94FE0;"><span class="theme-swatch"></span>赛博霓虹紫</div>
+        <div class="lang-option" data-theme-val="amber"  style="--sw1:#0D0D0F;--sw2:#FFB020;"><span class="theme-swatch"></span>工业琥珀橙</div>
+        <div class="lang-option" data-theme-val="matrix" style="--sw1:#06100A;--sw2:#22E584;"><span class="theme-swatch"></span>终端极客绿</div>
+        <div class="lang-option" data-theme-val="oled"   style="--sw1:#000000;--sw2:#4EA8FF;"><span class="theme-swatch"></span>纯黑 OLED</div>
+        <div class="lang-option" data-theme-val="ocean"  style="--sw1:#04141F;--sw2:#2DD4BF;"><span class="theme-swatch"></span>大海</div>
+    </div>
+</div>
+
+<!-- Language switcher -->
+<div class="lang-switcher" id="langSwitcher">
+    <button class="lang-btn" id="langBtn" type="button">
+        <i class="fas fa-globe"></i>
+        <span id="langLabel">EN</span>
+        <i class="fas fa-chevron-down" style="font-size:10px;opacity:.6"></i>
+    </button>
+    <div class="lang-dropdown" id="langDropdown">
+        <div class="lang-option active" data-lang="en"><span class="lang-flag">🇺🇸</span>English</div>
+        <div class="lang-option" data-lang="zh"><span class="lang-flag">🇨🇳</span>中文</div>
+        <div class="lang-option" data-lang="ja"><span class="lang-flag">🇯🇵</span>日本語</div>
+        <div class="lang-option" data-lang="de"><span class="lang-flag">🇩🇪</span>Deutsch</div>
+        <div class="lang-option" data-lang="fr"><span class="lang-flag">🇫🇷</span>Français</div>
+        <div class="lang-option" data-lang="es"><span class="lang-flag">🇪🇸</span>Español</div>
+    </div>
+</div>
+
+<div class="login-shell">
+
+    <!-- 左：品牌 + 核心能力 -->
+    <aside class="login-hero">
+        <div class="hero-top brand-row">
+            <div class="brand-badge"><i class="fas fa-robot"></i></div>
+            <div>
+                <div class="brand-name" data-i18n="brandName">Device</div>
+                <div class="brand-sub" data-i18n="brandSub">Device Management</div>
+            </div>
+        </div>
+
+        <div class="hero-mid">
+            <h1 class="hero-title" data-i18n="heroTitle">Robot Control Console</h1>
+            <p class="hero-tagline" data-i18n="heroTagline">Real-time monitoring, playback and full device control in one place.</p>
+
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-ic"><i class="fas fa-video"></i></div>
+                    <div class="feature-tx" data-i18n="featLive">Live A/V monitoring</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-ic"><i class="fas fa-clock-rotate-left"></i></div>
+                    <div class="feature-tx" data-i18n="featPlayback">Recording playback</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-ic"><i class="fas fa-sliders"></i></div>
+                    <div class="feature-tx" data-i18n="featSettings">A/V · Network · IoT settings</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-ic"><i class="fas fa-cloud"></i></div>
+                    <div class="feature-tx" data-i18n="featCloud">Cloud management</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-bottom" data-i18n="heroFoot">Secure device access · LAN &amp; WAN</div>
+    </aside>
+
+    <!-- 右：登录 -->
+    <main class="login-main">
+        <div class="login-card">
+
+            <!-- 移动端品牌(桌面端在 Hero) -->
+            <div class="card-brand">
+                <div class="brand-badge"><i class="fas fa-robot"></i></div>
+                <div>
+                    <div class="brand-name" style="font-size:17px" data-i18n="brandName">Device</div>
+                    <div class="brand-sub" data-i18n="brandSub">Device Management</div>
+                </div>
+            </div>
+
+            <div class="login-title" data-i18n="title">Welcome back</div>
+            <div class="login-subtitle" data-i18n="subtitle">Sign in to access the device dashboard</div>
+
+            <div class="login-error" id="loginError">
+                <i class="fas fa-circle-exclamation"></i>
+                <span id="loginErrorMsg" data-i18n="errorMsg">Invalid username or password.</span>
+            </div>
+
+            <form id="loginForm" onsubmit="doLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="username" data-i18n="labelUser">Username</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user input-icon"></i>
+                        <input class="form-input" type="text" id="username"
+                               data-i18n-placeholder="placeholderUser" placeholder="Enter username"
+                               autocomplete="username" required />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password" data-i18n="labelPass">Password</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input class="form-input" type="password" id="password"
+                               data-i18n-placeholder="placeholderPass" placeholder="Enter password"
+                               autocomplete="current-password" required />
+                        <button type="button" class="toggle-pw" id="togglePw" title="Show/hide password">
+                            <i class="fas fa-eye" id="togglePwIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Device UUID 输入框已移除:外网(WAN)访问时 UUID 由门户 URL(?deviceId=)/缓存自动带入,
+                     无需手填。保留隐藏字段供传输层(remember/提交)沿用,不影响 WAN 流程。 -->
+                <input type="hidden" id="deviceUuid" />
+
+                <button type="submit" class="btn-login" id="loginBtn" data-i18n="btnLogin">Sign In</button>
+            </form>
+
+        </div>
+    </main>
+</div>
+
+<script>
+    /* ── i18n strings ── */
+    const I18N = {
+        en: {
+            pageTitle: 'Device — Login',
+            brandName: 'Device',
+            brandSub: 'Device Management',
+            heroTitle: 'Robot Control Console',
+            heroTagline: 'Real-time monitoring, playback and full device control in one place.',
+            featLive: 'Live A/V monitoring',
+            featPlayback: 'Recording playback',
+            featSettings: 'A/V · Network · IoT settings',
+            featCloud: 'Cloud management',
+            heroFoot: 'Secure device access · LAN & WAN',
+            title: 'Welcome back',
+            subtitle: 'Sign in to access the device dashboard',
+            labelUser: 'Username',
+            labelPass: 'Password',
+            placeholderUser: 'Enter username',
+            placeholderPass: 'Enter password',
+            btnLogin: 'Sign In',
+            btnLoading: 'Signing in…',
+            labelUuid: 'Device UUID (WAN only)',
+            placeholderUuid: 'Fill only when accessing over WAN',
+            errorMsg: 'Invalid username or password. Please try again.'
+        },
+        zh: {
+            pageTitle: '设备 — 登录',
+            brandName: '设备',
+            brandSub: '设备管理',
+            heroTitle: '机器人控制台',
+            heroTagline: '实时监看、录像回放与全量设备管控,尽在一处。',
+            featLive: '音视频实时监看',
+            featPlayback: '录像回放',
+            featSettings: '音视频 · 网络 · IoT 设置',
+            featCloud: '云端管理',
+            heroFoot: '安全设备访问 · 局域网 & 外网',
+            title: '欢迎回来',
+            subtitle: '登录以访问设备管理面板',
+            labelUser: '用户名',
+            labelPass: '密码',
+            placeholderUser: '请输入用户名',
+            placeholderPass: '请输入密码',
+            btnLogin: '登 录',
+            btnLoading: '登录中…',
+            labelUuid: '设备 UUID（仅外网需填）',
+            placeholderUuid: '外网访问时填写设备 UUID',
+            errorMsg: '用户名或密码错误，请重试。'
+        },
+        ja: {
+            pageTitle: 'デバイス — ログイン',
+            brandName: 'デバイス',
+            brandSub: 'デバイス管理',
+            heroTitle: 'ロボット制御コンソール',
+            heroTagline: 'リアルタイム監視・録画再生・デバイス制御をひとつに。',
+            featLive: 'リアルタイム映像監視',
+            featPlayback: '録画再生',
+            featSettings: 'AV · ネットワーク · IoT 設定',
+            featCloud: 'クラウド管理',
+            heroFoot: '安全なデバイスアクセス · LAN & WAN',
+            title: 'おかえりなさい',
+            subtitle: 'デバイス管理画面にサインインしてください',
+            labelUser: 'ユーザー名',
+            labelPass: 'パスワード',
+            placeholderUser: 'ユーザー名を入力',
+            placeholderPass: 'パスワードを入力',
+            btnLogin: 'サインイン',
+            btnLoading: 'サインイン中…',
+            labelUuid: 'デバイス UUID（外部ネットワークのみ）',
+            placeholderUuid: '外部ネットワーク接続時に入力',
+            errorMsg: 'ユーザー名またはパスワードが正しくありません。'
+        },
+        de: {
+            pageTitle: 'Gerät — Anmelden',
+            brandName: 'Gerät',
+            brandSub: 'Geräteverwaltung',
+            heroTitle: 'Roboter-Steuerkonsole',
+            heroTagline: 'Live-Überwachung, Wiedergabe und volle Gerätesteuerung an einem Ort.',
+            featLive: 'Live-AV-Überwachung',
+            featPlayback: 'Aufnahme-Wiedergabe',
+            featSettings: 'AV · Netzwerk · IoT',
+            featCloud: 'Cloud-Verwaltung',
+            heroFoot: 'Sicherer Gerätezugriff · LAN & WAN',
+            title: 'Willkommen zurück',
+            subtitle: 'Melden Sie sich beim Geräte-Dashboard an',
+            labelUser: 'Benutzername',
+            labelPass: 'Passwort',
+            placeholderUser: 'Benutzername eingeben',
+            placeholderPass: 'Passwort eingeben',
+            btnLogin: 'Anmelden',
+            btnLoading: 'Anmelden…',
+            labelUuid: 'Geräte-UUID (nur WAN)',
+            placeholderUuid: 'Nur bei WAN-Zugriff ausfüllen',
+            errorMsg: 'Ungültiger Benutzername oder Passwort. Bitte erneut versuchen.'
+        },
+        fr: {
+            pageTitle: 'Appareil — Connexion',
+            brandName: 'Appareil',
+            brandSub: 'Gestion des appareils',
+            heroTitle: 'Console de contrôle robot',
+            heroTagline: 'Surveillance en direct, lecture et contrôle complet en un seul endroit.',
+            featLive: 'Surveillance AV en direct',
+            featPlayback: 'Lecture des enregistrements',
+            featSettings: 'AV · Réseau · IoT',
+            featCloud: 'Gestion cloud',
+            heroFoot: 'Accès sécurisé · LAN & WAN',
+            title: 'Bon retour',
+            subtitle: 'Connectez-vous au tableau de bord',
+            labelUser: "Nom d'utilisateur",
+            labelPass: 'Mot de passe',
+            placeholderUser: "Entrez le nom d'utilisateur",
+            placeholderPass: 'Entrez le mot de passe',
+            btnLogin: 'Se connecter',
+            btnLoading: 'Connexion…',
+            labelUuid: 'UUID appareil (WAN uniquement)',
+            placeholderUuid: "À remplir uniquement en accès WAN",
+            errorMsg: "Nom d'utilisateur ou mot de passe invalide. Veuillez réessayer."
+        },
+        es: {
+            pageTitle: 'Dispositivo — Iniciar sesión',
+            brandName: 'Dispositivo',
+            brandSub: 'Gestión de dispositivos',
+            heroTitle: 'Consola de control del robot',
+            heroTagline: 'Monitoreo en vivo, reproducción y control total del dispositivo.',
+            featLive: 'Monitoreo AV en vivo',
+            featPlayback: 'Reproducción de grabaciones',
+            featSettings: 'AV · Red · IoT',
+            featCloud: 'Gestión en la nube',
+            heroFoot: 'Acceso seguro · LAN & WAN',
+            title: 'Bienvenido de nuevo',
+            subtitle: 'Inicia sesión para acceder al panel del dispositivo',
+            labelUser: 'Usuario',
+            labelPass: 'Contraseña',
+            placeholderUser: 'Ingresa el usuario',
+            placeholderPass: 'Ingresa la contraseña',
+            btnLogin: 'Iniciar sesión',
+            btnLoading: 'Iniciando…',
+            labelUuid: 'UUID del dispositivo (solo WAN)',
+            placeholderUuid: 'Rellenar solo en acceso WAN',
+            errorMsg: 'Usuario o contraseña incorrectos. Inténtalo de nuevo.'
+        }
+    };
+
+    const LANG_LABELS = { en:'EN', zh:'中文', ja:'日本語', de:'DE', fr:'FR', es:'ES' };
+
+    let currentLang = localStorage.getItem('dv_lang') || 'en';
+
+    function applyLang(lang) {
+        currentLang = lang;
+        localStorage.setItem('dv_lang', lang);
+        const t = I18N[lang];
+
+        document.querySelectorAll('[data-i18n]').forEach(function(el) {
+            const key = el.getAttribute('data-i18n');
+            if (t[key] !== undefined) el.textContent = t[key];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (t[key] !== undefined) el.placeholder = t[key];
+        });
+
+        document.getElementById('langLabel').textContent = LANG_LABELS[lang];
+        document.querySelectorAll('.lang-option').forEach(function(opt) {
+            opt.classList.toggle('active', opt.dataset.lang === lang);
+        });
+        document.documentElement.lang = lang;
+    }
+
+    /* ── Language switcher toggle ── */
+    document.getElementById('langBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.getElementById('langSwitcher').classList.toggle('open');
+    });
+    document.addEventListener('click', function() {
+        document.getElementById('langSwitcher').classList.remove('open');
+    });
+    document.querySelectorAll('.lang-option').forEach(function(opt) {
+        opt.addEventListener('click', function(e) {
+            e.stopPropagation();
+            applyLang(opt.dataset.lang);
+            document.getElementById('langSwitcher').classList.remove('open');
+        });
+    });
+
+    /* ── Toggle password visibility ── */
+    document.getElementById('togglePw').addEventListener('click', function () {
+        const pw = document.getElementById('password');
+        const icon = document.getElementById('togglePwIcon');
+        if (pw.type === 'password') {
+            pw.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            pw.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    });
+
+    /* ── 多主题切换(data-theme on <html>,持久化 dv_theme,与 index 同机制) ── */
+    var THEME_LABELS = { dark:'深靖蓝·青', light:'极简浅色', cyber:'赛博紫', amber:'琥珀橙', matrix:'极客绿', oled:'纯黑', ocean:'大海' };
+    function applyTheme(name) {
+        if (!THEME_LABELS[name]) name = 'dark';
+        if (name === 'dark') document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme', name);
+        try { localStorage.setItem('dv_theme', name); } catch (e) {}
+        var lbl = document.getElementById('themeLabel');
+        if (lbl) lbl.textContent = THEME_LABELS[name];
+        document.querySelectorAll('#themeDropdown .lang-option').forEach(function (opt) {
+            opt.classList.toggle('active', opt.dataset.themeVal === name);
+        });
+    }
+    (function () {
+        var sw = document.getElementById('themeSwitcher');
+        var btn = document.getElementById('themeBtn');
+        if (btn && sw) {
+            btn.addEventListener('click', function (e) { e.stopPropagation(); sw.classList.toggle('open'); });
+            document.addEventListener('click', function () { sw.classList.remove('open'); });
+            document.querySelectorAll('#themeDropdown .lang-option').forEach(function (opt) {
+                opt.addEventListener('click', function (e) {
+                    e.stopPropagation(); applyTheme(opt.dataset.themeVal); sw.classList.remove('open');
+                });
+            });
+        }
+    })();
+
+    function showError(msg) {
+        const el = document.getElementById('loginError');
+        document.getElementById('loginErrorMsg').textContent = msg;
+        el.classList.remove('show');
+        void el.offsetWidth;
+        el.classList.add('show');
+    }
+
+    function setLoading(on) {
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = on;
+        btn.innerHTML = on
+            ? '<span class="spinner"></span>' + I18N[currentLang].btnLoading
+            : I18N[currentLang].btnLogin;
+    }
+
+    async function doLogin(e) {
+        e.preventDefault();
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value;
+        // 外网登录走 RTM 需要设备 UUID（=RTM 目标频道）：填了就持久化，供拦截器回退 RTM 时使用，
+        // 也供登录成功后 index.html 直接拿到 UUID 加载参数。LAN 下 HTTP /api/auth 直通，UUID 仅缓存不影响。
+        const uuid = document.getElementById('deviceUuid').value.trim();
+        if (uuid && window.DeviceTransport) window.DeviceTransport.rememberUuid(uuid);
+        setLoading(true);
+        try {
+            const resp = await fetch('/api/auth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: user, password: pass})
+            });
+            const data = await resp.json();
+            if (data.success) {
+                sessionStorage.setItem('dv_auth', '1');
+                sessionStorage.setItem('dv_user', user);
+                window.location.href = 'index.html';
+            } else {
+                setLoading(false);
+                showError(I18N[currentLang].errorMsg);
+                document.getElementById('password').value = '';
+                document.getElementById('password').focus();
+            }
+        } catch (err) {
+            setLoading(false);
+            showError(I18N[currentLang].errorMsg);
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+        // 应用保存的主题(多主题,与 index 同机制)
+        try { applyTheme(localStorage.getItem('dv_theme') || 'dark'); } catch (e) {}
+        // 多标签页主题同步
+        window.addEventListener('storage', function (e) { if (e.key === 'dv_theme') applyTheme(e.newValue || 'dark'); });
+        // 从管理门户(Cognito 已登录)进入时已置 dv_auth → 跳过设备端独立登录
+        try {
+            if (sessionStorage.getItem('dv_auth')) {
+                window.location.replace('index.html' + window.location.search);
+                return;
+            }
+        } catch (e) {}
+        applyLang(currentLang);
+        // 回填上次使用的设备 UUID（外网登录用）
+        try {
+            const last = localStorage.getItem('lastDeviceUuid') || '';
+            if (last) document.getElementById('deviceUuid').value = last;
+        } catch (e) {}
+        document.getElementById('username').focus();
+    });
+</script>
+</body>
+</html>

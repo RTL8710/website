@@ -1,5 +1,6 @@
 // 控制台入口:路由 + 登录门禁 + 视图
-import { signIn, restoreSession, signOut } from './lib/auth.js';
+import { COGNITO } from './config.js';
+import { signIn, restoreSession, signOut, resolvedCreds } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
@@ -72,6 +73,32 @@ function mapAuthError(e) {
 }
 async function doSignOut() { iotDisconnect(); await signOut(); state.session = null; state.devices = null; go('#/login'); }
 
+// ── 进入设备控制页(复用固件 web UI,注入 Cognito 临时凭证走 AWS IoT + KVS)────────
+const IOT_ENDPOINT = 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com';
+async function enterDevice(dev) {
+  const uuid = dev.uuid || dev.id;
+  if (!/^[0-9a-fA-F-]{36}$/.test(uuid)) { alert('设备 UUID 无效,无法进入控制页'); return; }
+  shell(loading('正在获取安全凭证,进入设备…'));
+  try {
+    const c = await resolvedCreds();
+    // 契约:device-transport.js iotCreds() + index.html resolveKvsCredentials() 都读 sessionStorage['iot_creds']
+    sessionStorage.setItem('iot_creds', JSON.stringify({
+      accessKeyId: c.accessKeyId,
+      secretAccessKey: c.secretAccessKey,
+      sessionToken: c.sessionToken,
+      region: COGNITO.region,
+      endpoint: IOT_ENDPOINT,
+    }));
+    sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
+    sessionStorage.setItem('dv_user', (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || 'user');
+    localStorage.setItem('previewTransport', 'kvs'); // 实时预览走 KVS(不用声网)
+    if (!localStorage.getItem('dv_lang')) localStorage.setItem('dv_lang', 'zh');
+    location.href = 'device/index.html?deviceId=' + encodeURIComponent(uuid);
+  } catch (e) {
+    shell(errorBox('进入设备失败', e));
+  }
+}
+
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
 async function viewDevices() {
   shell(loading('加载设备…'));
@@ -83,7 +110,7 @@ async function viewDevices() {
       h('span', { class: 'chip count' }, `${list.length}`),
     );
     shell(head, list.length
-      ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, (dev) => go('#/device/' + encodeURIComponent(dev.id)))))
+      ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, enterDevice)))
       : emptyState('暂无设备'));
   } catch (e) {
     shell(errorBox('设备加载失败', e));
