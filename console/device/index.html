@@ -849,7 +849,7 @@
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras()"
+                     x-init="initTransport();onPage('home', () => { initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras() })"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
                         <div class="row row-deck">
@@ -1088,7 +1088,7 @@
             </div>
                 <!-- 视频设置页面 -->
                 <div class="page-section " id="video-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('video-settings', () => { initDeviceGeneralInformation();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras() })" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row row-deck mb-2">
@@ -1829,7 +1829,7 @@
 
                 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('ai-detection', () => { initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras() })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                               <div class="row row-deck">
@@ -2241,7 +2241,7 @@
 
                 <!-- 音频设置页面 -->
                 <div class="page-section " id="audio-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initAudioSettings()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('audio-settings', () => { initAudioSettings() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row row-deck mb-2">
@@ -2332,7 +2332,7 @@
 
                 <!-- 录像设置页面 -->
                 <div class="page-section " id="record-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initRecordSettings()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('record-settings', () => { initRecordSettings() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row row-deck ">
@@ -2615,7 +2615,7 @@
                             <div class="container-xl">
                                 <div class="row row-deck ">
                                     <!-- 云端 OTA（AWS IoT Jobs）：当前版本 + 实时进度 + 下发升级（平台3 Orin） -->
-                                    <div class="card shadow mb-3" x-init="initCloudOta()">
+                                    <div class="card shadow mb-3" x-init="onPage('upgrade', () => { initCloudOta() })">
                                         <div class="card-header">
                                             <h3 class="card-title" data-i18n="ot_cloud_title">Cloud OTA (AWS IoT)</h3>
                                         </div>
@@ -2868,7 +2868,7 @@
                     @media (max-width: 991px){#dashboard .dash-hero-viz{display:none}}
                 </style>
                 <div class="page-section active" id="dashboard" x-data="deviceSettings()"
-                     x-init="initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras()">
+                     x-init="onPage('dashboard', () => { initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras() })">
                     <div class="page-wrapper">
                         <div class="page-body">
                             <div class="container-xl">
@@ -3024,7 +3024,7 @@
 
                 <!-- 视频回放页面 -->
                 <div class="page-section" id="video-replay">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="fetchRecords(false); initTimeline()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { fetchRecords(false); initTimeline() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -3367,7 +3367,7 @@
                 </div>
                 <!-- 图片抓拍页面 -->
                 <div class="page-section" id="image-capture">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="fetchImages(false); initTimeline()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('image-capture', () => { fetchImages(false); initTimeline() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -3624,7 +3624,7 @@
                     </div>
                 </div>
                 <!--存储卡信息-->
-                <div class="page-section" id="storage" x-data="deviceSettings()" x-init="initStorageInformation()">
+                <div class="page-section" id="storage" x-data="deviceSettings()" x-init="onPage('storage', () => { initStorageInformation() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="st_title">Storage Information</h3>
@@ -3804,7 +3804,7 @@
                 </div>
                 <!-- 设备状态页面 -->
                 <div class="page-section" id="device-information" x-data="deviceSettings();"
-                     x-init="initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation()">
+                     x-init="onPage('device-information', () => { initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="di_title">Device Information</h3>
@@ -4061,7 +4061,7 @@
 <!--                    </div>-->
                 </div>
                 <!-- device gpt -->
-                <div class="page-section" id="chatgpt-information" x-data="deviceSettings()" x-init="initChatGptInformation()">
+                <div class="page-section" id="chatgpt-information" x-data="deviceSettings()" x-init="onPage('chatgpt-information', () => { initChatGptInformation() })">
 
                     <!-- 服务模式（AWS 中转 / 本地直连）：选标签自动填地址+模型，避免手输出错；对接固件 get/setOpenaiServiceCommand -->
                     <div class="card">
@@ -4266,7 +4266,7 @@
                 </div>
                 <!-- device gpt -->
                 <div class="page-section " id="chatdevice-information">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="loadAskHistory()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('chatdevice-information', () => { loadAskHistory() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -4438,7 +4438,7 @@
                 </div>
                 <!-- provisioning状态页面 -->
                 <div class="page-section" id="provisioning-information" x-data="deviceSettings()"
-                     x-init="initProvisioningServiceInformation()">
+                     x-init="onPage('provisioning-information', () => { initProvisioningServiceInformation() })">
                     <div class="page-body">
                         <div class="container-xl">
                             <div class="row row-deck ">
@@ -4705,7 +4705,7 @@
 
                 </div>
                 <!-- factoryTest -->
-                <div class="page-section" id="factoryTest-information" x-data="deviceSettings()" x-init="initFactoryTestServiceInformation()" >
+                <div class="page-section" id="factoryTest-information" x-data="deviceSettings()" x-init="onPage('factoryTest-information', () => { initFactoryTestServiceInformation() })" >
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h3 class="card-title" data-i18n="ft_setting_title">Factory Test Setting</h3>
@@ -5108,7 +5108,7 @@
 
                 </div>
                 <!-- 设备网络页面 -->
-                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="initNetworkInformation();initRtspServerInformation()">
+                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="onPage('network-information', () => { initNetworkInformation();initRtspServerInformation() })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
                     <div class="card">
                         <div class="card-header">
@@ -5336,7 +5336,7 @@
                 </div>
                 <!-- 设备网络页面 -->
                 <div class="page-section" id="cloud-information" x-data="deviceSettings()"
-                     x-init="initTransport();initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService()">
+                     x-init="initTransport();onPage('cloud-information', () => { initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService() })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
@@ -5748,7 +5748,7 @@
                     </div>
                 </div>
                 <!--云端回放页面：KVS 已归档媒体 (MPEG-DASH) 回放-->
-                <div class="page-section" id="cloud-playback" x-data="deviceSettings()" x-init="getCloudRecordService(); initCloudPlayback()">
+                <div class="page-section" id="cloud-playback" x-data="deviceSettings()" x-init="onPage('cloud-playback', () => { getCloudRecordService(); initCloudPlayback() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="cp_title">Cloud Playback</h3>
@@ -5853,8 +5853,8 @@
                     </div>
                 </div>
                 <!--日志页面-->
-                <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="initLogInformation()" >-->
-                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="initLogInformation();initWatchdogInformation()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
+                <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation() })" >-->
+                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation();initWatchdogInformation() })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
                     <!-- 摄像头健康状态 -->
                     <div class="card shadow mb-3">
                         <div class="card-header d-flex align-items-center justify-content-between">
@@ -6105,7 +6105,7 @@
 
                 </div>
                 <!--调试页面-->
-                <!--        <div  class="page-section" id="log" x-data="deviceSettings()" x-init="fetchLogs()" >-->
+                <!--        <div  class="page-section" id="log" x-data="deviceSettings()" x-init="onPage('log', () => { fetchLogs() })" >-->
                 <div class="page-section" id="log" x-data="deviceSettings()">
                     <div class="card shadow">
                         <!--                <div class="card-header" style="padding: 10px;">-->
@@ -6314,7 +6314,7 @@
                 </div>
 
                 <div class="page-section" id="about" x-data="deviceSettings()"
-                     x-init="initWebserverService();QrGeneratorDeviceUuid()">
+                     x-init="onPage('about', () => { initWebserverService();QrGeneratorDeviceUuid() })">
                     <div class="card shadow">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="ab_webserver">Webserver </h3>
@@ -6466,7 +6466,7 @@
 
                 </div>
 
-                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="loadUsers()">
+                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="onPage('user-management', () => { loadUsers() })">
                     <div class="card shadow">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="ab_user_mgmt">User Management</h3>
@@ -8762,7 +8762,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     };
                     // 一次查询搞定:录像总数 + 每路缩略图。设备无独立 snapshot 类型(recordType=3 返回 0),
                     // 直接用【每路最新录像的封面】当快照/占位图——省掉一次多余查询,更快。
-                    const p = await query(0, CAP);
+                    // 云控制台模式:封面走 /download 拿不到,只查 1 条拿 totalRecords/时长,省掉大查询提速启动。
+                    const p = await query(0, this._injectedCreds() ? 1 : CAP);
                     const recs = p.records || [];
                     // 真实总数用后端 totalRecords 字段(不再靠数组长度近似显示 N+)
                     this.dashRecordCount = (typeof p.totalRecords === 'number') ? p.totalRecords : recs.length;
@@ -8781,7 +8782,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             async kvsBuildViewer(channelName, targetElId, localElId = null, camIndex = 0, retryCount = 0) {
                 const clientId = this.generateClientId();
-                const region = this.webrtcInformation.awsDefaultRegion;
+                // 云控制台模式:region 用注入凭证的(实测信道在 ap-northeast-1;设备存的 awsDefaultRegion=ap-east-1
+                // 是过期配置,会 403——IAM 策略只授权 ap-northeast-1 的 channel/*/*)。LAN 模式沿用设备配置。
+                const _inj = this._injectedCreds();
+                const region = (_inj && _inj.region) || this.webrtcInformation.awsDefaultRegion;
                 const { accessKeyId, secretAccessKey, sessionToken } = await this.resolveKvsCredentials();
                 // camIndex/_retry 记录在 viewer 上，供信令失败时定位该路并有限次重连
                 const viewer = { channelName, targetElId, localElId, camIndex, _retry: retryCount, signalingClient: null, peerConnection: null, remoteStream: null, localStream: null };
@@ -10477,6 +10481,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // ── 云控制台注入模式(sessionStorage.iot_creds 在场)辅助 ─────────────────────
             _injectedCreds() {
                 try { return JSON.parse(sessionStorage.getItem('iot_creds') || 'null'); } catch (e) { return null; }
+            },
+            // 懒加载:切入页面(pagechange)时才拉取该页参数,并且每次切入都刷新(点标签=自动获取)。
+            // 初始已激活的页(dashboard/深链)立即拉。1.5s 节流防连点重复拉。启动不再全量风暴。
+            onPage(pageId, fn) {
+                const self = this;
+                const run = () => {
+                    const now = Date.now();
+                    self._pageRunAt = self._pageRunAt || {};
+                    if (self._pageRunAt[pageId] && now - self._pageRunAt[pageId] < 1500) return;
+                    self._pageRunAt[pageId] = now;
+                    try { fn(); } catch (e) { console.warn('[onPage]', pageId, e); }
+                };
+                window.addEventListener('pagechange', (ev) => { if (ev && ev.detail && ev.detail.pageId === pageId) run(); });
+                const active = document.querySelector('.page-section.active');
+                if (active && active.id === pageId) run();
             },
             // 参考手机 App:云录像列表直接查云端 AppSync CloudRecord 表(含 S3 缩略图 thumbnailUrl),
             // 不再经设备命令 + 本地封面就近匹配(那条路在云端拿不到 /download 文件)。API key 与 App 内一致(公开)。
