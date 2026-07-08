@@ -1,8 +1,8 @@
 name: Deploy to Server
 
 # push 后自动把最新静态文件同步到自建服务器 anhaishi.cn。
-# 只做 git 拉取(git reset --hard),**绝不重配 nginx / 不碰 SSL**——
-# 这是与被删的旧版(会跑 setup.sh 把 nginx 重置成 8080、冲掉 443+SSL)的关键区别。
+# 只做 git 拉取(fetch + reset --hard),**绝不重配 nginx / 不碰 SSL**——
+# 与被删的旧版(会跑 setup.sh 把 nginx 重置成 8080、冲掉 443+SSL)的关键区别。
 # 复用仓库已有的 Actions Secrets:SERVER_HOST / SERVER_PORT / SERVER_USER / SERVER_PASSWORD。
 
 on:
@@ -28,7 +28,7 @@ jobs:
         run: |
           if [ -z "$HOST" ] || [ -z "$PW" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "⏭️  未配置 SERVER_HOST / SERVER_PASSWORD,跳过服务器同步(在仓库 Settings→Secrets 配好后自动生效)。"
+            echo "⏭️  未配置 SERVER_HOST / SERVER_PASSWORD,跳过。"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -41,17 +41,14 @@ jobs:
         if: steps.cfg.outputs.configured == 'true'
         env:
           SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          PORT: ${{ secrets.SERVER_PORT }}
+          USER: ${{ secrets.SERVER_USER }}
+          HOST: ${{ secrets.SERVER_HOST }}
           BR: ${{ github.ref_name }}
+          WEBROOT: /var/www/website
         run: |
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            -o PubkeyAuthentication=no -o PreferredAuthentications=password \
-            -p "${{ secrets.SERVER_PORT }}" \
-            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
-            "git config --global --add safe.directory /var/www/website && \
-             git -C /var/www/website fetch --depth 1 origin '$BR' && \
-             git -C /var/www/website reset --hard 'origin/$BR' && \
-             echo '已同步到' \$(git -C /var/www/website rev-parse --short HEAD)"
+          REMOTE="git config --global --add safe.directory $WEBROOT && git -C $WEBROOT fetch --depth 1 origin $BR && git -C $WEBROOT reset --hard origin/$BR && git -C $WEBROOT rev-parse --short HEAD"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password -o ConnectTimeout=30 -p "$PORT" "$USER@$HOST" "$REMOTE"
 
       - name: 完成
         if: steps.cfg.outputs.configured == 'true'
