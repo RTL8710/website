@@ -70,4 +70,3 @@ curl -fsSL https://raw.githubusercontent.com/RTL8710/website/claude/website-auto
 | `ubuntu-setup.sh` | **一键完整部署**（nginx + 网站 + HTTPS）|
 | `server-install.sh` | 精简版（仅 nginx + 网站，站点跑 8080，无 HTTPS）|
 | `uninstall.sh` | 卸载 / 重置 |
-| `setup.sh` | GitHub Actions 远程部署时调用的初始化脚本 |
