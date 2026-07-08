@@ -12293,7 +12293,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 r => (r.RecordIndexInformationVideoSize || 0) >= PLAYABLE_MIN_BYTES);
                             this.selectedRecord = playable || this.records[0];
                             // 仅在尚无播放内容时自动播放最新一条（避免覆盖时间轴点击的多路同步选择）
-                            if (this.syncRecords.length === 0) {
+                            // 云模式:不自动播(WebRTC 回放较重,等用户点选;本地 <video> 也拉不到设备文件)
+                            if (this.syncRecords.length === 0 && !this._injectedCreds()) {
                                 this.syncRecords = [this.selectedRecord];
                             }
                         }
@@ -12484,7 +12485,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!record) return;
                 this.selectedRecord = record;
                 const active = (typeof window !== 'undefined' && window.DeviceTransport) ? window.DeviceTransport.active : 'http';
-                const cloud = active && active !== 'http';
+                // 云控制台注入凭证时必走云路径(active 在首个远程命令成功前仍是 'http',不能只看它)
+                const cloud = (active && active !== 'http') || !!this._injectedCreds();
                 if (cloud) {
                     this.syncRecords = [];            // 隐藏本地 <video>（云端无法 HTTP 直拉 MP4）
                     // 按所选 P2P 传输分发：KVS → <uuid>-playback 通道；否则 Agora 回放连接(uid 1226)
@@ -12672,7 +12674,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const seg = this.findSegmentAt(secs, cam);
                     if (seg) list.push(this.segToRecord(seg));   // 从段开头播，不 seek（避免分片 MP4 的 range 请求风暴）
                 }
-                if (list.length) { this.syncRecords = list; this.selectedRecord = list[0]; }
+                if (list.length) {
+                    if (this._injectedCreds()) { this.playRecord(list[0]); }   // 云模式:WebRTC 单路回放(设备一次 demux 一路)
+                    else { this.syncRecords = list; this.selectedRecord = list[0]; }
+                }
             },
             // 找指定摄像头在 secs 时刻所在/最近的段
             findSegmentAt(secs, camera) {
@@ -12779,8 +12784,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             playTimelineSegment(e) {
                 const rec = this.segToRecord(e);
-                this.syncRecords = [rec];
-                this.selectedRecord = rec;
+                this.playRecord(rec);   // 统一走 playRecord:云模式自动转 WebRTC(KVS)回放,LAN 原生播放
             },
             // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
             onTimelineClickImage(event, camera) {
