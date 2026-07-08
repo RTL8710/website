@@ -30,6 +30,7 @@ else
 fi
 
 echo "==> [2/6] 拉取网站到 $WEBROOT (分支 $BRANCH)"
+git config --global --add safe.directory "$WEBROOT" 2>/dev/null || true
 if [ -d "$WEBROOT/.git" ]; then
   git -C "$WEBROOT" fetch --depth 1 origin "$BRANCH"
   git -C "$WEBROOT" reset --hard "origin/$BRANCH"
