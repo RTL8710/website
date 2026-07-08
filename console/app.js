@@ -4,6 +4,7 @@ import { signIn, restoreSession, signOut, resolvedCreds } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
+import { presignS3Get } from './lib/sigv4.js';
 import { h, mount, icon, deviceCard, statusChip, loading, emptyState } from './lib/ui.js';
 
 const app = document.getElementById('app');
@@ -105,6 +106,17 @@ async function viewDevices() {
   try {
     if (!state.devices) state.devices = await fetchMyDevices(state.session.userRow.id);
     const list = state.devices;
+    // 设备封面(devicePicture)是 S3 直链、桶禁匿名读 → 用登录换来的临时凭证预签名(手机同款)。
+    // 只对未签名过的 S3 URL 签一次,缓存到 dev._picSigned。签名失败/无凭证时保持原图(onerror 兜底隐藏)。
+    try {
+      const creds = await resolvedCreds();
+      for (const d of list) {
+        if (d.picture && /amazonaws\.com/.test(d.picture) && !d._picSigned) {
+          d.picture = presignS3Get(creds, d.picture);
+          d._picSigned = true;
+        }
+      }
+    } catch (e) { console.warn('[devices] 封面预签名跳过:', e && e.message); }
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
       h('h1', { class: 'title' }, '我的设备'),
       h('span', { class: 'chip count' }, `${list.length}`),
