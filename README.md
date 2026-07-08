@@ -1,41 +1,73 @@
-# 云边端 AI 视觉 · 解决方案网站
+# 深圳市安海视科技 · 云边端 AI 视觉官网
 
-一个「设备端 AI 视觉解决方案」的展示网站，通过 **GitHub Actions** 自动部署到 **GitHub Pages**。
+设备端 AI 视觉解决方案的展示官网（8 页，中英双语，纯静态）。**一套代码，两处部署。**
 
-## 🌐 在线访问
+## 🌐 在线地址
 
-**https://rtl8710.github.io/website/**
+- **自有域名（服务器）**：https://www.anhaishi.cn
+- **GitHub Pages（海外备份）**：https://rtl8710.github.io/website/
 
-## 📄 页面结构
+## 📄 页面
 
-| 页面 | 说明 |
+| 文件 | 说明 |
 |------|------|
-| `index.html` | 门户首页：品牌总览 + 四份资料导航 + 场景视频 + 联系方式 |
-| `solution-overview.html` | 解决方案总览（统领页：架构 / 差异化 / 证据 / 白标 / 合作）|
-| `cases.html` | 实战案例（记录仪 / 机器人 / 摄像头 / 眼镜 四个真实客户）|
-| `product-manual.html` | 产品操作说明书（Web 控制台 22 页逐页讲解）|
-| `cooperation-invite.html` | 合作邀约（面向品牌商 / 工厂）|
-| `app-manual.html` / `product-onepager.html` | 占位页（原始素材待补齐）|
-| `scenario-stories.mp4` | 场景演示视频 |
-| `fallback.js` | 图片兜底脚本（截图素材缺失时显示同色系占位图）|
+| `index.html` | 门户首页 |
+| `solution-overview.html` | 解决方案总览 |
+| `cases.html` | 实战案例 |
+| `product-manual.html` / `app-manual.html` | Web / App 说明书 |
+| `product-onepager.html` | 产品一页纸 |
+| `cooperation-invite.html` | 合作邀约 |
+| `demos.html` | 功能演示（19 段真机录屏）|
+| `marketing/` | 素材源：截图 / 视频 / PDF / 文案 |
 
-## 🖼️ 关于图片素材
+---
 
-首页与占位页不依赖任何外部图片，可独立显示。
-`solution-overview.html` / `product-manual.html` 等页面引用了真机截图，目录为：
+## 🚀 部署方式一：GitHub Pages（自动）
 
+推送到分支后，`.github/workflows/deploy.yml` 自动构建并发布。零维护。
+
+## 🚀 部署方式二：自有 Ubuntu 服务器（一键脚本）
+
+全新服务器一条命令，完成 nginx 安装 → 拉取网站 → HTTPS 证书 → 自动续期：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RTL8710/website/claude/website-auto-deploy-vnolom/deploy/ubuntu-setup.sh \
+  | DOMAIN=anhaishi.cn EMAIL=493148469@qq.com bash
 ```
-app-shots/     # App 截图
-manual-shots/  # Web 控制台逐页截图
-footage/       # VLM 对话等画面
-wechat-qr.jpeg # 微信二维码
+
+**跑之前确保 3 个前置：**
+1. **DNS**：`anhaishi.cn` 和 `www.anhaishi.cn` 的 A 记录都指向服务器公网 IP
+2. **云安全组**放行 **80 + 443** 端口
+3. **80 端口空闲**（若 x-ui 等占用 80，先把它改到别的端口）
+
+脚本特性：幂等可重跑、只对已解析的域名签证书、内置 ACME 续期防坑、certbot 自动续期（证书永不过期）。
+
+### 更新网站内容（服务器）
+```bash
+cd /var/www/website && git pull
 ```
 
-这些素材文件**尚未上传**，页面会自动显示同色系占位图（见 `fallback.js`）。
-把真实图片按上述目录放进仓库并推送，即可自动替换为真图，无需改动页面。
+### 卸载 / 重置（服务器）
+```bash
+curl -fsSL https://raw.githubusercontent.com/RTL8710/website/claude/website-auto-deploy-vnolom/deploy/uninstall.sh \
+  | DOMAIN=anhaishi.cn bash
+```
+只清本站的 nginx 配置 / 证书 / 文件，不动 nginx 本体和 x-ui 等其它服务。
 
-## 🚀 自动部署
+---
 
-推送到 `main` 分支后，`.github/workflows/deploy.yml` 会自动构建并部署到 GitHub Pages。
+## 🔐 HTTPS 证书
 
-> ⚠️ **首次需手动开启一次 Pages**：仓库 Settings → Pages → Source 选择 **GitHub Actions**，之后全自动。
+- Let's Encrypt，有效期 90 天
+- `certbot.timer` 已配置**自动续期**（到期前 30 天自动续），无需手动
+- 手动验证续期：`certbot renew --dry-run`
+- ⚠️ 续期需 **80 端口可访问**；配 nginx 时别用整站 `return 301` 把 `/.well-known/acme-challenge/` 挡掉（`ubuntu-setup.sh` 已处理好）
+
+## 🗂️ deploy/ 目录
+
+| 脚本 | 用途 |
+|------|------|
+| `ubuntu-setup.sh` | **一键完整部署**（nginx + 网站 + HTTPS）|
+| `server-install.sh` | 精简版（仅 nginx + 网站，站点跑 8080，无 HTTPS）|
+| `uninstall.sh` | 卸载 / 重置 |
+| `setup.sh` | GitHub Actions 远程部署时调用的初始化脚本 |
