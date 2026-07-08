@@ -6,7 +6,8 @@ import { resolveUserRow } from './graphql.js';
 let _cognito = null;   // amazon-cognito-identity-js 模块
 let _pool = null;
 let _idToken = null;   // 当前会话 idToken
-let _credsProvider = null;
+let _identityId = null;
+let _creds = null;     // { accessKeyId, secretAccessKey, sessionToken, expiration(ms) }
 
 async function cognito() {
   if (!_cognito) _cognito = await import(DEPS.cognitoIdentityJs);
@@ -32,7 +33,7 @@ export async function signIn(username, password) {
     });
   });
   _idToken = session.getIdToken().getJwtToken();
-  _credsProvider = null;
+  _creds = null; _identityId = null;
   const sub = session.getIdToken().payload.sub;
   const userRow = await resolveUserRow(sub);
   if (!userRow) throw new Error('登录成功,但未找到该账号的用户档案(User 表无记录)。');
@@ -50,7 +51,7 @@ export async function restoreSession() {
   });
   if (!session) return null;
   _idToken = session.getIdToken().getJwtToken();
-  _credsProvider = null;
+  _creds = null; _identityId = null;
   const sub = session.getIdToken().payload.sub;
   const userRow = await resolveUserRow(sub).catch(() => null);
   return { sub, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };
@@ -60,32 +61,40 @@ export async function signOut() {
   const p = await pool();
   const user = p.getCurrentUser();
   if (user) user.signOut();
-  _idToken = null; _credsProvider = null;
-}
-
-// 临时 AWS 凭证(SigV4 用于 KVS)。缓存 provider,SDK 会自动刷新。
-export async function awsCredentials() {
-  if (!_idToken) throw new Error('未登录,无法获取 AWS 凭证。');
-  if (!_credsProvider) {
-    const { fromCognitoIdentityPool } = await import(DEPS.credentialProviders);
-    _credsProvider = fromCognitoIdentityPool({
-      identityPoolId: COGNITO.identityPoolId,
-      clientConfig: { region: COGNITO.region },
-      logins: { [`cognito-idp.${COGNITO.region}.amazonaws.com/${COGNITO.userPoolId}`]: _idToken },
-    });
-  }
-  return _credsProvider;
+  _idToken = null; _creds = null; _identityId = null;
 }
 
 export function currentIdToken() { return _idToken; }
 
-// 解析出原始临时凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)
+// Cognito Identity 服务裸调用(AWS JSON 1.1,登录 token 授权,无需签名)
+async function cognitoIdentityCall(target, body) {
+  const r = await fetch(`https://cognito-identity.${COGNITO.region}.amazonaws.com/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityService.${target}` },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (j.__type || j.message) throw new Error(j.message || j.__type);
+  return j;
+}
+
+// 临时 AWS 凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)。
+// 裸 GetId + GetCredentialsForIdentity —— 不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。缓存到过期前。
 export async function resolvedCreds() {
-  const provider = await awsCredentials();
-  const c = await provider();
-  return {
-    accessKeyId: c.accessKeyId,
-    secretAccessKey: c.secretAccessKey,
-    sessionToken: c.sessionToken || '',
+  if (!_idToken) throw new Error('未登录,无法获取 AWS 凭证。');
+  if (_creds && _creds.expiration && Date.now() < _creds.expiration - 60000) return _creds;
+  const logins = { [`cognito-idp.${COGNITO.region}.amazonaws.com/${COGNITO.userPoolId}`]: _idToken };
+  if (!_identityId) {
+    const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
+    _identityId = id.IdentityId;
+  }
+  const cr = await cognitoIdentityCall('GetCredentialsForIdentity', { IdentityId: _identityId, Logins: logins });
+  const c = cr.Credentials;
+  _creds = {
+    accessKeyId: c.AccessKeyId,
+    secretAccessKey: c.SecretKey,
+    sessionToken: c.SessionToken || '',
+    expiration: c.Expiration ? c.Expiration * 1000 : (Date.now() + 3000000),
   };
+  return _creds;
 }

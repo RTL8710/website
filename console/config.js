@@ -30,10 +30,8 @@ export function resolveKvsRegion(regionCode) {
   }
 }
 
-// 依赖 CDN(ESM,固定版本)。如需离线/免 CDN,可把这些下载到 vendor/ 再改成本地路径。
+// 登录用 amazon-cognito-identity-js(esm.sh)。凭证/KVS/IoT 全走裸 fetch + CryptoJS SigV4,
+// 不用 @aws-sdk(其 esm.sh 版会拉 node fs,在浏览器抛 "[unenv] fs.readFile not implemented")。
 export const DEPS = {
   cognitoIdentityJs: 'https://esm.sh/amazon-cognito-identity-js@6.3.12',
-  credentialProviders: 'https://esm.sh/@aws-sdk/credential-providers@3.658.1',
-  kinesisVideo: 'https://esm.sh/@aws-sdk/client-kinesis-video@3.658.1',
-  kinesisVideoArchivedMedia: 'https://esm.sh/@aws-sdk/client-kinesis-video-archived-media@3.658.1',
 };
