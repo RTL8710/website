@@ -309,7 +309,7 @@
   var picked=[];
   Array.prototype.forEach.call(document.querySelectorAll('div,span,p,h1,h2,h3,h4,small,button,a'),function(el){
     if(el.getAttribute('data-zh')!=null)return;
-    var html=el.innerHTML.trim();
+    var html=el.innerHTML.trim().replace(/&amp;/g,'&');
     if(Object.prototype.hasOwnProperty.call(T,html)){el.setAttribute('data-zh',html);picked.push(el);}
   });
   function apply(lang){var en=lang==='en';
