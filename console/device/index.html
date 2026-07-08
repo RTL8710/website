@@ -24,7 +24,6 @@
         }
     </script>
     <script src="tabler.min.js"></script>
-    <script src="alpine.min.js" defer></script>
     <script src="sdk.min.js"></script>
     <script src="media.min.js"></script>
     <script src="crypto.js" defer></script>
@@ -36,6 +35,9 @@
          首屏不再同步背 ~3MB。 -->
     <!-- MQTT-over-WSS（浏览器）：AWS IoT 远程控制传输用；凭证由宿主页注入 window.__IOT_CREDS -->
     <script src="mqtt.min.js" defer></script>
+    <!-- Alpine 必须排在 crypto.js/mqtt.min.js 之后:defer 按顺序执行,若 Alpine 先启动,
+         x-init 里经 IoT 的参数拉取会在库未就绪时发出而失败(云控制台踩过的坑) -->
+    <script src="alpine.min.js" defer></script>
     <!-- IoT 凭证引导：门户进入控制页前把凭证写进 sessionStorage('iot_creds')；设备 LAN 下无此项→不走 IoT -->
     <script>
         (function () {
@@ -8962,7 +8964,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 await this.initMediaServerInformation();
 
-                const deviceUuid = this.deviceGeneralInformation.deviceUuid;
+                const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
                 try {
                     // N 路：cam0=<uuid>，cam i = <uuid>-cam2/-cam3/…；各自渲染到 camElId(i)
                     this.kvsExtraViewers = [];
@@ -9022,7 +9024,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!record || !record.RecordIndexInformationPath) return;
                 try {
                     await this.initDeviceGeneralInformation();
-                    const deviceUuid = this.deviceGeneralInformation.deviceUuid;
+                    const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
                     const paths = this.siblingPaths(record);                 // 同段各路 MP4
                     // 逐路建回放 viewer：-playback/-playback2/-playback3 → remotePlaybackView/2/3
                     this.kvsPlaybackViewers = [];
@@ -10143,7 +10145,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     const inj0 = this._injectedCreds();
                     if (inj0) { // 云控制台模式:显示真实使用的流名/区域(设备 UUID + 凭证 region)
-                        this.cloudPlayback.streamName = this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid || '';
+                        this.cloudPlayback.streamName = this._uuid() || '';
                         this.cloudPlayback.region = inj0.region || 'ap-northeast-1';
                     } else {
                         this.cloudPlayback.streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName || '';
@@ -10288,8 +10290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 云控制台模式:KVS 流名=设备 UUID、region=注入凭证 region(实测正确:9779…@ap-northeast-1 有片段,
                     // 设备存的 stream_name/region(000…006@ap-east-1)是过期配置,无片段)。LAN 模式沿用设备配置。
                     const inj = this._injectedCreds();
-                    const streamName = (inj && (this.remoteDeviceUuid || this.deviceGeneralInformation.deviceUuid))
-                        ? (this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid)
+                    const streamName = (inj && this._uuid()) ? this._uuid()
                         : (this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName);
                     const region = inj ? (inj.region || 'ap-northeast-1')
                         : (this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion);
@@ -10355,7 +10356,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     startTime = fmtLocal(yesterday);
                     endTime = fmtLocal(now);
                 }
-                const deviceID = this.deviceGeneralInformation.deviceUuid || this.remoteDeviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                const deviceID = this._uuid() || this.webrtcInformation.awsIotCoreThingName || '';
                 this.cloudPlayback.loading = true;
                 try {
                     if (this._injectedCreds()) {
@@ -10367,7 +10368,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             RecordIndexInformationDateTime: fmtSec(it.dateTime),
                             RecordIndexInformationDuration: parseInt(it.duration, 10) || 30,
                             RecordIndexInformationDescription: /emr/i.test(it.type || '') ? 'EMR' : (it.type || ''),
-                            _thumb: it.thumbnailUrl || '',
+                            // S3 缩略图禁匿名读 → 用注入凭证预签名(算一次,1h 有效),给 <img> 直接用
+                            _thumb: it.thumbnailUrl ? this._s3PresignUrl(it.thumbnailUrl) : '',
+                            _thumbRaw: it.thumbnailUrl || '',
                         })).sort((a, b) => String(b.RecordIndexInformationDateTime).localeCompare(String(a.RecordIndexInformationDateTime)));
                     } else {
                     const response = await fetch('/getDeviceCommand', {
@@ -10482,6 +10485,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // ── 云控制台注入模式(sessionStorage.iot_creds 在场)辅助 ─────────────────────
             _injectedCreds() {
                 try { return JSON.parse(sessionStorage.getItem('iot_creds') || 'null'); } catch (e) { return null; }
+            },
+            // 可靠取设备 UUID:各 section 是独立 Alpine 实例,deviceGeneralInformation.deviceUuid 的
+            // 初始占位是 'default'(truthy!),不能直接当 fallback 链头。36 位校验,依次:
+            // 本实例已拉到的真值 → URL/localStorage 的 lastDeviceUuid。
+            _uuid() {
+                const ok = (v) => v && /^[0-9a-fA-F-]{36}$/.test(v);
+                const g = this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid;
+                if (ok(g)) return g;
+                if (ok(this.remoteDeviceUuid)) return this.remoteDeviceUuid;
+                try { const v = localStorage.getItem('lastDeviceUuid'); if (ok(v)) return v; } catch (e) {}
+                return '';
             },
             // S3 预签名 GET URL(手机方式:桶禁匿名读,<img> 直接用 S3 链接会 403;
             // 用注入的临时凭证做 SigV4 query 预签名,<img src> 不受 CORS 限制)。凭证缺失时原样返回。

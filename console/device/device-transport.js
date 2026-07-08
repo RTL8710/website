@@ -273,9 +273,12 @@ window.DeviceTransport = {
             endpoint: c.endpoint || 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com'
         };
     },
+    // 只看凭证——mqtt.min.js/crypto.js 是 defer 脚本,页面最初几百 ms Alpine x-init 已开跑,
+    // 此时库还没执行完;若把库就绪算进可用性,早期命令会全部错落到 RTM(库也没有)而失败。
+    // 库的就绪改由 ensureIot 里等待(见下)。
     iotAvailable: function () {
         var c = this.iotCreds();
-        return !!(window.mqtt && typeof CryptoJS !== 'undefined' && c.accessKeyId && c.secretAccessKey);
+        return !!(c.accessKeyId && c.secretAccessKey);
     },
     // SigV4 presign：生成连 AWS IoT 的 wss URL（service=iotdevicegateway, canonicalUri=/mqtt）
     _iotSignedUrl: function (creds) {
@@ -309,7 +312,12 @@ window.DeviceTransport = {
             for (var i = 0; i < 100 && !this.iotReady; i++) await new Promise(function (r) { setTimeout(r, 100); });
             if (this.iotReady) return;
         }
-        if (!this.iotAvailable()) throw new Error('AWS IoT 不可用（缺 mqtt.js/CryptoJS 或 window.__IOT_CREDS）');
+        if (!this.iotAvailable()) throw new Error('AWS IoT 不可用（缺 window.__IOT_CREDS）');
+        // 等 defer 的 mqtt.min.js / crypto.js 执行完(页面最初几百 ms 内 x-init 可能先到,最多等 8s)
+        for (var j = 0; j < 80 && (!window.mqtt || typeof CryptoJS === 'undefined'); j++) {
+            await new Promise(function (r) { setTimeout(r, 100); });
+        }
+        if (!window.mqtt || typeof CryptoJS === 'undefined') throw new Error('AWS IoT 不可用（mqtt.js/CryptoJS 加载失败）');
         this.iotLoggingIn = true;
         var self = this;
         try {
