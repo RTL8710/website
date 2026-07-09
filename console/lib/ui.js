@@ -4,7 +4,7 @@ export function h(tag, props = {}, ...kids) {
   for (const [k, v] of Object.entries(props || {})) {
     if (k === 'class') e.className = v;
     else if (k === 'html') e.innerHTML = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k === 'style' && typeof v === 'object') { for (const sk in v) { if (sk[0] === '-' && sk[1] === '-') e.style.setProperty(sk, v[sk]); else e.style[sk] = v[sk]; } }
     else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2).toLowerCase(), v);
     else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? '' : v);
   }

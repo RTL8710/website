@@ -245,8 +245,8 @@ h1.title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-s
 .sw-opt:hover{background:var(--bg2);color:var(--text-hi)}
 .sw-opt.active{color:var(--accent)}
 .sw-flag{font-size:15px}
-.sw-inline{position:static !important}
-.sw-inline .sw-dropdown{right:0}
+.sw-inline{position:relative !important}
+.sw-inline .sw-dropdown{right:0;left:auto}
 .sw-swatch{width:15px;height:15px;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.18);
   background:linear-gradient(135deg,var(--sw1) 0 50%,var(--sw2) 50% 100%)}
 @media (max-width:520px){#swTheme{right:calc(16px + 72px)}#swLang{right:16px}.sw-btn span{display:none}}
