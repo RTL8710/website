@@ -36,8 +36,10 @@ export function icon(name, size = 18) {
 }
 
 export function statusChip(online) {
+  const tt = (typeof window !== 'undefined' && window.__t) ? window.__t : null;
+  const label = online ? (tt ? tt('online') : '在线') : (tt ? tt('offline') : '离线');
   return h('span', { class: `chip ${online ? 'stat-online' : 'stat-offline'}` },
-    h('span', { class: 'dot' }), online ? '在线' : '离线');
+    h('span', { class: 'dot' }), label);
 }
 
 export function deviceCard(dev, onOpen) {

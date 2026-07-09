@@ -10,6 +10,77 @@ import { h, mount, icon, deviceCard, statusChip, loading, emptyState } from './l
 const app = document.getElementById('app');
 const state = { session: null, devices: null, current: null };
 
+// ── i18n + 主题(与设备端共用 localStorage dv_lang/dv_theme,进设备页同步)──────────
+const I18N = {
+  en: { brandName:'Device Console', brandSub:'Device Management', heroTitle:'Robot Device Cloud Console', heroTagline:'Real-time monitoring, playback and full device control in one place.', featLive:'Live A/V monitoring', featPlayback:'Recording playback', featSettings:'A/V · Network · IoT settings', featCloud:'Cloud management', heroFoot:'Secure device access · LAN & WAN', title:'Welcome back', subtitle:'Sign in with your device account (username) to manage your devices', labelUser:'Username', labelPass:'Password', phUser:'Enter username', phPass:'Enter password', btnLogin:'Sign In', btnLoading:'Signing in…', errEmpty:'Please enter username and password', consoleTitle:'Device Console', myDevices:'My Devices', online:'Online', offline:'Offline', loadingDevices:'Loading devices…', noDevices:'No devices', enteringDevice:'Getting credentials, entering device…' },
+  zh: { brandName:'设备管理控制台', brandSub:'Device Management', heroTitle:'机器人设备云控制台', heroTagline:'实时监控、录像回放与设备全参数控制,一站式云端管理。', featLive:'实时音视频监控', featPlayback:'录像回放', featSettings:'音视频 · 网络 · IoT 设置', featCloud:'云端管理', heroFoot:'安全设备接入 · 局域网 & 广域网', title:'欢迎回来', subtitle:'用你的设备账号(用户名)登录,管理名下设备', labelUser:'用户名', labelPass:'密码', phUser:'请输入用户名', phPass:'请输入密码', btnLogin:'登录', btnLoading:'登录中…', errEmpty:'请输入用户名和密码', consoleTitle:'设备管理控制台', myDevices:'我的设备', online:'在线', offline:'离线', loadingDevices:'加载设备…', noDevices:'暂无设备', enteringDevice:'正在获取安全凭证,进入设备…' },
+  ja: { brandName:'デバイス管理', brandSub:'Device Management', heroTitle:'ロボット制御コンソール', heroTagline:'リアルタイム監視・録画再生・デバイス制御をひとつに。', featLive:'リアルタイム映像監視', featPlayback:'録画再生', featSettings:'AV · ネットワーク · IoT 設定', featCloud:'クラウド管理', heroFoot:'安全なデバイスアクセス · LAN & WAN', title:'おかえりなさい', subtitle:'ユーザー名でサインインしてデバイスを管理', labelUser:'ユーザー名', labelPass:'パスワード', phUser:'ユーザー名を入力', phPass:'パスワードを入力', btnLogin:'サインイン', btnLoading:'サインイン中…', errEmpty:'ユーザー名とパスワードを入力してください', consoleTitle:'デバイス管理', myDevices:'マイデバイス', online:'オンライン', offline:'オフライン', loadingDevices:'読み込み中…', noDevices:'デバイスなし', enteringDevice:'認証情報を取得中…' },
+  de: { brandName:'Geräte-Konsole', brandSub:'Device Management', heroTitle:'Roboter-Cloud-Konsole', heroTagline:'Live-Überwachung, Wiedergabe und volle Gerätesteuerung an einem Ort.', featLive:'Live-AV-Überwachung', featPlayback:'Aufnahme-Wiedergabe', featSettings:'AV · Netzwerk · IoT', featCloud:'Cloud-Verwaltung', heroFoot:'Sicherer Gerätezugriff · LAN & WAN', title:'Willkommen zurück', subtitle:'Mit Ihrem Gerätekonto (Benutzername) anmelden', labelUser:'Benutzername', labelPass:'Passwort', phUser:'Benutzername eingeben', phPass:'Passwort eingeben', btnLogin:'Anmelden', btnLoading:'Anmelden…', errEmpty:'Bitte Benutzername und Passwort eingeben', consoleTitle:'Geräte-Konsole', myDevices:'Meine Geräte', online:'Online', offline:'Offline', loadingDevices:'Geräte laden…', noDevices:'Keine Geräte', enteringDevice:'Anmeldedaten werden geladen…' },
+  fr: { brandName:'Console Appareils', brandSub:'Device Management', heroTitle:'Console cloud du robot', heroTagline:'Surveillance en direct, lecture et contrôle complet en un seul endroit.', featLive:'Surveillance AV en direct', featPlayback:'Lecture des enregistrements', featSettings:'AV · Réseau · IoT', featCloud:'Gestion cloud', heroFoot:'Accès sécurisé · LAN & WAN', title:'Bon retour', subtitle:"Connectez-vous avec votre compte appareil (nom d'utilisateur)", labelUser:"Nom d'utilisateur", labelPass:'Mot de passe', phUser:"Entrez le nom d'utilisateur", phPass:'Entrez le mot de passe', btnLogin:'Se connecter', btnLoading:'Connexion…', errEmpty:'Veuillez saisir identifiant et mot de passe', consoleTitle:'Console Appareils', myDevices:'Mes appareils', online:'En ligne', offline:'Hors ligne', loadingDevices:'Chargement…', noDevices:'Aucun appareil', enteringDevice:'Récupération des identifiants…' },
+  es: { brandName:'Consola Dispositivos', brandSub:'Device Management', heroTitle:'Consola en la nube del robot', heroTagline:'Monitoreo en vivo, reproducción y control total del dispositivo.', featLive:'Monitoreo AV en vivo', featPlayback:'Reproducción de grabaciones', featSettings:'AV · Red · IoT', featCloud:'Gestión en la nube', heroFoot:'Acceso seguro · LAN & WAN', title:'Bienvenido de nuevo', subtitle:'Inicia sesión con tu cuenta de dispositivo (usuario)', labelUser:'Usuario', labelPass:'Contraseña', phUser:'Ingresa el usuario', phPass:'Ingresa la contraseña', btnLogin:'Iniciar sesión', btnLoading:'Iniciando…', errEmpty:'Ingresa usuario y contraseña', consoleTitle:'Consola Dispositivos', myDevices:'Mis dispositivos', online:'En línea', offline:'Sin conexión', loadingDevices:'Cargando…', noDevices:'Sin dispositivos', enteringDevice:'Obteniendo credenciales…' },
+};
+const THEMES = [
+  { v: 'dark', label: '深靖蓝·青', sw1: '#0B1220', sw2: '#22D3EE' },
+  { v: 'light', label: '极简浅色', sw1: '#EEF2F7', sw2: '#0ea5e9' },
+  { v: 'cyber', label: '赛博霓虹紫', sw1: '#0A0612', sw2: '#E94FE0' },
+  { v: 'amber', label: '工业琥珀橙', sw1: '#0D0D0F', sw2: '#FFB020' },
+  { v: 'matrix', label: '终端极客绿', sw1: '#06100A', sw2: '#22E584' },
+  { v: 'oled', label: '纯黑 OLED', sw1: '#000000', sw2: '#4EA8FF' },
+  { v: 'ocean', label: '大海', sw1: '#04141F', sw2: '#2DD4BF' },
+];
+const LANGS = [
+  { v: 'en', label: 'English', flag: '🇺🇸', short: 'EN' },
+  { v: 'zh', label: '中文', flag: '🇨🇳', short: '中文' },
+  { v: 'ja', label: '日本語', flag: '🇯🇵', short: '日本語' },
+  { v: 'de', label: 'Deutsch', flag: '🇩🇪', short: 'DE' },
+  { v: 'fr', label: 'Français', flag: '🇫🇷', short: 'FR' },
+  { v: 'es', label: 'Español', flag: '🇪🇸', short: 'ES' },
+];
+let currentLang = localStorage.getItem('dv_lang') || ((navigator.language || 'en').slice(0, 2));
+if (!I18N[currentLang]) currentLang = 'en';
+let currentTheme = localStorage.getItem('dv_theme') || 'dark';
+function t(k) { return (I18N[currentLang] && I18N[currentLang][k]) || I18N.en[k] || k; }
+function applyTheme(name) {
+  if (!THEMES.some((x) => x.v === name)) name = 'dark';
+  currentTheme = name;
+  document.documentElement.setAttribute('data-theme', name);
+  try { localStorage.setItem('dv_theme', name); } catch (e) {}
+  // 更新主题按钮 label + 选中态(不重渲染,避免丢登录框输入)
+  const lbl = document.querySelector('#swTheme .sw-btn span'); if (lbl) lbl.textContent = (THEMES.find((x) => x.v === name) || {}).label || '';
+  document.querySelectorAll('#swTheme .sw-opt').forEach((o) => o.classList.toggle('active', o.dataset.v === name));
+}
+function applyLang(lang) {
+  if (!I18N[lang]) lang = 'en';
+  currentLang = lang;
+  try { localStorage.setItem('dv_lang', lang); } catch (e) {}
+  document.documentElement.lang = lang;
+  route(); // 重渲染当前视图,文案更新
+}
+// 右上角 主题/语言 切换器(登录页 + 设备列表共用)
+function switcherBar(inline) {
+  const wc = 'sw-wrap' + (inline ? ' sw-inline' : '');
+  const themeBtn = h('div', { class: wc, id: 'swTheme' },
+    h('button', { class: 'sw-btn', type: 'button', onclick: (e) => { e.stopPropagation(); toggleSw('swTheme'); } },
+      fa('fas fa-palette'), h('span', {}, (THEMES.find((x) => x.v === currentTheme) || {}).label || ''), fa('fas fa-chevron-down')),
+    h('div', { class: 'sw-dropdown' }, ...THEMES.map((th) => h('div', {
+      class: 'sw-opt' + (currentTheme === th.v ? ' active' : ''), 'data-v': th.v,
+      onclick: (e) => { e.stopPropagation(); applyTheme(th.v); closeSw(); },
+    }, h('span', { class: 'sw-swatch', style: { '--sw1': th.sw1, '--sw2': th.sw2 } }), th.label))),
+  );
+  const langBtn = h('div', { class: wc, id: 'swLang' },
+    h('button', { class: 'sw-btn', type: 'button', onclick: (e) => { e.stopPropagation(); toggleSw('swLang'); } },
+      fa('fas fa-globe'), h('span', {}, (LANGS.find((x) => x.v === currentLang) || {}).short || ''), fa('fas fa-chevron-down')),
+    h('div', { class: 'sw-dropdown' }, ...LANGS.map((lg) => h('div', {
+      class: 'sw-opt' + (currentLang === lg.v ? ' active' : ''),
+      onclick: (e) => { e.stopPropagation(); applyLang(lg.v); },
+    }, h('span', { class: 'sw-flag' }, lg.flag), lg.label))),
+  );
+  return [themeBtn, langBtn];
+}
+function toggleSw(id) { document.querySelectorAll('.sw-wrap.open').forEach((w) => { if (w.id !== id) w.classList.remove('open'); }); const el = document.getElementById(id); if (el) el.classList.toggle('open'); }
+function closeSw() { document.querySelectorAll('.sw-wrap.open').forEach((w) => w.classList.remove('open')); }
+document.addEventListener('click', closeSw);
+
 // ── 工具 ─────────────────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, '0');
 function dayRange(dateStr) { // 'YYYY-MM-DD' → [ISO start, ISO end]
@@ -25,8 +96,9 @@ function go(hash) { location.hash = hash; }
 function topbar() {
   return h('div', { class: 'topbar' },
     h('div', { class: 'in' },
-      h('a', { class: 'brand', href: '#/devices' }, h('span', { class: 'b' }), '设备管理控制台'),
+      h('a', { class: 'brand', href: '#/devices' }, h('span', { class: 'b' }), t('consoleTitle')),
       h('span', { class: 'spacer' }),
+      ...switcherBar(true),
       state.session ? h('span', { class: 'muted', style: { fontSize: '13px' } }, state.session.email || '') : null,
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
@@ -37,28 +109,28 @@ function shell(...body) { return mount(app, topbar(), h('div', { class: 'wrap' }
 // ── 登录(双栏 hero+form,移植设备端 login.html 视觉,登录逻辑走 Cognito signIn)──────
 function fa(cls) { return h('i', { class: cls }); }
 function viewLogin() {
-  const username = h('input', { class: 'form-input', type: 'text', id: 'username', placeholder: '请输入用户名',
+  const username = h('input', { class: 'form-input', type: 'text', id: 'username', placeholder: t('phUser'),
     autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
-  const pass = h('input', { class: 'form-input', type: 'password', id: 'password', placeholder: '请输入密码',
+  const pass = h('input', { class: 'form-input', type: 'password', id: 'password', placeholder: t('phPass'),
     autocomplete: 'current-password', required: true });
   const pwIcon = fa('fas fa-eye');
   const togglePw = h('button', { type: 'button', class: 'toggle-pw', title: '显示/隐藏密码',
     onclick: () => { const show = pass.type === 'password'; pass.type = show ? 'text' : 'password'; pwIcon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye'; } }, pwIcon);
-  const errMsg = h('span', {}, '用户名或密码不正确');
+  const errMsg = h('span', {}, '');
   const err = h('div', { class: 'login-error' }, fa('fas fa-circle-exclamation'), errMsg);
-  const btn = h('button', { type: 'submit', class: 'btn-login' }, '登录');
+  const btn = h('button', { type: 'submit', class: 'btn-login' }, t('btnLogin'));
   async function submit(ev) {
     ev && ev.preventDefault();
     err.classList.remove('show');
-    if (!username.value || !pass.value) { errMsg.textContent = '请输入用户名和密码'; err.classList.add('show'); return; }
-    btn.disabled = true; btn.textContent = '登录中…';
+    if (!username.value || !pass.value) { errMsg.textContent = t('errEmpty'); err.classList.add('show'); return; }
+    btn.disabled = true; btn.textContent = t('btnLoading');
     try {
       state.session = await signIn(username.value.trim(), pass.value);
       state.devices = null;
       go('#/devices');
     } catch (e) {
       errMsg.textContent = mapAuthError(e); err.classList.add('show');
-      btn.disabled = false; btn.textContent = '登录';
+      btn.disabled = false; btn.textContent = t('btnLogin');
     }
   }
   const badge = () => h('div', { class: 'brand-badge' }, fa('fas fa-robot'));
@@ -67,36 +139,35 @@ function viewLogin() {
     h('label', { class: 'form-label', for: forId }, labelText),
     h('div', { class: 'input-wrap' }, fa('fas ' + iconCls + ' input-icon'), input, extra || null),
   );
+  const brandBlock = (small) => h('div', {}, h('div', { class: 'brand-name', style: small ? { fontSize: '17px' } : {} }, t('brandName')), h('div', { class: 'brand-sub' }, t('brandSub')));
   const shellEl = h('div', { class: 'login-shell' },
     h('aside', { class: 'login-hero' },
-      h('div', { class: 'hero-top brand-row' }, badge(),
-        h('div', {}, h('div', { class: 'brand-name' }, '设备管理控制台'), h('div', { class: 'brand-sub' }, 'Device Management'))),
+      h('div', { class: 'hero-top brand-row' }, badge(), brandBlock(false)),
       h('div', { class: 'hero-mid' },
-        h('h1', { class: 'hero-title' }, '机器人设备云控制台'),
-        h('p', { class: 'hero-tagline' }, '实时监控、录像回放与设备全参数控制,一站式云端管理。'),
+        h('h1', { class: 'hero-title' }, t('heroTitle')),
+        h('p', { class: 'hero-tagline' }, t('heroTagline')),
         h('div', { class: 'feature-list' },
-          feat('fa-video', '实时音视频监控'),
-          feat('fa-clock-rotate-left', '录像回放'),
-          feat('fa-sliders', '音视频 · 网络 · IoT 设置'),
-          feat('fa-cloud', '云端管理'),
+          feat('fa-video', t('featLive')),
+          feat('fa-clock-rotate-left', t('featPlayback')),
+          feat('fa-sliders', t('featSettings')),
+          feat('fa-cloud', t('featCloud')),
         ),
       ),
-      h('div', { class: 'hero-bottom' }, '安全设备接入 · 局域网 & 广域网'),
+      h('div', { class: 'hero-bottom' }, t('heroFoot')),
     ),
     h('main', { class: 'login-main' },
       h('form', { class: 'login-card', onsubmit: submit },
-        h('div', { class: 'card-brand' }, badge(),
-          h('div', {}, h('div', { class: 'brand-name', style: { fontSize: '17px' } }, '设备管理控制台'), h('div', { class: 'brand-sub' }, 'Device Management'))),
-        h('div', { class: 'login-title' }, '欢迎回来'),
-        h('div', { class: 'login-subtitle' }, '用你的设备账号(用户名)登录,管理名下设备'),
+        h('div', { class: 'card-brand' }, badge(), brandBlock(true)),
+        h('div', { class: 'login-title' }, t('title')),
+        h('div', { class: 'login-subtitle' }, t('subtitle')),
         err,
-        field('用户名', 'username', 'fa-user', username),
-        field('密码', 'password', 'fa-lock', pass, togglePw),
+        field(t('labelUser'), 'username', 'fa-user', username),
+        field(t('labelPass'), 'password', 'fa-lock', pass, togglePw),
         btn,
       ),
     ),
   );
-  mount(app, shellEl);
+  mount(app, ...switcherBar(), shellEl);
   username.focus();
 }
 function mapAuthError(e) {
@@ -113,7 +184,7 @@ const IOT_ENDPOINT = 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com';
 async function enterDevice(dev) {
   const uuid = dev.uuid || dev.id;
   if (!/^[0-9a-fA-F-]{36}$/.test(uuid)) { alert('设备 UUID 无效,无法进入控制页'); return; }
-  shell(loading('正在获取安全凭证,进入设备…'));
+  shell(loading(t('enteringDevice')));
   try {
     const c = await resolvedCreds();
     // 契约:device-transport.js iotCreds() + index.html resolveKvsCredentials() 都读 sessionStorage['iot_creds']
@@ -127,7 +198,8 @@ async function enterDevice(dev) {
     sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
     sessionStorage.setItem('dv_user', (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || 'user');
     localStorage.setItem('previewTransport', 'kvs'); // 实时预览走 KVS(不用声网)
-    if (!localStorage.getItem('dv_lang')) localStorage.setItem('dv_lang', 'zh');
+    localStorage.setItem('dv_lang', currentLang);   // 语言同步到设备页
+    localStorage.setItem('dv_theme', currentTheme); // 主题同步到设备页
     location.href = 'device/index.html?deviceId=' + encodeURIComponent(uuid);
   } catch (e) {
     shell(errorBox('进入设备失败', e));
@@ -154,7 +226,7 @@ async function resolveDeviceCover(d, creds) {
 
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
 async function viewDevices() {
-  shell(loading('加载设备…'));
+  shell(loading(t('loadingDevices')));
   try {
     if (!state.devices) state.devices = await fetchMyDevices(state.session.userRow.id);
     const list = state.devices;
@@ -168,12 +240,12 @@ async function viewDevices() {
       }));
     } catch (e) { console.warn('[devices] 封面解析跳过:', e && e.message); }
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
-      h('h1', { class: 'title' }, '我的设备'),
+      h('h1', { class: 'title' }, t('myDevices')),
       h('span', { class: 'chip count' }, `${list.length}`),
     );
     shell(head, list.length
       ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, enterDevice)))
-      : emptyState('暂无设备'));
+      : emptyState(t('noDevices')));
   } catch (e) {
     shell(errorBox('设备加载失败', e));
   }
@@ -333,6 +405,9 @@ window.addEventListener('hashchange', route);
 
 // ── 启动:首屏立即渲染登录页(不再黑屏空等 restoreSession + esm.sh 导入),会话在后台恢复 ──
 (async function boot() {
+  window.__t = t;                      // 供 ui.js statusChip 等取本地化文案
+  applyTheme(currentTheme);            // 应用主题(与设备端共用 dv_theme)
+  document.documentElement.lang = currentLang;
   if (!location.hash) location.hash = '#/login';
   route();   // 先按当前 hash 渲染(未登录 → 立即出登录页)
   try {
