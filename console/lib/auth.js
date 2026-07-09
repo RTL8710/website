@@ -41,6 +41,7 @@ export async function signIn(username, password) {
   const sub = session.getIdToken().payload.sub;
   const userRow = await resolveUserRow(sub);
   if (!userRow) throw new Error('登录成功,但未找到该账号的用户档案(User 表无记录)。');
+  try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(userRow)); } catch (e) {}   // 缓存供 restoreSession 秒回
   return { sub, email: userRow.email || username, account: username, idToken: _idToken, userRow };
 }
 
@@ -57,7 +58,15 @@ export async function restoreSession() {
   _idToken = session.getIdToken().getJwtToken();
   _creds = null; _identityId = null;
   const sub = session.getIdToken().payload.sub;
-  const userRow = await resolveUserRow(sub).catch(() => null);
+  // userRow(含 User.id,设备查询用)缓存优先:命中则秒回,后台再刷新;省 listUsers ~1.5s
+  let userRow = null;
+  try { userRow = JSON.parse(localStorage.getItem('dv_userrow_' + sub) || 'null'); } catch (e) {}
+  if (userRow) {
+    resolveUserRow(sub).then((u) => { if (u) try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(u)); } catch (e) {} }).catch(() => {});
+  } else {
+    userRow = await resolveUserRow(sub).catch(() => null);
+    if (userRow) try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(userRow)); } catch (e) {}
+  }
   return { sub, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };
 }
 
@@ -66,6 +75,11 @@ export async function signOut() {
   const user = p.getCurrentUser();
   if (user) user.signOut();
   _idToken = null; _creds = null; _identityId = null;
+  // 清缓存(换账号防错乱):identityId + 所有 userRow + 设备列表缓存
+  try {
+    localStorage.removeItem('dv_identityid');
+    Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_userrow_') === 0 || k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });
+  } catch (e) {}
 }
 
 export function currentIdToken() { return _idToken; }
@@ -89,8 +103,13 @@ export async function resolvedCreds() {
   if (_creds && _creds.expiration && Date.now() < _creds.expiration - 60000) return _creds;
   const logins = { [`cognito-idp.${COGNITO.region}.amazonaws.com/${COGNITO.userPoolId}`]: _idToken };
   if (!_identityId) {
-    const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
-    _identityId = id.IdentityId;
+    // identityId 对同一账号恒定 → localStorage 缓存,省掉每次 GetId 的 ~1.5s 往返
+    try { _identityId = localStorage.getItem('dv_identityid') || null; } catch (e) {}
+    if (!_identityId) {
+      const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
+      _identityId = id.IdentityId;
+      try { localStorage.setItem('dv_identityid', _identityId); } catch (e) {}
+    }
   }
   const cr = await cognitoIdentityCall('GetCredentialsForIdentity', { IdentityId: _identityId, Logins: logins });
   const c = cr.Credentials;
