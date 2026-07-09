@@ -10512,7 +10512,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     if (this._injectedCreds()) {
                         // 云控制台模式:参考手机 App,从 AppSync CloudRecord 表拉列表(含 S3 缩略图)
-                        const items = await this._gqlListCloudRecords(deviceID, new Date(startTime).toISOString(), new Date(endTime).toISOString());
+                        // ★ 时区关键:dateTime 是设备本地时间误带 Z(wall-clock),查询范围也用 wall-clock 带 Z(不转时区)。
+                        //   否则本地→UTC 偏 8h:选 07-09 会混入 07-08、且上限截断晚上记录(node 实测旧 7 条混日期,新 9 条全 07-09)。
+                        const wallZ = (s) => { const m = String(s || '').match(/(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/); return m ? (m[1] + 'T' + m[2] + ':' + m[3] + ':00.000Z') : new Date(s).toISOString(); };
+                        const items = await this._gqlListCloudRecords(deviceID, wallZ(startTime), wallZ(endTime));
                         const p2 = (n) => (n < 10 ? '0' : '') + n;
                         // 手机 App 云回放列表显示【原始 UTC 时间】(不转本地)。之前转本地导致 +8h "时间不对"。
                         const fmtSec = (iso) => { const d = new Date(iso); return `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}`; };
