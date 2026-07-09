@@ -100,22 +100,40 @@ async function enterDevice(dev) {
   }
 }
 
+// S3 缩略图 → base64 缓存(localStorage)。命中即返回,消除每次进列表的重签+重取延迟。
+// key 用对象路径末段(稳定、不含签名参数)。存储配额满时静默降级为预签名 URL。
+async function cachedThumb(rawUrl, creds) {
+  if (!rawUrl || !/amazonaws\.com/.test(rawUrl)) return rawUrl || '';
+  let key;
+  try { key = 'dv_thumb_' + new URL(rawUrl).pathname.split('/').slice(-4).join('_'); } catch (e) { key = 'dv_thumb_' + rawUrl.slice(-48); }
+  try { const c = localStorage.getItem(key); if (c) return c; } catch (e) {}
+  const signed = presignS3Get(creds, rawUrl);
+  try {
+    const r = await fetch(signed);
+    if (!r.ok) return signed;
+    const blob = await r.blob();
+    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onloadend = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+    try { localStorage.setItem(key, b64); } catch (e) {}
+    return b64;
+  } catch (e) { return signed; }
+}
+
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
 async function viewDevices() {
   shell(loading('加载设备…'));
   try {
     if (!state.devices) state.devices = await fetchMyDevices(state.session.userRow.id);
     const list = state.devices;
-    // 设备封面(devicePicture)是 S3 直链、桶禁匿名读 → 用登录换来的临时凭证预签名(手机同款)。
-    // 只对未签名过的 S3 URL 签一次,缓存到 dev._picSigned。签名失败/无凭证时保持原图(onerror 兜底隐藏)。
+    // 设备封面(devicePicture)是 S3 直链、桶禁匿名读 → 预签名后取回,缓存为 base64(手机同款 ImageCacheService)。
+    // 缓存命中直接用(不重签、不重新 fetch,消除每次进列表的延迟);未命中才签名+取图+存。
+    // base64 不受预签名 1h 过期影响,离线也能显示。签名/取图失败时回退预签名 URL(onerror 兜底隐藏)。
     try {
       const creds = await resolvedCreds();
-      for (const d of list) {
-        if (d.picture && /amazonaws\.com/.test(d.picture) && !d._picSigned) {
-          d.picture = presignS3Get(creds, d.picture);
-          d._picSigned = true;
-        }
-      }
+      await Promise.all(list.map(async (d) => {
+        if (d._picSigned || !d.picture || !/amazonaws\.com/.test(d.picture)) return;
+        d.picture = await cachedThumb(d.picture, creds);
+        d._picSigned = true;
+      }));
     } catch (e) { console.warn('[devices] 封面预签名跳过:', e && e.message); }
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
       h('h1', { class: 'title' }, '我的设备'),

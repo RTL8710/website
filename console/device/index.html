@@ -10588,12 +10588,28 @@ document.addEventListener('DOMContentLoaded', function() {
             _cloudCover: '',
             async _loadCloudCover() {
                 if (!this._injectedCreds()) return;
+                const uuid = this._uuid();
+                if (!uuid) return;
+                const ckey = 'dv_cover_' + uuid;
+                // 缓存优先(base64,不受预签名过期影响):秒显,不每次查 GraphQL+重签。
+                try { const c = localStorage.getItem(ckey); if (c) { this._cloudCover = c; } } catch (e) {}
                 try {
-                    const uuid = this._uuid();
-                    if (!uuid) return;
                     const items = await this._gqlListCloudRecords(uuid, new Date(Date.now() - 7 * 864e5).toISOString(), new Date(Date.now() + 864e5).toISOString());
                     const withThumb = (items || []).filter((x) => x.thumbnailUrl).sort((a, b) => String(b.dateTime).localeCompare(String(a.dateTime)));
-                    if (withThumb.length) this._cloudCover = this._s3PresignUrl(withThumb[0].thumbnailUrl);
+                    if (!withThumb.length) return;
+                    const signed = this._s3PresignUrl(withThumb[0].thumbnailUrl);
+                    // 取回转 base64 存缓存,下次秒显;失败则先用预签名 URL 顶着
+                    try {
+                        const r = await fetch(signed);
+                        if (r.ok) {
+                            const blob = await r.blob();
+                            const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onloadend = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+                            this._cloudCover = b64;
+                            try { localStorage.setItem(ckey, b64); } catch (e) {}
+                            return;
+                        }
+                    } catch (e) {}
+                    if (!this._cloudCover) this._cloudCover = signed;
                 } catch (e) { console.debug('[cloud cover] skip:', e && e.message); }
             },
             // 聊天 snap 图:云模式用记录的 imageUrl(设备已传 S3)+ 预签名;LAN 模式用设备本地 /download
