@@ -3026,7 +3026,7 @@
 
                 <!-- 视频回放页面 -->
                 <div class="page-section" id="video-replay">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { fetchRecords(false); initTimeline() })">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { initVedioSettings(); fetchRecords(false); initTimeline() })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -3198,7 +3198,9 @@
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
                                                             <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
-                                                                   x-model.number="playbackPositionMs" @change="seekRemotePlayback($event)">
+                                                                   x-model.number="playbackPositionMs"
+                                                                   @mousedown="_pbSeeking=true; _stopPbTicker()" @touchstart="_pbSeeking=true; _stopPbTicker()"
+                                                                   @change="_pbSeeking=false; seekRemotePlayback($event)">
                                                             <span class="text-muted" style="font-size:11px;white-space:nowrap;"
                                                                   x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
                                                         </div>
@@ -8325,6 +8327,9 @@ document.addEventListener('DOMContentLoaded', function() {
             remotePlaybackLabel: '',      // 当前回放的录像时间标签（视频区右上角提示）
             _pbTicker: null,              // 本地 1s 进度 ticker（设备不推位置，前端自推）
             _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
+            _pbSeeking: false,            // 正在拖动进度条（拖动中冻结 ticker，避免打架）
+            _segmentEnded: false,         // 本段是否已播完（设备会话结束，seek 需先重发 START）
+            _lastPlayRecord: null,        // 上次播放的 record（段播完后 seek 重发 START 用）
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
             startTime: new Date("2000-01-09T00:00").toISOString().slice(0, 16),
@@ -9071,6 +9076,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.stopRemotePlayback();
                 }
                 this._pbStarting = true;
+                this._lastPlayRecord = record;   // 缓存,段播完后 seek 需重发 START
+                this._segmentEnded = false;
                 this.remotePlaybackLoading = true;   // 视频区 spinner + "正在加载录像…"
                 // 切换提示:标签用录像时间(优先本地时间列,回退路径里的 14 位时间戳)
                 this.remotePlaybackLabel = record.RecordIndexInformationDateTime
@@ -9128,10 +9135,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // 本地进度 ticker:设备不推位置,前端每秒自推;到段尾停。seek 后从新位置继续。
             _startPbTicker() {
                 this._stopPbTicker();
+                this._segmentEnded = false;
                 this._pbTicker = setInterval(() => {
                     if (!this.remotePlaybackActive) { this._stopPbTicker(); return; }
-                    if (this.playbackPositionMs < this.playbackDurationMs) {
-                        this.playbackPositionMs = Math.min(this.playbackPositionMs + 1000, this.playbackDurationMs);
+                    if (this._pbSeeking) return;   // 拖动中冻结,避免和滑块打架
+                    if (this.playbackPositionMs + 1000 <= this.playbackDurationMs) {
+                        this.playbackPositionMs += 1000;
+                    } else {
+                        this.playbackPositionMs = this.playbackDurationMs;
+                        this._segmentEnded = true;   // 本段播完:设备回放会话结束,后续 seek 需先重发 START
+                        this._stopPbTicker();
                     }
                 }, 1000);
             },
@@ -12727,6 +12740,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.playbackDurationMs && positionMs > this.playbackDurationMs) positionMs = this.playbackDurationMs;
                 this.playbackPositionMs = positionMs;
                 if (!this.remotePlaybackActive) return;   // 未在回放不发 seek(拖到空进度条无意义)
+                // 段已播完:设备回放会话已结束,单发 SEEK 无效 → 先用上次 record 重发 START,再定位(手机 App 同款)。
+                if (this._segmentEnded && this._lastPlayRecord) {
+                    this._segmentEnded = false;
+                    const target = positionMs;
+                    await this.startKvsPlayback(this._lastPlayRecord);   // 重起(从 0 播)
+                    if (target <= 0) return;   // 从头重播,无需再 seek
+                    positionMs = target;
+                }
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -12736,6 +12757,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             params: { positionMs: positionMs },
                         }),
                     });
+                    this.playbackPositionMs = positionMs;
                     this._startPbTicker();   // seek 后从新位置继续自推进度
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
