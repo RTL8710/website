@@ -10720,11 +10720,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) { console.debug('[cloud cover] skip:', e && e.message); }
             },
-            // 用每路云封面填 dashboard 摄像头卡(dashThumbs),缺失的路留空占位
+            // 用每路云封面填 dashboard 摄像头卡(dashThumbs)。云端 CloudRecord channel 全 0(不分摄像头),
+            // 只有主路一张云快照 → 其余路回退主路封面,保证多摄设备 dashboard 也显示 N 个缩略图框(CAM1/CAM2…)。
             _applyDashThumbs(nCam) {
+                const base = this._cloudCoverByCam[0] || this._cloudCoverByCam['0'] || this._cloudCover || '';
                 const arr = [];
                 for (let i = 0; i < (nCam || 1); i++) {
-                    const img = this._cloudCoverByCam[i] || this._cloudCoverByCam[String(i)] || '';
+                    const img = this._cloudCoverByCam[i] || this._cloudCoverByCam[String(i)] || base;
                     if (img) arr.push({ img, cam: i, dur: this.dashLatestDuration || 0 });
                 }
                 if (arr.length) this.dashThumbs = arr;
