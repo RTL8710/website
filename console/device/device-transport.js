@@ -65,6 +65,8 @@ window.DeviceTransport = {
             if (this.iotCreds().accessKeyId) {
                 this.mode = 'awsIot';
                 console.info('[transport] 检测到 IoT 凭证 → 控制链路直连 AWS IoT(跳过 HTTP 探测)');
+                // ★ 进入即后台预连(WSS+CONNACK+SUBACK ~数秒)。不等首个命令才握手 → 首屏参数命令直接复用已连的会话,大幅提速。
+                setTimeout(function () { self.ensureIot().catch(function () {}); }, 0);
             }
         } catch (e) {}
     },

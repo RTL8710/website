@@ -1,6 +1,6 @@
 // 控制台入口:路由 + 登录门禁 + 视图
 import { COGNITO } from './config.js';
-import { signIn, restoreSession, signOut, resolvedCreds } from './lib/auth.js';
+import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
@@ -238,11 +238,14 @@ async function resolveDeviceCover(d, creds) {
 async function viewDevices() {
   shell(loading(t('loadingDevices')));
   try {
-    if (!state.devices) state.devices = await fetchMyDevices(state.session.userRow.id);
-    const list = state.devices;
+    // 设备列表 + 临时凭证并行拉取(两者互不依赖),不再串行等待
+    const [list, creds] = await Promise.all([
+      state.devices ? Promise.resolve(state.devices) : fetchMyDevices(state.session.userRow.id),
+      resolvedCreds().catch(() => null),
+    ]);
+    state.devices = list;
     // 设备封面:devicePicture(整机 S3 封面)优先,空则回退最新云录像封面;都用预签名 URL 给 <img>(见 resolveDeviceCover)。
-    try {
-      const creds = await resolvedCreds();
+    if (creds) try {
       await Promise.all(list.map(async (d) => {
         if (d._picSigned) return;
         d.picture = await resolveDeviceCover(d, creds);
@@ -416,6 +419,7 @@ window.addEventListener('hashchange', route);
 // ── 启动:首屏立即渲染登录页(不再黑屏空等 restoreSession + esm.sh 导入),会话在后台恢复 ──
 (async function boot() {
   window.__t = t;                      // 供 ui.js statusChip 等取本地化文案
+  warmupAuth();                        // 后台预热 cognito-identity-js(登录/恢复会话提速,不阻塞)
   applyTheme(currentTheme);            // 应用主题(与设备端共用 dv_theme)
   document.documentElement.lang = currentLang;
   // 从设备页返回时 hash 已是 #/devices:此刻会话还没恢复,若直接 route() 会被当未登录闪到 login。

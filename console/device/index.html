@@ -8669,6 +8669,37 @@ document.addEventListener('DOMContentLoaded', function() {
             // KVS viewer 临时凭证解析：优先门户注入的 Cognito 临时凭证(sessionStorage iot_creds)，
             // 否则取设备本地端点 /api/kvsCreds(阶段B 提供)。静态根 AK/SK 已移除，不再回退硬编码密钥。
             // 多摄像头会快速连建多个 viewer，故缓存 60s 避免重复取凭证。
+            // 进入设备页后台预热 KVS 主路信令元数据(channelARN/endpoints/ICE → window.__kvsSignalMeta)。
+            // 点实时预览/回放时 kvsBuildViewer 直接命中缓存,跳过 3 个串行 AWS 往返(describe/endpoint/ice)→ 秒连。
+            async _prewarmKvs(channelName) {
+                if (!this._injectedCreds() || !channelName) return;
+                if (typeof AWS === 'undefined' || typeof KVSWebRTC === 'undefined') return;
+                try {
+                    const inj = this._injectedCreds();
+                    const region = (inj && inj.region) || this.webrtcInformation.awsDefaultRegion;
+                    const { accessKeyId, secretAccessKey, sessionToken } = await this.resolveKvsCredentials();
+                    const metaCache = (window.__kvsSignalMeta = window.__kvsSignalMeta || {});
+                    const meta = metaCache[region + '|' + channelName] || (metaCache[region + '|' + channelName] = {});
+                    const kv = new AWS.KinesisVideo({ region, accessKeyId, secretAccessKey, sessionToken, correctClockSkew: true });
+                    if (!meta.channelARN) {
+                        const r = await kv.describeSignalingChannel({ ChannelName: channelName }).promise();
+                        meta.channelARN = r.ChannelInfo.ChannelARN;
+                    }
+                    if (!meta.endpoints) {
+                        const r = await kv.getSignalingChannelEndpoint({ ChannelARN: meta.channelARN, SingleMasterChannelEndpointConfiguration: { Protocols: ['WSS', 'HTTPS'], Role: KVSWebRTC.Role.VIEWER } }).promise();
+                        meta.endpoints = r.ResourceEndpointList.reduce((eps, e) => { eps[e.Protocol] = e.ResourceEndpoint; return eps; }, {});
+                    }
+                    if (!meta.ice || meta.ice.exp <= Date.now()) {
+                        const sc = new AWS.KinesisVideoSignalingChannels({ region, accessKeyId, secretAccessKey, sessionToken, endpoint: meta.endpoints.HTTPS, correctClockSkew: true });
+                        const r = await sc.getIceServerConfig({ ChannelARN: meta.channelARN }).promise();
+                        const servers = [{ urls: `stun:stun.kinesisvideo.${region}.amazonaws.com:443` }];
+                        let ttl = 300;
+                        r.IceServerList.forEach((s) => { servers.push({ urls: s.Uris, username: s.Username, credential: s.Password }); if (s.Ttl) ttl = Math.min(ttl, s.Ttl); });
+                        meta.ice = { servers, exp: Date.now() + Math.max(30, ttl - 30) * 1000 };
+                    }
+                    console.debug('[kvs prewarm] ready', channelName);
+                } catch (e) { console.debug('[kvs prewarm] skip', e && e.message); }
+            },
             async resolveKvsCredentials() {
                 const now = Date.now();
                 if (this._kvsCredsCache && this._kvsCredsCache.exp > now) return this._kvsCredsCache.creds;
@@ -8813,6 +8844,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 云模式:设备本地封面拿不到,用最新云录像 S3 缩略图当 dashboard 摄像头卡封面(每路一张,_loadCloudCover 内填 dashThumbs)
                 if (this._injectedCreds()) {
                     await this._loadCloudCover();
+                    // 后台预热 KVS 主路信令(不阻塞),点实时预览/回放时秒连
+                    const _u = this._uuid(); if (_u) setTimeout(() => this._prewarmKvs(_u), 300);
                 }
             },
             async kvsBuildViewer(channelName, targetElId, localElId = null, camIndex = 0, retryCount = 0) {
