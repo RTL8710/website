@@ -28,6 +28,16 @@ const THEMES = [
   { v: 'oled', label: '纯黑 OLED', sw1: '#000000', sw2: '#4EA8FF' },
   { v: 'ocean', label: '大海', sw1: '#04141F', sw2: '#2DD4BF' },
 ];
+const THEME_I18N = {
+  dark:   { zh: '深靖蓝·青', en: 'Deep Blue', ja: 'ダークブルー', de: 'Dunkelblau', fr: 'Bleu profond', es: 'Azul profundo' },
+  light:  { zh: '极简浅色', en: 'Light', ja: 'ライト', de: 'Hell', fr: 'Clair', es: 'Claro' },
+  cyber:  { zh: '赛博霓虹紫', en: 'Cyber Neon', ja: 'サイバー', de: 'Cyber-Neon', fr: 'Cyber néon', es: 'Ciber neón' },
+  amber:  { zh: '工业琥珀橙', en: 'Amber', ja: 'アンバー', de: 'Bernstein', fr: 'Ambre', es: 'Ámbar' },
+  matrix: { zh: '终端极客绿', en: 'Matrix', ja: 'マトリックス', de: 'Matrix', fr: 'Matrix', es: 'Matrix' },
+  oled:   { zh: '纯黑 OLED', en: 'OLED Black', ja: 'OLED', de: 'OLED', fr: 'OLED', es: 'OLED' },
+  ocean:  { zh: '大海', en: 'Ocean', ja: 'オーシャン', de: 'Ozean', fr: 'Océan', es: 'Océano' },
+};
+function themeLabel(v) { const o = THEME_I18N[v] || {}; return o[currentLang] || o.en || v; }
 const LANGS = [
   { v: 'en', label: 'English', flag: '🇺🇸', short: 'EN' },
   { v: 'zh', label: '中文', flag: '🇨🇳', short: '中文' },
@@ -46,7 +56,7 @@ function applyTheme(name) {
   document.documentElement.setAttribute('data-theme', name);
   try { localStorage.setItem('dv_theme', name); } catch (e) {}
   // 更新主题按钮 label + 选中态(不重渲染,避免丢登录框输入)
-  const lbl = document.querySelector('#swTheme .sw-btn span'); if (lbl) lbl.textContent = (THEMES.find((x) => x.v === name) || {}).label || '';
+  const lbl = document.querySelector('#swTheme .sw-btn span'); if (lbl) lbl.textContent = themeLabel(name);
   document.querySelectorAll('#swTheme .sw-opt').forEach((o) => o.classList.toggle('active', o.dataset.v === name));
 }
 function applyLang(lang) {
@@ -61,11 +71,11 @@ function switcherBar(inline) {
   const wc = 'sw-wrap' + (inline ? ' sw-inline' : '');
   const themeBtn = h('div', { class: wc, id: 'swTheme' },
     h('button', { class: 'sw-btn', type: 'button', onclick: (e) => { e.stopPropagation(); toggleSw('swTheme'); } },
-      fa('fas fa-palette'), h('span', {}, (THEMES.find((x) => x.v === currentTheme) || {}).label || ''), fa('fas fa-chevron-down')),
+      fa('fas fa-palette'), h('span', {}, themeLabel(currentTheme)), fa('fas fa-chevron-down')),
     h('div', { class: 'sw-dropdown' }, ...THEMES.map((th) => h('div', {
       class: 'sw-opt' + (currentTheme === th.v ? ' active' : ''), 'data-v': th.v,
       onclick: (e) => { e.stopPropagation(); applyTheme(th.v); closeSw(); },
-    }, h('span', { class: 'sw-swatch', style: { '--sw1': th.sw1, '--sw2': th.sw2 } }), th.label))),
+    }, h('span', { class: 'sw-swatch', style: { '--sw1': th.sw1, '--sw2': th.sw2 } }), themeLabel(th.v)))),
   );
   const langBtn = h('div', { class: wc, id: 'swLang' },
     h('button', { class: 'sw-btn', type: 'button', onclick: (e) => { e.stopPropagation(); toggleSw('swLang'); } },
@@ -408,14 +418,14 @@ window.addEventListener('hashchange', route);
   window.__t = t;                      // 供 ui.js statusChip 等取本地化文案
   applyTheme(currentTheme);            // 应用主题(与设备端共用 dv_theme)
   document.documentElement.lang = currentLang;
-  if (!location.hash) location.hash = '#/login';
-  route();   // 先按当前 hash 渲染(未登录 → 立即出登录页)
+  // 从设备页返回时 hash 已是 #/devices:此刻会话还没恢复,若直接 route() 会被当未登录闪到 login。
+  // → 明确带目标 hash 时先显 loading、等会话恢复再 route();仅首次(无 hash)立即出登录页。
+  const wantHash = location.hash && location.hash !== '#/login';
+  if (wantHash) { mount(app, h('div', { class: 'center' }, loading(t('loadingDevices')))); }
+  else { if (!location.hash) location.hash = '#/login'; route(); }
   try {
     const s = await restoreSession();   // 后台恢复 Cognito 会话
-    if (s && s.userRow) {
-      state.session = s;
-      // 恢复到会话且用户还停在登录页/根 → 自动进设备列表
-      if (location.hash === '#/login' || !location.hash) go('#/devices');
-    }
+    if (s && s.userRow) state.session = s;
   } catch (_) {}
+  route();   // 会话恢复后正式渲染(有 session→目标页,无→login),不再中途闪 login
 })();
