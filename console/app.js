@@ -108,8 +108,10 @@ function topbar() {
     h('div', { class: 'in' },
       h('a', { class: 'brand', href: '#/devices' }, h('span', { class: 'b' }), t('consoleTitle')),
       h('span', { class: 'spacer' }),
-      ...switcherBar(true),
-      state.session ? h('span', { class: 'muted', style: { fontSize: '13px' } }, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || '') : null,
+      // 顺序与设备页顶栏一致:用户(带图标) → 语言 → 主题 → 退出(设备页最后是返回)
+      state.session ? h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
+        fa('fas fa-user-circle'), h('span', {}, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || '')) : null,
+      ...switcherBar(true).reverse(),
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
   );
