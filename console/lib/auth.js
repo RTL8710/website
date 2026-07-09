@@ -67,7 +67,8 @@ export async function restoreSession() {
     userRow = await resolveUserRow(sub).catch(() => null);
     if (userRow) try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(userRow)); } catch (e) {}
   }
-  return { sub, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };
+  const account = session.getIdToken().payload['cognito:username'] || (userRow && userRow.awsUserName) || '';
+  return { sub, account, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };
 }
 
 export async function signOut() {

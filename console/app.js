@@ -109,7 +109,7 @@ function topbar() {
       h('a', { class: 'brand', href: '#/devices' }, h('span', { class: 'b' }), t('consoleTitle')),
       h('span', { class: 'spacer' }),
       ...switcherBar(true),
-      state.session ? h('span', { class: 'muted', style: { fontSize: '13px' } }, state.session.email || '') : null,
+      state.session ? h('span', { class: 'muted', style: { fontSize: '13px' } }, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || '') : null,
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
   );
