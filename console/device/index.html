@@ -3177,7 +3177,16 @@
                                                             <i class="fa-solid fa-cloud me-1"></i><span x-text="tIdx('vp_remote_playback')"></span>
                                                             <span class="badge bg-secondary ms-2" style="font-size:10px;" x-text="playbackCodec"></span>
                                                             <span x-show="remotePlaybackLabel" class="ms-2" style="font-size:11px;color:var(--text-muted,#9aa4b2);font-weight:500;" x-text="remotePlaybackLabel"></span>
-                                                            <button class="btn btn-sm btn-danger ms-auto" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
+                                                            <!-- 一路/二路选择（仅多摄设备显示）：切换后下次点击录像生效 -->
+                                                            <div class="ms-auto d-flex" style="gap:4px;" x-show="(videoInformation.cameraCounts||1) > 1">
+                                                                <template x-for="ch in [1,2]" :key="'pbch'+ch">
+                                                                    <button class="btn btn-sm" style="padding:2px 10px;font-size:11px;"
+                                                                            :class="playbackChannels===ch ? 'btn-primary' : 'btn-outline-secondary'"
+                                                                            @click.stop="playbackChannels=ch"
+                                                                            x-text="ch+(tIdx('rp_channel')||'路')"></button>
+                                                                </template>
+                                                            </div>
+                                                            <button class="btn btn-sm btn-danger ms-2" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
@@ -6645,7 +6654,7 @@ const I18N_INDEX = {
     cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
-    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_switching:'Switching recording…', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
+    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_switching:'Switching recording…', rp_channel:'CH', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
     vp_datetime:'Datetime:', vp_video:'Video', vp_del:'Del', vp_del_confirm:'Delete this record? This cannot be undone.',
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
@@ -6791,7 +6800,7 @@ const I18N_INDEX = {
     cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
-    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_switching:'正在切换录像…', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
+    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_switching:'正在切换录像…', rp_channel:'路', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
     vp_datetime:'时间：', vp_video:'视频', vp_del:'删除', vp_del_confirm:'确定删除这条记录吗？此操作不可恢复。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
@@ -6937,7 +6946,7 @@ const I18N_INDEX = {
     cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
     cm_enable:'有効', cm_disable:'無効',
-    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_switching:'録画を切り替え中…', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
+    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_switching:'録画を切り替え中…', rp_channel:'ch', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
     vp_datetime:'日時：', vp_video:'動画', vp_del:'削除', vp_del_confirm:'この記録を削除しますか？元に戻せません。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'説明の生成に失敗しました', ai_search_ph:'内容説明で検索…', ai_search_btn:'検索', ai_search_none:'一致する録画がありません',
     ai_ask_title:'ライブ映像に質問', ai_ask_ph:'カメラの映像について質問を入力…', ai_ask_btn:'撮影して質問', ai_ask_running:'考え中…', ai_ask_failed:'質問に失敗しました', ai_ask_history:'履歴', ai_ask_empty:'まだ質問がありません。撮影して質問してみてください。',
@@ -7082,7 +7091,7 @@ const I18N_INDEX = {
     cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
     cm_enable:'aktiviert', cm_disable:'deaktiviert',
-    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_switching:'Aufnahme wird gewechselt…', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
+    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_switching:'Aufnahme wird gewechselt…', rp_channel:'CH', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
     vp_datetime:'Datum:', vp_video:'Video', vp_del:'Löschen', vp_del_confirm:'Diesen Eintrag löschen? Nicht widerrufbar.',
     ai_desc_btn:'AI', ai_desc_running:'Wird erstellt…', ai_desc_failed:'Beschreibung fehlgeschlagen', ai_search_ph:'Nach Inhaltsbeschreibung suchen…', ai_search_btn:'Suchen', ai_search_none:'Keine passenden Aufnahmen',
     ai_ask_title:'Live-Ansicht fragen', ai_ask_ph:'Frage zum aktuellen Kamerabild eingeben…', ai_ask_btn:'Foto & Frage', ai_ask_running:'Denkt nach…', ai_ask_failed:'Anfrage fehlgeschlagen', ai_ask_history:'Verlauf', ai_ask_empty:'Noch keine Fragen — Foto machen und fragen.',
@@ -7227,7 +7236,7 @@ const I18N_INDEX = {
     cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
     cm_enable:'activé', cm_disable:'désactivé',
-    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_switching:'Changement d enregistrement…', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
+    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_switching:'Changement d enregistrement…', rp_channel:'CH', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
     vp_datetime:'Date :', vp_video:'Vidéo', vp_del:'Suppr.', vp_del_confirm:'Supprimer cet enregistrement ? Irréversible.',
     ai_desc_btn:'AI', ai_desc_running:'Génération…', ai_desc_failed:'Échec de la description', ai_search_ph:'Rechercher par description…', ai_search_btn:'Rechercher', ai_search_none:'Aucun enregistrement correspondant',
     ai_ask_title:'Interroger la vue en direct', ai_ask_ph:'Posez une question sur l’image de la caméra…', ai_ask_btn:'Capturer & demander', ai_ask_running:'Réflexion…', ai_ask_failed:'Échec de la demande', ai_ask_history:'Historique', ai_ask_empty:'Aucune question — capturez et demandez.',
@@ -7372,7 +7381,7 @@ const I18N_INDEX = {
     cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
     cm_enable:'activar', cm_disable:'desactivar',
-    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_switching:'Cambiando grabación…', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
+    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_switching:'Cambiando grabación…', rp_channel:'CH', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
     vp_datetime:'Fecha:', vp_video:'Vídeo', vp_del:'Eliminar', vp_del_confirm:'¿Eliminar este registro? Irreversible.',
     ai_desc_btn:'AI', ai_desc_running:'Generando…', ai_desc_failed:'Error al generar descripción', ai_search_ph:'Buscar por descripción…', ai_search_btn:'Buscar', ai_search_none:'Sin grabaciones coincidentes',
     ai_ask_title:'Preguntar sobre la vista en vivo', ai_ask_ph:'Escribe una pregunta sobre lo que ve la cámara…', ai_ask_btn:'Capturar y preguntar', ai_ask_running:'Pensando…', ai_ask_failed:'Error en la consulta', ai_ask_history:'Historial', ai_ask_empty:'Sin preguntas todavía — captura y pregunta.',
@@ -8327,6 +8336,7 @@ document.addEventListener('DOMContentLoaded', function() {
             remotePlaybackLabel: '',      // 当前回放的录像时间标签（视频区右上角提示）
             _pbTicker: null,              // 本地 1s 进度 ticker（设备不推位置，前端自推）
             _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
+            playbackChannels: 2,          // 回放路数：1=只播第一路，2=双路同步（默认双路）
             _pbSeeking: false,            // 正在拖动进度条（拖动中冻结 ticker，避免打架）
             _segmentEnded: false,         // 本段是否已播完（设备会话结束，seek 需先重发 START）
             _lastPlayRecord: null,        // 上次播放的 record（段播完后 seek 重发 START 用）
@@ -8720,7 +8730,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 直播视频未连流时的占位缩略图(该路最近一张录像缩略图);连上流后 <video> 有帧自动盖住 poster。
             // ci 为 1-based(remoteView/remoteViewSetting/remoteViewAi 用),对应 dashThumbs 的 cam=ci-1。
             camPoster(ci) {
-                if (this._injectedCreds()) return this._cloudCover || '';   // 云模式:用最新云录像缩略图当封面
+                if (this._injectedCreds()) { const m = this._cloudCoverByCam || {}; return m[ci - 1] || m[String(ci - 1)] || this._cloudCover || ''; }   // 云模式:该路云录像缩略图
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
                 return (t && t.img) ? ('/download?filePath=' + t.img) : '';
             },
@@ -8798,10 +8808,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     try { localStorage.setItem('dv_dash_thumbs', JSON.stringify({ thumbs: this.dashThumbs, count: this.dashRecordCount, capped: this.dashRecordCapped, dur: this.dashLatestDuration })); } catch (e) {}
                 } catch (e) { console.debug('[dashboard] extras skipped:', e && e.message); }
                 finally { setTimeout(() => { window.__suppressUuidNotice = false; }, 1500); }
-                // 云模式:设备本地封面拿不到,用最新云录像 S3 缩略图当 dashboard 摄像头卡封面
+                // 云模式:设备本地封面拿不到,用最新云录像 S3 缩略图当 dashboard 摄像头卡封面(每路一张,_loadCloudCover 内填 dashThumbs)
                 if (this._injectedCreds()) {
                     await this._loadCloudCover();
-                    if (this._cloudCover) this.dashThumbs = [{ img: this._cloudCover, cam: 0, dur: this.dashLatestDuration || 0 }];
                 }
             },
             async kvsBuildViewer(channelName, targetElId, localElId = null, camIndex = 0, retryCount = 0) {
@@ -9082,11 +9091,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 切换提示:标签用录像时间(优先本地时间列,回退路径里的 14 位时间戳)
                 this.remotePlaybackLabel = record.RecordIndexInformationDateTime
                     || (String(record.RecordIndexInformationPath || '').match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/) || []).slice(1).join('') || '';
-                this.showAlert('info', tIdx('rp_switching') || '正在切换录像…', tIdx('vp_remote_playback'));
+                // 视频框内已有 spinner+文案提示,不再弹 toast(避免重复打扰)
                 try {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
-                    const paths = this.siblingPaths(record);                 // 同段各路 MP4
+                    let paths = this.siblingPaths(record);                   // 同段各路 MP4
+                    // 一路/二路选择:一路只播第一路(cam0),二路保留双路同步
+                    const chLimit = Math.max(1, this.playbackChannels || 1);
+                    paths = paths.filter((p) => p.cameraIndex < chLimit);
                     // ★ 顺序(对照实测定案):viewer 先连好并持续重发 offer 等待,再发 START(手机 App 同款 viewer up-front)。
                     //   实测实时预览(设备常在线)viewer 先连 8s 收流;回放若 START 先、viewer 后,设备上线 master 后
                     //   不空等 viewer,viewer 建立慢就错过 → 设备永不回 answer(CDP 实测 remoteDesc 恒 false)。
@@ -10652,33 +10664,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!p || this._injectedCreds()) return BLANK;
                 return '/download?filePath=' + p;
             },
-            // 云模式设备封面:用最新一条云录像的 S3 缩略图(预签名)。供 dashboard 摄像头卡/实时预览 poster 用。
-            _cloudCover: '',
+            // 云模式设备封面:按摄像头(channel)各取最新一条云录像 S3 缩略图(预签名→base64),
+            // 供 dashboard 摄像头卡(每路一张,对齐局域网)/实时预览 poster 用。
+            _cloudCover: '',                 // 主路(cam0)封面,camPoster/兜底用
+            _cloudCoverByCam: {},            // {camIndex: base64} 每路封面
             async _loadCloudCover() {
                 if (!this._injectedCreds()) return;
                 const uuid = this._uuid();
                 if (!uuid) return;
-                const ckey = 'dv_cover_' + uuid;
+                const nCam = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
+                const ckey = 'dv_covers_' + uuid;
                 // 缓存优先(base64,不受预签名过期影响):秒显,不每次查 GraphQL+重签。
-                try { const c = localStorage.getItem(ckey); if (c) { this._cloudCover = c; } } catch (e) {}
+                try {
+                    const c = JSON.parse(localStorage.getItem(ckey) || 'null');
+                    if (c && c.byCam) { this._cloudCoverByCam = c.byCam; this._cloudCover = c.byCam[0] || this._cloudCover; this._applyDashThumbs(nCam); }
+                } catch (e) {}
                 try {
                     const items = await this._gqlListCloudRecords(uuid, new Date(Date.now() - 7 * 864e5).toISOString(), new Date(Date.now() + 864e5).toISOString());
                     const withThumb = (items || []).filter((x) => x.thumbnailUrl).sort((a, b) => String(b.dateTime).localeCompare(String(a.dateTime)));
                     if (!withThumb.length) return;
-                    const signed = this._s3PresignUrl(withThumb[0].thumbnailUrl);
-                    // 取回转 base64 存缓存,下次秒显;失败则先用预签名 URL 顶着
-                    try {
-                        const r = await fetch(signed);
-                        if (r.ok) {
+                    // 按 channel 分组,每路取最新一条(channel 缺省归 cam0)
+                    const latestByCam = {};
+                    for (const it of withThumb) {
+                        const ci = (typeof it.channel === 'number') ? it.channel : 0;
+                        if (latestByCam[ci] === undefined) latestByCam[ci] = it.thumbnailUrl;
+                    }
+                    // 若后端未按 channel 分(全归 cam0),至少给主路
+                    const toB64 = async (url) => {
+                        try {
+                            const r = await fetch(this._s3PresignUrl(url));
+                            if (!r.ok) return '';
                             const blob = await r.blob();
-                            const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onloadend = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
-                            this._cloudCover = b64;
-                            try { localStorage.setItem(ckey, b64); } catch (e) {}
-                            return;
-                        }
-                    } catch (e) {}
-                    if (!this._cloudCover) this._cloudCover = signed;
+                            return await new Promise((res, rej) => { const fr = new FileReader(); fr.onloadend = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+                        } catch (e) { return ''; }
+                    };
+                    const byCam = {};
+                    for (const ci of Object.keys(latestByCam)) {
+                        const b64 = await toB64(latestByCam[ci]);
+                        if (b64) byCam[ci] = b64;
+                    }
+                    if (Object.keys(byCam).length) {
+                        this._cloudCoverByCam = byCam;
+                        this._cloudCover = byCam[0] || Object.values(byCam)[0] || this._cloudCover;
+                        this._applyDashThumbs(nCam);
+                        try { localStorage.setItem(ckey, JSON.stringify({ byCam })); } catch (e) {}
+                    }
                 } catch (e) { console.debug('[cloud cover] skip:', e && e.message); }
+            },
+            // 用每路云封面填 dashboard 摄像头卡(dashThumbs),缺失的路留空占位
+            _applyDashThumbs(nCam) {
+                const arr = [];
+                for (let i = 0; i < (nCam || 1); i++) {
+                    const img = this._cloudCoverByCam[i] || this._cloudCoverByCam[String(i)] || '';
+                    if (img) arr.push({ img, cam: i, dur: this.dashLatestDuration || 0 });
+                }
+                if (arr.length) this.dashThumbs = arr;
             },
             // 聊天 snap 图:云模式用记录的 imageUrl(设备已传 S3)+ 预签名;LAN 模式用设备本地 /download
             chatImgSrc(h) {
@@ -10707,7 +10747,7 @@ document.addEventListener('DOMContentLoaded', function() {
             async _gqlListCloudRecords(deviceID, startIso, endIso) {
                 const EP = 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql';
                 const KEY = 'da2-rmzpjwx7lva7zbfviuy2nwzbcy';
-                const Q = 'query L($f:ModelCloudRecordFilterInput,$l:Int,$t:String){ listCloudRecords(filter:$f,limit:$l,nextToken:$t){ items{ dateTime duration type thumbnailUrl expireAt } nextToken } }';
+                const Q = 'query L($f:ModelCloudRecordFilterInput,$l:Int,$t:String){ listCloudRecords(filter:$f,limit:$l,nextToken:$t){ items{ dateTime duration type thumbnailUrl channel expireAt } nextToken } }';
                 let t = null, out = [];
                 do {
                     const r = await fetch(EP, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': KEY },
