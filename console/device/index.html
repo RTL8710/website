@@ -8891,8 +8891,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     viewer.remoteStream = event.streams[0];
                     const el = document.getElementById(viewer.targetElId);
                     if (el) el.srcObject = viewer.remoteStream;
-                    // 回放路远端流到达 → 撤销视频区加载动效
-                    if (/-playback/.test(channelName)) this.remotePlaybackLoading = false;
+                    // 回放路远端流到达 → 撤销视频区加载动效;主路(cam0)画面出现即从 0 启动进度 ticker,
+                    // 保证进度与实际画面同步(不再 START 就走、画面却还在转圈)。
+                    if (/-playback/.test(channelName)) {
+                        this.remotePlaybackLoading = false;
+                        if (camIndex === 0 && this.remotePlaybackActive && !this._pbTicker) {
+                            this.playbackPositionMs = 0;
+                            this._startPbTicker();
+                        }
+                    }
                     // 主路(cam0)远端流到达 → 关闭主视图"连接中"动效(spinner 条件 isStreaming && !currentMainViewUid)
                     if (localElId) this.currentMainViewUid = 'kvs-cam1';
                     // 标记该路远端流已到 → 关闭对应画中画的加载动效(数组重新赋值以触发 Alpine 响应)
@@ -9095,7 +9102,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.playbackDurationMs = result.params.durationMs || 0;
                     this.playbackPositionMs = 0;
                     this.playbackCodec = result.params.codec || '';
-                    this._startPbTicker();   // 本地 1s 进度自推(设备不推位置)
+                    // 进度 ticker 不在此启动——START 只是设备接受,画面还没到。改在主路远端流(track)到达时才从 0 计时,
+                    // 否则进度条会自顾自走(4s)而视频仍在转圈,进度与画面对不上(用户实测图 #29)。
                     // viewer 后台建立(不阻塞状态),offer 重试覆盖设备 master 上线窗口。各路独立,单路失败不影响其它。
                     this.kvsPlaybackViewers = [];
                     const pb = [];
