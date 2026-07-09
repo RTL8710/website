@@ -235,32 +235,44 @@ async function resolveDeviceCover(d, creds) {
 }
 
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
+const DEVCACHE_KEY = () => 'dv_devices_' + ((state.session && state.session.userRow && state.session.userRow.id) || '');
+function renderDeviceGrid(list) {
+  const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
+    h('h1', { class: 'title' }, t('myDevices')),
+    h('span', { class: 'chip count' }, `${list.length}`),
+  );
+  shell(head, list.length
+    ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, enterDevice)))
+    : emptyState(t('noDevices')));
+}
 async function viewDevices() {
-  shell(loading(t('loadingDevices')));
+  // 1) 本地缓存优先:上次的设备列表立即渲染(秒显,不再干等 GraphQL)
+  if (!state.devices) {
+    try { const c = JSON.parse(localStorage.getItem(DEVCACHE_KEY()) || 'null'); if (c && c.length) { state.devices = c; c.forEach((d) => { d._picSigned = false; }); } } catch (e) {}
+  }
+  if (state.devices && state.devices.length) renderDeviceGrid(state.devices);
+  else shell(loading(t('loadingDevices')));
   try {
-    // 设备列表 + 临时凭证并行拉取(两者互不依赖),不再串行等待
-    const [list, creds] = await Promise.all([
-      state.devices ? Promise.resolve(state.devices) : fetchMyDevices(state.session.userRow.id),
-      resolvedCreds().catch(() => null),
-    ]);
+    // 2) 后台拉最新列表(只等这一个 GraphQL),到了就渲染;不再等凭证/封面
+    const list = await fetchMyDevices(state.session.userRow.id);
     state.devices = list;
-    // 设备封面:devicePicture(整机 S3 封面)优先,空则回退最新云录像封面;都用预签名 URL 给 <img>(见 resolveDeviceCover)。
-    if (creds) try {
-      await Promise.all(list.map(async (d) => {
-        if (d._picSigned) return;
-        d.picture = await resolveDeviceCover(d, creds);
-        d._picSigned = true;
-      }));
-    } catch (e) { console.warn('[devices] 封面解析跳过:', e && e.message); }
-    const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
-      h('h1', { class: 'title' }, t('myDevices')),
-      h('span', { class: 'chip count' }, `${list.length}`),
-    );
-    shell(head, list.length
-      ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, enterDevice)))
-      : emptyState(t('noDevices')));
+    try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: (d.raw && d.raw.devicePicture) || d.picture || '', ownerUserId: d.ownerUserId })))); } catch (e) {}
+    if (location.hash === '#/devices') renderDeviceGrid(list);
+    // 3) 封面后台解析(凭证 + 预签名),到了重渲染;完全不阻塞列表显示
+    if (list.some((d) => !d._picSigned)) {
+      resolvedCreds().then(async (creds) => {
+        if (!creds) return;
+        let changed = false;
+        await Promise.all(list.map(async (d) => {
+          if (d._picSigned) return;
+          try { const p = await resolveDeviceCover(d, creds); if (p) { d.picture = p; changed = true; } } catch (e) {}
+          d._picSigned = true;
+        }));
+        if (changed && location.hash === '#/devices') { renderDeviceGrid(list); try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: (d.raw && d.raw.devicePicture) || d.picture || '', ownerUserId: d.ownerUserId })))); } catch (e) {} }
+      }).catch(() => {});
+    }
   } catch (e) {
-    shell(errorBox('设备加载失败', e));
+    if (!state.devices || !state.devices.length) shell(errorBox('设备加载失败', e));
   }
 }
 
