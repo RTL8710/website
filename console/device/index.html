@@ -10471,11 +10471,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 云控制台模式:用原始 UTC ISO 精确构造窗口(手机 App 方式:SERVER_TIMESTAMP + [dateTime, +duration])。
                 // KVS server timestamp 与记录 dateTime 可能差几秒,前后各留 15s 容差,避免 No fragments。
                 if (this._injectedCreds() && r && r._iso) {
-                    const startMs = new Date(r._iso).getTime();
-                    if (isNaN(startMs)) { this.cloudPlayback.error = 'Invalid record datetime'; return; }
+                    // 关键坑(实测):CloudRecord.dateTime 是【设备本地时间误带 Z】——标 07:52Z 实为设备本地 07:52,
+                    // 真实 UTC 是 23:52(相差设备时区)。KVS 片段按真实 UTC server timestamp 存。
+                    // 把 wall-clock 数字当【浏览器本地时区】构造 → 真实 UTC epoch(假设浏览器时区=设备时区,与手机 App 同款处理)。
+                    const m = String(r._iso).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+                    if (!m) { this.cloudPlayback.error = 'Invalid record datetime'; return; }
+                    const startMs = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
                     const durMs = (r.RecordIndexInformationDuration || 30) * 1000;
-                    const PAD = 15000;
-                    this.cloudPlayback.startStr = new Date(startMs - PAD).toISOString();       // 带 Z,playCloudRecording 的 new Date() 按 UTC 解析
+                    const PAD = 15000;   // server timestamp 与记录时刻有几秒容差
+                    this.cloudPlayback.startStr = new Date(startMs - PAD).toISOString();       // 带 Z,playCloudRecording 的 new Date() 按 UTC 解析回同一 epoch
                     this.cloudPlayback.endStr = new Date(startMs + durMs + PAD).toISOString();
                     await this.playCloudRecording();
                     return;
