@@ -819,8 +819,8 @@
                     <div class="lang-option" data-theme-val="ocean"  style="--sw1:#04141F;--sw2:#2DD4BF;"><span class="theme-swatch"></span>大海</div>
                 </div>
             </div>
-            <button class="dv-topbar-btn" onclick="doLogout()" style="color:#ef4444;border-color:rgba(239,68,68,0.2);" title="Logout">
-                <i class="fas fa-right-from-bracket"></i>
+            <button class="dv-topbar-btn" onclick="doLogout()" title="返回设备列表">
+                <i class="fas fa-arrow-left"></i>
             </button>
         </div>
 
@@ -7849,8 +7849,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function doLogout() {
-        sessionStorage.removeItem('dv_auth');
-        window.location.replace('login.html');
+        // 门户进入的设备页:此按钮为「返回设备列表」,不登出账号、不清凭证(dv_auth/iot_creds 保留)。
+        // 局域网直连(无 dv_auth)时才回退到设备本地登录页。
+        if (sessionStorage.getItem('dv_auth')) { window.location.href = '../#/devices'; }
+        else { window.location.replace('login.html'); }
     }
 
     // responsive menu toggle
@@ -9708,6 +9710,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             //设备基本参数
             async initDeviceGeneralInformation() {
+                // 本地优先(云控制台模式):先读缓存即时渲染 hero/设备卡,不再空等 IoT ~10s 显示 robot/default 默认值。
+                const inj = this._injectedCreds();
+                const uuidKey = this._uuid() || (new URLSearchParams(location.search).get('deviceId') || '');
+                if (inj && uuidKey) {
+                    try { const c = JSON.parse(localStorage.getItem('dv_dgi_' + uuidKey) || 'null'); if (c && c.deviceUuid) this.deviceGeneralInformation = c; } catch (e) {}
+                }
                 const url = '/getDeviceCommand';
                 const data = {
                     method: "getDeviceGeneralInformationCommand",
@@ -9723,11 +9731,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         body: JSON.stringify(data)
                     });
                     const responseData = await response.json();
-                    console.log(responseData);
                     if (responseData.status === STATUS.GET_DEVICE_GENERAL_INFO) {
-                        // 获取并设置视频信息
                         this.deviceGeneralInformation = responseData.params.deviceGeneralInformation;
-                        console.log(this.deviceGeneralInformation);
+                        // 写回缓存,供下次进入秒显真实值
+                        if (inj) { try { localStorage.setItem('dv_dgi_' + (this.deviceGeneralInformation.deviceUuid || uuidKey), JSON.stringify(this.deviceGeneralInformation)); } catch (e) {} }
                     }
                 } catch (error) {
                     console.error('Error fetching deviceGeneralInformation settings: ', error);
@@ -11586,6 +11593,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             //tf卡信息
             async initStorageInformation() {
+                // 本地优先:先读缓存即时渲染存储卡(不再空等 IoT 显示 28GB 默认)
+                const inj = this._injectedCreds();
+                const uuidKey = this._uuid() || (new URLSearchParams(location.search).get('deviceId') || '');
+                if (inj && uuidKey) {
+                    try { const c = JSON.parse(localStorage.getItem('dv_storage_' + uuidKey) || 'null'); if (c) this.storageInformation = c; } catch (e) {}
+                }
                 const url = '/getDeviceCommand';
                 const data = {
                     method: "getStorageInformationCommand",
@@ -11603,11 +11616,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
                     const responseData = await response.json();
-                    console.log(responseData);
                     if (responseData.status === STATUS.GET_STORAGE) {
-                        // 获取并设置视频信息
                         this.storageInformation = responseData.params.storageInformation;
-                        console.log(this.storageInformation);
+                        if (inj && uuidKey) { try { localStorage.setItem('dv_storage_' + uuidKey, JSON.stringify(this.storageInformation)); } catch (e) {} }
                     }
                 } catch (error) {
                     console.error('Error fetching deviceGeneralInformation settings: ', error);

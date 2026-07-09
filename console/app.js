@@ -34,35 +34,69 @@ function topbar() {
 }
 function shell(...body) { return mount(app, topbar(), h('div', { class: 'wrap' }, ...body)); }
 
-// ── 登录 ─────────────────────────────────────────────────────────────────────
+// ── 登录(双栏 hero+form,移植设备端 login.html 视觉,登录逻辑走 Cognito signIn)──────
+function fa(cls) { return h('i', { class: cls }); }
 function viewLogin() {
-  const username = h('input', { type: 'text', placeholder: '用户名', autocomplete: 'username',
-    autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false' });
-  const pass = h('input', { type: 'password', placeholder: '••••••••', autocomplete: 'current-password' });
-  const err = h('div', { class: 'err' });
-  const btn = h('button', { class: 'gbtn primary', style: { width: '100%', marginTop: '22px', height: '46px' } }, '登录');
+  const username = h('input', { class: 'form-input', type: 'text', id: 'username', placeholder: '请输入用户名',
+    autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
+  const pass = h('input', { class: 'form-input', type: 'password', id: 'password', placeholder: '请输入密码',
+    autocomplete: 'current-password', required: true });
+  const pwIcon = fa('fas fa-eye');
+  const togglePw = h('button', { type: 'button', class: 'toggle-pw', title: '显示/隐藏密码',
+    onclick: () => { const show = pass.type === 'password'; pass.type = show ? 'text' : 'password'; pwIcon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye'; } }, pwIcon);
+  const errMsg = h('span', {}, '用户名或密码不正确');
+  const err = h('div', { class: 'login-error' }, fa('fas fa-circle-exclamation'), errMsg);
+  const btn = h('button', { type: 'submit', class: 'btn-login' }, '登录');
   async function submit(ev) {
     ev && ev.preventDefault();
     err.classList.remove('show');
-    if (!username.value || !pass.value) { err.textContent = '请输入用户名和密码'; err.classList.add('show'); return; }
+    if (!username.value || !pass.value) { errMsg.textContent = '请输入用户名和密码'; err.classList.add('show'); return; }
     btn.disabled = true; btn.textContent = '登录中…';
     try {
       state.session = await signIn(username.value.trim(), pass.value);
       state.devices = null;
       go('#/devices');
     } catch (e) {
-      err.textContent = mapAuthError(e); err.classList.add('show');
+      errMsg.textContent = mapAuthError(e); err.classList.add('show');
       btn.disabled = false; btn.textContent = '登录';
     }
   }
-  const form = h('form', { class: 'glass card-lg', onsubmit: submit },
-    h('h1', { class: 'title' }, '登录'),
-    h('div', { class: 'sub' }, '用你的设备账号(用户名)登录,管理名下设备'),
-    h('div', { class: 'field' }, h('label', {}, '用户名'), username),
-    h('div', { class: 'field' }, h('label', {}, '密码'), pass),
-    err, btn,
+  const badge = () => h('div', { class: 'brand-badge' }, fa('fas fa-robot'));
+  const feat = (ic, tx) => h('div', { class: 'feature-item' }, h('div', { class: 'feature-ic' }, fa('fas ' + ic)), h('div', { class: 'feature-tx' }, tx));
+  const field = (labelText, forId, iconCls, input, extra) => h('div', { class: 'form-group' },
+    h('label', { class: 'form-label', for: forId }, labelText),
+    h('div', { class: 'input-wrap' }, fa('fas ' + iconCls + ' input-icon'), input, extra || null),
   );
-  mount(app, h('div', { class: 'center' }, form));
+  const shellEl = h('div', { class: 'login-shell' },
+    h('aside', { class: 'login-hero' },
+      h('div', { class: 'hero-top brand-row' }, badge(),
+        h('div', {}, h('div', { class: 'brand-name' }, '设备管理控制台'), h('div', { class: 'brand-sub' }, 'Device Management'))),
+      h('div', { class: 'hero-mid' },
+        h('h1', { class: 'hero-title' }, '机器人设备云控制台'),
+        h('p', { class: 'hero-tagline' }, '实时监控、录像回放与设备全参数控制,一站式云端管理。'),
+        h('div', { class: 'feature-list' },
+          feat('fa-video', '实时音视频监控'),
+          feat('fa-clock-rotate-left', '录像回放'),
+          feat('fa-sliders', '音视频 · 网络 · IoT 设置'),
+          feat('fa-cloud', '云端管理'),
+        ),
+      ),
+      h('div', { class: 'hero-bottom' }, '安全设备接入 · 局域网 & 广域网'),
+    ),
+    h('main', { class: 'login-main' },
+      h('form', { class: 'login-card', onsubmit: submit },
+        h('div', { class: 'card-brand' }, badge(),
+          h('div', {}, h('div', { class: 'brand-name', style: { fontSize: '17px' } }, '设备管理控制台'), h('div', { class: 'brand-sub' }, 'Device Management'))),
+        h('div', { class: 'login-title' }, '欢迎回来'),
+        h('div', { class: 'login-subtitle' }, '用你的设备账号(用户名)登录,管理名下设备'),
+        err,
+        field('用户名', 'username', 'fa-user', username),
+        field('密码', 'password', 'fa-lock', pass, togglePw),
+        btn,
+      ),
+    ),
+  );
+  mount(app, shellEl);
   username.focus();
 }
 function mapAuthError(e) {
@@ -100,22 +134,22 @@ async function enterDevice(dev) {
   }
 }
 
-// S3 缩略图 → base64 缓存(localStorage)。命中即返回,消除每次进列表的重签+重取延迟。
-// key 用对象路径末段(稳定、不含签名参数)。存储配额满时静默降级为预签名 URL。
-async function cachedThumb(rawUrl, creds) {
-  if (!rawUrl || !/amazonaws\.com/.test(rawUrl)) return rawUrl || '';
-  let key;
-  try { key = 'dv_thumb_' + new URL(rawUrl).pathname.split('/').slice(-4).join('_'); } catch (e) { key = 'dv_thumb_' + rawUrl.slice(-48); }
-  try { const c = localStorage.getItem(key); if (c) return c; } catch (e) {}
-  const signed = presignS3Get(creds, rawUrl);
-  try {
-    const r = await fetch(signed);
-    if (!r.ok) return signed;
-    const blob = await r.blob();
-    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onloadend = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
-    try { localStorage.setItem(key, b64); } catch (e) {}
-    return b64;
-  } catch (e) { return signed; }
+// 设备封面:优先 devicePicture(整机 S3 封面),为空则回退到最新一条云录像的 thumbnailUrl。
+// 一律用【预签名 URL 直接给 <img>】——图片加载不受 S3 CORS 限制(不能 fetch→base64,那会被 CORS 拦,
+// 是仪表盘封面踩过的坑)。预签名 1h 有效,每次进列表本地 SigV4 重签(快),浏览器再缓存图片本身。
+async function resolveDeviceCover(d, creds) {
+  let raw = (d.picture && /amazonaws\.com/.test(d.picture)) ? d.picture : '';
+  if (!raw) {
+    // devicePicture 空 → 拉最新一条云录像封面兜底
+    try {
+      const end = new Date(Date.now() + 864e5).toISOString();
+      const start = new Date(Date.now() - 7 * 864e5).toISOString();
+      const recs = await fetchCloudRecords(d.uuid || d.id, start, end);
+      const withThumb = recs.find((r) => r.thumbnailUrl);
+      if (withThumb) raw = withThumb.thumbnailUrl;
+    } catch (e) { /* 兜底失败保持无封面 */ }
+  }
+  return raw ? presignS3Get(creds, raw) : '';
 }
 
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
@@ -124,17 +158,15 @@ async function viewDevices() {
   try {
     if (!state.devices) state.devices = await fetchMyDevices(state.session.userRow.id);
     const list = state.devices;
-    // 设备封面(devicePicture)是 S3 直链、桶禁匿名读 → 预签名后取回,缓存为 base64(手机同款 ImageCacheService)。
-    // 缓存命中直接用(不重签、不重新 fetch,消除每次进列表的延迟);未命中才签名+取图+存。
-    // base64 不受预签名 1h 过期影响,离线也能显示。签名/取图失败时回退预签名 URL(onerror 兜底隐藏)。
+    // 设备封面:devicePicture(整机 S3 封面)优先,空则回退最新云录像封面;都用预签名 URL 给 <img>(见 resolveDeviceCover)。
     try {
       const creds = await resolvedCreds();
       await Promise.all(list.map(async (d) => {
-        if (d._picSigned || !d.picture || !/amazonaws\.com/.test(d.picture)) return;
-        d.picture = await cachedThumb(d.picture, creds);
+        if (d._picSigned) return;
+        d.picture = await resolveDeviceCover(d, creds);
         d._picSigned = true;
       }));
-    } catch (e) { console.warn('[devices] 封面预签名跳过:', e && e.message); }
+    } catch (e) { console.warn('[devices] 封面解析跳过:', e && e.message); }
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 0 4px' } },
       h('h1', { class: 'title' }, '我的设备'),
       h('span', { class: 'chip count' }, `${list.length}`),
@@ -299,13 +331,16 @@ function route() {
 }
 window.addEventListener('hashchange', route);
 
-// ── 启动:尝试恢复会话 ────────────────────────────────────────────────────────
+// ── 启动:首屏立即渲染登录页(不再黑屏空等 restoreSession + esm.sh 导入),会话在后台恢复 ──
 (async function boot() {
-  mount(app, h('div', { class: 'center' }, loading('启动中…')));
+  if (!location.hash) location.hash = '#/login';
+  route();   // 先按当前 hash 渲染(未登录 → 立即出登录页)
   try {
-    const s = await restoreSession();
-    if (s && s.userRow) state.session = s;
+    const s = await restoreSession();   // 后台恢复 Cognito 会话
+    if (s && s.userRow) {
+      state.session = s;
+      // 恢复到会话且用户还停在登录页/根 → 自动进设备列表
+      if (location.hash === '#/login' || !location.hash) go('#/devices');
+    }
   } catch (_) {}
-  if (!location.hash) location.hash = state.session ? '#/devices' : '#/login';
-  route();
 })();
