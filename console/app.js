@@ -116,7 +116,9 @@ function topbar() {
       h('span', { class: 'spacer' }),
       // 顺序与设备页顶栏一致:用户(带图标) → 语言 → 主题 → 退出(设备页最后是返回)
       state.session ? h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
-        fa('fas fa-user-circle'), h('span', {}, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || '')) : null,
+        fa('fas fa-user-circle'), h('span', {}, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || ''),
+        // 当前区域(东南亚/美洲/欧洲)显示在用户名旁,accent 小胶囊
+        h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } }, regionLabel(getRegion()))) : null,
       ...switcherBar(true).reverse(),
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
