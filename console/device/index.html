@@ -3172,10 +3172,11 @@
                                                 <!-- 视频播放区域，视频大小根据父容器自动调整 -->
                                                 <div class="text-center" style="position:relative;">
                                                     <!-- 云端远程回放：非局域网时设备把本地 MP4 demux 帧经独立 Agora 回放通道(uid 1226)推来，这里渲染该独立远端流 -->
-                                                    <div x-show="remotePlaybackActive" class="mb-3 p-2 rounded" style="background:rgba(16,185,129,0.10);">
+                                                    <div x-show="remotePlaybackActive || remotePlaybackLoading" class="mb-3 p-2 rounded" style="background:rgba(16,185,129,0.10);">
                                                         <div class="d-flex align-items-center mb-1" style="font-size:12px;font-weight:600;">
                                                             <i class="fa-solid fa-cloud me-1"></i><span x-text="tIdx('vp_remote_playback')"></span>
                                                             <span class="badge bg-secondary ms-2" style="font-size:10px;" x-text="playbackCodec"></span>
+                                                            <span x-show="remotePlaybackLabel" class="ms-2" style="font-size:11px;color:var(--text-muted,#9aa4b2);font-weight:500;" x-text="remotePlaybackLabel"></span>
                                                             <button class="btn btn-sm btn-danger ms-auto" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
@@ -3186,6 +3187,12 @@
                                                                 <div style="position:relative;min-width:0;" x-show="pi===1 || pbCamUids[pi-1]">
                                                                     <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
                                                                     <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
+                                                                    <!-- 切换/加载动效:覆盖在视频上,给用户明确「正在切换录像」反馈 -->
+                                                                    <div x-show="remotePlaybackLoading && pi===1" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
+                                                                        <div class="spinner-border text-light" role="status" style="width:2rem;height:2rem;"></div>
+                                                                        <div style="color:#fff;font-size:12px;margin-top:10px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
+                                                                        <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:2px;" x-text="remotePlaybackLabel"></div>
+                                                                    </div>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -6636,7 +6643,7 @@ const I18N_INDEX = {
     cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
-    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
+    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_switching:'Switching recording…', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
     vp_datetime:'Datetime:', vp_video:'Video', vp_del:'Del', vp_del_confirm:'Delete this record? This cannot be undone.',
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
@@ -6782,7 +6789,7 @@ const I18N_INDEX = {
     cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
-    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
+    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_switching:'正在切换录像…', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
     vp_datetime:'时间：', vp_video:'视频', vp_del:'删除', vp_del_confirm:'确定删除这条记录吗？此操作不可恢复。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
@@ -6928,7 +6935,7 @@ const I18N_INDEX = {
     cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
     cm_enable:'有効', cm_disable:'無効',
-    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
+    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_switching:'録画を切り替え中…', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
     vp_datetime:'日時：', vp_video:'動画', vp_del:'削除', vp_del_confirm:'この記録を削除しますか？元に戻せません。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'説明の生成に失敗しました', ai_search_ph:'内容説明で検索…', ai_search_btn:'検索', ai_search_none:'一致する録画がありません',
     ai_ask_title:'ライブ映像に質問', ai_ask_ph:'カメラの映像について質問を入力…', ai_ask_btn:'撮影して質問', ai_ask_running:'考え中…', ai_ask_failed:'質問に失敗しました', ai_ask_history:'履歴', ai_ask_empty:'まだ質問がありません。撮影して質問してみてください。',
@@ -7073,7 +7080,7 @@ const I18N_INDEX = {
     cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
     cm_enable:'aktiviert', cm_disable:'deaktiviert',
-    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
+    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_switching:'Aufnahme wird gewechselt…', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
     vp_datetime:'Datum:', vp_video:'Video', vp_del:'Löschen', vp_del_confirm:'Diesen Eintrag löschen? Nicht widerrufbar.',
     ai_desc_btn:'AI', ai_desc_running:'Wird erstellt…', ai_desc_failed:'Beschreibung fehlgeschlagen', ai_search_ph:'Nach Inhaltsbeschreibung suchen…', ai_search_btn:'Suchen', ai_search_none:'Keine passenden Aufnahmen',
     ai_ask_title:'Live-Ansicht fragen', ai_ask_ph:'Frage zum aktuellen Kamerabild eingeben…', ai_ask_btn:'Foto & Frage', ai_ask_running:'Denkt nach…', ai_ask_failed:'Anfrage fehlgeschlagen', ai_ask_history:'Verlauf', ai_ask_empty:'Noch keine Fragen — Foto machen und fragen.',
@@ -7218,7 +7225,7 @@ const I18N_INDEX = {
     cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
     cm_enable:'activé', cm_disable:'désactivé',
-    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
+    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_switching:'Changement d enregistrement…', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
     vp_datetime:'Date :', vp_video:'Vidéo', vp_del:'Suppr.', vp_del_confirm:'Supprimer cet enregistrement ? Irréversible.',
     ai_desc_btn:'AI', ai_desc_running:'Génération…', ai_desc_failed:'Échec de la description', ai_search_ph:'Rechercher par description…', ai_search_btn:'Rechercher', ai_search_none:'Aucun enregistrement correspondant',
     ai_ask_title:'Interroger la vue en direct', ai_ask_ph:'Posez une question sur l’image de la caméra…', ai_ask_btn:'Capturer & demander', ai_ask_running:'Réflexion…', ai_ask_failed:'Échec de la demande', ai_ask_history:'Historique', ai_ask_empty:'Aucune question — capturez et demandez.',
@@ -7363,7 +7370,7 @@ const I18N_INDEX = {
     cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
     cm_enable:'activar', cm_disable:'desactivar',
-    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
+    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_switching:'Cambiando grabación…', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
     vp_datetime:'Fecha:', vp_video:'Vídeo', vp_del:'Eliminar', vp_del_confirm:'¿Eliminar este registro? Irreversible.',
     ai_desc_btn:'AI', ai_desc_running:'Generando…', ai_desc_failed:'Error al generar descripción', ai_search_ph:'Buscar por descripción…', ai_search_btn:'Buscar', ai_search_none:'Sin grabaciones coincidentes',
     ai_ask_title:'Preguntar sobre la vista en vivo', ai_ask_ph:'Escribe una pregunta sobre lo que ve la cámara…', ai_ask_btn:'Capturar y preguntar', ai_ask_running:'Pensando…', ai_ask_failed:'Error en la consulta', ai_ask_history:'Historial', ai_ask_empty:'Sin preguntas todavía — captura y pregunta.',
@@ -8314,6 +8321,10 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 当前进度（拖动 → seek）
             playbackCodec: '',            // h264/h265（start 响应回传）
+            remotePlaybackLoading: false, // 正在切换/加载录像（视频区 spinner）
+            remotePlaybackLabel: '',      // 当前回放的录像时间标签（视频区右上角提示）
+            _pbTicker: null,              // 本地 1s 进度 ticker（设备不推位置，前端自推）
+            _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
             startTime: new Date("2000-01-09T00:00").toISOString().slice(0, 16),
@@ -8880,6 +8891,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     viewer.remoteStream = event.streams[0];
                     const el = document.getElementById(viewer.targetElId);
                     if (el) el.srcObject = viewer.remoteStream;
+                    // 回放路远端流到达 → 撤销视频区加载动效
+                    if (/-playback/.test(channelName)) this.remotePlaybackLoading = false;
                     // 主路(cam0)远端流到达 → 关闭主视图"连接中"动效(spinner 条件 isStreaming && !currentMainViewUid)
                     if (localElId) this.currentMainViewUid = 'kvs-cam1';
                     // 标记该路远端流已到 → 关闭对应画中画的加载动效(数组重新赋值以触发 Alpine 响应)
@@ -9044,6 +9057,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // KVS 云端回放：连 <uuid>-playback 通道渲染回放流，并发 transport-agnostic 的回放命令（与 Agora 回放命令同一套）。
             async startKvsPlayback(record) {
                 if (!record || !record.RecordIndexInformationPath) return;
+                // ★ 连点保护:切录像前先彻底停掉上一次回放(关旧 viewer/client + 发 stop 命令),否则 client 累积→回放失败。
+                //   _pbStarting 锁:上一次 start 还没走完就再点,直接吞掉(等它结束/被 stop),避免并发建多个 viewer。
+                if (this._pbStarting) { await this.stopRemotePlayback(); }
+                if (this.remotePlaybackActive || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length)) {
+                    await this.stopRemotePlayback();
+                }
+                this._pbStarting = true;
+                this.remotePlaybackLoading = true;   // 视频区 spinner + "正在加载录像…"
+                // 切换提示:标签用录像时间(优先本地时间列,回退路径里的 14 位时间戳)
+                this.remotePlaybackLabel = record.RecordIndexInformationDateTime
+                    || (String(record.RecordIndexInformationPath || '').match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/) || []).slice(1).join('') || '';
+                this.showAlert('info', tIdx('rp_switching') || '正在切换录像…', tIdx('vp_remote_playback'));
                 try {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
@@ -9061,6 +9086,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const result = await response.json();
                     console.log('[AHS][KVS] playback START result success=', result && result.params && result.params.success, 'durationMs=', result && result.params && result.params.durationMs);
                     if (!(result && result.params && result.params.success)) {
+                        this.remotePlaybackLoading = false;
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                         return;
                     }
@@ -9069,7 +9095,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.playbackDurationMs = result.params.durationMs || 0;
                     this.playbackPositionMs = 0;
                     this.playbackCodec = result.params.codec || '';
-                    this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
+                    this._startPbTicker();   // 本地 1s 进度自推(设备不推位置)
                     // viewer 后台建立(不阻塞状态),offer 重试覆盖设备 master 上线窗口。各路独立,单路失败不影响其它。
                     this.kvsPlaybackViewers = [];
                     const pb = [];
@@ -9083,9 +9109,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
+                    this.remotePlaybackLoading = false;
                     this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                } finally {
+                    this._pbStarting = false;
+                    // 兜底:8s 内没收到远端流(track 会清 loading)也撤 spinner,避免永久转圈
+                    setTimeout(() => { this.remotePlaybackLoading = false; }, 8000);
                 }
             },
+            // 本地进度 ticker:设备不推位置,前端每秒自推;到段尾停。seek 后从新位置继续。
+            _startPbTicker() {
+                this._stopPbTicker();
+                this._pbTicker = setInterval(() => {
+                    if (!this.remotePlaybackActive) { this._stopPbTicker(); return; }
+                    if (this.playbackPositionMs < this.playbackDurationMs) {
+                        this.playbackPositionMs = Math.min(this.playbackPositionMs + 1000, this.playbackDurationMs);
+                    }
+                }, 1000);
+            },
+            _stopPbTicker() { if (this._pbTicker) { clearInterval(this._pbTicker); this._pbTicker = null; } },
 
 
             async handleUserPublished(user, mediaType) {
@@ -12656,6 +12698,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.remotePlaybackPath = '';
                 this.playbackDurationMs = 0;
                 this.playbackPositionMs = 0;
+                this.remotePlaybackLoading = false;
+                this.remotePlaybackLabel = '';
+                this._stopPbTicker();
                 this.pbCamUids = [];
                 // KVS 回放：拆各路回放通道 viewer（不影响 KVS 实时预览）；Agora 回放：停实时订阅。
                 if (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) {
@@ -12671,7 +12716,9 @@ document.addEventListener('DOMContentLoaded', function() {
             async seekRemotePlayback(ev) {
                 let positionMs = parseInt((ev && ev.target) ? ev.target.value : this.playbackPositionMs, 10);
                 if (isNaN(positionMs) || positionMs < 0) positionMs = 0;
+                if (this.playbackDurationMs && positionMs > this.playbackDurationMs) positionMs = this.playbackDurationMs;
                 this.playbackPositionMs = positionMs;
+                if (!this.remotePlaybackActive) return;   // 未在回放不发 seek(拖到空进度条无意义)
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -12681,6 +12728,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             params: { positionMs: positionMs },
                         }),
                     });
+                    this._startPbTicker();   // seek 后从新位置继续自推进度
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
                 }
