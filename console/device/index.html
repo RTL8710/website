@@ -8704,7 +8704,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 直播视频未连流时的占位缩略图(该路最近一张录像缩略图);连上流后 <video> 有帧自动盖住 poster。
             // ci 为 1-based(remoteView/remoteViewSetting/remoteViewAi 用),对应 dashThumbs 的 cam=ci-1。
             camPoster(ci) {
-                if (this._injectedCreds()) return '';   // 云模式:设备本地封面拿不到,无 poster(x-show 会隐藏)
+                if (this._injectedCreds()) return this._cloudCover || '';   // 云模式:用最新云录像缩略图当封面
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
                 return (t && t.img) ? ('/download?filePath=' + t.img) : '';
             },
@@ -8782,6 +8782,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     try { localStorage.setItem('dv_dash_thumbs', JSON.stringify({ thumbs: this.dashThumbs, count: this.dashRecordCount, capped: this.dashRecordCapped, dur: this.dashLatestDuration })); } catch (e) {}
                 } catch (e) { console.debug('[dashboard] extras skipped:', e && e.message); }
                 finally { setTimeout(() => { window.__suppressUuidNotice = false; }, 1500); }
+                // 云模式:设备本地封面拿不到,用最新云录像 S3 缩略图当 dashboard 摄像头卡封面
+                if (this._injectedCreds()) {
+                    await this._loadCloudCover();
+                    if (this._cloudCover) this.dashThumbs = [{ img: this._cloudCover, cam: 0, dur: this.dashLatestDuration || 0 }];
+                }
             },
             async kvsBuildViewer(channelName, targetElId, localElId = null, camIndex = 0, retryCount = 0) {
                 const clientId = this.generateClientId();
@@ -9026,10 +9031,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
                     const paths = this.siblingPaths(record);                 // 同段各路 MP4
-                    // 逐路建回放 viewer：-playback/-playback2/-playback3 → remotePlaybackView/2/3
+                    // ★ 关键顺序:先发 START,再连 viewer。设备收到 START 才作为 master 上线到 -playback 信道
+                    //   开始 demux 推流;若 viewer 先连,SDP offer 在 master 未上线时无人应答 → 永久黑屏(实测 START success 但无画面)。
+                    const response = await fetch('/setDeviceCommand', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: 'startPlaybackLocalRecordInformationCommand', params: { paths, RecordIndexInformationPath: record.RecordIndexInformationPath } }),
+                    });
+                    const result = await response.json();
+                    if (!(result && result.params && result.params.success)) {
+                        this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                        return;
+                    }
+                    this.remotePlaybackActive = true;
+                    this.remotePlaybackPath = record.RecordIndexInformationPath;
+                    this.playbackDurationMs = result.params.durationMs || 0;
+                    this.playbackPositionMs = 0;
+                    this.playbackCodec = result.params.codec || '';
+                    // 设备 master 已上线 → 逐路建回放 viewer(-playback/-playback2/…),offer 立即被应答收流。
                     this.kvsPlaybackViewers = [];
                     const pb = [];
                     for (const ent of paths) {
+                        if (ent && ent.path === '') continue;   // 空 path 设备不 demux,不必连该路 viewer
                         const i = ent.cameraIndex;
                         const suffix = (i === 0) ? '-playback' : (i === 1) ? '-playback2' : ('-playback' + (i + 1));
                         const v = await this.kvsBuildViewer(deviceUuid + suffix, this.pbElId(i));
@@ -9037,21 +9059,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     this.kvsPlaybackViewer = this.kvsPlaybackViewers[0] || null;  // 兼容旧停止逻辑
                     this.pbCamUids = pb;
-                    const response = await fetch('/setDeviceCommand', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ method: 'startPlaybackLocalRecordInformationCommand', params: { paths, RecordIndexInformationPath: record.RecordIndexInformationPath } }),
-                    });
-                    const result = await response.json();
-                    if (result && result.params && result.params.success) {
-                        this.remotePlaybackActive = true;
-                        this.remotePlaybackPath = record.RecordIndexInformationPath;
-                        this.playbackDurationMs = result.params.durationMs || 0;
-                        this.playbackPositionMs = 0;
-                        this.playbackCodec = result.params.codec || '';
-                        this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
-                    } else {
-                        this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
-                    }
+                    this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
                 } catch (e) {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
                     this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
@@ -10552,11 +10560,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     return u.origin + u.pathname + '?' + qs + '&X-Amz-Signature=' + sig;
                 } catch (e) { return rawUrl; }
             },
-            // 设备本地文件缩略图:LAN 走 /download;云模式无来源(设备本地文件),返回透明占位、零 404 请求
+            // 设备本地文件缩略图:LAN 走 /download;云模式无来源(设备本地文件),返回透明占位、零 404 请求。
+            // 已是 http(s) URL(如云封面预签名)直接用。
             dlSrc(p) {
+                if (p && /^https?:/.test(p)) return p;
                 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
                 if (!p || this._injectedCreds()) return BLANK;
                 return '/download?filePath=' + p;
+            },
+            // 云模式设备封面:用最新一条云录像的 S3 缩略图(预签名)。供 dashboard 摄像头卡/实时预览 poster 用。
+            _cloudCover: '',
+            async _loadCloudCover() {
+                if (!this._injectedCreds()) return;
+                try {
+                    const uuid = this._uuid();
+                    if (!uuid) return;
+                    const items = await this._gqlListCloudRecords(uuid, new Date(Date.now() - 7 * 864e5).toISOString(), new Date(Date.now() + 864e5).toISOString());
+                    const withThumb = (items || []).filter((x) => x.thumbnailUrl).sort((a, b) => String(b.dateTime).localeCompare(String(a.dateTime)));
+                    if (withThumb.length) this._cloudCover = this._s3PresignUrl(withThumb[0].thumbnailUrl);
+                } catch (e) { console.debug('[cloud cover] skip:', e && e.message); }
             },
             // 聊天 snap 图:云模式用记录的 imageUrl(设备已传 S3)+ 预签名;LAN 模式用设备本地 /download
             chatImgSrc(h) {
