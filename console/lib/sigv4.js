@@ -26,7 +26,9 @@ export function presignS3Get(creds, rawUrl) {
     const canon = 'GET\n' + u.pathname + '\n' + qs + '\nhost:' + u.host + '\n\nhost\nUNSIGNED-PAYLOAD';
     const sts = 'AWS4-HMAC-SHA256\n' + amz + '\n' + scope + '\n' + C.SHA256(canon).toString(C.enc.Hex);
     const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), 's3'), 'aws4_request');
-    const sig = hmac(sts, kSigning).toString(C.enc.Hex);
+    // hmac(key,data)=HmacSHA256(data,key) → 最终签名要 message=sts、key=kSigning,故传 (kSigning, sts)。
+    // 之前误写 (sts, kSigning) 算成 HmacSHA256(kSigning, sts) → SignatureDoesNotMatch(设备卡封面加载失败根因)。
+    const sig = hmac(kSigning, sts).toString(C.enc.Hex);
     return u.origin + u.pathname + '?' + qs + '&X-Amz-Signature=' + sig;
   } catch (e) { return rawUrl; }
 }
