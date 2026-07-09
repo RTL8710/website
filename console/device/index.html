@@ -8848,9 +8848,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     await viewer.peerConnection.setLocalDescription(
                         await viewer.peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
                     );
-                    viewer.signalingClient.sendSdpOffer(viewer.peerConnection.localDescription);
+                    const sendOffer = () => { try { viewer.signalingClient.sendSdpOffer(viewer.peerConnection.localDescription); } catch (e) {} };
+                    sendOffer();
+                    // ★ 回放关键:设备(master)可能在本 viewer 之后才上线(收到 START 命令才上线 -playback 信道)。
+                    //   KVS 不缓存「master 离线时收到的 offer」,故首个 offer 常丢失、永远等不到 answer(黑屏)。
+                    //   没拿到 remoteDescription 前每 2s 重发 offer(最多 5 次≈10s),命中设备上线窗口。实时预览时
+                    //   master 一直在线,首个 offer 即被应答,该定时器随即清除,无副作用。
+                    let tries = 0;
+                    viewer._offerRetry = setInterval(() => {
+                        if (viewer.peerConnection.currentRemoteDescription || ++tries > 5) {
+                            clearInterval(viewer._offerRetry); viewer._offerRetry = null; return;
+                        }
+                        sendOffer();
+                    }, 2000);
                 });
-                viewer.signalingClient.on('sdpAnswer', async answer => { await viewer.peerConnection.setRemoteDescription(answer); });
+                viewer.signalingClient.on('sdpAnswer', async answer => {
+                    if (viewer._offerRetry) { clearInterval(viewer._offerRetry); viewer._offerRetry = null; }
+                    await viewer.peerConnection.setRemoteDescription(answer);
+                });
                 viewer.signalingClient.on('iceCandidate', c => { viewer.peerConnection.addIceCandidate(c); });
                 viewer.signalingClient.on('close', () => { console.log('[AHS][KVS]', channelName, 'signaling closed'); this.kvsScheduleRetry(viewer, 'signaling closed'); });
                 viewer.signalingClient.on('error', err => { console.error('[AHS][KVS]', channelName, 'signaling error', err); this.kvsScheduleRetry(viewer, 'signaling error'); });
@@ -8925,6 +8940,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!viewer) return;
                 try {
                     if (viewer._connectWatchdog) { clearTimeout(viewer._connectWatchdog); viewer._connectWatchdog = null; }
+                    if (viewer._offerRetry) { clearInterval(viewer._offerRetry); viewer._offerRetry = null; }
                     if (viewer.signalingClient) {
                         const sc = viewer.signalingClient;
                         try { sc.close(); } catch (e) {}
