@@ -2870,7 +2870,7 @@
                     @media (max-width: 991px){#dashboard .dash-hero-viz{display:none}}
                 </style>
                 <div class="page-section active" id="dashboard" x-data="deviceSettings()"
-                     x-init="onPage('dashboard', () => { initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras() })">
+                     x-init="onPage('dashboard', () => { _restoreDashSnap(); initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras(); _scheduleDashSnap() })">
                     <div class="page-wrapper">
                         <div class="page-body">
                             <div class="container-xl">
@@ -10764,6 +10764,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (arr.length) this.dashThumbs = arr;
             },
+            // ── dashboard 全参数快照缓存:进入先恢复上次所有卡片数据(秒显完整,不再等 ~10s 一堆 IoT 命令),
+            //    IoT 后台并发拉最新逐格更新;稳定后(5s)存快照。字段宽列表,存在才存/恢复,不依赖各 init 内部结构。
+            _DASH_SNAP_FIELDS: ['deviceGeneralInformation', 'storageInformation', 'videoInformation', 'algorithmInformation', 'audioInformation', 'recordInformation', 'recordSettings', 'recordModeInformation', 'motionDetectionInformation', 'cloudRecordService', 'rtspServerService', 'openaiService', 'dashRecordCount', 'dashLatestDuration', 'dashThumbs', 'dashLatestThumb', 'dashRecordCapped'],
+            _dashSnapKey() { const u = this._uuid() || (new URLSearchParams(location.search).get('deviceId') || ''); return u ? ('dv_dashsnap_' + u) : ''; },
+            _restoreDashSnap() {
+                if (!this._injectedCreds()) return;
+                const key = this._dashSnapKey(); if (!key) return;
+                try { const s = JSON.parse(localStorage.getItem(key) || 'null'); if (s) for (const k of this._DASH_SNAP_FIELDS) if (s[k] !== undefined) this[k] = s[k]; } catch (e) {}
+            },
+            _saveDashSnap() {
+                if (!this._injectedCreds()) return;
+                const key = this._dashSnapKey(); if (!key) return;
+                try { const s = {}; for (const k of this._DASH_SNAP_FIELDS) if (this[k] !== undefined) s[k] = this[k]; localStorage.setItem(key, JSON.stringify(s)); } catch (e) {}
+            },
+            _scheduleDashSnap() { clearTimeout(this._dashSnapTimer); this._dashSnapTimer = setTimeout(() => this._saveDashSnap(), 5000); },
             // 聊天 snap 图:云模式用记录的 imageUrl(设备已传 S3)+ 预签名;LAN 模式用设备本地 /download
             chatImgSrc(h) {
                 if (!h) return '';
