@@ -8848,21 +8848,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     await viewer.peerConnection.setLocalDescription(
                         await viewer.peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
                     );
-                    const sendOffer = () => { try { viewer.signalingClient.sendSdpOffer(viewer.peerConnection.localDescription); } catch (e) {} };
+                    const sendOffer = () => { try { viewer.signalingClient.sendSdpOffer(viewer.peerConnection.localDescription); console.log('[AHS][KVS]', channelName, 'sent SDP offer'); } catch (e) {} };
                     sendOffer();
                     // ★ 回放关键:设备(master)可能在本 viewer 之后才上线(收到 START 命令才上线 -playback 信道)。
                     //   KVS 不缓存「master 离线时收到的 offer」,故首个 offer 常丢失、永远等不到 answer(黑屏)。
-                    //   没拿到 remoteDescription 前每 2s 重发 offer(最多 5 次≈10s),命中设备上线窗口。实时预览时
+                    //   没拿到 remoteDescription 前每 2s 重发 offer(最多 8 次≈16s,覆盖 START 后设备上线窗口),命中设备上线窗口。实时预览时
                     //   master 一直在线,首个 offer 即被应答,该定时器随即清除,无副作用。
                     let tries = 0;
                     viewer._offerRetry = setInterval(() => {
-                        if (viewer.peerConnection.currentRemoteDescription || ++tries > 5) {
+                        if (viewer.peerConnection.currentRemoteDescription || ++tries > 8) {
                             clearInterval(viewer._offerRetry); viewer._offerRetry = null; return;
                         }
                         sendOffer();
                     }, 2000);
                 });
                 viewer.signalingClient.on('sdpAnswer', async answer => {
+                    console.log('[AHS][KVS]', channelName, 'got SDP answer ← master 已响应');
                     if (viewer._offerRetry) { clearInterval(viewer._offerRetry); viewer._offerRetry = null; }
                     await viewer.peerConnection.setRemoteDescription(answer);
                 });
@@ -9047,13 +9048,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
                     const paths = this.siblingPaths(record);                 // 同段各路 MP4
-                    // ★ 关键顺序:先发 START,再连 viewer。设备收到 START 才作为 master 上线到 -playback 信道
-                    //   开始 demux 推流;若 viewer 先连,SDP offer 在 master 未上线时无人应答 → 永久黑屏(实测 START success 但无画面)。
+                    // ★ 顺序(对照实测定案):viewer 先连好并持续重发 offer 等待,再发 START(手机 App 同款 viewer up-front)。
+                    //   实测实时预览(设备常在线)viewer 先连 8s 收流;回放若 START 先、viewer 后,设备上线 master 后
+                    //   不空等 viewer,viewer 建立慢就错过 → 设备永不回 answer(CDP 实测 remoteDesc 恒 false)。
+                    //   故:viewer 先连(offer 重发中)→ START 使设备上线 master → viewer 的重发 offer 命中在线 master → 收流。
+                    // START 先发(设备上线 -playback master + demux),状态立即置——不被 viewer 建立(可能慢/卡)阻塞。
+                    console.log('[AHS][KVS] playback START paths=', JSON.stringify(paths));
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ method: 'startPlaybackLocalRecordInformationCommand', params: { paths, RecordIndexInformationPath: record.RecordIndexInformationPath } }),
                     });
                     const result = await response.json();
+                    console.log('[AHS][KVS] playback START result success=', result && result.params && result.params.success, 'durationMs=', result && result.params && result.params.durationMs);
                     if (!(result && result.params && result.params.success)) {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                         return;
@@ -9063,19 +9069,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.playbackDurationMs = result.params.durationMs || 0;
                     this.playbackPositionMs = 0;
                     this.playbackCodec = result.params.codec || '';
-                    // 设备 master 已上线 → 逐路建回放 viewer(-playback/-playback2/…),offer 立即被应答收流。
+                    this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
+                    // viewer 后台建立(不阻塞状态),offer 重试覆盖设备 master 上线窗口。各路独立,单路失败不影响其它。
                     this.kvsPlaybackViewers = [];
                     const pb = [];
                     for (const ent of paths) {
                         if (ent && ent.path === '') continue;   // 空 path 设备不 demux,不必连该路 viewer
                         const i = ent.cameraIndex;
                         const suffix = (i === 0) ? '-playback' : (i === 1) ? '-playback2' : ('-playback' + (i + 1));
-                        const v = await this.kvsBuildViewer(deviceUuid + suffix, this.pbElId(i));
-                        this.kvsPlaybackViewers.push(v); pb[i] = 'kvs';
+                        this.kvsBuildViewer(deviceUuid + suffix, this.pbElId(i))
+                            .then((v) => { this.kvsPlaybackViewers[i] = v; pb[i] = 'kvs'; this.kvsPlaybackViewer = this.kvsPlaybackViewers[0] || v; this.pbCamUids = pb; })
+                            .catch((e) => { console.warn('[AHS][KVS] playback viewer', i, 'build failed', e); });
                     }
-                    this.kvsPlaybackViewer = this.kvsPlaybackViewers[0] || null;  // 兼容旧停止逻辑
-                    this.pbCamUids = pb;
-                    this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
                 } catch (e) {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
                     this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
