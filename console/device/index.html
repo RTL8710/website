@@ -10659,7 +10659,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 设备本地文件缩略图:LAN 走 /download;云模式无来源(设备本地文件),返回透明占位、零 404 请求。
             // 已是 http(s) URL(如云封面预签名)直接用。
             dlSrc(p) {
-                if (p && /^https?:/.test(p)) return p;
+                if (p && /^(https?:|data:)/.test(p)) return p;   // 已是可用 URL 或 base64 直接用(云封面)
                 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
                 if (!p || this._injectedCreds()) return BLANK;
                 return '/download?filePath=' + p;
@@ -10700,8 +10700,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     };
                     const byCam = {};
                     for (const ci of Object.keys(latestByCam)) {
+                        const signed = this._s3PresignUrl(latestByCam[ci]);
                         const b64 = await toB64(latestByCam[ci]);
-                        if (b64) byCam[ci] = b64;
+                        // fetch 转 base64 可能被 S3 CORS 拦(桶未配 CORS)→ 回退预签名 URL 给 <img>(图片加载不受 CORS)
+                        byCam[ci] = b64 || signed;
                     }
                     if (Object.keys(byCam).length) {
                         this._cloudCoverByCam = byCam;
