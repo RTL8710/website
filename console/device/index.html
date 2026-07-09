@@ -788,6 +788,7 @@
             <span style="margin-left:auto; margin-right:12px; font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
                 <i class="fas fa-user-circle"></i>
                 <span id="currentUserDisplay"></span>
+                <span id="currentRegionDisplay" style="font-size:10.5px;padding:2px 8px;border-radius:999px;color:var(--accent);border:1px solid var(--accent);opacity:.85;display:none;"></span>
             </span>
             <div class="lang-switcher" id="langSwitcher">
                 <button class="lang-btn" id="langBtn" type="button">
@@ -7759,6 +7760,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // 显示当前登录用户
     const currentUser = sessionStorage.getItem('dv_user') || 'admin';
     document.getElementById('currentUserDisplay').textContent = currentUser;
+    // 当前区域(门户 enterDevice 存的 dv_region,同源共享)显示在用户名旁,accent 胶囊
+    try {
+        const REGION_LABELS = {
+            ap: { zh: '东南亚', en: 'Asia Pacific', ja: 'アジア太平洋', de: 'Asien-Pazifik', fr: 'Asie-Pacifique', es: 'Asia-Pacífico' },
+            us: { zh: '美洲', en: 'Americas', ja: 'アメリカ', de: 'Amerika', fr: 'Amériques', es: 'América' },
+            eu: { zh: '欧洲', en: 'Europe', ja: 'ヨーロッパ', de: 'Europa', fr: 'Europe', es: 'Europa' },
+        };
+        const rc = localStorage.getItem('dv_region') || '';
+        const lg = localStorage.getItem('dv_lang') || 'zh';
+        const rd = document.getElementById('currentRegionDisplay');
+        if (rd && REGION_LABELS[rc]) { rd.textContent = REGION_LABELS[rc][lg] || REGION_LABELS[rc].en; rd.style.display = ''; }
+    } catch (e) {}
 });
 
     // 设置全局变量
