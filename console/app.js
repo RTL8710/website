@@ -1,5 +1,5 @@
 // 控制台入口:路由 + 登录门禁 + 视图
-import { COGNITO } from './config.js';
+import { COGNITO, IOT_ENDPOINT, REGIONS, REGION_ORDER, getRegion, setRegion } from './config.js';
 import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
@@ -12,12 +12,12 @@ const state = { session: null, devices: null, current: null };
 
 // ── i18n + 主题(与设备端共用 localStorage dv_lang/dv_theme,进设备页同步)──────────
 const I18N = {
-  en: { brandName:'Device Console', brandSub:'Device Management', heroTitle:'Robot Device Cloud Console', heroTagline:'Real-time monitoring, playback and full device control in one place.', featLive:'Live A/V monitoring', featPlayback:'Recording playback', featSettings:'A/V · Network · IoT settings', featCloud:'Cloud management', heroFoot:'Secure device access · LAN & WAN', title:'Welcome back', subtitle:'Sign in with your device account (username) to manage your devices', labelUser:'Username', labelPass:'Password', phUser:'Enter username', phPass:'Enter password', btnLogin:'Sign In', btnLoading:'Signing in…', errEmpty:'Please enter username and password', consoleTitle:'Device Console', myDevices:'My Devices', online:'Online', offline:'Offline', loadingDevices:'Loading devices…', noDevices:'No devices', enteringDevice:'Getting credentials, entering device…' },
-  zh: { brandName:'设备管理控制台', brandSub:'Device Management', heroTitle:'机器人设备云控制台', heroTagline:'实时监控、录像回放与设备全参数控制,一站式云端管理。', featLive:'实时音视频监控', featPlayback:'录像回放', featSettings:'音视频 · 网络 · IoT 设置', featCloud:'云端管理', heroFoot:'安全设备接入 · 局域网 & 广域网', title:'欢迎回来', subtitle:'用你的设备账号(用户名)登录,管理名下设备', labelUser:'用户名', labelPass:'密码', phUser:'请输入用户名', phPass:'请输入密码', btnLogin:'登录', btnLoading:'登录中…', errEmpty:'请输入用户名和密码', consoleTitle:'设备管理控制台', myDevices:'我的设备', online:'在线', offline:'离线', loadingDevices:'加载设备…', noDevices:'暂无设备', enteringDevice:'正在获取安全凭证,进入设备…' },
-  ja: { brandName:'デバイス管理', brandSub:'Device Management', heroTitle:'ロボット制御コンソール', heroTagline:'リアルタイム監視・録画再生・デバイス制御をひとつに。', featLive:'リアルタイム映像監視', featPlayback:'録画再生', featSettings:'AV · ネットワーク · IoT 設定', featCloud:'クラウド管理', heroFoot:'安全なデバイスアクセス · LAN & WAN', title:'おかえりなさい', subtitle:'ユーザー名でサインインしてデバイスを管理', labelUser:'ユーザー名', labelPass:'パスワード', phUser:'ユーザー名を入力', phPass:'パスワードを入力', btnLogin:'サインイン', btnLoading:'サインイン中…', errEmpty:'ユーザー名とパスワードを入力してください', consoleTitle:'デバイス管理', myDevices:'マイデバイス', online:'オンライン', offline:'オフライン', loadingDevices:'読み込み中…', noDevices:'デバイスなし', enteringDevice:'認証情報を取得中…' },
-  de: { brandName:'Geräte-Konsole', brandSub:'Device Management', heroTitle:'Roboter-Cloud-Konsole', heroTagline:'Live-Überwachung, Wiedergabe und volle Gerätesteuerung an einem Ort.', featLive:'Live-AV-Überwachung', featPlayback:'Aufnahme-Wiedergabe', featSettings:'AV · Netzwerk · IoT', featCloud:'Cloud-Verwaltung', heroFoot:'Sicherer Gerätezugriff · LAN & WAN', title:'Willkommen zurück', subtitle:'Mit Ihrem Gerätekonto (Benutzername) anmelden', labelUser:'Benutzername', labelPass:'Passwort', phUser:'Benutzername eingeben', phPass:'Passwort eingeben', btnLogin:'Anmelden', btnLoading:'Anmelden…', errEmpty:'Bitte Benutzername und Passwort eingeben', consoleTitle:'Geräte-Konsole', myDevices:'Meine Geräte', online:'Online', offline:'Offline', loadingDevices:'Geräte laden…', noDevices:'Keine Geräte', enteringDevice:'Anmeldedaten werden geladen…' },
-  fr: { brandName:'Console Appareils', brandSub:'Device Management', heroTitle:'Console cloud du robot', heroTagline:'Surveillance en direct, lecture et contrôle complet en un seul endroit.', featLive:'Surveillance AV en direct', featPlayback:'Lecture des enregistrements', featSettings:'AV · Réseau · IoT', featCloud:'Gestion cloud', heroFoot:'Accès sécurisé · LAN & WAN', title:'Bon retour', subtitle:"Connectez-vous avec votre compte appareil (nom d'utilisateur)", labelUser:"Nom d'utilisateur", labelPass:'Mot de passe', phUser:"Entrez le nom d'utilisateur", phPass:'Entrez le mot de passe', btnLogin:'Se connecter', btnLoading:'Connexion…', errEmpty:'Veuillez saisir identifiant et mot de passe', consoleTitle:'Console Appareils', myDevices:'Mes appareils', online:'En ligne', offline:'Hors ligne', loadingDevices:'Chargement…', noDevices:'Aucun appareil', enteringDevice:'Récupération des identifiants…' },
-  es: { brandName:'Consola Dispositivos', brandSub:'Device Management', heroTitle:'Consola en la nube del robot', heroTagline:'Monitoreo en vivo, reproducción y control total del dispositivo.', featLive:'Monitoreo AV en vivo', featPlayback:'Reproducción de grabaciones', featSettings:'AV · Red · IoT', featCloud:'Gestión en la nube', heroFoot:'Acceso seguro · LAN & WAN', title:'Bienvenido de nuevo', subtitle:'Inicia sesión con tu cuenta de dispositivo (usuario)', labelUser:'Usuario', labelPass:'Contraseña', phUser:'Ingresa el usuario', phPass:'Ingresa la contraseña', btnLogin:'Iniciar sesión', btnLoading:'Iniciando…', errEmpty:'Ingresa usuario y contraseña', consoleTitle:'Consola Dispositivos', myDevices:'Mis dispositivos', online:'En línea', offline:'Sin conexión', loadingDevices:'Cargando…', noDevices:'Sin dispositivos', enteringDevice:'Obteniendo credenciales…' },
+  en: { brandName:'Device Console', brandSub:'Device Management', heroTitle:'Robot Device Cloud Console', heroTagline:'Real-time monitoring, playback and full device control in one place.', featLive:'Live A/V monitoring', featPlayback:'Recording playback', featSettings:'A/V · Network · IoT settings', featCloud:'Cloud management', heroFoot:'Secure device access · LAN & WAN', title:'Welcome back', subtitle:'Sign in with your device account (username) to manage your devices', labelUser:'Username', labelPass:'Password', phUser:'Enter username', phPass:'Enter password', btnLogin:'Sign In', btnLoading:'Signing in…', errEmpty:'Please enter username and password', region:'Region', consoleTitle:'Device Console', myDevices:'My Devices', online:'Online', offline:'Offline', loadingDevices:'Loading devices…', noDevices:'No devices', enteringDevice:'Getting credentials, entering device…' },
+  zh: { brandName:'设备管理控制台', brandSub:'Device Management', heroTitle:'机器人设备云控制台', heroTagline:'实时监控、录像回放与设备全参数控制,一站式云端管理。', featLive:'实时音视频监控', featPlayback:'录像回放', featSettings:'音视频 · 网络 · IoT 设置', featCloud:'云端管理', heroFoot:'安全设备接入 · 局域网 & 广域网', title:'欢迎回来', subtitle:'用你的设备账号(用户名)登录,管理名下设备', labelUser:'用户名', labelPass:'密码', phUser:'请输入用户名', phPass:'请输入密码', btnLogin:'登录', btnLoading:'登录中…', errEmpty:'请输入用户名和密码', region:'区域', consoleTitle:'设备管理控制台', myDevices:'我的设备', online:'在线', offline:'离线', loadingDevices:'加载设备…', noDevices:'暂无设备', enteringDevice:'正在获取安全凭证,进入设备…' },
+  ja: { brandName:'デバイス管理', brandSub:'Device Management', heroTitle:'ロボット制御コンソール', heroTagline:'リアルタイム監視・録画再生・デバイス制御をひとつに。', featLive:'リアルタイム映像監視', featPlayback:'録画再生', featSettings:'AV · ネットワーク · IoT 設定', featCloud:'クラウド管理', heroFoot:'安全なデバイスアクセス · LAN & WAN', title:'おかえりなさい', subtitle:'ユーザー名でサインインしてデバイスを管理', labelUser:'ユーザー名', labelPass:'パスワード', phUser:'ユーザー名を入力', phPass:'パスワードを入力', btnLogin:'サインイン', btnLoading:'サインイン中…', errEmpty:'ユーザー名とパスワードを入力してください', region:'地域', consoleTitle:'デバイス管理', myDevices:'マイデバイス', online:'オンライン', offline:'オフライン', loadingDevices:'読み込み中…', noDevices:'デバイスなし', enteringDevice:'認証情報を取得中…' },
+  de: { brandName:'Geräte-Konsole', brandSub:'Device Management', heroTitle:'Roboter-Cloud-Konsole', heroTagline:'Live-Überwachung, Wiedergabe und volle Gerätesteuerung an einem Ort.', featLive:'Live-AV-Überwachung', featPlayback:'Aufnahme-Wiedergabe', featSettings:'AV · Netzwerk · IoT', featCloud:'Cloud-Verwaltung', heroFoot:'Sicherer Gerätezugriff · LAN & WAN', title:'Willkommen zurück', subtitle:'Mit Ihrem Gerätekonto (Benutzername) anmelden', labelUser:'Benutzername', labelPass:'Passwort', phUser:'Benutzername eingeben', phPass:'Passwort eingeben', btnLogin:'Anmelden', btnLoading:'Anmelden…', errEmpty:'Bitte Benutzername und Passwort eingeben', region:'Region', consoleTitle:'Geräte-Konsole', myDevices:'Meine Geräte', online:'Online', offline:'Offline', loadingDevices:'Geräte laden…', noDevices:'Keine Geräte', enteringDevice:'Anmeldedaten werden geladen…' },
+  fr: { brandName:'Console Appareils', brandSub:'Device Management', heroTitle:'Console cloud du robot', heroTagline:'Surveillance en direct, lecture et contrôle complet en un seul endroit.', featLive:'Surveillance AV en direct', featPlayback:'Lecture des enregistrements', featSettings:'AV · Réseau · IoT', featCloud:'Gestion cloud', heroFoot:'Accès sécurisé · LAN & WAN', title:'Bon retour', subtitle:"Connectez-vous avec votre compte appareil (nom d'utilisateur)", labelUser:"Nom d'utilisateur", labelPass:'Mot de passe', phUser:"Entrez le nom d'utilisateur", phPass:'Entrez le mot de passe', btnLogin:'Se connecter', btnLoading:'Connexion…', errEmpty:'Veuillez saisir identifiant et mot de passe', region:'Région', consoleTitle:'Console Appareils', myDevices:'Mes appareils', online:'En ligne', offline:'Hors ligne', loadingDevices:'Chargement…', noDevices:'Aucun appareil', enteringDevice:'Récupération des identifiants…' },
+  es: { brandName:'Consola Dispositivos', brandSub:'Device Management', heroTitle:'Consola en la nube del robot', heroTagline:'Monitoreo en vivo, reproducción y control total del dispositivo.', featLive:'Monitoreo AV en vivo', featPlayback:'Reproducción de grabaciones', featSettings:'AV · Red · IoT', featCloud:'Gestión en la nube', heroFoot:'Acceso seguro · LAN & WAN', title:'Bienvenido de nuevo', subtitle:'Inicia sesión con tu cuenta de dispositivo (usuario)', labelUser:'Usuario', labelPass:'Contraseña', phUser:'Ingresa el usuario', phPass:'Ingresa la contraseña', btnLogin:'Iniciar sesión', btnLoading:'Iniciando…', errEmpty:'Ingresa usuario y contraseña', region:'Región', consoleTitle:'Consola Dispositivos', myDevices:'Mis dispositivos', online:'En línea', offline:'Sin conexión', loadingDevices:'Cargando…', noDevices:'Sin dispositivos', enteringDevice:'Obteniendo credenciales…' },
 };
 const THEMES = [
   { v: 'dark', label: '深靖蓝·青', sw1: '#0B1220', sw2: '#22D3EE' },
@@ -38,6 +38,12 @@ const THEME_I18N = {
   ocean:  { zh: '大海', en: 'Ocean', ja: 'オーシャン', de: 'Ozean', fr: 'Océan', es: 'Océano' },
 };
 function themeLabel(v) { const o = THEME_I18N[v] || {}; return o[currentLang] || o.en || v; }
+const REGION_I18N = {
+  ap: { zh: '东南亚', en: 'Asia Pacific', ja: 'アジア太平洋', de: 'Asien-Pazifik', fr: 'Asie-Pacifique', es: 'Asia-Pacífico' },
+  us: { zh: '美洲', en: 'Americas', ja: 'アメリカ', de: 'Amerika', fr: 'Amériques', es: 'América' },
+  eu: { zh: '欧洲', en: 'Europe', ja: 'ヨーロッパ', de: 'Europa', fr: 'Europe', es: 'Europa' },
+};
+function regionLabel(rc) { const o = REGION_I18N[rc] || {}; return o[currentLang] || o.en || (REGIONS[rc] && REGIONS[rc].label) || rc; }
 const LANGS = [
   { v: 'en', label: 'English', flag: '🇺🇸', short: 'EN' },
   { v: 'zh', label: '中文', flag: '🇨🇳', short: '中文' },
@@ -173,6 +179,14 @@ function viewLogin() {
         h('div', { class: 'login-title' }, t('title')),
         h('div', { class: 'login-subtitle' }, t('subtitle')),
         err,
+        h('div', { class: 'form-group' },
+          h('label', { class: 'form-label' }, t('region')),
+          h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
+            type: 'button', class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
+            // 切区域:更新 config(pool/appsync/s3/iot 全换)+ 重渲染登录页(高亮更新,后续登录走该区域)
+            onclick: () => { setRegion(rc); viewLogin(); },
+          }, regionLabel(rc)))),
+        ),
         field(t('labelUser'), 'username', 'fa-user', username),
         field(t('labelPass'), 'password', 'fa-lock', pass, togglePw),
         btn,
@@ -192,7 +206,7 @@ function mapAuthError(e) {
 async function doSignOut() { iotDisconnect(); await signOut(); state.session = null; state.devices = null; go('#/login'); }
 
 // ── 进入设备控制页(复用固件 web UI,注入 Cognito 临时凭证走 AWS IoT + KVS)────────
-const IOT_ENDPOINT = 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com';
+// IOT_ENDPOINT / COGNITO.region 从 config.js(按当前区域,live binding)
 async function enterDevice(dev) {
   const uuid = dev.uuid || dev.id;
   if (!/^[0-9a-fA-F-]{36}$/.test(uuid)) { alert('设备 UUID 无效,无法进入控制页'); return; }

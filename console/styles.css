@@ -193,6 +193,13 @@ h1.title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-s
 @media (max-width:880px){.login-hero{display:none}.login-main{flex:1;border-left:none;background:var(--bg0)}.card-brand{display:flex}}
 @media (max-width:400px){.login-main{padding:24px 16px}.login-title{font-size:23px}}
 
+/* 登录页区域选择(东南亚/美洲/欧洲)*/
+.region-tabs{display:flex;gap:8px}
+.region-tab{flex:1;padding:10px 8px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--input-bg);color:var(--text-md);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-align:center;transition:border-color .15s,color .15s,background .15s}
+.region-tab:hover{border-color:var(--accent);color:var(--accent)}
+.region-tab.active{border-color:var(--accent);color:var(--accent);background:var(--acc-soft)}
+
+
 /* ── 多主题(data-theme,与设备端 login.html/index 同机制,共用 localStorage dv_theme)── */
 [data-theme="dark"]{--accent:#22D3EE;--accent2:#38BDF8;--bg0:#0B1220;--bg1:#0E1626;--bg2:#1A2438;--border:#1E2A44;--border-strong:rgba(255,255,255,.20);
   --text-hi:#E5EDF7;--text-md:#8A9BB4;--text-lo:#5B6B85;--on-acc:#04222B;--ring:rgba(34,211,238,.14);

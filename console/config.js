@@ -1,24 +1,59 @@
 // 设备管理控制台 — 非敏感配置(这些 ID 在 Flutter App 内已公开,可提交)
-// 线上实际使用的是 Tokyo 池(region_config.dart:cn/ap/默认 → amplifyconfig_tokyo)。
-export const REGION = 'ap-northeast-1';
+// 多区域:东南亚(ap/Tokyo)/ 美洲(us/Ohio)/ 欧洲(eu/Paris),对齐手机 App region_config.dart。
+// 登录页选区域 → 用对应区域的 Cognito/AppSync/S3/IoT/KVS 配置。凭证/KVS/IoT 全走裸 fetch + CryptoJS SigV4。
+// 注:仅 Tokyo 有验证过的 web client(coot74);Ohio/Paris 用 App 的 native client 试浏览器 SRP
+//     (Cognito app client 无 client secret 时浏览器 SRP 可用;若某区域登录失败需在 AWS 侧建 web client)。
 
-export const COGNITO = {
-  region: REGION,
-  userPoolId: 'ap-northeast-1_yy1j7zYoi',
-  // Web 端 App Client(ipcwebsite/src/aws-exports.js 验证过用这个;Flutter 用的是 2np572...)
-  userPoolClientId: 'coot74gda6j2e1q36su73m9rs',
-  identityPoolId: 'ap-northeast-1:4f20eecf-8245-44f1-af1d-ce335a359b6a',
+export const REGIONS = {
+  ap: {
+    code: 'ap', label: '东南亚', region: 'ap-northeast-1',
+    userPoolId: 'ap-northeast-1_yy1j7zYoi', userPoolClientId: 'coot74gda6j2e1q36su73m9rs',
+    identityPoolId: 'ap-northeast-1:4f20eecf-8245-44f1-af1d-ce335a359b6a',
+    appsync: 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql',
+    apiKey: 'da2-rmzpjwx7lva7zbfviuy2nwzbcy',
+    s3Bucket: 'anhaivisionwebsite-storage-77a56c21232245-tokyo',
+    iotEndpoint: 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com',
+    kvsRegion: 'ap-northeast-1',
+  },
+  us: {
+    code: 'us', label: '美洲', region: 'us-east-2',
+    userPoolId: 'us-east-2_xw0KXNJSX', userPoolClientId: '15d89djqur9500jdjt9m7ju2j8',
+    identityPoolId: 'us-east-2:254334b9-c534-4974-8126-8a52115acfa0',
+    appsync: 'https://hyyc4pqt5zhftaxg7su3mirkxm.appsync-api.us-east-2.amazonaws.com/graphql',
+    apiKey: 'da2-f6g7opuzyfazlihpyv6nzejn2e',
+    s3Bucket: 'anhaivisionwebsite-storage-77a56c21111855-ohio',
+    iotEndpoint: 'atwwuuu2m6zxs-ats.iot.us-east-2.amazonaws.com',
+    kvsRegion: 'us-east-2',
+  },
+  eu: {
+    code: 'eu', label: '欧洲', region: 'eu-west-3',
+    userPoolId: 'eu-west-3_EBHsEh1as', userPoolClientId: 'htggrh7j4nt248btni5bf2ghr',
+    identityPoolId: 'eu-west-3:a6c7537e-e3c4-4fc9-948a-cae2560df971',
+    appsync: 'https://ehyxqkbrzzan7o2fz5mhhstzqq.appsync-api.eu-west-3.amazonaws.com/graphql',
+    apiKey: 'da2-cep3asdgp5gopnr4qizhnxon4i',
+    s3Bucket: 'anhaivisionwebsite-storage-77a56c2193636-paris',
+    iotEndpoint: 'atwwuuu2m6zxs-ats.iot.eu-west-3.amazonaws.com',
+    kvsRegion: 'eu-west-3',
+  },
 };
+// 登录页区域选择显示顺序(对齐 App 的 [美洲, 东南亚, 欧洲])
+export const REGION_ORDER = ['us', 'ap', 'eu'];
 
-export const APPSYNC = {
-  endpoint: 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql',
-  region: REGION,
-  // 默认授权方式 = API_KEY(所有 @model 都是 @auth public)。数据面 MVP 走 key;
-  // 更稳可改走 Identity Pool AWS_IAM(需在 AppSync 加 IAM authorizer)。
-  apiKey: 'da2-rmzpjwx7lva7zbfviuy2nwzbcy',
-};
+let _region = 'ap';
+try { const r = localStorage.getItem('dv_region'); if (r && REGIONS[r]) _region = r; } catch (e) {}
+export function getRegion() { return _region; }
+export function activeRegion() { return REGIONS[_region]; }
+export function setRegion(r) { if (REGIONS[r]) { _region = r; try { localStorage.setItem('dv_region', r); } catch (e) {} _refresh(); } }
 
-export const S3_BUCKET = 'anhaivisionwebsite-storage-77a56c21232245-tokyo';
+// live binding:切区域后 setRegion→_refresh 更新这些导出,import 方(每次读 .xxx)自动拿到新区域配置
+export let REGION = REGIONS[_region].region;
+export let COGNITO = _mkCognito(_region);
+export let APPSYNC = _mkAppsync(_region);
+export let S3_BUCKET = REGIONS[_region].s3Bucket;
+export let IOT_ENDPOINT = REGIONS[_region].iotEndpoint;
+function _mkCognito(r) { const c = REGIONS[r]; return { region: c.region, userPoolId: c.userPoolId, userPoolClientId: c.userPoolClientId, identityPoolId: c.identityPoolId }; }
+function _mkAppsync(r) { const c = REGIONS[r]; return { endpoint: c.appsync, region: c.region, apiKey: c.apiKey }; }
+function _refresh() { REGION = REGIONS[_region].region; COGNITO = _mkCognito(_region); APPSYNC = _mkAppsync(_region); S3_BUCKET = REGIONS[_region].s3Bucket; IOT_ENDPOINT = REGIONS[_region].iotEndpoint; }
 
 // KVS 区域解析(移植 kvsApi.dart:cn→cn-north-1, us→us-east-2, eu→eu-west-3, 默认→ap-northeast-1)
 export function resolveKvsRegion(regionCode) {
@@ -30,8 +65,7 @@ export function resolveKvsRegion(regionCode) {
   }
 }
 
-// 登录用 amazon-cognito-identity-js(esm.sh)。凭证/KVS/IoT 全走裸 fetch + CryptoJS SigV4,
-// 不用 @aws-sdk(其 esm.sh 版会拉 node fs,在浏览器抛 "[unenv] fs.readFile not implemented")。
+// 登录用 amazon-cognito-identity-js(esm.sh)。不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。
 export const DEPS = {
   cognitoIdentityJs: 'https://esm.sh/amazon-cognito-identity-js@6.3.12',
 };

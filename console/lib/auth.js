@@ -5,6 +5,7 @@ import { resolveUserRow } from './graphql.js';
 
 let _cognito = null;   // amazon-cognito-identity-js 模块
 let _pool = null;
+let _poolKey = null;   // 当前 _pool 对应的 userPoolId(切区域时 COGNITO 变 → 重建 pool)
 let _idToken = null;   // 当前会话 idToken
 let _identityId = null;
 let _creds = null;     // { accessKeyId, secretAccessKey, sessionToken, expiration(ms) }
@@ -15,7 +16,10 @@ async function cognito() {
 }
 async function pool() {
   const C = await cognito();
-  if (!_pool) _pool = new C.CognitoUserPool({ UserPoolId: COGNITO.userPoolId, ClientId: COGNITO.userPoolClientId });
+  if (!_pool || _poolKey !== COGNITO.userPoolId) {
+    _pool = new C.CognitoUserPool({ UserPoolId: COGNITO.userPoolId, ClientId: COGNITO.userPoolClientId });
+    _poolKey = COGNITO.userPoolId;
+  }
   return _pool;
 }
 
@@ -76,10 +80,9 @@ export async function signOut() {
   const user = p.getCurrentUser();
   if (user) user.signOut();
   _idToken = null; _creds = null; _identityId = null;
-  // 清缓存(换账号防错乱):identityId + 所有 userRow + 设备列表缓存
+  // 清缓存(换账号/换区域防错乱):identityId(各区域)+ 所有 userRow + 设备列表缓存
   try {
-    localStorage.removeItem('dv_identityid');
-    Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_userrow_') === 0 || k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });
+    Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_identityid') === 0 || k.indexOf('dv_userrow_') === 0 || k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });
   } catch (e) {}
 }
 
@@ -105,11 +108,12 @@ export async function resolvedCreds() {
   const logins = { [`cognito-idp.${COGNITO.region}.amazonaws.com/${COGNITO.userPoolId}`]: _idToken };
   if (!_identityId) {
     // identityId 对同一账号恒定 → localStorage 缓存,省掉每次 GetId 的 ~1.5s 往返
-    try { _identityId = localStorage.getItem('dv_identityid') || null; } catch (e) {}
+    const idKey = 'dv_identityid_' + COGNITO.userPoolId;   // 按区域(userPool)缓存,切区域不串
+    try { _identityId = localStorage.getItem(idKey) || null; } catch (e) {}
     if (!_identityId) {
       const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
       _identityId = id.IdentityId;
-      try { localStorage.setItem('dv_identityid', _identityId); } catch (e) {}
+      try { localStorage.setItem(idKey, _identityId); } catch (e) {}
     }
   }
   const cr = await cognitoIdentityCall('GetCredentialsForIdentity', { IdentityId: _identityId, Logins: logins });
