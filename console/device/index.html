@@ -13064,23 +13064,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 const secs = Math.round(v.start + pct * (v.end - v.start));
                 this.tlClickSecs = secs;  // 绿色标记定位到精确点击位置
                 this.syncSeekSecs = secs; // 多路同步播放：各路 seek 到该墙钟时刻
-                // 搜索截止时间 = 点击时间；起始为当天 00:00（列表按"到点击时刻为止"显示，最新在前）
-                const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-                const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+                // 搜索范围:当天 00:00 → 点击时刻(+1min 缓冲,确保点击所在那 30s 段被收进列表,最新在前)
+                const eSecs = Math.min(86399, secs + 60);
+                const ehh = String(Math.floor(eSecs / 3600)).padStart(2, '0');
+                const emm = String(Math.floor((eSecs % 3600) / 60)).padStart(2, '0');
                 this.startTime = this.timelineDate + 'T00:00';
-                this.endTime = this.timelineDate + 'T' + hh + ':' + mm;
+                this.endTime = this.timelineDate + 'T' + ehh + ':' + emm;
+                // ★ 云模式:时间轴绿条是设备把连续 30s 文件合并成的粗块,块 .p 只存块首(=00:00)文件,
+                //   直接 segToRecord(块) 会永远从 00:00 播。改为先拉细粒度记录列表,挑「点击时刻所在/最接近」的那 30s 段来播。
+                if (this._injectedCreds()) {
+                    this.syncRecords = [];                 // 隐藏本地 <video>
+                    this._playAtTimelineSecs(secs);        // 内部先亮 spinner→await 拉列表→挑段→播
+                    return;
+                }
+                // 局域网模式:用已加载的粗时间轴块同步各路(本地 <video> 从段头播,syncSeekVideo 再 seek 到点击时刻)
                 this.fetchRecords(true);
-                // 收集该时刻所有摄像头的录像段，构造同步播放列表（有几路播几路）
                 const ncam = this.timelineCamCount();
                 const list = [];
                 for (let cam = 0; cam < ncam; cam++) {
                     const seg = this.findSegmentAt(secs, cam);
-                    if (seg) list.push(this.segToRecord(seg));   // 从段开头播，不 seek（避免分片 MP4 的 range 请求风暴）
+                    if (seg) list.push(this.segToRecord(seg));
                 }
-                if (list.length) {
-                    if (this._injectedCreds()) { this.playRecord(list[0]); }   // 云模式:WebRTC 单路回放(设备一次 demux 一路)
-                    else { this.syncRecords = list; this.selectedRecord = list[0]; }
+                if (list.length) { this.syncRecords = list; this.selectedRecord = list[0]; }
+            },
+            // 云模式:拉细粒度记录列表后,挑点击时刻那 30s 段播(单路=选中路,双路=第一路,另一路由 startKvsPlayback 补齐)。
+            async _playAtTimelineSecs(secs) {
+                this.remotePlaybackLoading = true;         // 点击即时反馈(拉列表期间也有 spinner)
+                this.pageNumber = 1;                       // 复位到第一页,确保拉到含点击时刻的最新一页
+                await this.fetchRecords(true);
+                const anchorCam = (this.playbackChannels === 1) ? (this.playbackSingleCam || 0) : 0;
+                let rec = this._recordAtSecs(secs, anchorCam);
+                if (!rec) { const seg = this.findSegmentAt(secs, anchorCam); rec = seg ? this.segToRecord(seg) : null; }
+                if (rec) this.playRecord(rec);
+                else this.remotePlaybackLoading = false;   // 该路此刻无录像:撤 spinner
+            },
+            // 在细粒度记录列表里找指定摄像头「包含点击秒 / 起点最接近」的那一段(secs=当天秒)。
+            _recordAtSecs(secs, cam) {
+                const list = this.records || [];
+                const secOf = (r) => {
+                    let m = String(r.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                    if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+                    m = String(r.RecordIndexInformationPath || '').match(/\d{8}(\d{2})(\d{2})(\d{2})/);
+                    return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : -1;
+                };
+                let best = null, bd = Infinity;
+                for (const r of list) {
+                    if (this._camOfRecord(r) !== cam) continue;
+                    const s = secOf(r); if (s < 0) continue;
+                    const dur = r.RecordIndexInformationDuration || 30;
+                    const d = (secs >= s && secs <= s + dur + 1) ? 0 : Math.abs(secs - s);   // 优先包含点击时刻的段
+                    if (d < bd) { bd = d; best = r; }
                 }
+                return best;
             },
             // 找指定摄像头在 secs 时刻所在/最近的段
             findSegmentAt(secs, camera) {
