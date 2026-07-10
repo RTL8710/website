@@ -12303,20 +12303,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 const p = String(r.RecordIndexInformationPath || '');
                 return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0;
             },
-            // 录像路径里的 14 位时间戳(YYYYMMDDHHMMSS)→ 数值,用于同段匹配。
-            _tsOfRecord(r) {
-                const m = String((r && r.RecordIndexInformationPath) || '').match(/(\d{14})/);
-                return m ? Number(m[1]) : 0;
+            // 录像 → 当天秒(统一时间基准):优先 DateTime 的 HH:MM:SS,回退路径 YYYYMMDDHHMMSS,再回退末尾 HHMMSS。
+            // 时间轴挑锚点(_recordAtSecs)和挑另一路(_recordForCam)都用它 → 两路必同一时刻,时间轴与侧边栏行为一致。
+            _recSecs(r) {
+                let m = String((r && r.RecordIndexInformationDateTime) || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+                m = String((r && r.RecordIndexInformationPath) || '').match(/\d{8}(\d{2})(\d{2})(\d{2})/);
+                if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+                m = String((r && r.RecordIndexInformationPath) || '').match(/(\d{2})(\d{2})(\d{2})\D*$/);
+                return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : -1;
             },
-            // 把 anchor 录像重定位到目标摄像头「时间最接近的一段」(不设 ≤100 硬阈值 → 选哪路就播哪路)。
+            // 把 anchor 录像重定位到目标摄像头「与 anchor 同段(时间重叠)/ 起点最接近」的那一段 → 选哪路就播哪路、两路同步。
             _recordForCam(anchor, cam) {
                 if (this._camOfRecord(anchor) === cam) return anchor;
                 const list = (this.records && this.records.length) ? this.records : (this.syncRecords || []);
-                const t0 = this._tsOfRecord(anchor);
+                const t0 = this._recSecs(anchor);
                 let best = null, bd = Infinity;
                 for (const r of list) {
                     if (this._camOfRecord(r) !== cam) continue;
-                    const d = Math.abs(this._tsOfRecord(r) - t0);
+                    const s = this._recSecs(r); if (s < 0) continue;
+                    const dur = r.RecordIndexInformationDuration || 30;
+                    const d = (t0 >= 0 && t0 >= s && t0 <= s + dur + 1) ? 0 : Math.abs(s - t0);   // 优先与 anchor 时间重叠的同段
                     if (d < bd) { bd = d; best = r; }
                 }
                 return best;   // 该路无任何录像时返回 null
@@ -13115,19 +13122,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (rec) this.playRecord(rec);
                 else this.remotePlaybackLoading = false;   // 该路此刻无录像:撤 spinner
             },
-            // 在细粒度记录列表里找指定摄像头「包含点击秒 / 起点最接近」的那一段(secs=当天秒)。
+            // 在细粒度记录列表里找指定摄像头「包含点击秒 / 起点最接近」的那一段(secs=当天秒)。与 _recordForCam 同一时间基准。
             _recordAtSecs(secs, cam) {
                 const list = this.records || [];
-                const secOf = (r) => {
-                    let m = String(r.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
-                    if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
-                    m = String(r.RecordIndexInformationPath || '').match(/\d{8}(\d{2})(\d{2})(\d{2})/);
-                    return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : -1;
-                };
                 let best = null, bd = Infinity;
                 for (const r of list) {
                     if (this._camOfRecord(r) !== cam) continue;
-                    const s = secOf(r); if (s < 0) continue;
+                    const s = this._recSecs(r); if (s < 0) continue;
                     const dur = r.RecordIndexInformationDuration || 30;
                     const d = (secs >= s && secs <= s + dur + 1) ? 0 : Math.abs(secs - s);   // 优先包含点击时刻的段
                     if (d < bd) { bd = d; best = r; }
