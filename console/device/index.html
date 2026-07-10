@@ -3178,27 +3178,48 @@
                                                             <i class="fa-solid fa-cloud me-1"></i><span x-text="tIdx('vp_remote_playback')"></span>
                                                             <span class="badge bg-secondary ms-2" style="font-size:10px;" x-text="playbackCodec"></span>
                                                             <span x-show="remotePlaybackLabel" class="ms-2" style="font-size:11px;color:var(--text-muted,#9aa4b2);font-weight:500;" x-text="remotePlaybackLabel"></span>
-                                                            <!-- 一路/二路选择（仅多摄设备显示）：切换后下次点击录像生效 -->
-                                                            <div class="ms-auto d-flex" style="gap:4px;" x-show="(videoInformation.cameraCounts||1) > 1">
-                                                                <template x-for="ch in [1,2]" :key="'pbch'+ch">
-                                                                    <button class="btn btn-sm" style="padding:2px 10px;font-size:11px;"
-                                                                            :class="playbackChannels===ch ? 'btn-primary' : 'btn-outline-secondary'"
-                                                                            @click.stop="playbackChannels=ch"
-                                                                            x-text="ch+(tIdx('rp_channel')||'路')"></button>
+                                                            <!-- 回放控制条(仅多摄设备显示路数/布局):播放中切换立即生效 -->
+                                                            <div class="ms-auto d-flex align-items-center flex-wrap justify-content-end" style="gap:6px;">
+                                                                <template x-if="(videoInformation.cameraCounts||1) > 1">
+                                                                    <div class="d-flex align-items-center flex-wrap" style="gap:6px;">
+                                                                        <!-- 单路 / 双路 -->
+                                                                        <div class="btn-group btn-group-sm">
+                                                                            <button class="btn" style="padding:2px 10px;font-size:11px;"
+                                                                                    :class="playbackChannels===1 ? 'btn-primary' : 'btn-outline-secondary'"
+                                                                                    @click.stop="setPlaybackChannels(1)" x-text="(tIdx('rp_single')||'单路')"></button>
+                                                                            <button class="btn" style="padding:2px 10px;font-size:11px;"
+                                                                                    :class="playbackChannels===2 ? 'btn-primary' : 'btn-outline-secondary'"
+                                                                                    @click.stop="setPlaybackChannels(2)" x-text="(tIdx('rp_dual')||'双路')"></button>
+                                                                        </div>
+                                                                        <!-- 单路:选择播哪一路 -->
+                                                                        <div class="btn-group btn-group-sm" x-show="playbackChannels===1">
+                                                                            <template x-for="ci in (videoInformation.cameraCounts||1)" :key="'pbsc'+ci">
+                                                                                <button class="btn" style="padding:2px 9px;font-size:11px;"
+                                                                                        :class="playbackSingleCam===(ci-1) ? 'btn-primary' : 'btn-outline-secondary'"
+                                                                                        @click.stop="setPlaybackSingleCam(ci-1)" x-text="'CAM'+ci"></button>
+                                                                            </template>
+                                                                        </div>
+                                                                        <!-- 双路:布局(横排/竖排/画中画) -->
+                                                                        <div class="btn-group btn-group-sm" x-show="playbackChannels===2">
+                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='h'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('h')" :title="(tIdx('rp_layout_h')||'横排')"><i class="fa-solid fa-table-columns"></i></button>
+                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='v'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('v')" :title="(tIdx('rp_layout_v')||'竖排')"><i class="fa-solid fa-bars"></i></button>
+                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('pip')" :title="(tIdx('rp_layout_pip')||'画中画')"><i class="fa-solid fa-clone"></i></button>
+                                                                        </div>
+                                                                    </div>
                                                                 </template>
+                                                                <button class="btn btn-sm btn-danger" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
+                                                                    <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
+                                                                </button>
                                                             </div>
-                                                            <button class="btn btn-sm btn-danger ms-2" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
-                                                                <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
-                                                            </button>
                                                         </div>
-                                                        <!-- 云端多路同步回放：按 cameraCounts 网格排布，各路渲染到 remotePlaybackView{i} -->
-                                                        <div :style="'display:grid;gap:6px;grid-template-columns:repeat('+Math.min(Math.max(pbCamUids.filter(Boolean).length,1),2)+',minmax(0,1fr));'">
-                                                            <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
-                                                                <div style="position:relative;min-width:0;" x-show="pi===1 || pbCamUids[pi-1]">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
+                                                        <!-- 云端回放视频区：由 playbackCams(实际在播的摄像头)驱动，布局随 playbackLayout 切换(横排/竖排/画中画) -->
+                                                        <div :style="pbGridStyle()">
+                                                            <template x-for="(ci, idx) in (playbackCams.length ? playbackCams : [0])" :key="'pb'+ci">
+                                                                <div :style="pbSlotStyle(idx)" x-show="idx===0 || pbCamUids[ci]">
+                                                                    <video :id="pbElId(ci)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
+                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+(ci+1)"></div>
                                                                     <!-- 切换/加载动效:覆盖在视频上,给用户明确「正在切换录像」反馈 -->
-                                                                    <div x-show="remotePlaybackLoading && pi===1" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
+                                                                    <div x-show="remotePlaybackLoading && idx===0" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
                                                                         <div class="spinner-border text-light" role="status" style="width:2rem;height:2rem;"></div>
                                                                         <div style="color:#fff;font-size:12px;margin-top:10px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
                                                                         <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:2px;" x-text="remotePlaybackLabel"></div>
@@ -6655,7 +6676,7 @@ const I18N_INDEX = {
     cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
-    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_switching:'Switching recording…', rp_channel:'CH', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
+    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_switching:'Switching recording…', rp_channel:'CH', rp_single:'Single', rp_dual:'Dual', rp_layout_h:'Side by side', rp_layout_v:'Stacked', rp_layout_pip:'Picture-in-picture', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
     vp_datetime:'Datetime:', vp_video:'Video', vp_del:'Del', vp_del_confirm:'Delete this record? This cannot be undone.',
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
@@ -6801,7 +6822,7 @@ const I18N_INDEX = {
     cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
-    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_switching:'正在切换录像…', rp_channel:'路', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
+    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_switching:'正在切换录像…', rp_channel:'路', rp_single:'单路', rp_dual:'双路', rp_layout_h:'横排', rp_layout_v:'竖排', rp_layout_pip:'画中画', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
     vp_datetime:'时间：', vp_video:'视频', vp_del:'删除', vp_del_confirm:'确定删除这条记录吗？此操作不可恢复。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
@@ -6947,7 +6968,7 @@ const I18N_INDEX = {
     cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
     cm_enable:'有効', cm_disable:'無効',
-    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_switching:'録画を切り替え中…', rp_channel:'ch', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
+    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_switching:'録画を切り替え中…', rp_channel:'ch', rp_single:'1画面', rp_dual:'2画面', rp_layout_h:'横並び', rp_layout_v:'縦並び', rp_layout_pip:'ワイプ', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
     vp_datetime:'日時：', vp_video:'動画', vp_del:'削除', vp_del_confirm:'この記録を削除しますか？元に戻せません。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'説明の生成に失敗しました', ai_search_ph:'内容説明で検索…', ai_search_btn:'検索', ai_search_none:'一致する録画がありません',
     ai_ask_title:'ライブ映像に質問', ai_ask_ph:'カメラの映像について質問を入力…', ai_ask_btn:'撮影して質問', ai_ask_running:'考え中…', ai_ask_failed:'質問に失敗しました', ai_ask_history:'履歴', ai_ask_empty:'まだ質問がありません。撮影して質問してみてください。',
@@ -7092,7 +7113,7 @@ const I18N_INDEX = {
     cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
     cm_enable:'aktiviert', cm_disable:'deaktiviert',
-    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_switching:'Aufnahme wird gewechselt…', rp_channel:'CH', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
+    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_switching:'Aufnahme wird gewechselt…', rp_channel:'CH', rp_single:'Einzeln', rp_dual:'Doppelt', rp_layout_h:'Nebeneinander', rp_layout_v:'Gestapelt', rp_layout_pip:'Bild-in-Bild', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
     vp_datetime:'Datum:', vp_video:'Video', vp_del:'Löschen', vp_del_confirm:'Diesen Eintrag löschen? Nicht widerrufbar.',
     ai_desc_btn:'AI', ai_desc_running:'Wird erstellt…', ai_desc_failed:'Beschreibung fehlgeschlagen', ai_search_ph:'Nach Inhaltsbeschreibung suchen…', ai_search_btn:'Suchen', ai_search_none:'Keine passenden Aufnahmen',
     ai_ask_title:'Live-Ansicht fragen', ai_ask_ph:'Frage zum aktuellen Kamerabild eingeben…', ai_ask_btn:'Foto & Frage', ai_ask_running:'Denkt nach…', ai_ask_failed:'Anfrage fehlgeschlagen', ai_ask_history:'Verlauf', ai_ask_empty:'Noch keine Fragen — Foto machen und fragen.',
@@ -7237,7 +7258,7 @@ const I18N_INDEX = {
     cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
     cm_enable:'activé', cm_disable:'désactivé',
-    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_switching:'Changement d enregistrement…', rp_channel:'CH', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
+    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_switching:'Changement d enregistrement…', rp_channel:'CH', rp_single:'Simple', rp_dual:'Double', rp_layout_h:'Côte à côte', rp_layout_v:'Empilé', rp_layout_pip:'Incrustation', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
     vp_datetime:'Date :', vp_video:'Vidéo', vp_del:'Suppr.', vp_del_confirm:'Supprimer cet enregistrement ? Irréversible.',
     ai_desc_btn:'AI', ai_desc_running:'Génération…', ai_desc_failed:'Échec de la description', ai_search_ph:'Rechercher par description…', ai_search_btn:'Rechercher', ai_search_none:'Aucun enregistrement correspondant',
     ai_ask_title:'Interroger la vue en direct', ai_ask_ph:'Posez une question sur l’image de la caméra…', ai_ask_btn:'Capturer & demander', ai_ask_running:'Réflexion…', ai_ask_failed:'Échec de la demande', ai_ask_history:'Historique', ai_ask_empty:'Aucune question — capturez et demandez.',
@@ -7382,7 +7403,7 @@ const I18N_INDEX = {
     cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
     cm_enable:'activar', cm_disable:'desactivar',
-    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_switching:'Cambiando grabación…', rp_channel:'CH', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
+    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_switching:'Cambiando grabación…', rp_channel:'CH', rp_single:'Único', rp_dual:'Doble', rp_layout_h:'Lado a lado', rp_layout_v:'Apilado', rp_layout_pip:'Imagen en imagen', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
     vp_datetime:'Fecha:', vp_video:'Vídeo', vp_del:'Eliminar', vp_del_confirm:'¿Eliminar este registro? Irreversible.',
     ai_desc_btn:'AI', ai_desc_running:'Generando…', ai_desc_failed:'Error al generar descripción', ai_search_ph:'Buscar por descripción…', ai_search_btn:'Buscar', ai_search_none:'Sin grabaciones coincidentes',
     ai_ask_title:'Preguntar sobre la vista en vivo', ai_ask_ph:'Escribe una pregunta sobre lo que ve la cámara…', ai_ask_btn:'Capturar y preguntar', ai_ask_running:'Pensando…', ai_ask_failed:'Error en la consulta', ai_ask_history:'Historial', ai_ask_empty:'Sin preguntas todavía — captura y pregunta.',
@@ -8351,7 +8372,10 @@ document.addEventListener('DOMContentLoaded', function() {
             remotePlaybackLabel: '',      // 当前回放的录像时间标签（视频区右上角提示）
             _pbTicker: null,              // 本地 1s 进度 ticker（设备不推位置，前端自推）
             _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
-            playbackChannels: 2,          // 回放路数：1=只播第一路，2=双路同步（默认双路）
+            playbackChannels: 2,          // 回放路数：1=单路，2=双路同步（默认双路）
+            playbackSingleCam: 0,         // 单路模式播哪一路（0=第一路 CAM1，1=第二路 CAM2；多相机可选）
+            playbackLayout: 'h',          // 双路布局：'h'横排 / 'v'竖排堆叠 / 'pip'画中画
+            playbackCams: [],             // 当前实际回放的摄像头序号列表（驱动视频网格渲染）
             _pbSeeking: false,            // 正在拖动进度条（拖动中冻结 ticker，避免打架）
             _segmentEnded: false,         // 本段是否已播完（设备会话结束，seek 需先重发 START）
             _lastPlayRecord: null,        // 上次播放的 record（段播完后 seek 重发 START 用）
@@ -9144,9 +9168,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
                     let paths = this.siblingPaths(record);                   // 同段各路 MP4
-                    // 一路/二路选择:一路只播第一路(cam0),二路保留双路同步
-                    const chLimit = Math.max(1, this.playbackChannels || 1);
-                    paths = paths.filter((p) => p.cameraIndex < chLimit);
+                    // 单路/双路选择:
+                    //   单路 → 只播 playbackSingleCam 指定那一路(多相机可选 CAM1/CAM2);该路无同段片段则回退第一路。
+                    //   双路 → 保留前两路同步。
+                    if (this.playbackChannels === 1) {
+                        const sc = this.playbackSingleCam || 0;
+                        const only = paths.filter((p) => p.cameraIndex === sc);
+                        paths = only.length ? only : paths.filter((p) => p.cameraIndex === 0);
+                    } else {
+                        const chLimit = Math.max(1, this.playbackChannels || 1);
+                        paths = paths.filter((p) => p.cameraIndex < chLimit);
+                    }
+                    // 驱动视频网格:只渲染实际在播的摄像头槽(单路选 CAM2 时只出 CAM2,不留空 CAM1)
+                    this.playbackCams = paths.filter((p) => p.path !== '').map((p) => p.cameraIndex);
                     // ★ 顺序(对照实测定案):viewer 先连好并持续重发 offer 等待,再发 START(手机 App 同款 viewer up-front)。
                     //   实测实时预览(设备常在线)viewer 先连 8s 收流;回放若 START 先、viewer 后,设备上线 master 后
                     //   不空等 viewer,viewer 建立慢就错过 → 设备永不回 answer(CDP 实测 remoteDesc 恒 false)。
@@ -12216,6 +12250,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.pbCamUids = a;
             },
             pbElId(i) { return i === 0 ? 'remotePlaybackView' : 'remotePlaybackView' + (i + 1); },
+            // 播放中切单路/双路:改变量后立即以同一录像重连生效(不再是"下次点击才生效")。
+            setPlaybackChannels(ch) {
+                if (this.playbackChannels === ch) return;
+                this.playbackChannels = ch;
+                if (this.remotePlaybackActive && this._lastPlayRecord) this.startKvsPlayback(this._lastPlayRecord);
+            },
+            // 单路模式选择播哪一路(CAM1/CAM2);顺带切到单路。播放中立即重连生效。
+            setPlaybackSingleCam(ci) {
+                const already = this.playbackChannels === 1 && this.playbackSingleCam === ci;
+                this.playbackSingleCam = ci;
+                this.playbackChannels = 1;
+                if (already) return;
+                if (this.remotePlaybackActive && this._lastPlayRecord) this.startKvsPlayback(this._lastPlayRecord);
+            },
+            // 双路布局切换(横排/竖排/画中画):纯 CSS,无需重连。
+            setPlaybackLayout(mode) { this.playbackLayout = mode; },
+            // 视频网格容器样式:单路/竖排=单列;横排=两列;画中画=相对定位(副路绝对叠放)。
+            pbGridStyle() {
+                const n = (this.playbackCams || []).length;
+                if (n <= 1) return 'display:grid;gap:6px;grid-template-columns:1fr;';
+                if (this.playbackLayout === 'v') return 'display:grid;gap:6px;grid-template-columns:1fr;';
+                if (this.playbackLayout === 'pip') return 'position:relative;';
+                return 'display:grid;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr));';
+            },
+            // 单个视频槽样式:画中画模式下第 2 路缩到右下角小窗叠在主路上。
+            pbSlotStyle(idx) {
+                if (this.playbackLayout === 'pip' && (this.playbackCams || []).length > 1 && idx > 0) {
+                    return 'position:absolute;right:10px;bottom:10px;width:32%;min-width:120px;z-index:4;border:2px solid rgba(255,255,255,0.75);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
+                }
+                return 'position:relative;min-width:0;';
+            },
             // 给定一条录像，按时间戳在已加载列表里凑齐同一时刻各摄像头的 MP4，组成 paths[]（设备多路同步回放）
             siblingPaths(record) {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
