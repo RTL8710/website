@@ -9150,26 +9150,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // KVS 云端回放：连 <uuid>-playback 通道渲染回放流，并发 transport-agnostic 的回放命令（与 Agora 回放命令同一套）。
             async startKvsPlayback(record) {
                 if (!record || !record.RecordIndexInformationPath) return;
+                // ★ 点击瞬间立即亮 spinner + 录像时间标签(先于任何 await/stop),让视频框马上有"正在加载录像…"反馈,
+                //   不再是点了却什么都没有、用户以为没点上(切录像时 stop 有 IoT 往返 1~2s,期间容器不能塌空)。
+                this.remotePlaybackLoading = true;
+                this.remotePlaybackLabel = record.RecordIndexInformationDateTime
+                    || (String(record.RecordIndexInformationPath || '').match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/) || []).slice(1).join('') || '';
                 // ★ 连点保护:切录像前先彻底停掉上一次回放(关旧 viewer/client + 发 stop 命令),否则 client 累积→回放失败。
+                //   传 keepLoading=true:stop 期间保留 loading/label,视频容器不塌空,spinner 持续覆盖(无空白间隙)。
                 //   _pbStarting 锁:上一次 start 还没走完就再点,直接吞掉(等它结束/被 stop),避免并发建多个 viewer。
-                if (this._pbStarting) { await this.stopRemotePlayback(); }
+                if (this._pbStarting) { await this.stopRemotePlayback(true); }
                 if (this.remotePlaybackActive || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length)) {
-                    await this.stopRemotePlayback();
+                    await this.stopRemotePlayback(true);
                 }
                 this._pbStarting = true;
                 this._lastPlayRecord = record;   // 缓存,段播完后 seek 需重发 START
                 this._segmentEnded = false;
-                this.remotePlaybackLoading = true;   // 视频区 spinner + "正在加载录像…"
-                // 切换提示:标签用录像时间(优先本地时间列,回退路径里的 14 位时间戳)
-                this.remotePlaybackLabel = record.RecordIndexInformationDateTime
-                    || (String(record.RecordIndexInformationPath || '').match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/) || []).slice(1).join('') || '';
+                this.remotePlaybackLoading = true;   // 视频区 spinner + "正在加载录像…"(stop 后再确保为 true)
                 // 视频框内已有 spinner+文案提示,不再弹 toast(避免重复打扰)
                 try {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
+                    // 单路模式:先把点击进来的录像(可能是任意一路)重定位到「当前选中的摄像头」那一路,
+                    //   选哪路就播哪路——无论从时间轴还是侧边栏点进来。目标路无录像才保留原样。
+                    if (this.playbackChannels === 1) {
+                        const target = this.playbackSingleCam || 0;
+                        const remapped = this._recordForCam(record, target);
+                        if (remapped) { record = remapped; this._lastPlayRecord = record; }
+                    }
                     let paths = this.siblingPaths(record);                   // 同段各路 MP4
                     // 单路/双路选择:
-                    //   单路 → 只播 playbackSingleCam 指定那一路(多相机可选 CAM1/CAM2);该路无同段片段则回退第一路。
+                    //   单路 → 只播 playbackSingleCam 指定那一路(record 已重定位到该路,故这里就是它本身)。
                     //   双路 → 保留前两路同步。
                     if (this.playbackChannels === 1) {
                         const sc = this.playbackSingleCam || 0;
@@ -12281,6 +12291,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return 'position:relative;min-width:0;';
             },
+            // 录像 → 摄像头序号(0-based):优先 RecordIndexInformationCameraIndex,回退路径 /second//third/ 反推。
+            _camOfRecord(r) {
+                if (!r) return 0;
+                if (r.RecordIndexInformationCameraIndex != null) return r.RecordIndexInformationCameraIndex;
+                const p = String(r.RecordIndexInformationPath || '');
+                return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0;
+            },
+            // 录像路径里的 14 位时间戳(YYYYMMDDHHMMSS)→ 数值,用于同段匹配。
+            _tsOfRecord(r) {
+                const m = String((r && r.RecordIndexInformationPath) || '').match(/(\d{14})/);
+                return m ? Number(m[1]) : 0;
+            },
+            // 把 anchor 录像重定位到目标摄像头「时间最接近的一段」(不设 ≤100 硬阈值 → 选哪路就播哪路)。
+            _recordForCam(anchor, cam) {
+                if (this._camOfRecord(anchor) === cam) return anchor;
+                const list = (this.records && this.records.length) ? this.records : (this.syncRecords || []);
+                const t0 = this._tsOfRecord(anchor);
+                let best = null, bd = Infinity;
+                for (const r of list) {
+                    if (this._camOfRecord(r) !== cam) continue;
+                    const d = Math.abs(this._tsOfRecord(r) - t0);
+                    if (d < bd) { bd = d; best = r; }
+                }
+                return best;   // 该路无任何录像时返回 null
+            },
             // 给定一条录像，按时间戳在已加载列表里凑齐同一时刻各摄像头的 MP4，组成 paths[]（设备多路同步回放）
             siblingPaths(record) {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
@@ -12889,7 +12924,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (el && u && u.videoTrack) u.videoTrack.play(el, { fit: "contain" });
                 }
             },
-            async stopRemotePlayback() {
+            // keepLoading=true:切录像重启场景,保留 spinner/label,视频容器不塌空(无空白间隙)。停止按钮走默认(清空)。
+            async stopRemotePlayback(keepLoading) {
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -12903,8 +12939,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.remotePlaybackPath = '';
                 this.playbackDurationMs = 0;
                 this.playbackPositionMs = 0;
-                this.remotePlaybackLoading = false;
-                this.remotePlaybackLabel = '';
+                if (!keepLoading) { this.remotePlaybackLoading = false; this.remotePlaybackLabel = ''; }
                 this._stopPbTicker();
                 this.pbCamUids = [];
                 // KVS 回放：拆各路回放通道 viewer（不影响 KVS 实时预览）；Agora 回放：停实时订阅。
