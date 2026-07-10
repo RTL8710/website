@@ -3215,7 +3215,7 @@
                                                         <!-- 云端回放视频区：由 playbackCams(实际在播的摄像头)驱动，布局随 playbackLayout 切换(横排/竖排/画中画) -->
                                                         <div :style="pbGridStyle()">
                                                             <template x-for="(ci, idx) in (playbackCams.length ? playbackCams : [0])" :key="'pb'+ci">
-                                                                <div :style="pbSlotStyle(idx)" x-show="idx===0 || pbCamUids[ci]">
+                                                                <div :style="pbSlotStyle(idx)">
                                                                     <video :id="pbElId(ci)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
                                                                     <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+(ci+1)"></div>
                                                                     <!-- 切换/加载动效:覆盖在视频上,给用户明确「正在切换录像」反馈 -->
@@ -9170,27 +9170,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
-                    // 单路模式:先把点击进来的录像(可能是任意一路)重定位到「当前选中的摄像头」那一路,
+                    // 单路模式:把点击进来的录像(可能是任意一路)重定位到「当前选中的摄像头」那一路,
                     //   选哪路就播哪路——无论从时间轴还是侧边栏点进来。目标路无录像才保留原样。
                     if (this.playbackChannels === 1) {
                         const target = this.playbackSingleCam || 0;
                         const remapped = this._recordForCam(record, target);
                         if (remapped) { record = remapped; this._lastPlayRecord = record; }
                     }
-                    let paths = this.siblingPaths(record);                   // 同段各路 MP4
-                    // 单路/双路选择:
-                    //   单路 → 只播 playbackSingleCam 指定那一路(record 已重定位到该路,故这里就是它本身)。
-                    //   双路 → 保留前两路同步。
+                    // 要播的摄像头集合:单路=选中那一路;双路=前两路(受 cameraCounts 限制)。
+                    const nCam = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
+                    let targetCams;
                     if (this.playbackChannels === 1) {
-                        const sc = this.playbackSingleCam || 0;
-                        const only = paths.filter((p) => p.cameraIndex === sc);
-                        paths = only.length ? only : paths.filter((p) => p.cameraIndex === 0);
+                        targetCams = [Math.min(this.playbackSingleCam || 0, nCam - 1)];
                     } else {
-                        const chLimit = Math.max(1, this.playbackChannels || 1);
-                        paths = paths.filter((p) => p.cameraIndex < chLimit);
+                        targetCams = [];
+                        for (let c = 0; c < Math.min(nCam, 2); c++) targetCams.push(c);
                     }
-                    // 驱动视频网格:只渲染实际在播的摄像头槽(单路选 CAM2 时只出 CAM2,不留空 CAM1)
-                    this.playbackCams = paths.filter((p) => p.path !== '').map((p) => p.cameraIndex);
+                    // 每路取「时间最接近的同段录像」拼 path(用 _recordForCam,不再靠 siblingPaths 的 ≤100 硬阈值,
+                    //   否则双路时另一路差一点点就配不上、只出一路)。某路无任何录像则跳过。
+                    let paths = [];
+                    for (const c of targetCams) {
+                        const rec = (c === this._camOfRecord(record)) ? record : this._recordForCam(record, c);
+                        if (rec && rec.RecordIndexInformationPath) paths.push({ cameraIndex: c, path: rec.RecordIndexInformationPath });
+                    }
+                    if (!paths.length) paths = [{ cameraIndex: 0, path: record.RecordIndexInformationPath }];
+                    // 驱动视频网格:只渲染实际在播的摄像头槽(单路选 CAM2 时只出 CAM2 不留空;双路两路都出)
+                    this.playbackCams = paths.map((p) => p.cameraIndex);
                     // ★ 顺序(对照实测定案):viewer 先连好并持续重发 offer 等待,再发 START(手机 App 同款 viewer up-front)。
                     //   实测实时预览(设备常在线)viewer 先连 8s 收流;回放若 START 先、viewer 后,设备上线 master 后
                     //   不空等 viewer,viewer 建立慢就错过 → 设备永不回 answer(CDP 实测 remoteDesc 恒 false)。
