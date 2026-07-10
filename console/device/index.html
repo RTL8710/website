@@ -3027,7 +3027,7 @@
 
                 <!-- 视频回放页面 -->
                 <div class="page-section" id="video-replay">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { initVedioSettings(); fetchRecords(false); initTimeline() })">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { initVedioSettings(); fetchRecords(false); initTimeline() })" @pagechange.window="onReplayPageLeave($event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -12541,6 +12541,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         else this.stopPreview();
                         this.activeTransport = null;
                     } catch (e) { console.warn('[preview] stop on page leave failed:', e && e.message); }
+                }
+            },
+            // 离开录像回放页(切到其它标签)时关闭云回放:关各路 viewer + 发 stop 命令,
+            // 避免切走后设备仍在 demux 推流、viewer/信令常驻后台占资源。仅正在回放的那个实例会真正停,其它 no-op。
+            onReplayPageLeave(activePageId) {
+                if (activePageId === 'video-replay') return;   // 仍在本页,不处理
+                if (this.remotePlaybackActive || this.remotePlaybackLoading
+                    || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer) {
+                    try { this.stopRemotePlayback(); } catch (e) { console.warn('[replay] stop on leave failed:', e && e.message); }
+                }
+                // 若本页也开过实时预览,一并停
+                if (this.isStreaming) {
+                    try {
+                        if (this.activeTransport === 'kvs') this.stopKvsPreview();
+                        else this.stopPreview();
+                        this.activeTransport = null;
+                    } catch (e) {}
                 }
             },
             async submitRecordSettings() {
