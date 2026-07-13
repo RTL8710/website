@@ -35,13 +35,18 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx git certbot python3-certbot-nginx curl
 
-log "[2/7] 检查 80 端口是否空闲"
-if ss -ltnp | grep -q ':80 '; then
-  echo "!! 80 端口已被占用:"; ss -ltnp | grep ':80 '
+log "[2/7] 检查 80 端口(只拦非 nginx 的占用者)"
+# 第 1 步刚装的 nginx 会自动起来占 80,那是我们自己的、后面会重配,不算冲突;
+# 只有 x-ui 等**非 nginx** 服务占 80 才需要用户先腾出来。
+OCC80="$(ss -ltnp 2>/dev/null | grep ':80 ' | grep -v 'nginx' || true)"
+if [ -n "$OCC80" ]; then
+  echo "!! 80 端口被非 nginx 服务占用:"; echo "$OCC80"
   echo "!! 请先把占用 80 的服务(如 x-ui)改到别的端口,再重跑本脚本。" >&2
   exit 1
 fi
-echo "80 端口空闲 ✅"
+# 停掉自己的 nginx,让后面 [4/7] 用新配置干净重启(避免旧默认站点残留)
+systemctl stop nginx >/dev/null 2>&1 || true
+echo "80 端口可用(自有 nginx 会重配)✅"
 
 log "[3/7] 拉取网站到 $WEBROOT (分支 $BRANCH)"
 if [ -d "$WEBROOT/.git" ]; then
