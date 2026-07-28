@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- 本地测试入口(勿部署):#<base64(JSON)> → 写 sessionStorage 契约 → 跳 index.html
+     JSON: { creds:{accessKeyId,secretAccessKey,sessionToken,region,endpoint}, d:deviceUuid, page? } -->
+<html><head><meta charset="utf-8"><title>test entry</title></head><body>
+<pre id="log">inject...</pre>
+<script>
+try {
+  var payload = JSON.parse(atob(location.hash.slice(1)));
+  sessionStorage.setItem('iot_creds', JSON.stringify(payload.creds));
+  sessionStorage.setItem('dv_auth', '1');
+  sessionStorage.setItem('dv_user', payload.user || 'tester');
+  localStorage.setItem('previewTransport', 'kvs');
+  localStorage.setItem('dv_lang', 'zh');
+  if (payload.page) sessionStorage.setItem('_test_page', payload.page);
+  document.getElementById('log').textContent = 'ok, redirect...';
+  location.href = 'index.html?deviceId=' + encodeURIComponent(payload.d);
+} catch (e) { document.getElementById('log').textContent = 'FAIL: ' + e.message; }
+</script></body></html>
