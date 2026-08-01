@@ -1,0 +1,89 @@
+name: Bootstrap Server
+
+# 一次性初始化「全新服务器」:装 nginx/git/certbot → clone 网站 → 写 nginx 配置 →
+# 申请 HTTPS 证书。等价于手动 SSH 上去跑 deploy/ubuntu-setup.sh,但由 GitHub runner 执行
+# (本地网络常封出站 22 端口,连不上服务器时用这个)。
+#
+# 只能手动触发(workflow_dispatch),不会被 push 意外触发。
+# 目标机器取自仓库 Secrets:SERVER_HOST / SERVER_PORT / SERVER_USER / SERVER_PASSWORD
+# —— 换服务器时先去 Settings → Secrets and variables → Actions 改这几个值,再跑本 workflow。
+#
+# 幂等:可重复运行(DNS 切过来之后再跑一次即可补签 HTTPS 证书)。
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: '主域名(DNS 还没切过来时,证书会申请失败并跳过,不影响 HTTP 上线)'
+        required: false
+        default: 'anhaishi.cn'
+      email:
+        description: "Let's Encrypt 邮箱"
+        required: false
+        default: '493148469@qq.com'
+
+concurrency:
+  group: server-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检查 Secrets
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          PW: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$PW" ]; then
+            echo "::error::未配置 SERVER_HOST / SERVER_PASSWORD,先去 Settings → Secrets 配好再跑。"
+            exit 1
+          fi
+          echo "目标服务器:$HOST"
+
+      - name: 安装 sshpass
+        run: sudo apt-get update -y && sudo apt-get install -y sshpass
+
+      - name: SSH 连通性自检
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          PORT: ${{ secrets.SERVER_PORT }}
+          USER: ${{ secrets.SERVER_USER }}
+          HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+            -o ConnectTimeout=30 -p "${PORT:-22}" "$USER@$HOST" \
+            'echo "登录成功:$(hostname)"; . /etc/os-release && echo "系统:$PRETTY_NAME"'
+
+      - name: 在服务器上执行 ubuntu-setup.sh
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          PORT: ${{ secrets.SERVER_PORT }}
+          USER: ${{ secrets.SERVER_USER }}
+          HOST: ${{ secrets.SERVER_HOST }}
+          DOMAIN: ${{ inputs.domain }}
+          EMAIL: ${{ inputs.email }}
+          BR: ${{ github.ref_name }}
+        run: |
+          # 把本仓库的脚本喂给远端 bash 执行(不依赖 raw.githubusercontent 在服务器侧可达)
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+            -o ConnectTimeout=30 -p "${PORT:-22}" "$USER@$HOST" \
+            "DOMAIN='${DOMAIN:-anhaishi.cn}' EMAIL='$EMAIL' BRANCH='$BR' bash -s" \
+            < deploy/ubuntu-setup.sh
+
+      - name: 服务器自测(HTTP 200?)
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          PORT: ${{ secrets.SERVER_PORT }}
+          USER: ${{ secrets.SERVER_USER }}
+          HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+            -o ConnectTimeout=30 -p "${PORT:-22}" "$USER@$HOST" \
+            'echo "本机 HTTP: $(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/)"; git -C /var/www/website rev-parse --short HEAD'
+          echo "外网 HTTP: $(curl -s -o /dev/null -w '%{http_code}' -m 20 "http://${HOST}/" || echo N/A)"

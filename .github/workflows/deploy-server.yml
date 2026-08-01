@@ -1,9 +1,10 @@
 name: Deploy to Server
 
-# push 后自动把最新静态文件同步到自建服务器 anhaishi.cn。
+# push 后自动把最新静态文件同步到自建服务器(目标机器由 Secrets 决定,换服务器只需改 Secrets)。
 # 只做 git 拉取(fetch + reset --hard),**绝不重配 nginx / 不碰 SSL**——
 # 与被删的旧版(会跑 setup.sh 把 nginx 重置成 8080、冲掉 443+SSL)的关键区别。
 # 复用仓库已有的 Actions Secrets:SERVER_HOST / SERVER_PORT / SERVER_USER / SERVER_PASSWORD。
+# 全新服务器第一次上线(装 nginx/申请证书)先手动跑一次 bootstrap-server.yml,本 workflow 只管日常同步。
 
 on:
   push:
