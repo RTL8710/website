@@ -3515,20 +3515,14 @@
                                                         <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
                                                     </template>
                                                 </div>
-                                                <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">CAM1</div>
-                                                <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;" :class="{'tl-grabbing': tlDrag.active}"
-                                                     @click="onTimelineClickImage($event, 0)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                                    <template x-for="(b,i) in timelineBlocks(0)" :key="'ic0-'+i">
-                                                        <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
-                                                    </template>
-                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
-                                                </div>
-                                                <template x-if="timelineHasCam2()">
+                                                <!-- 多路轨道：与视频回放页一致，按 timelineCamCount() 动态生成 N 条。
+                                                     原来写死 CAM1 + x-if(timelineHasCam2()) 的 CAM2，3/4 路设备的第 3、4 路永远画不出来。-->
+                                                <template x-for="ci in timelineCamCount()" :key="'itlcam'+ci">
                                                     <div>
-                                                        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">CAM2</div>
+                                                        <div style="font-size:10px;color:var(--text-muted);" :style="ci===1?'margin-top:2px;':'margin-top:4px;'" x-text="'CAM'+ci"></div>
                                                         <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;" :class="{'tl-grabbing': tlDrag.active}"
-                                                             @click="onTimelineClickImage($event, 1)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                                            <template x-for="(b,i) in timelineBlocks(1)" :key="'ic1-'+i">
+                                                             @click="onTimelineClickImage($event, ci-1)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
+                                                            <template x-for="(b,i) in timelineBlocks(ci-1)" :key="'ic'+ci+'-'+i">
                                                                 <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                             </template>
                                                             <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
@@ -13049,16 +13043,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.fetchTimeline();
             },
             tlCamOf(p) { p = String(p || ''); return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0; },
-            // 时间轴轨道数：取时间轴数据里实际出现过的最大摄像头序号+1（不依赖 cameraCounts，回放历史更准）
-            timelineCamCount() { let m = 0; for (const e of this.recordTimeline) if (e && e.p) m = Math.max(m, this.tlCamOf(e.p)); return Math.max(1, m + 1); },
-            timelineHasCam2() {
-                return this.recordTimeline.some(e => e.p && e.p.includes('/second/'));
+            // 时间轴段 → 摄像头序号(0-based)。与录像列表的 _camOfRecord 保持同一优先级：
+            // 先认段自带的 cameraIndex/cam 字段(设备若下发)，没有再按路径 /second//third//fourth/ 反推。
+            // 原来只看路径：设备换个目录名下发，整路就会挤到 CAM1 或直接消失，标尺与右侧列表对不上。
+            tlCamOfSeg(e) {
+                if (!e) return 0;
+                if (e.cameraIndex != null) return +e.cameraIndex;
+                if (e.cam != null) return +e.cam;
+                return this.tlCamOf(e.p);
+            },
+            // 时间轴轨道数：取「数据里出现过的最大序号+1」与「设备实际路数 cameraCounts」的较大值。
+            // 只按数据反推会漏路——某路当天没录像、或设备没下发该路的段时，那条轨道整个不渲染，
+            // 3 路设备看起来就只有 2 路标尺。用 cameraCounts 兜底后，没数据的路也保留一条空轨道。
+            timelineCamCount() {
+                let m = 0;
+                for (const e of this.recordTimeline) if (e && e.p) m = Math.max(m, this.tlCamOfSeg(e));
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
+                return Math.max(1, m + 1, n);
             },
             // 该路摄像头的渲染块（相邻同类型段合并 + 按可见窗口裁剪）
             timelineBlocks(camera) {
                 const v = this.timelineView, span = (v.end - v.start) || 1;
                 const segs = this.recordTimeline
-                    .filter(e => e.p && this.tlCamOf(e.p) === camera
+                    .filter(e => e.p && this.tlCamOfSeg(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType))
                     .sort((a, b) => a.s - b.s);
                 const merged = [];
@@ -13137,7 +13144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 找指定摄像头在 secs 时刻所在/最近的段
             findSegmentAt(secs, camera) {
-                const segs = this.recordTimeline.filter(e => e.p && this.tlCamOf(e.p) === camera
+                const segs = this.recordTimeline.filter(e => e.p && this.tlCamOfSeg(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
                 let best = null, bestDist = Infinity;
                 for (const e of segs) {
