@@ -4320,7 +4320,7 @@
                                                                      onerror="this.style.opacity=0.3">
                                                                 <div x-show="isLayoutFocused(idx, syncImages.length)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
                                                                     <button class="btn btn-sm btn-primary" style="padding:2px 9px;"
-                                                                            @click.stop="downloadFile(img.RecordIndexInformationImage)" title="JPEG">
+                                                                            @click.stop="downloadSnap(img)" :title="tIdx('ip_download') || 'JPEG'">
                                                                         <i class="fa-solid fa-download"></i><i class="fa-solid fa-image ms-1"></i>
                                                                     </button>
                                                                 </div>
@@ -4406,9 +4406,8 @@
                                                                         <div class="d-flex flex-wrap justify-content-start align-items-center mt-1 gap-2">
 
                                                                             <button class="btn btn-sm btn-primary justify-content-between gap-1"
-                                                                                    @click="downloadFile(image.RecordIndexInformationImage)">
-                                                                                <!--                                                                        <i class="fa-solid fa-download"></i> Jpeg-->
-                                                                                <i class="fa-solid fa-file-arrow-down"></i> Jpeg
+                                                                                    @click.stop="downloadSnap(image)">
+                                                                                <i class="fa-solid fa-file-arrow-down"></i> <span data-i18n="ip_download">Jpeg</span>
                                                                             </button>
                                                                             <button class="btn btn-sm btn-danger justify-content-between gap-1"
                                                                                     @click="deleteFileIndexInformation(image)">
@@ -7157,7 +7156,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
     ip_image_list:'Image List', ip_select_image:'Please select an image to display.',
-    ip_datetime:'Datetime:', ip_type:'Type:', ip_snap:'snap', ip_alarm:'alarm', ip_normal:'normal', ip_delete:'Delete',
+    ip_datetime:'Datetime:', ip_type:'Type:', ip_snap:'snap', ip_alarm:'alarm', ip_normal:'normal', ip_delete:'Delete', ip_download:'Download', ip_cloud_dl_need_s3:'Cloud download needs S3 URL', ip_cloud_dl_no_url:'No S3 URL for this image',
     st_title:'Storage Information', st_status:'Storage Status',
     st_available:'Available', st_not_available:'Not Available',
     st_storage_available:'Available Space', st_storage_used:'Used Space', st_total:'Total',
@@ -7305,7 +7304,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
     ip_image_list:'图片列表', ip_select_image:'请选择一张图片进行显示。',
-    ip_datetime:'时间：', ip_type:'类型：', ip_snap:'抓拍', ip_alarm:'告警', ip_normal:'普通', ip_delete:'删除',
+    ip_datetime:'时间：', ip_type:'类型：', ip_snap:'抓拍', ip_alarm:'告警', ip_normal:'普通', ip_delete:'删除', ip_download:'下载', ip_cloud_dl_need_s3:'云端下载需要 S3 地址', ip_cloud_dl_no_url:'该图片尚无 S3 地址',
     st_title:'存储信息', st_status:'存储状态',
     st_available:'可用', st_not_available:'不可用',
     st_storage_available:'可用空间', st_storage_used:'已用空间', st_total:'总容量',
@@ -7453,7 +7452,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'説明の生成に失敗しました', ai_search_ph:'内容説明で検索…', ai_search_btn:'検索', ai_search_none:'一致する録画がありません',
     ai_ask_title:'ライブ映像に質問', ai_ask_ph:'カメラの映像について質問を入力…', ai_ask_btn:'撮影して質問', ai_ask_running:'考え中…', ai_ask_failed:'質問に失敗しました', ai_ask_history:'履歴', ai_ask_empty:'まだ質問がありません。撮影して質問してみてください。',
     ip_image_list:'画像リスト', ip_select_image:'表示する画像を選択してください。',
-    ip_datetime:'日時：', ip_type:'種別：', ip_snap:'スナップ', ip_alarm:'アラーム', ip_normal:'通常', ip_delete:'削除',
+    ip_datetime:'日時：', ip_type:'種別：', ip_snap:'スナップ', ip_alarm:'アラーム', ip_normal:'通常', ip_delete:'削除', ip_download:'ダウンロード', ip_cloud_dl_need_s3:'クラウドダウンロードにはS3 URLが必要', ip_cloud_dl_no_url:'この画像にS3 URLがありません',
     st_title:'ストレージ情報', st_status:'ストレージ状態',
     st_available:'利用可能', st_not_available:'利用不可',
     st_storage_available:'空き容量', st_storage_used:'使用容量', st_total:'総容量',
@@ -7600,7 +7599,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'Wird erstellt…', ai_desc_failed:'Beschreibung fehlgeschlagen', ai_search_ph:'Nach Inhaltsbeschreibung suchen…', ai_search_btn:'Suchen', ai_search_none:'Keine passenden Aufnahmen',
     ai_ask_title:'Live-Ansicht fragen', ai_ask_ph:'Frage zum aktuellen Kamerabild eingeben…', ai_ask_btn:'Foto & Frage', ai_ask_running:'Denkt nach…', ai_ask_failed:'Anfrage fehlgeschlagen', ai_ask_history:'Verlauf', ai_ask_empty:'Noch keine Fragen — Foto machen und fragen.',
     ip_image_list:'Bildliste', ip_select_image:'Bitte wählen Sie ein Bild zur Anzeige.',
-    ip_datetime:'Datum:', ip_type:'Typ:', ip_snap:'Schnappschuss', ip_alarm:'Alarm', ip_normal:'Normal', ip_delete:'Löschen',
+    ip_datetime:'Datum:', ip_type:'Typ:', ip_snap:'Schnappschuss', ip_alarm:'Alarm', ip_normal:'Normal', ip_delete:'Löschen', ip_download:'Download', ip_cloud_dl_need_s3:'Cloud-Download braucht S3-URL', ip_cloud_dl_no_url:'Keine S3-URL für dieses Bild',
     st_title:'Speicherinformationen', st_status:'Speicherstatus',
     st_available:'Verfügbar', st_not_available:'Nicht verfügbar',
     st_storage_available:'Verfügbarer Speicher', st_storage_used:'Belegter Speicher', st_total:'Gesamt',
@@ -7747,7 +7746,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'Génération…', ai_desc_failed:'Échec de la description', ai_search_ph:'Rechercher par description…', ai_search_btn:'Rechercher', ai_search_none:'Aucun enregistrement correspondant',
     ai_ask_title:'Interroger la vue en direct', ai_ask_ph:'Posez une question sur l’image de la caméra…', ai_ask_btn:'Capturer & demander', ai_ask_running:'Réflexion…', ai_ask_failed:'Échec de la demande', ai_ask_history:'Historique', ai_ask_empty:'Aucune question — capturez et demandez.',
     ip_image_list:'Liste images', ip_select_image:'Veuillez sélectionner une image.',
-    ip_datetime:'Date :', ip_type:'Type :', ip_snap:'capture', ip_alarm:'alarme', ip_delete:'Supprimer',
+    ip_datetime:'Date :', ip_type:'Type :', ip_snap:'capture', ip_alarm:'alarme', ip_delete:'Supprimer', ip_download:'Télécharger', ip_cloud_dl_need_s3:'Le téléchargement cloud nécessite une URL S3', ip_cloud_dl_no_url:'Pas d\'URL S3 pour cette image',
     st_title:'Informations stockage', st_status:'État stockage',
     st_available:'Disponible', st_not_available:'Indisponible',
     st_storage_available:'Espace disponible', st_storage_used:'Espace utilisé', st_total:'Total',
@@ -7894,7 +7893,7 @@ const I18N_INDEX = {
     ai_desc_btn:'AI', ai_desc_running:'Generando…', ai_desc_failed:'Error al generar descripción', ai_search_ph:'Buscar por descripción…', ai_search_btn:'Buscar', ai_search_none:'Sin grabaciones coincidentes',
     ai_ask_title:'Preguntar sobre la vista en vivo', ai_ask_ph:'Escribe una pregunta sobre lo que ve la cámara…', ai_ask_btn:'Capturar y preguntar', ai_ask_running:'Pensando…', ai_ask_failed:'Error en la consulta', ai_ask_history:'Historial', ai_ask_empty:'Sin preguntas todavía — captura y pregunta.',
     ip_image_list:'Lista imágenes', ip_select_image:'Seleccione una imagen para mostrar.',
-    ip_datetime:'Fecha:', ip_type:'Tipo:', ip_snap:'captura', ip_alarm:'alarma', ip_delete:'Eliminar',
+    ip_datetime:'Fecha:', ip_type:'Tipo:', ip_snap:'captura', ip_alarm:'alarma', ip_delete:'Eliminar', ip_download:'Descargar', ip_cloud_dl_need_s3:'La descarga en la nube necesita URL S3', ip_cloud_dl_no_url:'Sin URL S3 para esta imagen',
     st_title:'Información almacenamiento', st_status:'Estado almacenamiento',
     st_available:'Disponible', st_not_available:'No disponible',
     st_storage_available:'Espacio disponible', st_storage_used:'Espacio usado', st_total:'Total',
@@ -9214,9 +9213,68 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             downloadFile(fileName) {
                 console.log('downloadFile-fileName:', fileName);
+                if (!fileName) return;
+                // 已是 http(s)（如 S3）→ 走云端下载
+                if (/^https?:\/\//i.test(String(fileName))) {
+                    this._downloadViaUrl(fileName, String(fileName).split('?')[0].split('/').pop() || 'download.bin');
+                    return;
+                }
+                // 云模式本地路径不可达：提示用带 ImageUrl 的 downloadSnap
+                if (this._injectedCreds && this._injectedCreds()) {
+                    console.warn('downloadFile: cloud mode cannot use /download for local path', fileName);
+                    if (typeof this.showAlert === 'function') {
+                        this.showAlert('warning', 'Notice', tIdx('ip_cloud_dl_need_s3') || 'Cloud download needs S3 URL');
+                    }
+                    return;
+                }
                 // dl=1 → 后端按 attachment 强制下载（默认 inline 供 <video>/<img> 内联）
                 window.location.href = `/download?filePath=${fileName}&dl=1`;
-
+            },
+            // 图片回放下载：云端优先 S3 预签名 → blob 另存；局域网仍走 /download
+            async downloadSnap(rec, ev) {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
+                if (!rec) return;
+                const path = rec.RecordIndexInformationImage || '';
+                let url = rec.RecordIndexInformationImageUrl || '';
+                if (!url && path && Array.isArray(this.images)) {
+                    const hit = this.images.find(x => x && x.RecordIndexInformationImage === path);
+                    if (hit && hit.RecordIndexInformationImageUrl) url = hit.RecordIndexInformationImageUrl;
+                }
+                const name = (String(path).split('/').pop() || 'snap.jpg').replace(/[^\w.\-\u4e00-\u9fff]+/g, '_') || 'snap.jpg';
+                const wan = this._injectedCreds && this._injectedCreds();
+                if (wan) {
+                    if (url && /^https?:\/\//i.test(url)) {
+                        const signed = (typeof this._s3PresignUrl === 'function') ? this._s3PresignUrl(url) : url;
+                        await this._downloadViaUrl(signed, name);
+                        return;
+                    }
+                    if (typeof this.showAlert === 'function') {
+                        this.showAlert('warning', 'Notice', tIdx('ip_cloud_dl_no_url') || 'No S3 image URL for this snap');
+                    }
+                    return;
+                }
+                if (path) this.downloadFile(path);
+            },
+            async _downloadViaUrl(url, filename) {
+                if (!url) return;
+                const name = filename || 'download.bin';
+                try {
+                    const r = await fetch(url);
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const blob = await r.blob();
+                    const a = document.createElement('a');
+                    const obj = URL.createObjectURL(blob);
+                    a.href = obj;
+                    a.download = name;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(obj), 3000);
+                } catch (e) {
+                    console.error('_downloadViaUrl failed, open tab', e);
+                    window.open(url, '_blank');
+                }
             },
 
             deleteFileIndexInformation(recordIndexInformationDateTime) {
