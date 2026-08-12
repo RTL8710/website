@@ -1004,9 +1004,6 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('device-information', this); return false;">
                     <i class="fa fa-microchip"></i> <span data-i18n="nav_device_info">Device Info</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('upgrade', this); return false;">
-                    <i class="fas fa-arrow-up"></i> <span data-i18n="nav_ota_upgrade">OTA Upgrade</span>
-                </a>
                 <a class="dv-nav-item" href="#" onclick="                <a class="dv-nav-item" href="#" onclick="                <a class="dv-nav-item" href="#" onclick="showPage('production', this); return false;">
                     <i class="fa-solid fa-industry"></i> <span data-i18n="nav_production">Production</span>
                 </a>
@@ -1015,9 +1012,6 @@ showPage('debug', this); return false;">
                 </a>
 showPage('help', this); return false;">
                     <i class="fa-solid fa-circle-question"></i> <span data-i18n="nav_help">Help</span>
-                </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('about', this); return false;">
-                    <i class="fa-solid fa-info-circle"></i> <span data-i18n="nav_about">About</span>
                 </a>
             </div>
         </div>
@@ -3297,181 +3291,9 @@ showPage('help', this); return false;">
                 </div>
 
 
-                <!-- OTA 升级页面 -->
-                <div class="page-section " id="upgrade">
-                    <div class="page-wrapper" x-data="deviceSettings()">
-                        <div class="page-body">
-                            <div class="container-xl">
-                                <div class="row row-deck ">
-<div class="card shadow">
-                                        <div class="card-header">
-                                            <h3 class="card-title" data-i18n="ot_title"> Upgrade </h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Dropzone upload area -->
-                                            <!--                                        <form id="dropzone-custom" class="dropzone"></form>-->
-                                            <form id="dropzone-custom" class="dropzone"></form>
+                                <!-- upgrade：已并入 Device Info → OTA Tab -->
+                <div class="page-section" id="upgrade"></div>
 
-                                            <!--                                    <select class="form-select mt-3" x-model="selectedPartition">-->
-                                            <!--                                        <option value="">Please select a partition</option>-->
-                                            <!--                                        <option value="boot">Boot partition</option>-->
-                                            <!--                                        <option value="tag">Tag partition</option>-->
-                                            <!--                                        <option value="kernel">Kernel partition</option>-->
-                                            <!--                                        <option value="rootfs">RootFS partition</option>-->
-                                            <!--                                        <option value="recovery">Recovery partition</option>-->
-                                            <!--                                        <option value="system">System partition</option>-->
-                                            <!--                                        <option value="config">Config partition</option>-->
-                                            <!--&lt;!&ndash;                                         <option value="all">All partition</option>&ndash;&gt;-->
-                                            <!--                                    </select>-->
-                                            <!--                                    <button class="btn btn-primary mt-3 mb-3" @click="startUpgrade">Start upgrade-->
-                                            <!--                                    </button>-->
-
-
-                                            <div class="d-flex align-items-center mt-3">
-                                                <select class="form-select me-2 w-100" x-model="selectedPartition">
-                                                    <option value="" data-i18n="ot_select_partition">Please select a partition</option>
-                                                    <option value="boot" data-i18n="ot_boot">Boot partition</option>
-                                                    <option value="tag" data-i18n="ot_tag">Tag partition</option>
-                                                    <option value="kernel" data-i18n="ot_kernel">Kernel partition</option>
-                                                    <option value="rootfs" data-i18n="ot_rootfs">RootFS partition</option>
-                                                    <option value="recovery" data-i18n="ot_recovery_partition">Recovery partition</option>
-                                                    <option value="system" data-i18n="ot_system">System partition</option>
-                                                    <option value="config" data-i18n="ot_config">Config partition</option>
-                                                </select>
-                                                <button id="start-upgrade-button" class="btn btn-primary flex-shrink-0"
-                                                        @click="startUpgrade"><span data-i18n="ot_start_upgrade">Start upgrade</span>
-                                                </button>
-                                            </div>
-
-
-                                            <div class="progress mt-3 progress-hidden" x-show="isUpgrading">
-                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                                     role="progressbar" style="width: 0%;" id="update-bar">
-                                                    <span x-text="progress + '%'"></span>
-                                                </div>
-                                            </div>
-                                            <!--                                    <p class="mt-3 text-center fs-3 text-danger  fw-bold" x-text="statusMessage"-->
-                                            <!--                                       x-show="isUpgrading"></p>-->
-
-                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading">
-                                                <i class="fa-solid fa-1x fa-triangle-exclamation me-2"></i>
-                                                <span x-text="statusMessage"></span>
-                                            </p>
-
-
-                                            <div class="toast show position-absolute top-0 end-0 p-3" role="alert"
-                                                 aria-live="assertive"
-                                                 aria-atomic="true" x-show="show">
-                                                <div :class="`toast-header text-white bg-${type}`">
-                                    <span class="avatar avatar-xs me-2">
-                                        <i class="fas fa-circle-up fa-2x"></i>
-                                    </span>
-                                                    <strong class="me-auto" data-i18n="cm_notice">Notice</strong>
-                                                    <small x-text="toastModule"></small>
-                                                    <button type="button" class="btn-close" aria-label="Close"
-                                                            @click="show = false"></button>
-                                                </div>
-                                                <div class="toast-body" x-text="message"></div>
-                                            </div>
-
-
-                                            <!--                                        <form class="dropzone" id="dropzone-custom" action="." autocomplete="off" novalidate>-->
-
-                                            <!-- Progress bar -->
-                                            <div class="progress mt-3 progress-hidden" id="upload-progress">
-                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                                     role="progressbar"
-                                                     style="width: 0%;" id="progress-bar">
-                                                    0%
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row row-deck">
-                                    <div class="card shadow">
-                                        <div class="card-header d-flex justify-content-between align-items-center"  @click="recoveryServiceResultShow = !recoveryServiceResultShow">
-                                            <h3 class="card-title" data-i18n="ot_recovery"> Recovery </h3>
-                                            <button class="btn btn-sm btn-primary" @click.stop="recoveryServiceResultShow = !recoveryServiceResultShow">
-                                                <i class="fa" :class="recoveryServiceResultShow ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                                            </button>
-
-                                        </div>
-                                        <div class="card-body" x-show=recoveryServiceResultShow x-transition>
-                                            <!-- Dropzone upload area -->
-                                            <!--                                        <form id="dropzone-custom" class="dropzone"></form>-->
-                                            <form id="dropzone-recovery" class="dropzone"></form>
-
-
-
-<!--                                            <div class="d-flex align-items-center mt-3">-->
-<!--                                                <select class="form-select me-2 w-100" x-model="selectedPartition">-->
-<!--                                                    <option value="">Please select a partition</option>-->
-<!--                                                    <option value="boot">Boot partition</option>-->
-<!--                                                    <option value="tag">Tag partition</option>-->
-<!--                                                    <option value="kernel">Kernel partition</option>-->
-<!--                                                    <option value="rootfs">RootFS partition</option>-->
-<!--                                                    <option value="recovery">Recovery partition</option>-->
-<!--                                                    <option value="system">System partition</option>-->
-<!--                                                    <option value="config">Config partition</option>-->
-<!--                                                </select>-->
-<!--                                                <button id="start-upgrade-button" class="btn btn-primary flex-shrink-0"-->
-<!--                                                        @click="startUpgrade">Start upgrade-->
-<!--                                                </button>-->
-<!--                                            </div>-->
-
-
-<!--                                            <div class="progress mt-3" x-show="isUpgrading" style="display: none;height: 15px;">-->
-<!--                                                <div class="progress-bar progress-bar-striped progress-bar-animated"-->
-<!--                                                     role="progressbar" style="width: 0%;" id="update-bar">-->
-<!--                                                    <span x-text="progress + '%'"></span>-->
-<!--                                                </div>-->
-<!--                                            </div>-->
-                                            <!--                                    <p class="mt-3 text-center fs-3 text-danger  fw-bold" x-text="statusMessage"-->
-                                            <!--                                       x-show="isUpgrading"></p>-->
-
-<!--                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading">-->
-<!--                                                <i class="fa-solid fa-1x fa-triangle-exclamation me-2"></i>-->
-<!--                                                <span x-text="statusMessage"></span>-->
-<!--                                            </p>-->
-
-
-<!--                                            <div class="toast show position-absolute top-0 end-0 p-3" role="alert"-->
-<!--                                                 aria-live="assertive"-->
-<!--                                                 aria-atomic="true" x-show="show">-->
-<!--                                                <div :class="`toast-header text-white bg-${type}`">-->
-<!--                                                <span class="avatar avatar-xs me-2">-->
-<!--                                                    <i class="fas fa-circle-up fa-2x"></i>-->
-<!--                                                </span>-->
-<!--                                                    <strong class="me-auto">Notice</strong>-->
-<!--                                                    <small x-text="toastModule"></small>-->
-<!--                                                    <button type="button" class="btn-close" aria-label="Close"-->
-<!--                                                            @click="show = false"></button>-->
-<!--                                                </div>-->
-<!--                                                <div class="toast-body" x-text="message"></div>-->
-<!--                                            </div>-->
-
-
-                                            <!--                                        <form class="dropzone" id="dropzone-custom" action="." autocomplete="off" novalidate>-->
-
-                                            <!-- Progress bar -->
-                                            <div class="progress mt-3 progress-hidden" id="recovery-progress">
-                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                                     role="progressbar"
-                                                     style="width: 0%;" id="recovery-bar">
-                                                    0%
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
                 <!-- ===== Dashboard 设备总览(默认落地页;高级化重构,复用现有 getXxx 数据,不改设备端)===== -->
                 <style>
                     #dashboard .dash-hero{display:flex;gap:22px;align-items:center;background:linear-gradient(135deg,var(--bg-card),var(--bg-panel));border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:20px;position:relative;overflow:hidden}
@@ -4424,9 +4246,30 @@ showPage('help', this); return false;">
                 <div class="page-section" id="storage"></div>
 
 
-                <!-- 设备状态页面 -->
-                <div class="page-section" id="device-information" x-data="deviceSettings();"
-                     x-init="onPage('device-information', () => { initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation() })">
+                                <!-- Device Info：Info / OTA / About 分段 Tab -->
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="onPage('device-information', () => { if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); } })">
+                        <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="deviceInfoParamTab==='info' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="deviceInfoParamTab==='info'"
+                                    @click="deviceInfoParamTab='info'; initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation()"
+                                    data-i18n="nav_device_info">Device Info</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="deviceInfoParamTab==='ota' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="deviceInfoParamTab==='ota'"
+                                    @click="deviceInfoParamTab='ota'"
+                                    data-i18n="nav_ota_upgrade">OTA Upgrade</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="deviceInfoParamTab==='about' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="deviceInfoParamTab==='about'"
+                                    @click="deviceInfoParamTab='about'; QrGeneratorDeviceUuid()"
+                                    data-i18n="nav_about">About</button>
+                        </div>
+                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='info'" x-cloak>
+{ initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="di_title">Device Information</h3>
@@ -4681,7 +4524,197 @@ showPage('help', this); return false;">
 
 <!--                        </div>-->
 <!--                    </div>-->
+                        </div>
+                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='ota'" x-cloak>
+<div class="row row-deck ">
+<div class="card shadow">
+                                        <div class="card-header">
+                                            <h3 class="card-title" data-i18n="ot_title"> Upgrade </h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Dropzone upload area -->
+                                            <!--                                        <form id="dropzone-custom" class="dropzone"></form>-->
+                                            <form id="dropzone-custom" class="dropzone"></form>
+
+                                            <!--                                    <select class="form-select mt-3" x-model="selectedPartition">-->
+                                            <!--                                        <option value="">Please select a partition</option>-->
+                                            <!--                                        <option value="boot">Boot partition</option>-->
+                                            <!--                                        <option value="tag">Tag partition</option>-->
+                                            <!--                                        <option value="kernel">Kernel partition</option>-->
+                                            <!--                                        <option value="rootfs">RootFS partition</option>-->
+                                            <!--                                        <option value="recovery">Recovery partition</option>-->
+                                            <!--                                        <option value="system">System partition</option>-->
+                                            <!--                                        <option value="config">Config partition</option>-->
+                                            <!--&lt;!&ndash;                                         <option value="all">All partition</option>&ndash;&gt;-->
+                                            <!--                                    </select>-->
+                                            <!--                                    <button class="btn btn-primary mt-3 mb-3" @click="startUpgrade">Start upgrade-->
+                                            <!--                                    </button>-->
+
+
+                                            <div class="d-flex align-items-center mt-3">
+                                                <select class="form-select me-2 w-100" x-model="selectedPartition">
+                                                    <option value="" data-i18n="ot_select_partition">Please select a partition</option>
+                                                    <option value="boot" data-i18n="ot_boot">Boot partition</option>
+                                                    <option value="tag" data-i18n="ot_tag">Tag partition</option>
+                                                    <option value="kernel" data-i18n="ot_kernel">Kernel partition</option>
+                                                    <option value="rootfs" data-i18n="ot_rootfs">RootFS partition</option>
+                                                    <option value="recovery" data-i18n="ot_recovery_partition">Recovery partition</option>
+                                                    <option value="system" data-i18n="ot_system">System partition</option>
+                                                    <option value="config" data-i18n="ot_config">Config partition</option>
+                                                </select>
+                                                <button id="start-upgrade-button" class="btn btn-primary flex-shrink-0"
+                                                        @click="startUpgrade"><span data-i18n="ot_start_upgrade">Start upgrade</span>
+                                                </button>
+                                            </div>
+
+
+                                            <div class="progress mt-3 progress-hidden" x-show="isUpgrading">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     role="progressbar" style="width: 0%;" id="update-bar">
+                                                    <span x-text="progress + '%'"></span>
+                                                </div>
+                                            </div>
+                                            <!--                                    <p class="mt-3 text-center fs-3 text-danger  fw-bold" x-text="statusMessage"-->
+                                            <!--                                       x-show="isUpgrading"></p>-->
+
+                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading">
+                                                <i class="fa-solid fa-1x fa-triangle-exclamation me-2"></i>
+                                                <span x-text="statusMessage"></span>
+                                            </p>
+
+
+                                            <div class="toast show position-absolute top-0 end-0 p-3" role="alert"
+                                                 aria-live="assertive"
+                                                 aria-atomic="true" x-show="show">
+                                                <div :class="`toast-header text-white bg-${type}`">
+                                    <span class="avatar avatar-xs me-2">
+                                        <i class="fas fa-circle-up fa-2x"></i>
+                                    </span>
+                                                    <strong class="me-auto" data-i18n="cm_notice">Notice</strong>
+                                                    <small x-text="toastModule"></small>
+                                                    <button type="button" class="btn-close" aria-label="Close"
+                                                            @click="show = false"></button>
+                                                </div>
+                                                <div class="toast-body" x-text="message"></div>
+                                            </div>
+
+
+                                            <!--                                        <form class="dropzone" id="dropzone-custom" action="." autocomplete="off" novalidate>-->
+
+                                            <!-- Progress bar -->
+                                            <div class="progress mt-3 progress-hidden" id="upload-progress">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     role="progressbar"
+                                                     style="width: 0%;" id="progress-bar">
+                                                    0%
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row row-deck">
+                                    <div class="card shadow">
+                                        <div class="card-header d-flex justify-content-between align-items-center"  @click="recoveryServiceResultShow = !recoveryServiceResultShow">
+                                            <h3 class="card-title" data-i18n="ot_recovery"> Recovery </h3>
+                                            <button class="btn btn-sm btn-primary" @click.stop="recoveryServiceResultShow = !recoveryServiceResultShow">
+                                                <i class="fa" :class="recoveryServiceResultShow ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                            </button>
+
+                                        </div>
+                                        <div class="card-body" x-show=recoveryServiceResultShow x-transition>
+                                            <!-- Dropzone upload area -->
+                                            <!--                                        <form id="dropzone-custom" class="dropzone"></form>-->
+                                            <form id="dropzone-recovery" class="dropzone"></form>
+
+
+
+<!--                                            <div class="d-flex align-items-center mt-3">-->
+<!--                                                <select class="form-select me-2 w-100" x-model="selectedPartition">-->
+<!--                                                    <option value="">Please select a partition</option>-->
+<!--                                                    <option value="boot">Boot partition</option>-->
+<!--                                                    <option value="tag">Tag partition</option>-->
+<!--                                                    <option value="kernel">Kernel partition</option>-->
+<!--                                                    <option value="rootfs">RootFS partition</option>-->
+<!--                                                    <option value="recovery">Recovery partition</option>-->
+<!--                                                    <option value="system">System partition</option>-->
+<!--                                                    <option value="config">Config partition</option>-->
+<!--                                                </select>-->
+<!--                                                <button id="start-upgrade-button" class="btn btn-primary flex-shrink-0"-->
+<!--                                                        @click="startUpgrade">Start upgrade-->
+<!--                                                </button>-->
+<!--                                            </div>-->
+
+
+<!--                                            <div class="progress mt-3" x-show="isUpgrading" style="display: none;height: 15px;">-->
+<!--                                                <div class="progress-bar progress-bar-striped progress-bar-animated"-->
+<!--                                                     role="progressbar" style="width: 0%;" id="update-bar">-->
+<!--                                                    <span x-text="progress + '%'"></span>-->
+<!--                                                </div>-->
+<!--                                            </div>-->
+                                            <!--                                    <p class="mt-3 text-center fs-3 text-danger  fw-bold" x-text="statusMessage"-->
+                                            <!--                                       x-show="isUpgrading"></p>-->
+
+<!--                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading">-->
+<!--                                                <i class="fa-solid fa-1x fa-triangle-exclamation me-2"></i>-->
+<!--                                                <span x-text="statusMessage"></span>-->
+<!--                                            </p>-->
+
+
+<!--                                            <div class="toast show position-absolute top-0 end-0 p-3" role="alert"-->
+<!--                                                 aria-live="assertive"-->
+<!--                                                 aria-atomic="true" x-show="show">-->
+<!--                                                <div :class="`toast-header text-white bg-${type}`">-->
+<!--                                                <span class="avatar avatar-xs me-2">-->
+<!--                                                    <i class="fas fa-circle-up fa-2x"></i>-->
+<!--                                                </span>-->
+<!--                                                    <strong class="me-auto">Notice</strong>-->
+<!--                                                    <small x-text="toastModule"></small>-->
+<!--                                                    <button type="button" class="btn-close" aria-label="Close"-->
+<!--                                                            @click="show = false"></button>-->
+<!--                                                </div>-->
+<!--                                                <div class="toast-body" x-text="message"></div>-->
+<!--                                            </div>-->
+
+
+                                            <!--                                        <form class="dropzone" id="dropzone-custom" action="." autocomplete="off" novalidate>-->
+
+                                            <!-- Progress bar -->
+                                            <div class="progress mt-3 progress-hidden" id="recovery-progress">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     role="progressbar"
+                                                     style="width: 0%;" id="recovery-bar">
+                                                    0%
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='about'" x-cloak>
+{ QrGeneratorDeviceUuid() })">
+                    <div class="card shadow">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="ab_qrcode">QR Code</h3>
+                        </div>
+                        <div class="card-body d-flex justify-content-around align-items-center">
+                            <!-- 二维码显示区域 -->
+                            <div class="d-flex flex-column justify-content-center  align-items-center">
+                                <div id="uuidQrcode"></div>
+                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_uuid">Device UUID</p>
+                            </div>
+
+                            <div class="d-flex flex-column justify-content-center  align-items-center">
+                                <div id="urlQrcode" style="cursor: pointer;"
+                                     @click="window.open(`http://${networkInformation.NetworkInformationIpAddress}`, '_blank');"></div>
+                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_url">Device URL</p>
+                            </div>
+                        </div>
+                    </div>
+                        </div>
                 </div>
+
                                 <!-- device gpt：已并入 AI Settings → LLM Tab；保留空 section 以兼容旧链接 -->
                 <div class="page-section" id="chatgpt-information"></div>
 
@@ -6672,28 +6705,9 @@ showPage('help', this); return false;">
                     </div>
                 </div>
 
-                <div class="page-section" id="about" x-data="deviceSettings()"
-                     x-init="onPage('about', () => { QrGeneratorDeviceUuid() })">
-                    <div class="card shadow">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="ab_qrcode">QR Code</h3>
-                        </div>
-                        <div class="card-body d-flex justify-content-around align-items-center">
-                            <!-- 二维码显示区域 -->
-                            <div class="d-flex flex-column justify-content-center  align-items-center">
-                                <div id="uuidQrcode"></div>
-                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_uuid">Device UUID</p>
-                            </div>
+                                <!-- about：已并入 Device Info → About Tab -->
+                <div class="page-section" id="about"></div>
 
-                            <div class="d-flex flex-column justify-content-center  align-items-center">
-                                <div id="urlQrcode" style="cursor: pointer;"
-                                     @click="window.open(`http://${networkInformation.NetworkInformationIpAddress}`, '_blank');"></div>
-                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_url">Device URL</p>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
 
                 <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="onPage('user-management', () => { loadUsers() })">
                     <div class="card shadow">
@@ -8035,6 +8049,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+
+        // OTA Upgrade / About 已并入 Device Info 分段 Tab
+        if (pageId === 'upgrade' || pageId === 'about') {
+            window.__pendingDeviceInfoTab = (pageId === 'about') ? 'about' : 'ota';
+            pageId = 'device-information';
+            el = document.querySelector('.dv-nav-item[onclick*="device-information"]') || el;
+        }
+
         // Provisioning / Factory Test 已并入 Production 分段 Tab
         if (pageId === 'provisioning-information' || pageId === 'factoryTest-information') {
             window.__pendingProductionTab = (pageId === 'factoryTest-information') ? 'factory' : 'provisioning';
@@ -8114,6 +8136,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
 
+
+
+        if (pageId === 'device-information' && window.__pendingDeviceInfoTab) {
+            setTimeout(function() {
+                const root = document.getElementById('device-information');
+                if (root && root._x_dataStack && root._x_dataStack[0]) {
+                    root._x_dataStack[0].deviceInfoParamTab = window.__pendingDeviceInfoTab;
+                }
+                window.__pendingDeviceInfoTab = null;
+            }, 0);
+        }
 
         if (pageId === 'production' && window.__pendingProductionTab) {
             setTimeout(function() {
@@ -8769,6 +8802,7 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
             logParamTab: 'settings', // Log Settings 分段: settings|viewer
             productionParamTab: 'provisioning', // Production 分段: provisioning|factory
+            deviceInfoParamTab: 'info', // Device Info 分段: info|ota|about
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
