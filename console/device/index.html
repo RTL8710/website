@@ -783,30 +783,31 @@
         }
         .vs-param-pane .card-body-param {
             height: auto !important;
-            min-height: 7.2rem;
-            padding: 14px 16px !important;
+            min-height: 0 !important;
+            padding: 10px 12px !important;
             display: flex !important;
             flex-direction: column;
-            align-items: center;
+            align-items: stretch;
             justify-content: flex-start;
-            text-align: center;
+            text-align: left;
         }
         .vs-param-pane .hr-text-section {
-            margin-top: 2px !important;
-            margin-bottom: 12px !important;
+            margin-top: 0 !important;
+            margin-bottom: 8px !important;
             width: 100%;
+            text-align: left;
         }
-        /* 控件组整体居中（单选/下拉/滑条） */
+        /* 控件组左对齐紧凑排布 */
         .vs-param-pane .card-body-param > div:not(.hr-text) {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
-            gap: 8px 14px;
+            gap: 6px 12px;
             width: 100%;
-            margin-left: auto;
-            margin-right: auto;
-            text-align: center;
+            margin-left: 0;
+            margin-right: 0;
+            text-align: left;
         }
         .vs-param-pane .form-check {
             margin: 0;
@@ -1065,9 +1066,10 @@
             max-width: 100%;
         }
 
-        /* Parameter card fixed height */
+        /* Parameter cards: auto height (was fixed 10rem, caused sparse Encoding tiles) */
         .card-body-param {
-            height: 10rem !important;
+            height: auto !important;
+            min-height: 0 !important;
         }
 
         /* 80px form label */
@@ -1098,6 +1100,109 @@
             display: none !important;
             height: 15px !important;
         }
+
+        /* Video Settings params: compact tiles (avoid nested tall empty cards) */
+        .card-body-param {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        .vs-param-pane .card-body-param {
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 10px 12px !important;
+            align-items: stretch;
+            justify-content: flex-start;
+            text-align: left;
+        }
+        .vs-param-pane .hr-text-section {
+            margin-top: 0 !important;
+            margin-bottom: 8px !important;
+            text-align: left;
+        }
+        .vs-param-pane .card-body-param > div:not(.hr-text) {
+            justify-content: flex-start;
+            margin-left: 0;
+            margin-right: 0;
+            text-align: left;
+        }
+        .vs-param-pane .form-hint {
+            text-align: left;
+        }
+        .vs-param-pane .form-select {
+            margin-left: 0;
+            margin-right: 0;
+            max-width: 100%;
+        }
+        .vs-param-pane .d-flex.justify-content-between.align-items-center {
+            justify-content: flex-start !important;
+        }
+        .vs-param-pane .vs-ctrl-grid {
+            margin: 0;
+            justify-items: start;
+            gap: 6px 18px;
+        }
+        .vs-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        @media (max-width: 992px) {
+            .vs-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 576px) {
+            .vs-settings-grid { grid-template-columns: 1fr; }
+        }
+        .vs-settings-tile {
+            border: 1px solid var(--border-color, var(--border));
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+        .vs-settings-tile .vs-enc-label,
+        .vs-settings-tile .hr-text-section {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-muted, #94a3b8);
+            margin: 0 !important;
+            border: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            width: 100%;
+            text-align: left;
+        }
+        .vs-settings-tile .hr-text-section::before,
+        .vs-settings-tile .hr-text-section::after {
+            display: none !important;
+        }
+        .vs-settings-tile .vs-ctrl {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 12px;
+        }
+        .vs-settings-tile .form-select {
+            width: 100%;
+            max-width: 100%;
+        }
+        /* Basic/ISP nested cards: denser */
+        .vs-param-pane .col-6 > .card {
+            margin-bottom: 0;
+        }
+        .vs-param-pane .col-6 > .card > .card-body-param {
+            padding: 10px 12px !important;
+        }
+        .vs-param-pane .col-lg-12.d-flex,
+        .vs-param-pane .col-12.d-flex {
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -1906,194 +2011,114 @@
                                                         @click="vsParamTab='osd'"
                                                         data-i18n="osd_title">OSD Display</button>
                                             </div>
-                                                <div class="vs-param-pane" x-show="vsParamTab==='enc'" x-cloak>
-                                        <div class="col-lg-12 d-flex flex-row">
-                                            <div class="col-6" style="margin-bottom: 5px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_stream_mode">Stream Mode</span></div>
-                                                        <div class="vs-ctrl">
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoStreamModeGruop"
-                                                                        value=0
-                                                                        x-model.number="videoInformation.videoStreamMode"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_main_stream_opt">Main stream</span>
-                                                            </label>
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoStreamModeGruop"
-                                                                        value=1
-                                                                        x-model.number="videoInformation.videoStreamMode"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_sub_stream_opt">Sub stream</span>
-                                                            </label>
-                                                        </div>
-                                                    </div>
+                                                                                                <div class="vs-param-pane" x-show="vsParamTab==='enc'" x-cloak>
+                                        <div class="vs-settings-grid">
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_stream_mode">Stream Mode</span></div>
+                                                <div class="vs-ctrl">
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="videoStreamModeGruop" value=0
+                                                               x-model.number="videoInformation.videoStreamMode" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_main_stream_opt">Main stream</span>
+                                                    </label>
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="videoStreamModeGruop" value=1
+                                                               x-model.number="videoInformation.videoStreamMode" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_sub_stream_opt">Sub stream</span>
+                                                    </label>
                                                 </div>
                                             </div>
-                                            <div class="col-6" style="margin-bottom: 5px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_stream_type">Stream Type</span></div>
-                                                        <div class="vs-ctrl">
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videOSDGroup"
-                                                                        value=1
-                                                                        x-model.number="videoInformation.videoStreamtype"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label">H264</span>
-                                                            </label>
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videOSDGroup"
-                                                                        value=0
-                                                                        x-model.number="videoInformation.videoStreamtype"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label">H265</span>
-                                                            </label>
-                                                        </div>
-                                                    </div>
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_stream_type">Stream Type</span></div>
+                                                <div class="vs-ctrl">
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="videOSDGroup" value=1
+                                                               x-model.number="videoInformation.videoStreamtype" @change="submitVideoSettings">
+                                                        <span class="form-check-label">H264</span>
+                                                    </label>
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="videOSDGroup" value=0
+                                                               x-model.number="videoInformation.videoStreamtype" @change="submitVideoSettings">
+                                                        <span class="form-check-label">H265</span>
+                                                    </label>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <!-- 每路：OSD 开关 + 场景模式 -->
-                                        <div class="col-lg-12 d-flex flex-row">
-                                            <div class="col-6" style="margin-bottom: 5px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_osd_enable">OSD</span></div>
-                                                        <div class="vs-ctrl">
-                                                            <label class="form-check form-check-inline">
-                                                                <input class="form-check-input" type="radio" name="osdEnableGroup" value=1
-                                                                       x-model.number="videoInformation.videoOsdEnable" @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_enable">Enable</span>
-                                                            </label>
-                                                            <label class="form-check form-check-inline">
-                                                                <input class="form-check-input" type="radio" name="osdEnableGroup" value=0
-                                                                       x-model.number="videoInformation.videoOsdEnable" @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_disable">Disable</span>
-                                                            </label>
-                                                        </div>
-                                                    </div>
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_osd_enable">OSD</span></div>
+                                                <div class="vs-ctrl">
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="osdEnableGroup" value=1
+                                                               x-model.number="videoInformation.videoOsdEnable" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_enable">Enable</span>
+                                                    </label>
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="osdEnableGroup" value=0
+                                                               x-model.number="videoInformation.videoOsdEnable" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_disable">Disable</span>
+                                                    </label>
                                                 </div>
                                             </div>
-                                            <div class="col-6" style="margin-bottom: 5px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_scene_mode">Scene Mode</span></div>
-                                                        <div class="vs-ctrl">
-                                                            <!-- 场景模式=相机 awb_mode(0-9)直通；选项与 V4L2 awb_mode 档位一一对应（对齐设备页） -->
-                                                            <select class="form-select" style="max-width:220px;"
-                                                                    x-model.number="videoInformation.videoSceneMode" @change="submitVideoSettings">
-                                                                <option value="0" data-i18n="scene_auto">Auto</option>
-                                                                <option value="1" data-i18n="scene_manual_gain">Manual Gain</option>
-                                                                <option value="2" data-i18n="scene_manual_ct">Manual Color Temp</option>
-                                                                <option value="3" data-i18n="scene_sunny">Sunny</option>
-                                                                <option value="4" data-i18n="scene_shadow">Shadow</option>
-                                                                <option value="5" data-i18n="scene_indoor">Indoor</option>
-                                                                <option value="6" data-i18n="scene_lamp">Lamp</option>
-                                                                <option value="7" data-i18n="scene_fl1">Fluorescent 1</option>
-                                                                <option value="8" data-i18n="scene_fl2">Fluorescent 2</option>
-                                                                <option value="9" data-i18n="scene_onepush">One-Push</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_scene_mode">Scene Mode</span></div>
+                                                <div class="vs-ctrl">
+                                                    <select class="form-select"
+                                                            x-model.number="videoInformation.videoSceneMode" @change="submitVideoSettings">
+                                                        <option value="0" data-i18n="scene_auto">Auto</option>
+                                                        <option value="1" data-i18n="scene_manual_gain">Manual Gain</option>
+                                                        <option value="2" data-i18n="scene_manual_ct">Manual Color Temp</option>
+                                                        <option value="3" data-i18n="scene_sunny">Sunny</option>
+                                                        <option value="4" data-i18n="scene_shadow">Shadow</option>
+                                                        <option value="5" data-i18n="scene_indoor">Indoor</option>
+                                                        <option value="6" data-i18n="scene_lamp">Lamp</option>
+                                                        <option value="7" data-i18n="scene_fl1">Fluorescent 1</option>
+                                                        <option value="8" data-i18n="scene_fl2">Fluorescent 2</option>
+                                                        <option value="9" data-i18n="scene_onepush">One-Push</option>
+                                                    </select>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="col-lg-12 d-flex flex-row">
-                                            <div class="col-6" style="margin-bottom: 5px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_logo_display">Logo Display</span></div>
-                                                        <div class="vs-ctrl">
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="LogoOsdGroup"
-                                                                        value="enable"
-                                                                        x-model="videoInformation.videoCover"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_enable">Enable</span>
-                                                            </label>
-                                                            <label class="form-check form-check-inline">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="LogoOsdGroup"
-                                                                        value="disable"
-                                                                        x-model="videoInformation.videoCover"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_disable">Disable</span>
-                                                            </label>
-                                                        </div>
-                                                    </div>
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_logo_display">Logo Display</span></div>
+                                                <div class="vs-ctrl">
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="LogoOsdGroup" value="enable"
+                                                               x-model="videoInformation.videoCover" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_enable">Enable</span>
+                                                    </label>
+                                                    <label class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="LogoOsdGroup" value="disable"
+                                                               x-model="videoInformation.videoCover" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_disable">Disable</span>
+                                                    </label>
                                                 </div>
                                             </div>
-                                            <div class="col-6" style="margin-bottom: 15px;">
-                                                <div class="card shadow">
-                                                    <div class="card-body center card-body-param">
-                                                        <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_mirror_flip">Mirror & Flip</span></div>
-                                                        <div class="vs-ctrl-grid">
-                                                            <label class="form-check">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoMirrorFlipGroup"
-                                                                        value=0
-                                                                        x-model.number="videoInformation.videoMirrorFlip"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_normal">Normal</span>
-                                                            </label>
-                                                            <label class="form-check">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoMirrorFlipGroup"
-                                                                        value=1
-                                                                        x-model.number="videoInformation.videoMirrorFlip"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_mirror">Mirror</span>
-                                                            </label>
-                                                            <label class="form-check">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoMirrorFlipGroup"
-                                                                        value=2
-                                                                        x-model.number="videoInformation.videoMirrorFlip"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_flip">Flip</span>
-                                                            </label>
-                                                            <label class="form-check">
-                                                                <input
-                                                                        class="form-check-input"
-                                                                        type="radio"
-                                                                        name="videoMirrorFlipGroup"
-                                                                        value=3
-                                                                        x-model.number="videoInformation.videoMirrorFlip"
-                                                                        @change="submitVideoSettings">
-                                                                <span class="form-check-label" data-i18n="vs_mirror_and_flip">M&F</span>
-                                                            </label>
-                                                        </div>
-                                                    </div>
+                                            <div class="vs-settings-tile">
+                                                <div class="hr-text hr-text-section"><span data-i18n="vs_mirror_flip">Mirror & Flip</span></div>
+                                                <div class="vs-ctrl-grid">
+                                                    <label class="form-check">
+                                                        <input class="form-check-input" type="radio" name="videoMirrorFlipGroup" value=0
+                                                               x-model.number="videoInformation.videoMirrorFlip" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_normal">Normal</span>
+                                                    </label>
+                                                    <label class="form-check">
+                                                        <input class="form-check-input" type="radio" name="videoMirrorFlipGroup" value=1
+                                                               x-model.number="videoInformation.videoMirrorFlip" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_mirror">Mirror</span>
+                                                    </label>
+                                                    <label class="form-check">
+                                                        <input class="form-check-input" type="radio" name="videoMirrorFlipGroup" value=2
+                                                               x-model.number="videoInformation.videoMirrorFlip" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_flip">Flip</span>
+                                                    </label>
+                                                    <label class="form-check">
+                                                        <input class="form-check-input" type="radio" name="videoMirrorFlipGroup" value=3
+                                                               x-model.number="videoInformation.videoMirrorFlip" @change="submitVideoSettings">
+                                                        <span class="form-check-label" data-i18n="vs_mirror_and_flip">M&F</span>
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
                                                 </div>
-                                                <div class="vs-param-pane" x-show="vsParamTab==='basic'" x-cloak>
+<div class="vs-param-pane" x-show="vsParamTab==='basic'" x-cloak>
                                         <div class="col-12 d-flex flex-row">
                                             <div class="col-6" style="margin-bottom: 2px;">
                                                 <div class="card shadow">
