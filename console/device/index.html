@@ -4438,10 +4438,10 @@
                                             </div>
 
                                             <!-- 加载更多按钮 -->
-                                            <div class="card-footer text-center" x-show="hasMore">
-                                                <button @click="loadSnapMore" class="btn btn-primary " :disabled="loading">
-                                                    <span x-show="!loading" data-i18n="cm_load_more">Load More</span>
-                                                    <span x-show="loading" data-i18n="cm_loading">Loading...</span>
+                                            <div class="card-footer text-center" x-show="snapHasMore">
+                                                <button @click="loadSnapMore" class="btn btn-primary " :disabled="snapLoading || loading">
+                                                    <span x-show="!(snapLoading || loading)" data-i18n="cm_load_more">Load More</span>
+                                                    <span x-show="snapLoading || loading" data-i18n="cm_loading">Loading...</span>
                                                 </button>
                                             </div>
                                         </div>
