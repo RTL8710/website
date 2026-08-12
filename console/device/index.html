@@ -337,10 +337,43 @@
             text-align: left;
             line-height: 1.45;
             padding: 8px 10px;
-            bottom: auto;
-            top: calc(100% + 8px);
+            bottom: calc(100% + 8px);
+            top: auto;
             left: 0;
             transform: none;
+        }
+        /* 多行说明用真实 DOM，避免 attr()+换行/底部裁切导致不显示 */
+        .dv-tip-pop {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: help;
+            color: var(--text-secondary, #8a9bb4);
+            font-size: 12px;
+        }
+        .dv-tip-pop-panel {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            z-index: 4000;
+            min-width: 220px;
+            max-width: min(380px, 80vw);
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.92);
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.45;
+            white-space: pre-line;
+            text-align: left;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            pointer-events: none;
+        }
+        .dv-tip-pop:hover .dv-tip-pop-panel,
+        .dv-tip-pop:focus-within .dv-tip-pop-panel {
+            display: block;
         }
 
         /* 全局确认弹框（display:flex 放 class 里，避免 Alpine x-show 移除内联 display 破坏居中）*/
@@ -3186,8 +3219,9 @@
                                     <div class="col-12 col-md-3">
                                         <label class="col-form-label col-12 d-flex align-items-center gap-1">
                                             <span data-i18n="vis_host">Host</span>
-                                            <span class="dv-tip dv-tip-wide" :data-tip="tIdx('vis_host_hint')">
-                                                <i class="fa-solid fa-circle-info" style="font-size:12px;color:var(--text-muted);cursor:help;"></i>
+                                            <span class="dv-tip-pop" tabindex="0">
+                                                <i class="fa-solid fa-circle-info" style="font-size:12px;color:var(--text-muted);"></i>
+                                                <span class="dv-tip-pop-panel" x-text="tIdx('vis_host_hint')"></span>
                                             </span>
                                         </label>
                                         <input class="form-control" x-model="visualizationService.visualization_host" />
@@ -3215,9 +3249,10 @@
                                 <button class="btn btn-primary me-2" @click="submitVisualizationService">
                                     <span data-i18n="vis_update">Update Visualization</span>
                                 </button>
-                                <span class="dv-tip dv-tip-wide text-secondary" style="font-size:12px;cursor:help;"
-                                      :data-tip="visHelpTip()">
-                                    <i class="fa-solid fa-circle-info me-1"></i><span data-i18n="vis_urls">Reachable URLs</span>
+                                <span class="dv-tip-pop" tabindex="0">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <span data-i18n="vis_urls">Reachable URLs</span>
+                                    <span class="dv-tip-pop-panel" x-text="visHelpTip()"></span>
                                 </span>
                             </div>
                         </div>
