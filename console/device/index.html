@@ -4270,9 +4270,10 @@
                                                     <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchTimeline()">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                                     <span x-show="timelineLoading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
+                                                    <span class="text-muted" style="font-size:11px;" x-show="!timelineLoading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
                                                     <span class="text-muted dv-tip" :data-tip="tIdx('tl_zoom_hint')" style="font-size:11px;margin-left:6px;" x-show="timelineView.start>0 || timelineView.end<86400" x-text="timelineWindowLabel()"></span>
                                                     <button class="btn btn-sm btn-outline-secondary" style="font-size:11px;padding:1px 6px;" x-show="timelineView.start>0 || timelineView.end<86400" @click="timelineResetZoom()"><i class="fa fa-magnifying-glass-minus me-1"></i><span data-i18n="tl_reset">Reset</span></button>
-                                                    <span class="ms-auto" style="font-size:10px;display:flex;gap:9px;align-items:center;">
+                                                    <span class="ms-auto" style="font-size:10px;display:flex;gap:9px;align-items:center;" :title="tIdx('tl_type_filter_hint')">
                                                         <span style="cursor:pointer;" :style="searchRecordType===0?'font-weight:700;text-decoration:underline':'opacity:.55'" @click="searchRecordType=0"><span data-i18n="vp_type_all">All</span></span>
                                                         <span style="cursor:pointer;" :style="searchRecordType===1?'font-weight:700;text-decoration:underline':'opacity:.55'" @click="searchRecordType=(searchRecordType===1?0:1)"><span style="color:var(--accent);">■</span><span data-i18n="vp_type_loop">Loop</span></span>
                                                         <span style="cursor:pointer;" :style="searchRecordType===3?'font-weight:700;text-decoration:underline':'opacity:.55'" @click="searchRecordType=(searchRecordType===3?0:3)"><span style="color:#7c3aed;">■</span><span data-i18n="vp_type_timelapse">Timelapse</span></span>
@@ -4284,20 +4285,15 @@
                                                         <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
                                                     </template>
                                                 </div>
-                                                <!-- 多路轨道：与视频回放页一致，按 timelineCamCount() 动态生成 N 条。
-                                                     原来写死 CAM1 + x-if(timelineHasCam2()) 的 CAM2，3/4 路设备的第 3、4 路永远画不出来。-->
-                                                <template x-for="ci in timelineCamCount()" :key="'itlcam'+ci">
-                                                    <div>
-                                                        <div style="font-size:10px;color:var(--text-muted);" :style="ci===1?'margin-top:2px;':'margin-top:4px;'" x-text="'CAM'+ci"></div>
-                                                        <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;" :class="{'tl-grabbing': tlDrag.active}"
-                                                             @click="onTimelineClickImage($event, ci-1)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                                            <template x-for="(b,i) in timelineBlocks(ci-1)" :key="'ic'+ci+'-'+i">
-                                                                <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
-                                                            </template>
-                                                            <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
-                                                        </div>
-                                                    </div>
-                                                </template>
+                                                <!-- 单条时间轴：多路合并（对齐 Video Playback）-->
+                                                <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
+                                                     :class="{'tl-grabbing': tlDrag.active}"
+                                                     @click="onTimelineClickImage($event, -1)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
+                                                    <template x-for="(b,i) in timelineBlocksMerged()" :key="'itlm'+i">
+                                                        <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
+                                                    </template>
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                </div>
                                             </div>
                                         </div>
                                         <!-- 图片显示控件 -->
@@ -4314,10 +4310,11 @@
                                                     <!-- 当前图片的信息叠加（顶部） -->
                                                     <div x-show="snapSelectedRecord" style="position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start;pointer-events:none;">
                                                         <span class="badge" style="font-size:10px;"
-                                                              :class="snapSelectedRecord?.RecordIndexInformationImage.includes('/second/') ? 'bg-success' : 'bg-primary'"
+                                                              :class="'bg-'+['primary','success','info','warning'][tlCamOf(snapSelectedRecord?.RecordIndexInformationImage)%4]"
                                                               x-text="'CAM'+(tlCamOf(snapSelectedRecord?.RecordIndexInformationImage)+1)"></span>
                                                         <span class="badge" style="font-size:10px;"
-                                                              :class="snapSelectedRecord?.RecordIndexInformationType==1 ? 'bg-primary' : snapSelectedRecord?.RecordIndexInformationType==2 ? 'bg-danger' : snapSelectedRecord?.RecordIndexInformationType==3 ? 'bg-info' : 'bg-secondary'"
+                                                              :class="snapSelectedRecord?.RecordIndexInformationType==1 ? 'bg-primary' : snapSelectedRecord?.RecordIndexInformationType==2 ? 'bg-danger' : snapSelectedRecord?.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
+                                                              :style="(!snapSelectedRecord?.RecordIndexInformationType || (snapSelectedRecord.RecordIndexInformationType!=1 && snapSelectedRecord.RecordIndexInformationType!=2 && snapSelectedRecord.RecordIndexInformationType!=3)) ? 'background:#7c3aed' : ''"
                                                               x-text="snapSelectedRecord?.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : snapSelectedRecord?.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : snapSelectedRecord?.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
                                                         <span class="badge bg-secondary" style="font-size:10px;"><i class="fa fa-clock me-1"></i><span x-text="snapSelectedRecord?.RecordIndexInformationDateTime.substring(0,19)"></span></span>
                                                         <span class="badge bg-dark" style="font-size:10px;" x-show="snapSelectedRecord?.RecordIndexInformationWidth" x-text="snapSelectedRecord?.RecordIndexInformationWidth + 'x' + snapSelectedRecord?.RecordIndexInformationHeight"></span>
@@ -4357,7 +4354,7 @@
                                                                              style="width:100%;height:100%;object-fit:cover;"
                                                                              onerror="this.style.display='none'">
                                                                         <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;"
-                                                                              :class="image.RecordIndexInformationImage.includes('/second/') ? 'bg-success' : 'bg-primary'"
+                                                                              :class="'bg-'+['primary','success','info','warning'][tlCamOf(image.RecordIndexInformationImage)%4]"
                                                                               x-text="'CAM'+(tlCamOf(image.RecordIndexInformationImage)+1)"></span>
                                                                         <!-- 选中标识：缩略图中央对勾图标（绝对居中，避免 x-show 移除 display:flex）-->
                                                                         <div x-show="snapSelectedRecord && snapSelectedRecord.RecordIndexInformationImage === image.RecordIndexInformationImage"
@@ -4367,7 +4364,8 @@
                                                                         <span class="badge bg-dark" x-show="image.RecordIndexInformationWidth" style="position:absolute;bottom:4px;left:4px;font-size:7px;padding:1px 3px;opacity:0.85;"
                                                                               x-text="image.RecordIndexInformationWidth + 'x' + image.RecordIndexInformationHeight"></span>
                                                                         <span class="badge" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;"
-                                                                              :class="image.RecordIndexInformationType==1 ? 'bg-primary' : image.RecordIndexInformationType==2 ? 'bg-danger' : image.RecordIndexInformationType==3 ? 'bg-info' : 'bg-secondary'"
+                                                                              :class="image.RecordIndexInformationType==1 ? 'bg-primary' : image.RecordIndexInformationType==2 ? 'bg-danger' : image.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
+                                                                              :style="(image.RecordIndexInformationType!=1 && image.RecordIndexInformationType!=2 && image.RecordIndexInformationType!=3) ? 'background:#7c3aed' : ''"
                                                                               x-text="image.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : image.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : image.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
                                                                         <span class="badge bg-info" x-show="image.RecordIndexInformationImageSize" style="position:absolute;bottom:4px;right:4px;font-size:7px;padding:1px 3px;"
                                                                               x-text="(image.RecordIndexInformationImageSize/1024).toFixed(0)+'KB'"></span>
@@ -4377,7 +4375,12 @@
                                                                     <div class="ms-2 d-flex flex-column justify-content-center"
                                                                          style="height:100%;min-width:0;overflow:hidden;">
                                                                         <div class="mb-1 text-start" style="font-size:12px;display:flex;flex-wrap:wrap;gap:3px;">
+                                                                            <span class="badge" style="font-size:9px;"
+                                                                                  :class="image.RecordIndexInformationType==1 ? 'bg-primary' : image.RecordIndexInformationType==2 ? 'bg-danger' : image.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
+                                                                                  :style="(image.RecordIndexInformationType!=1 && image.RecordIndexInformationType!=2 && image.RecordIndexInformationType!=3) ? 'background:#7c3aed' : ''"
+                                                                                  x-text="image.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : image.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : image.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
                                                                             <span class="badge bg-secondary" style="font-size:9px;"><i class="fa fa-clock me-1"></i><span x-text="image.RecordIndexInformationDateTime.substring(0, 19)"></span></span>
+                                                                            <span class="badge bg-dark" style="font-size:9px;opacity:0.7;">#<span x-text="image.RecordIndexInformationImage.match(/(\d{6,})\./)?.[1] || ''"></span></span>
                                                                         </div>
 
                                                                         <div class="d-flex flex-wrap justify-content-start align-items-center mt-1 gap-2">
@@ -14026,16 +14029,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.snapStartTime = this.timelineDate + 'T00:00';
                 this.snapEndTime = this.timelineDate + 'T' + hh + ':' + mm;
                 this.fetchImages(true);
-                const isFirst = camera === 0;
-                const segs = this.recordTimeline.filter(e => e.p && e.i && ((!e.p.includes('/second/')) === isFirst)
+                // camera < 0：单条合并轨道，在所有摄像头中找最近带封面的段（对齐 Video 合并时间轴）
+                const segs = this.recordTimeline.filter(e => e.p && e.i
+                                 && (camera < 0 || this.tlCamOf(e.p) === camera)
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
                 let best = null, bestDist = Infinity;
                 for (const e of segs) {
-                    if (secs >= e.s && secs <= e.s + e.d) { best = e; break; }
+                    if (secs >= e.s && secs <= e.s + e.d) { best = e; bestDist = 0; break; }
                     const dist = Math.min(Math.abs(secs - e.s), Math.abs(secs - (e.s + e.d)));
                     if (dist < bestDist) { bestDist = dist; best = e; }
                 }
-                if (best) {
+                if (best && bestDist <= 120) {
                     const eh = String(Math.floor(best.s / 3600)).padStart(2, '0');
                     const em = String(Math.floor((best.s % 3600) / 60)).padStart(2, '0');
                     const es = String(best.s % 60).padStart(2, '0');
