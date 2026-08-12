@@ -973,6 +973,45 @@
         #ai-detection .algo-cam-card .card-body {
             padding: 12px 14px 14px;
         }
+        
+        #ai-detection .algo-fold-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        #ai-detection .algo-fold-toggle {
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            text-align: left !important;
+            text-decoration: none !important;
+            color: var(--accent) !important;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        #ai-detection .algo-fold-toggle i {
+            width: 12px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        #ai-detection .algo-fold-toggle .algo-fold-label {
+            flex: 0 1 auto;
+        }
+        #ai-detection .algo-fold-toggle .algo-fold-meta {
+            flex: 0 0 auto;
+            margin-left: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary) !important;
+        }
+
         #ai-detection .algo-cam-tabs {
             display: flex;
             flex-wrap: wrap;
@@ -2760,25 +2799,24 @@
                                             <div class="form-text mb-3" data-i18n="algo_select_model_hint">Pick a model; paths fill in automatically. Each camera can use a different model.</div>
                                             <!-- 该模型可检测类别（labels.txt，行号=classId）：勾=会检测，取消=过滤。
                                                  全勾=空 classFilter=检测全部；全不选=哨兵 -1=一个都不检测。 -->
-                                            <div class="mb-3" x-show="currentModelLabels().length">
-                                                <!-- 标题行：点击折叠/展开；右侧摘要(全部/已选数)常驻可见，收起也能看状态 -->
-                                                <a href="#" class="d-flex align-items-center justify-content-between text-decoration-none mb-1"
+                                            <div class="algo-fold-stack">
+                                            <div x-show="currentModelLabels().length">
+                                                <!-- 折叠行：左对齐；摘要紧跟标题，避免 justify-between 把两行撑开错位 -->
+                                                <a href="#" class="algo-fold-toggle"
                                                    @click.prevent="algoClassesOpen=!algoClassesOpen">
-                                                    <span>
-                                                        <i class="fas" :class="algoClassesOpen?'fa-chevron-down':'fa-chevron-right'"></i>
-                                                        <span class="ms-1" data-i18n="algo_detect_classes">Detected classes</span>
-                                                    </span>
-                                                    <span class="text-secondary" style="font-size:12px;" x-text="classFilterSummary()"></span>
+                                                    <i class="fas" :class="algoClassesOpen?'fa-chevron-down':'fa-chevron-right'"></i>
+                                                    <span class="algo-fold-label" data-i18n="algo_detect_classes">Detected classes</span>
+                                                    <span class="algo-fold-meta" x-text="classFilterSummary()"></span>
                                                 </a>
-                                                <div x-show="algoClassesOpen" x-cloak>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <div x-show="algoClassesOpen" x-cloak class="mt-2">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-2">
                                                         <div class="form-text m-0" data-i18n="algo_detect_classes_hint">Checked = will be detected. Uncheck to ignore. All checked = detect everything.</div>
                                                         <div class="btn-group btn-group-sm" role="group">
                                                             <button type="button" class="btn btn-outline-secondary" @click="selectAllClasses()" data-i18n="algo_class_all">All</button>
                                                             <button type="button" class="btn btn-outline-secondary" @click="clearAllClasses()" data-i18n="algo_class_none">None</button>
                                                         </div>
                                                     </div>
-                                                    <div style="max-height:220px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:8px;">
+                                                    <div style="max-height:220px; overflow-y:auto; border:1px solid var(--border, #dee2e6); border-radius:6px; padding:8px;">
                                                         <div class="row g-1">
                                                             <template x-for="(lbl, idx) in currentModelLabels()" :key="'cls-'+idx">
                                                                 <div class="col-6 col-md-4 col-lg-3">
@@ -2796,10 +2834,10 @@
                                             <!-- 高级：手填路径（默认收起，兼容不在清单里的自定义模型）
                                                  注意：不能套 x-data（Alpine v2 嵌套作用域隔离，块内访问
                                                  algorithmInformation 会 is not defined）。开关用顶层 algoAdvOpen。 -->
-                                            <div class="mb-3">
-                                                <a href="#" class="small text-decoration-none" @click.prevent="algoAdvOpen=!algoAdvOpen">
+                                            <div>
+                                                <a href="#" class="algo-fold-toggle" @click.prevent="algoAdvOpen=!algoAdvOpen">
                                                     <i class="fas" :class="algoAdvOpen?'fa-chevron-down':'fa-chevron-right'"></i>
-                                                    <span data-i18n="algo_advanced_paths">Advanced: manual paths</span>
+                                                    <span class="algo-fold-label" data-i18n="algo_advanced_paths">Advanced: manual paths</span>
                                                 </a>
                                                 <div x-show="algoAdvOpen" x-cloak class="mt-2">
                                                     <div class="mb-2 row align-items-center">
@@ -2821,6 +2859,7 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            </div><!-- /algo-fold-stack -->
                                             <div class="row g-3">
                                                 <div class="col-12 col-md-4">
                                                     <div class="row align-items-center">
