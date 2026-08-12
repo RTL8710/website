@@ -3986,12 +3986,15 @@
                                                                     </div>
                                                                 </template>
                                                             </div>
-                                                            <div x-show="remotePlaybackLoading" x-cloak
-                                                                 style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-                                                                        background:rgba(0,0,0,0.55);z-index:20;pointer-events:none;">
-                                                                <div class="spinner-border text-light" role="status" style="width:3.25rem;height:3.25rem;border-width:0.3rem;"></div>
-                                                                <div style="color:#fff;font-size:15px;font-weight:500;margin-top:14px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
-                                                                <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:6px;" x-text="remotePlaybackLabel"></div>
+                                                            <!-- 遮罩用 transform 居中：避免 Alpine x-show 清掉 display:flex 导致内容贴顶 -->
+                                                            <div x-show="remotePlaybackLoading" x-cloak class="pb-loading-mask"
+                                                                 style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:20;pointer-events:none;">
+                                                                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+                                                                            display:flex;flex-direction:column;align-items:center;text-align:center;width:max-content;max-width:90%;">
+                                                                    <div class="spinner-border text-light" role="status" style="width:3.25rem;height:3.25rem;border-width:0.3rem;"></div>
+                                                                    <div style="color:#fff;font-size:15px;font-weight:500;margin-top:14px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
+                                                                    <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:6px;" x-text="remotePlaybackLabel"></div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
