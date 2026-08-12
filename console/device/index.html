@@ -4313,10 +4313,10 @@
                                                     </div>
                                                     <div x-show="syncImages.length" :style="layoutContainerStyle(syncImages.length)">
                                                         <template x-for="(img, idx) in syncImages" :key="(img.RecordIndexInformationImage||'')+'-'+idx">
-                                                            <div :style="layoutItemStyle(idx, syncImages.length)" @click="setSnapFocus(idx)">
+                                                            <div :style="layoutItemStyle(idx, syncImages.length)+';aspect-ratio:16/9;overflow:hidden;background:var(--video-bg,#0b1020);'" @click="setSnapFocus(idx)">
                                                                 <img :src="thumbSrc(img)"
                                                                      alt="snap"
-                                                                     style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;"
+                                                                     style="width:100%;height:100%;object-fit:contain;background-color:var(--video-bg, var(--bg-card2));display:block;"
                                                                      onerror="this.style.opacity=0.3">
                                                                 <div x-show="isLayoutFocused(idx, syncImages.length)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
                                                                     <button class="btn btn-sm btn-primary" style="padding:2px 9px;"
@@ -11483,8 +11483,13 @@ document.addEventListener('DOMContentLoaded', function() {
             thumbSrc(rec) {
                 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
                 if (!rec) return BLANK;
-                const url = rec.RecordIndexInformationImageUrl || '';
+                let url = rec.RecordIndexInformationImageUrl || '';
                 const path = rec.RecordIndexInformationImage || '';
+                // 时间轴多路残缺项：从当前列表按路径补 ImageUrl（云端 WAN 必需）
+                if (!url && path && Array.isArray(this.images)) {
+                    const hit = this.images.find(x => x && x.RecordIndexInformationImage === path);
+                    if (hit && hit.RecordIndexInformationImageUrl) url = hit.RecordIndexInformationImageUrl;
+                }
                 const wan = (typeof this._injectedCreds === 'function') && this._injectedCreds();
                 if (wan) {
                     if (url && /^(https?:)/.test(url)) {
@@ -14093,6 +14098,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 return !!(path && (this.syncImages || []).some(x => x.RecordIndexInformationImage === path));
             },
 
+
+            // 按摄像头+时刻在当前图片列表中找最近一张（120s 内），供云端多路补 ImageUrl
+            _nearestImageForCam(cam, secs) {
+                let best = null, bestDist = Infinity;
+                for (const img of (this.images || [])) {
+                    const p = img && img.RecordIndexInformationImage;
+                    if (!p || this.tlCamOf(p) !== cam) continue;
+                    const dt = String(img.RecordIndexInformationDateTime || '');
+                    if (dt.length < 19) continue;
+                    const s = (parseInt(dt.substring(11, 13)) || 0) * 3600
+                            + (parseInt(dt.substring(14, 16)) || 0) * 60
+                            + (parseInt(dt.substring(17, 19)) || 0);
+                    const dist = Math.abs(s - secs);
+                    if (dist < bestDist) { bestDist = dist; best = img; }
+                }
+                return (best && bestDist <= 120) ? best : null;
+            },
+            // 把时间轴段/残缺 sync 项补全为可 thumbSrc 的完整记录（优先列表命中 → 段 iu → 同路近邻）
+            _enrichSnapRec(partial, secs) {
+                const path = partial && partial.RecordIndexInformationImage;
+                const hit = path ? (this.images || []).find(x => x.RecordIndexInformationImage === path) : null;
+                const cam = this.tlCamOf(path);
+                const near = (!hit || !(hit.RecordIndexInformationImageUrl || hit.RecordIndexInformationWidth))
+                    ? this._nearestImageForCam(cam, secs) : null;
+                const base = hit || near || {};
+                return Object.assign({}, base, partial, {
+                    RecordIndexInformationImage: path || base.RecordIndexInformationImage || '',
+                    RecordIndexInformationImageUrl: partial.RecordIndexInformationImageUrl
+                        || base.RecordIndexInformationImageUrl || '',
+                });
+            },
+            _enrichSyncImages(secs) {
+                if (!this.syncImages || !this.syncImages.length) return;
+                const s = (secs != null) ? secs : this.tlClickSecs;
+                this.syncImages = this.syncImages.map(img => this._enrichSnapRec(img, s >= 0 ? s : 0));
+                if (this.syncImages[0]) this.snapSelectedRecord = this.syncImages[this.playbackFocusIdx] || this.syncImages[0];
+            },
             // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
             onTimelineClickImage(event, camera) {
                 if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
@@ -14122,11 +14164,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         const eh = String(Math.floor(best.s / 3600)).padStart(2, '0');
                         const em = String(Math.floor((best.s % 3600) / 60)).padStart(2, '0');
                         const es = String(best.s % 60).padStart(2, '0');
-                        list.push({
+                        list.push(this._enrichSnapRec({
                             RecordIndexInformationImage: best.i,
+                            RecordIndexInformationImageUrl: best.iu || '',
                             RecordIndexInformationDateTime: this.timelineDate + ' ' + eh + ':' + em + ':' + es,
                             RecordIndexInformationType: best.ty
-                        });
+                        }, secs));
                     }
                 }
                 if (list.length) {
@@ -14255,9 +14298,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 检查是否还有更多数据
                         this.snapHasMore = validRecords.length >= this.snapPageSize;
 
-                        // 默认选第一张；时间轴多路选图时 preserveSync 避免覆盖 syncImages
+                        // 默认选第一张；时间轴多路选图时 preserveSync 避免覆盖 syncImages，并回填 ImageUrl
                         if (this.images.length > 0 && !this._snapPreserveSync) {
                             this.displayImage(this.images[0]);
+                        } else if (this._snapPreserveSync) {
+                            this._enrichSyncImages(this.tlClickSecs);
                         }
                         this._snapPreserveSync = false;
                     } else {
