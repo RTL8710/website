@@ -5697,12 +5697,12 @@
 
                 </div>
                 <!-- 设备网络页面 -->
-                                <div class="page-section" id="cloud-information" x-data="deviceSettings()"
+                                                <div class="page-section" id="cloud-information" x-data="deviceSettings()"
                      x-init="initTransport();onPage('cloud-information', () => { initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService() })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
-                    <!-- Cloud Settings：分段 Tab（仿视频参数 ISP/OSD），每段一张参数表 -->
+                    <!-- Cloud Settings：分段 Tab（仿视频参数 ISP/OSD），内容用原表单布局 -->
 
                     <div class="card shadow vs-param-panel">
                         <div class="card-body card-body-compact">
@@ -5734,305 +5734,320 @@
                                             </div>
 
                                                 <div class="vs-param-pane" x-show="cloudParamTab==='record'" x-cloak>
-                            <div class="table-responsive">
-                                <table class="table table-vcenter card-table dv-settings-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
-                                            <th data-i18n="cr_col_value">Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_enable">Cloud Record Enable</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="cloudRecordService.cloud_record_enable">
-                                                    <option value="true" data-i18n="cm_enable">enable</option>
-                                                    <option value="false" data-i18n="cm_disable">disable</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_stream_type">Upload Stream</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="cloudRecordService.cloud_record_stream_type">
-                                                    <option value="sub">sub</option>
-                                                    <option value="main">main</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_retention_hours">Retention</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model.number="cloudRecordService.cloud_record_retention_hours">
-                                                    <template x-for="opt in [{h:2,k:'cr_ret_2h'},{h:12,k:'cr_ret_12h'},{h:24,k:'cr_ret_1d'},{h:168,k:'cr_ret_1w'},{h:720,k:'cr_ret_1mo'},{h:2160,k:'cr_ret_1q'},{h:4320,k:'cr_ret_6mo'},{h:8760,k:'cr_ret_1y'},{h:17520,k:'cr_ret_2y'}]" :key="opt.h">
-                                                        <option :value="opt.h" x-text="tIdx(opt.k)"></option>
-                                                    </template>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_trig_emr">Trigger on EMR</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="cloudRecordService.cloud_record_trig_emr">
-                                                    <option value="true" data-i18n="cm_enable">enable</option>
-                                                    <option value="false" data-i18n="cm_disable">disable</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_trig_prerecord">Trigger on Pre-record</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="cloudRecordService.cloud_record_trig_prerecord">
-                                                    <option value="true" data-i18n="cm_enable">enable</option>
-                                                    <option value="false" data-i18n="cm_disable">disable</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_stream_name">Stream Name</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="cloudRecordService.stream_name" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cr_region">Region</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:220px;"
-                                                       x-model="cloudRecordService.region" readonly />
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                    <div class="cloud-tab-form">
+<div class="mb-4 row">
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_enable">Cloud Record Enable</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_enable">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_stream_type">Upload Stream</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_stream_type">
+                                        <option value="sub">sub</option>
+                                        <option value="main">main</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_retention_hours">Retention</label>
+                                    <!-- 云录像保留时长：预设档位(值=小时)；后端仍按小时数存储 -->
+                                    <select class="form-control" x-model.number="cloudRecordService.cloud_record_retention_hours">
+                                        <template x-for="opt in [{h:2,k:'cr_ret_2h'},{h:12,k:'cr_ret_12h'},{h:24,k:'cr_ret_1d'},{h:168,k:'cr_ret_1w'},{h:720,k:'cr_ret_1mo'},{h:2160,k:'cr_ret_1q'},{h:4320,k:'cr_ret_6mo'},{h:8760,k:'cr_ret_1y'},{h:17520,k:'cr_ret_2y'}]" :key="opt.h">
+                                            <option :value="opt.h" x-text="tIdx(opt.k)"></option>
+                                        </template>
+                                    </select>
+                                </div>
                             </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-3 px-1">
-                                                        <button class="btn btn-primary" @click="setCloudRecordService">
-                                                            <span data-i18n="cr_save">Save</span>
-                                                        </button>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_emr">Trigger on EMR</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_emr">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_prerecord">Trigger on Pre-record</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_prerecord">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-6">
+                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_stream_name">Stream Name</label>
+                                    <input class="form-control" x-model="cloudRecordService.stream_name" readonly />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_region">Region</label>
+                                    <input class="form-control" x-model="cloudRecordService.region" readonly />
+                                </div>
+                            </div>
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="setCloudRecordService">
+                                <span data-i18n="cr_save">Save</span>
+                            </button>
                                                     </div>
                                                 </div>
                                                 <div class="vs-param-pane" x-show="cloudParamTab==='s3'" x-cloak>
-                            <div class="table-responsive">
-                                <table class="table table-vcenter card-table dv-settings-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
-                                            <th data-i18n="cr_col_value">Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="s3_enable">Auto upload</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="s3UploadService.s3_upload_enable">
-                                                    <option value="true" data-i18n="opt_on">On</option>
-                                                    <option value="false" data-i18n="opt_off">Off</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="s3_bucket">Bucket</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="s3UploadService.s3_upload_bucket" placeholder="anhaivisionwebsite-storage-...-tokyo" />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="s3_region">Region</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:220px;"
-                                                       x-model="s3UploadService.s3_upload_region" placeholder="ap-northeast-1" />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="s3_prefix">Key Prefix</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="s3UploadService.s3_upload_prefix" placeholder="public/snapshots" />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="s3_role_alias">Role Alias</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="s3UploadService.s3_upload_role_alias" placeholder="s3_uploader_role_alias" />
-                                            </td>
-                                        </tr>
-                                        <tr x-show="s3UploadResult.url">
-                                            <td class="text-secondary" data-i18n="s3_url">Last uploaded URL</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:100%;"
-                                                       :value="s3UploadResult.url" readonly />
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                    <div class="cloud-tab-form">
+<div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="s3_enable">Auto upload</label>
+                                    <select class="form-control" x-model="s3UploadService.s3_upload_enable">
+                                        <option value="true" data-i18n="opt_on">On</option>
+                                        <option value="false" data-i18n="opt_off">Off</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label class="col-form-label col-12 col-md-3" data-i18n="s3_bucket">Bucket</label>
+                                    <input class="form-control" x-model="s3UploadService.s3_upload_bucket" placeholder="anhaivisionwebsite-storage-...-tokyo" />
+                                </div>
                             </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-3 px-1">
-                                                        <button class="btn btn-primary" @click="setS3UploadService">
-                                                            <span data-i18n="s3_save">Save</span>
-                                                        </button>
-                                                        <button class="btn btn-outline-primary" @click="uploadSnapshotToS3" :disabled="s3UploadResult.uploading">
-                                                            <span data-i18n="s3_upload_now" x-show="!s3UploadResult.uploading">Upload current snapshot</span>
-                                                            <span x-show="s3UploadResult.uploading" data-i18n="s3_uploading">Uploading...</span>
-                                                        </button>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="s3_region">Region</label>
+                                    <input class="form-control" x-model="s3UploadService.s3_upload_region" placeholder="ap-northeast-1" />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="s3_prefix">Key Prefix</label>
+                                    <input class="form-control" x-model="s3UploadService.s3_upload_prefix" placeholder="public/snapshots" />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="s3_role_alias">Role Alias</label>
+                                    <input class="form-control" x-model="s3UploadService.s3_upload_role_alias" placeholder="s3_uploader_role_alias" />
+                                </div>
+                            </div>
+                            <div class="mb-2 row" x-show="s3UploadResult.url">
+                                <div class="col-12">
+                                    <label class="col-form-label" data-i18n="s3_url">Last uploaded URL</label>
+                                    <input class="form-control" :value="s3UploadResult.url" readonly />
+                                </div>
+                            </div>
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="setS3UploadService">
+                                <span data-i18n="s3_save">Save</span>
+                            </button>
+                            <button class="btn btn-outline-primary" @click="uploadSnapshotToS3" :disabled="s3UploadResult.uploading">
+                                <span data-i18n="s3_upload_now" x-show="!s3UploadResult.uploading">Upload current snapshot</span>
+                                <span x-show="s3UploadResult.uploading" data-i18n="s3_uploading">Uploading...</span>
+                            </button>
                                                     </div>
                                                 </div>
                                                 <div class="vs-param-pane" x-show="cloudParamTab==='info'" x-cloak>
-                            <div class="table-responsive">
-                                <table class="table table-vcenter card-table dv-settings-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
-                                            <th data-i18n="cr_col_value">Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_thing_name">Thing Name</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;" id="awsIotCoreThingName"
-                                                       x-model="webrtcInformation.awsIotCoreThingName" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_access_key">Access Key ID</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;" id="awsAccessKeyId"
-                                                       x-model="webrtcInformation.awsAccessKeyId" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_secret_key">Secret Access Key</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;" id="awsSecretAccessKey"
-                                                       x-model="webrtcInformation.awsSecretAccessKey" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_region">Default Region</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:220px;" id="awsDefaultRegion"
-                                                       x-model="webrtcInformation.awsDefaultRegion" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_log_level">KVS Log Level</td>
-                                            <td>
-                                                <select id="awsKvsLogLevel" class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model.number="webrtcInformation.awsKvsLogLevel">
-                                                    <option value="1">VERBOSE</option>
-                                                    <option value="2">DEBUG</option>
-                                                    <option value="3">INFO</option>
-                                                    <option value="4">WARN</option>
-                                                    <option value="5">ERROR</option>
-                                                    <option value="6">FATAL</option>
-                                                    <option value="7">SILENT</option>
-                                                    <option value="8">PROFILE</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_debug_sdp">Debug Log SDP</td>
-                                            <td>
-                                                <select id="debugLogSdp" class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="webrtcInformation.debugLogSdp">
-                                                    <option value=true>true</option>
-                                                    <option value=false>false</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_enable_webrtc">Enable WebRTC</td>
-                                            <td>
-                                                <select id="enableFileLogging" class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="webrtcInformation.enableFileLogging">
-                                                    <option value=true>true</option>
-                                                    <option value=false>false</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                    <div class="cloud-tab-form">
+<!--                    <div class="hr-text text-primary">Media</div>-->
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label for="awsIotCoreThingName"
+                                           class="col-form-label col-12 col-md-6" data-i18n="cl_thing_name">Thing Name</label>
+                                    <input
+                                            id="awsIotCoreThingName"
+                                            class="form-control"
+                                            x-model="webrtcInformation.awsIotCoreThingName"
+                                            readonly
+                                    />
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="awsAccessKeyId" class="col-form-label col-12 col-md-6" data-i18n="cl_access_key">Access Key ID</label>
+                                    <input
+                                            id="awsAccessKeyId"
+                                            class="form-control"
+                                            x-model="webrtcInformation.awsAccessKeyId"
+                                            readonly
+
+                                    />
+
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="awsSecretAccessKey"
+                                           class="col-form-label col-12 col-md-6" data-i18n="cl_secret_key">Secret Access Key</label>
+                                    <input
+                                            id="awsSecretAccessKey"
+                                            class="form-control"
+                                            x-model="webrtcInformation.awsSecretAccessKey"
+                                            readonly
+                                    />
+                                </div>
                             </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-3 px-1">
-                                                        <button class="btn btn-primary" @click="submitMediaServerInformation">
-                                                            <span data-i18n="cl_update">Update Cloud Information</span>
-                                                        </button>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label for="awsDefaultRegion"
+                                           class="col-form-label col-12 col-md-6" data-i18n="cl_region">Default Region</label>
+                                    <input
+                                            id="awsDefaultRegion"
+                                            class="form-control"
+                                            x-model="webrtcInformation.awsDefaultRegion"
+                                            readonly
+                                    />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="awsKvsLogLevel" class="col-form-label col-12 col-md-6" data-i18n="cl_log_level">KVS Log Level</label>
+                                    <!--                            <input-->
+                                    <!--                                    id="awsKvsLogLevel"-->
+                                    <!--                                    class="form-control"-->
+                                    <!--                                    x-model="webrtcInformation.awsKvsLogLevel"-->
+                                    <!--                            />-->
+
+                                    <select
+                                            id="awsKvsLogLevel"
+                                            class="form-control"
+                                            x-model.number="webrtcInformation.awsKvsLogLevel"
+                                    >
+                                        <option value="1">VERBOSE</option>
+                                        <option value="2">DEBUG</option>
+                                        <option value="3">INFO</option>
+                                        <option value="4">WARN</option>
+                                        <option value="5">ERROR</option>
+                                        <option value="6">FATAL</option>
+                                        <option value="7">SILENT</option>
+                                        <option value="8">PROFILE</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="debugLogSdp" class="col-form-label col-12 col-md-6" data-i18n="cl_debug_sdp">Debug Log SDP</label>
+                                    <select
+                                            id="debugLogSdp"
+                                            class="form-control"
+                                            x-model="webrtcInformation.debugLogSdp"
+                                    >
+                                        <option value=true>true</option>
+                                        <option value=false>false</option>
+                                    </select>
+
+                                </div>
+                            </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label for="enableFileLogging" class="col-form-label col-12 col-md-6" data-i18n="cl_enable_webrtc">Enable WebRTC</label>
+                                    <select
+                                            id="enableFileLogging"
+                                            class="form-control"
+                                            x-model="webrtcInformation.enableFileLogging"
+                                    >
+                                        <option value=true>true</option>
+                                        <option value=false>false</option>
+                                    </select>
+
+                                </div>
+                            </div>
+                            <!--                    <div class="hr-text text-primary">Iot</div>-->
+                            <!--                    <div class="mb-4 row">-->
+                            <!--                        <div class="col-12 col-md-6">-->
+                            <!--                            <label for="awsIotCoreCert" class="col-form-label col-12 col-md-6">awsIotCoreCert:</label>-->
+                            <!--                            <input-->
+                            <!--                                    id="awsIotCoreCert"-->
+                            <!--                                    class="form-control"-->
+                            <!--                                    x-model="webrtcInformation.awsIotCoreCert"-->
+                            <!--                                    readonly-->
+
+                            <!--                            />-->
+
+                            <!--                        </div>-->
+
+                            <!--                        <div class="col-12 col-md-6">-->
+                            <!--                            <label for="awsIotCorePrivateKey" class="col-form-label col-12 col-md-6">awsIotCorePrivateKey:</label>-->
+                            <!--                            <input-->
+                            <!--                                    id="awsIotCorePrivateKey"-->
+                            <!--                                    class="form-control"-->
+                            <!--                                    x-model="webrtcInformation.awsIotCorePrivateKey"-->
+                            <!--                                    readonly-->
+                            <!--                            />-->
+                            <!--                        </div>-->
+
+
+                            <!--                    </div>-->
+                            <!--                    <div class="mb-4 row">-->
+
+                            <!--                        <div class="col-12 col-md-6">-->
+                            <!--                            <label for="awsIotCoreRoleAlias" class="col-form-label col-12 col-md-6">awsIotCoreRoleAlias:</label>-->
+                            <!--                            <input-->
+                            <!--                                    id="awsIotCoreRoleAlias"-->
+                            <!--                                    class="form-control"-->
+                            <!--                                    x-model="webrtcInformation.awsIotCoreRoleAlias"-->
+
+                            <!--                            />-->
+
+                            <!--                        </div>-->
+
+                            <!--                        <div class="col-12 col-md-6">-->
+                            <!--                            <label for="awsIotCoreThingModel" class="col-form-label col-12 col-md-6">awsIotCoreThingModel:</label>-->
+                            <!--                            <input-->
+                            <!--                                    id="awsIotCoreThingModel"-->
+                            <!--                                    class="form-control"-->
+                            <!--                                    x-model="webrtcInformation.awsIotCoreThingModel"-->
+                            <!--                            />-->
+                            <!--                        </div>-->
+
+                            <!--&lt;!&ndash;                        <div class="col-12 col-md-4">&ndash;&gt;-->
+                            <!--&lt;!&ndash;                            <label for="awsIotCoreThingName" class="col-form-label col-12 col-md-6">awsIotCoreThingName:</label>&ndash;&gt;-->
+                            <!--&lt;!&ndash;                            <input&ndash;&gt;-->
+                            <!--&lt;!&ndash;                                    id="awsIotCoreThingName"&ndash;&gt;-->
+                            <!--&lt;!&ndash;                                    class="form-control"&ndash;&gt;-->
+                            <!--&lt;!&ndash;                                    x-model="webrtcInformation.awsIotCoreThingName"&ndash;&gt;-->
+                            <!--&lt;!&ndash;                            />&ndash;&gt;-->
+                            <!--&lt;!&ndash;                        </div>&ndash;&gt;-->
+
+
+                            <!--                    </div>-->
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="submitMediaServerInformation">
+                                <span data-i18n="cl_update">Update Cloud Information</span>
+                            </button>
                                                     </div>
                                                 </div>
                                                 <div class="vs-param-pane" x-show="cloudParamTab==='agora'" x-cloak>
-                            <div class="table-responsive">
-                                <table class="table table-vcenter card-table dv-settings-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
-                                            <th data-i18n="cr_col_value">Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_agora_app_id">App ID</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="agoraRtcService.rtcAppId" />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_agora_channel">Channel Name</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:420px;"
-                                                       x-model="agoraRtcService.rtcChannelName" readonly />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_agora_enable">RTC Enable</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model="agoraRtcService.rtcServiceEnable">
-                                                    <option :value="true" data-i18n="cm_enable">Enable</option>
-                                                    <option :value="false" data-i18n="cm_disable">Disable</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_agora_token">Token</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" style="max-width:100%;"
-                                                       x-model="agoraRtcService.rtcToken" />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="text-secondary" data-i18n="cl_agora_log_level">Log Level</td>
-                                            <td>
-                                                <select class="form-select form-select-sm" style="max-width:220px;"
-                                                        x-model.number="agoraRtcService.rtcLogLevel">
-                                                    <option value="0">DEFAULT</option>
-                                                    <option value="1">FATAL</option>
-                                                    <option value="2">ERROR</option>
-                                                    <option value="4">WARN</option>
-                                                    <option value="8">INFO</option>
-                                                    <option value="16">DEBUG</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                    <div class="cloud-tab-form">
+<div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_app_id">App ID</label>
+                                    <input class="form-control" x-model="agoraRtcService.rtcAppId" />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_channel">Channel Name</label>
+                                    <input class="form-control" x-model="agoraRtcService.rtcChannelName" readonly />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_enable">RTC Enable</label>
+                                    <select class="form-control" x-model="agoraRtcService.rtcServiceEnable">
+                                        <option :value="true" data-i18n="cm_enable">Enable</option>
+                                        <option :value="false" data-i18n="cm_disable">Disable</option>
+                                    </select>
+                                </div>
                             </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-3 px-1">
-                                                        <button class="btn btn-primary" @click="submitAgoraRtcService">
-                                                            <span data-i18n="cl_agora_update">Update Agora RTC</span>
-                                                        </button>
-                                                        <button class="btn btn-success" @click="initAgoraRtcService">
-                                                            <span data-i18n="cl_agora_refresh">Refresh Agora RTC</span>
-                                                        </button>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-8">
+                                    <label class="col-form-label col-12 col-md-3" data-i18n="cl_agora_token">Token</label>
+                                    <input class="form-control" x-model="agoraRtcService.rtcToken" />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_log_level">Log Level</label>
+                                    <select class="form-control" x-model.number="agoraRtcService.rtcLogLevel">
+                                        <option value="0">DEFAULT</option>
+                                        <option value="1">FATAL</option>
+                                        <option value="2">ERROR</option>
+                                        <option value="4">WARN</option>
+                                        <option value="8">INFO</option>
+                                        <option value="16">DEBUG</option>
+                                    </select>
+                                </div>
+                            </div>
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="submitAgoraRtcService">
+                                <span data-i18n="cl_agora_update">Update Agora RTC</span>
+                            </button>
+                            <button class="btn btn-success me-2" @click="initAgoraRtcService">
+                                <span data-i18n="cl_agora_refresh">Refresh Agora RTC</span>
+                            </button>
                                                     </div>
                                                 </div>
                         </div>
