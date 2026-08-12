@@ -13970,19 +13970,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 const eSecs = Math.min(86399, secs + 60);
                 const ehh = String(Math.floor(eSecs / 3600)).padStart(2, '0');
                 const emm = String(Math.floor((eSecs % 3600) / 60)).padStart(2, '0');
+                const ess = String(secs % 60).padStart(2, '0');
                 this.startTime = this.timelineDate + 'T00:00';
                 this.endTime = this.timelineDate + 'T' + ehh + ':' + emm;
                 this.pageNumber = 1;
-                // ★ 合并时间轴块 .p 只留段首文件；必须查未合并真实段再播/seek（设备端同款）
-                const recs = await this.resolveSegmentsAt(secs);
+                const clickLabel = this.timelineDate + ' ' + ehh + ':' + emm + ':' + ess;
+
                 if (this._injectedCreds()) {
-                    this.syncRecords = [];                 // 云端隐藏本地 <video>
+                    // ★ 先立刻亮 spinner（原先 await 查段 3~5s 后才 loading，体感「点了没反应」）
+                    this.syncRecords = [];
+                    this.remotePlaybackLoading = true;
+                    this.remotePlaybackLabel = clickLabel;
+                    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+                    // 1) 已加载列表秒解析（零 RTT）；2) 不够再走云查询
+                    const ncam = this.timelineCamCount();
+                    let recs = this._buildSyncedSegments(this.records || [], secs);
+                    if (recs.length < ncam) {
+                        const precise = await this.resolveSegmentsAt(secs);
+                        if (precise.length) recs = precise;
+                    }
                     if (recs.length) this._seedResolvedRecords(recs);
-                    this._playAtTimelineSecs(secs, recs);
-                    this.fetchRecords(true);
+                    await this._playAtTimelineSecs(secs, recs);
+                    this.fetchRecords(true);   // 侧栏刷新不挡开播
                     return;
                 }
-                // 局域网：锁定真实段到 syncRecords，再刷侧栏列表（避免 fetchRecords auto-play 覆盖）
+                // 局域网：查真实段 → syncRecords；列表刷新不挡
+                const recs = await this.resolveSegmentsAt(secs);
                 if (recs.length) {
                     this.syncRecords = recs;
                     this.selectedRecord = recs[0];
@@ -14005,11 +14019,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const fmt = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(Math.floor(s % 60));
                 const startS = Math.max(0, secs - 900), endS = Math.min(86399, secs + 120);
                 try {
-                    if (typeof this.initDeviceGeneralInformation === 'function') {
-                        await this.initDeviceGeneralInformation();
-                    }
-                    const deviceID = (typeof this._uuid === 'function' && this._uuid())
+                    let deviceID = (typeof this._uuid === 'function' && this._uuid())
                         || (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || '';
+                    // 已有 uuid 则跳过 init（云 IoT 往返可省 1~2s）
+                    if (!deviceID && typeof this.initDeviceGeneralInformation === 'function') {
+                        await this.initDeviceGeneralInformation();
+                        deviceID = (typeof this._uuid === 'function' && this._uuid())
+                            || (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || '';
+                    }
                     const resp = await fetch('/getDeviceCommand', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -14097,14 +14114,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (pastBest && pastDist <= 120) return pastBest;
                 return null;
             },
-            // 云模式:优先用 resolveSegmentsAt 真实段；再退回列表/_recordAtSecs；startKvsPlayback 按 cameraCounts 补齐各路
+            // 云模式:优先用已解析真实段；缺省再查；startKvsPlayback 按 cameraCounts 补齐各路
             async _playAtTimelineSecs(secs, resolved) {
                 this.remotePlaybackLoading = true;
                 this.pageNumber = 1;
                 let recs = Array.isArray(resolved) ? resolved : [];
+                // 调用方已查过则不再重复 IoT 查询
                 if (!recs.length) recs = await this.resolveSegmentsAt(secs);
                 if (recs.length) this._seedResolvedRecords(recs);
-                else await this.fetchRecords(true);
+                else {
+                    // 列表兜底（可能仍空）；不再阻塞太久——fetchRecords 已在外层并行
+                    if (!(this.records && this.records.length)) await this.fetchRecords(true);
+                    recs = this._buildSyncedSegments(this.records || [], secs);
+                }
                 const anchorCam = 0;
                 let rec = recs.find(r => this._camOfRecord(r) === anchorCam) || recs[0]
                     || this._recordAtSecs(secs, anchorCam);
@@ -14112,8 +14134,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     const seg = this.findSegmentAt(secs, anchorCam);
                     rec = seg ? this.segToRecord(seg) : null;
                 }
-                if (rec) this.playRecord(rec);
-                else this.remotePlaybackLoading = false;
+                if (rec) {
+                    if (!this.remotePlaybackLabel && rec.RecordIndexInformationDateTime) {
+                        this.remotePlaybackLabel = String(rec.RecordIndexInformationDateTime).substring(0, 19);
+                    }
+                    await this.playRecord(rec);
+                } else {
+                    this.remotePlaybackLoading = false;
+                }
             },
             // 在细粒度记录列表里找指定摄像头「包含点击秒 / 起点最接近」的那一段(secs=当天秒)。与 _recordForCam 同一时间基准。
             _recordAtSecs(secs, cam) {
