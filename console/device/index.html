@@ -13087,20 +13087,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 m = String((r && r.RecordIndexInformationPath) || '').match(/(\d{2})(\d{2})(\d{2})\D*$/);
                 return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : -1;
             },
-            // 把 anchor 录像重定位到目标摄像头「与 anchor 同段(时间重叠)/ 起点最接近」的那一段 → 选哪路就播哪路、两路同步。
+            // 把 anchor 录像重定位到目标摄像头「与 anchor/点击时刻同段(时间重叠)/ 起点最接近」的那一段
             _recordForCam(anchor, cam) {
                 if (this._camOfRecord(anchor) === cam) return anchor;
                 const list = (this.records && this.records.length) ? this.records : (this.syncRecords || []);
-                const t0 = this._recSecs(anchor);
+                // 优先对齐时间轴点击墙钟；无点击时回退 anchor 起点
+                const t0 = (this.syncSeekSecs != null && this.syncSeekSecs >= 0)
+                    ? this.syncSeekSecs : this._recSecs(anchor);
                 let best = null, bd = Infinity;
                 for (const r of list) {
                     if (this._camOfRecord(r) !== cam) continue;
                     const s = this._recSecs(r); if (s < 0) continue;
                     const dur = r.RecordIndexInformationDuration || 30;
-                    const d = (t0 >= 0 && t0 >= s && t0 <= s + dur + 1) ? 0 : Math.abs(s - t0);   // 优先与 anchor 时间重叠的同段
+                    const d = (t0 >= 0 && t0 >= s && t0 <= s + dur + 1) ? 0 : Math.abs(s - t0);
                     if (d < bd) { bd = d; best = r; }
                 }
-                return best;   // 该路无任何录像时返回 null
+                return best;
             },
             // 给定一条录像，按时间戳在已加载列表里凑齐同一时刻各摄像头的 MP4，组成 paths[]（设备多路同步回放）
             siblingPaths(record) {
@@ -13897,48 +13899,111 @@ document.addEventListener('DOMContentLoaded', function() {
                              color: b.ty === 2 ? '#dc3545' : b.ty === 3 ? '#7c3aed' : 'var(--accent)' };
                 });
             },
-            // 点击时间轴：定位到该时刻所在/最近的录像并播放
-            onTimelineClick(event, camera) {
+            // 点击时间轴：定位到该时刻所在/最近的录像并播放（对齐设备端 resolveSegmentsAt）
+            async onTimelineClick(event, camera) {
                 if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }  // 刚才是拖动平移，不触发播放
                 const rect = event.currentTarget.getBoundingClientRect();
                 const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
                 const v = this.timelineView;
                 const secs = Math.round(v.start + pct * (v.end - v.start));
-                this.tlClickSecs = secs;  // 绿色标记定位到精确点击位置
+                this.tlClickSecs = secs;  // 绿色标记定位到精确点击位置（立即，先于异步查询）
                 this.syncSeekSecs = secs; // 多路同步播放：各路 seek 到该墙钟时刻
-                // 搜索范围:当天 00:00 → 点击时刻(+1min 缓冲,确保点击所在那 30s 段被收进列表,最新在前)
+                // 搜索范围:当天 00:00 → 点击时刻(+1min 缓冲,列表展示用)
                 const eSecs = Math.min(86399, secs + 60);
                 const ehh = String(Math.floor(eSecs / 3600)).padStart(2, '0');
                 const emm = String(Math.floor((eSecs % 3600) / 60)).padStart(2, '0');
                 this.startTime = this.timelineDate + 'T00:00';
                 this.endTime = this.timelineDate + 'T' + ehh + ':' + emm;
-                // ★ 云模式:时间轴绿条是设备把连续 30s 文件合并成的粗块,块 .p 只存块首(=00:00)文件,
-                //   直接 segToRecord(块) 会永远从 00:00 播。改为先拉细粒度记录列表,挑「点击时刻所在/最接近」的那 30s 段来播。
+                this.pageNumber = 1;
+                // ★ 合并时间轴块 .p 只留段首文件；必须查未合并真实段再播/seek（设备端同款）
+                const recs = await this.resolveSegmentsAt(secs);
                 if (this._injectedCreds()) {
-                    this.syncRecords = [];                 // 隐藏本地 <video>
-                    this._playAtTimelineSecs(secs);        // 内部先亮 spinner→await 拉列表→挑段→播
+                    this.syncRecords = [];                 // 云端隐藏本地 <video>
+                    if (recs.length) this._seedResolvedRecords(recs);
+                    this._playAtTimelineSecs(secs, recs);
+                    this.fetchRecords(true);
                     return;
                 }
-                // 局域网模式:用已加载的粗时间轴块同步各路(本地 <video> 从段头播,syncSeekVideo 再 seek 到点击时刻)
-                this.fetchRecords(true);
-                const ncam = this.timelineCamCount();
-                const list = [];
-                for (let cam = 0; cam < ncam; cam++) {
-                    const seg = this.findSegmentAt(secs, cam);
-                    if (seg) list.push(this.segToRecord(seg));
+                // 局域网：锁定真实段到 syncRecords，再刷侧栏列表（避免 fetchRecords auto-play 覆盖）
+                if (recs.length) {
+                    this.syncRecords = recs;
+                    this.selectedRecord = recs[0];
+                    this.playbackFocusIdx = 0;
+                    this._seedResolvedRecords(recs);
                 }
-                if (list.length) { this.syncRecords = list; this.selectedRecord = list[0]; }
+                this.fetchRecords(true);
             },
-            // 云模式:拉细粒度记录列表后,挑点击时刻那 30s 段播(单路=选中路,双路=第一路,另一路由 startKvsPlayback 补齐)。
-            async _playAtTimelineSecs(secs) {
-                this.remotePlaybackLoading = true;         // 点击即时反馈(拉列表期间也有 spinner)
-                this.pageNumber = 1;                       // 复位到第一页,确保拉到含点击时刻的最新一页
-                await this.fetchRecords(true);
-                const anchorCam = 0; // 全路同步：以 CAM1 为锚，其余路由 startKvsPlayback 按 cameraCounts 补齐
-                let rec = this._recordAtSecs(secs, anchorCam);
-                if (!rec) { const seg = this.findSegmentAt(secs, anchorCam); rec = seg ? this.segToRecord(seg) : null; }
+            // 把时间轴解析出的真实段塞进 records 头部，供 startKvsPlayback/_recordForCam 配齐各路
+            _seedResolvedRecords(recs) {
+                if (!recs || !recs.length) return;
+                const paths = new Set(recs.map(r => r.RecordIndexInformationPath).filter(Boolean));
+                const rest = (this.records || []).filter(r => !paths.has(r.RecordIndexInformationPath));
+                this.records = [...recs, ...rest];
+            },
+            // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」
+            async resolveSegmentsAt(secs) {
+                const pad = n => String(n).padStart(2, '0');
+                const fmt = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60));
+                const startS = Math.max(0, secs - 360), endS = Math.min(86399, secs + 60);  // 点击前6min~后1min
+                const secOf = dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; };
+                try {
+                    if (typeof this.initDeviceGeneralInformation === 'function') {
+                        await this.initDeviceGeneralInformation();
+                    }
+                    const deviceID = (typeof this._uuid === 'function' && this._uuid())
+                        || (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || '';
+                    const resp = await fetch('/getDeviceCommand', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: 'queryLocalRecordIndexInformationCommand',
+                            params: {
+                                deviceID,
+                                startTime: fmt(startS), endTime: fmt(endS),
+                                pageSize: 200, pageNumber: 1, recordType: this.searchRecordType,
+                            },
+                        }),
+                    });
+                    const result = await resp.json();
+                    const all = (result && result.params && result.params.records) ? result.params.records : [];
+                    const ncam = this.timelineCamCount();
+                    const list = [];
+                    for (let cam = 0; cam < ncam; cam++) {
+                        const camRecs = all.filter(r => this._camOfRecord(r) === cam);
+                        let hit = null, best = null, bd = Infinity;
+                        for (const r of camRecs) {
+                            const s = secOf(r.RecordIndexInformationDateTime);
+                            if (s < 0) continue;
+                            const d = (r.RecordIndexInformationDuration || 0);
+                            if (secs >= s && secs <= s + Math.max(d, 1)) { hit = r; break; }
+                            const dist = Math.min(Math.abs(secs - s), Math.abs(secs - (s + d)));
+                            if (dist < bd) { bd = dist; best = r; }
+                        }
+                        const pick = hit || (best && bd <= 120 ? best : null);
+                        if (pick) list.push(Object.assign({}, pick, { _segStart: secOf(pick.RecordIndexInformationDateTime) }));
+                    }
+                    return list;
+                } catch (e) {
+                    console.error('resolveSegmentsAt error:', e);
+                    return [];
+                }
+            },
+            // 云模式:优先用 resolveSegmentsAt 真实段；再退回列表/_recordAtSecs；startKvsPlayback 按 cameraCounts 补齐各路
+            async _playAtTimelineSecs(secs, resolved) {
+                this.remotePlaybackLoading = true;
+                this.pageNumber = 1;
+                let recs = Array.isArray(resolved) ? resolved : [];
+                if (!recs.length) recs = await this.resolveSegmentsAt(secs);
+                if (recs.length) this._seedResolvedRecords(recs);
+                else await this.fetchRecords(true);
+                const anchorCam = 0;
+                let rec = recs.find(r => this._camOfRecord(r) === anchorCam) || recs[0]
+                    || this._recordAtSecs(secs, anchorCam);
+                if (!rec) {
+                    const seg = this.findSegmentAt(secs, anchorCam);
+                    rec = seg ? this.segToRecord(seg) : null;
+                }
                 if (rec) this.playRecord(rec);
-                else this.remotePlaybackLoading = false;   // 该路此刻无录像:撤 spinner
+                else this.remotePlaybackLoading = false;
             },
             // 在细粒度记录列表里找指定摄像头「包含点击秒 / 起点最接近」的那一段(secs=当天秒)。与 _recordForCam 同一时间基准。
             _recordAtSecs(secs, cam) {
