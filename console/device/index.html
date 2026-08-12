@@ -3186,20 +3186,15 @@
                                                         <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
                                                     </template>
                                                 </div>
-                                                <!-- 多路轨道：按 cameraCounts 动态生成 N 条（滚轮缩放、点击定位）-->
-                                                <template x-for="ci in timelineCamCount()" :key="'tlcam'+ci">
-                                                    <div>
-                                                        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;" x-text="'CAM'+ci"></div>
-                                                        <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;"
-                                                             :class="{'tl-grabbing': tlDrag.active}"
-                                                             @click="onTimelineClick($event, ci-1)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                                            <template x-for="(b,i) in timelineBlocks(ci-1)" :key="'c'+ci+'-'+i">
-                                                                <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
-                                                            </template>
-                                                            <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
-                                                        </div>
-                                                    </div>
-                                                </template>
+                                                <!-- 单条时间轴：多路录像合并到一条标尺（对齐本地页；点击=该时刻按 cameraCounts 多路同步回放）-->
+                                                <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
+                                                     :class="{'tl-grabbing': tlDrag.active}"
+                                                     @click="onTimelineClick($event, 0)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
+                                                    <template x-for="(b,i) in timelineBlocksMerged()" :key="'tlm'+i">
+                                                        <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
+                                                    </template>
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                </div>
                                             </div>
                                         </div>
                                         <!-- 视频播放控件 -->
@@ -3213,48 +3208,24 @@
                                                             <i class="fa-solid fa-cloud me-1"></i><span x-text="tIdx('vp_remote_playback')"></span>
                                                             <span class="badge bg-secondary ms-2" style="font-size:10px;" x-text="playbackCodec"></span>
                                                             <span x-show="remotePlaybackLabel" class="ms-2" style="font-size:11px;color:var(--text-muted,#9aa4b2);font-weight:500;" x-text="remotePlaybackLabel"></span>
-                                                            <!-- 回放控制条(仅多摄设备显示路数/布局):播放中切换立即生效 -->
+                                                            <!-- 回放控制：按 cameraCounts 全路同步；多摄时可切四宫格/画中画（对齐本地）。一条进度条统控。 -->
                                                             <div class="ms-auto d-flex align-items-center flex-wrap justify-content-end" style="gap:6px;">
-                                                                <template x-if="(videoInformation.cameraCounts||1) > 1">
-                                                                    <div class="d-flex align-items-center flex-wrap" style="gap:6px;">
-                                                                        <!-- 单路 / 双路 -->
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            <button class="btn" style="padding:2px 10px;font-size:11px;"
-                                                                                    :class="playbackChannels===1 ? 'btn-primary' : 'btn-outline-secondary'"
-                                                                                    @click.stop="setPlaybackChannels(1)" x-text="(tIdx('rp_single')||'单路')"></button>
-                                                                            <button class="btn" style="padding:2px 10px;font-size:11px;"
-                                                                                    :class="playbackChannels===2 ? 'btn-primary' : 'btn-outline-secondary'"
-                                                                                    @click.stop="setPlaybackChannels(2)" x-text="(tIdx('rp_dual')||'双路')"></button>
-                                                                        </div>
-                                                                        <!-- 单路:选择播哪一路 -->
-                                                                        <div class="btn-group btn-group-sm" x-show="playbackChannels===1">
-                                                                            <template x-for="ci in (videoInformation.cameraCounts||1)" :key="'pbsc'+ci">
-                                                                                <button class="btn" style="padding:2px 9px;font-size:11px;"
-                                                                                        :class="playbackSingleCam===(ci-1) ? 'btn-primary' : 'btn-outline-secondary'"
-                                                                                        @click.stop="setPlaybackSingleCam(ci-1)" x-text="'CAM'+ci"></button>
-                                                                            </template>
-                                                                        </div>
-                                                                        <!-- 双路:布局(横排/竖排/画中画) -->
-                                                                        <div class="btn-group btn-group-sm" x-show="playbackChannels===2">
-                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='h'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('h')" :title="(tIdx('rp_layout_h')||'横排')"><i class="fa-solid fa-table-columns"></i></button>
-                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='v'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('v')" :title="(tIdx('rp_layout_v')||'竖排')"><i class="fa-solid fa-bars"></i></button>
-                                                                            <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('pip')" :title="(tIdx('rp_layout_pip')||'画中画')"><i class="fa-solid fa-clone"></i></button>
-                                                                        </div>
-                                                                    </div>
-                                                                </template>
+                                                                <div class="btn-group btn-group-sm" x-show="(videoInformation.cameraCounts||1) > 1">
+                                                                    <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='h'||playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('h')" :title="tIdx('ll_grid')||'四宫格'"><i class="fa-solid fa-table-cells"></i></button>
+                                                                    <button class="btn" style="padding:2px 8px;font-size:11px;" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'" @click.stop="setPlaybackLayout('pip')" :title="tIdx('ll_pip')||'画中画'"><i class="fa-solid fa-clone"></i></button>
+                                                                </div>
                                                                 <button class="btn btn-sm btn-danger" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
                                                                     <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <!-- 云端回放视频区：由 playbackCams(实际在播的摄像头)驱动，布局随 playbackLayout 切换(横排/竖排/画中画) -->
+                                                        <!-- 云端回放：按 cameraCounts 开槽；实际有流的路显示；一条进度条统控（对齐本地） -->
                                                         <div :style="pbGridStyle()">
-                                                            <template x-for="(ci, idx) in (playbackCams.length ? playbackCams : [0])" :key="'pb'+ci">
-                                                                <div :style="pbSlotStyle(idx)">
-                                                                    <video :id="pbElId(ci)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+(ci+1)"></div>
-                                                                    <!-- 切换/加载动效:覆盖在视频上,给用户明确「正在切换录像」反馈 -->
-                                                                    <div x-show="remotePlaybackLoading && idx===0" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
+                                                            <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
+                                                                <div :style="pbSlotStyle(pi-1)" x-show="pi===1 || (playbackCams||[]).indexOf(pi-1)>=0 || pbCamUids[pi-1]">
+                                                                    <video :id="pi===1?'remotePlaybackView':('remotePlaybackView'+pi)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
+                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
+                                                                    <div x-show="remotePlaybackLoading && pi===1" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
                                                                         <div class="spinner-border text-light" role="status" style="width:2rem;height:2rem;"></div>
                                                                         <div style="color:#fff;font-size:12px;margin-top:10px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
                                                                         <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:2px;" x-text="remotePlaybackLabel"></div>
@@ -8409,7 +8380,7 @@ document.addEventListener('DOMContentLoaded', function() {
             remotePlaybackLabel: '',      // 当前回放的录像时间标签（视频区右上角提示）
             _pbTicker: null,              // 本地 1s 进度 ticker（设备不推位置，前端自推）
             _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
-            playbackChannels: 2,          // 回放路数：1=单路，2=双路同步（默认双路）
+            playbackChannels: 0,          // 已废弃：回放路数改由 cameraCounts 决定（保留字段兼容旧逻辑）
             playbackSingleCam: 0,         // 单路模式播哪一路（0=第一路 CAM1，1=第二路 CAM2；多相机可选）
             playbackLayout: 'h',          // 双路布局：'h'横排 / 'v'竖排堆叠 / 'pip'画中画
             playbackCams: [],             // 当前实际回放的摄像头序号列表（驱动视频网格渲染）
@@ -9228,22 +9199,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     await this.initDeviceGeneralInformation();
                     const deviceUuid = this._uuid() || this.deviceGeneralInformation.deviceUuid;
-                    // 单路模式:把点击进来的录像(可能是任意一路)重定位到「当前选中的摄像头」那一路,
-                    //   选哪路就播哪路——无论从时间轴还是侧边栏点进来。目标路无录像才保留原样。
-                    if (this.playbackChannels === 1) {
-                        const target = this.playbackSingleCam || 0;
-                        const remapped = this._recordForCam(record, target);
-                        if (remapped) { record = remapped; this._lastPlayRecord = record; }
-                    }
-                    // 要播的摄像头集合:单路=选中那一路;双路=前两路(受 cameraCounts 限制)。
+                    // 要播的摄像头集合：按设备 cameraCounts 全路同步（对齐本地页；不再限双路）。
                     const nCam = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
-                    let targetCams;
-                    if (this.playbackChannels === 1) {
-                        targetCams = [Math.min(this.playbackSingleCam || 0, nCam - 1)];
-                    } else {
-                        targetCams = [];
-                        for (let c = 0; c < Math.min(nCam, 2); c++) targetCams.push(c);
-                    }
+                    const targetCams = [];
+                    for (let c = 0; c < nCam; c++) targetCams.push(c);
                     // 每路取「时间最接近的同段录像」拼 path(用 _recordForCam,不再靠 siblingPaths 的 ≤100 硬阈值,
                     //   否则双路时另一路差一点点就配不上、只出一路)。某路无任何录像则跳过。
                     let paths = [];
@@ -12343,16 +12302,18 @@ document.addEventListener('DOMContentLoaded', function() {
             setPlaybackLayout(mode) { this.playbackLayout = mode; },
             // 视频网格容器样式:单路/竖排=单列;横排=两列;画中画=相对定位(副路绝对叠放)。
             pbGridStyle() {
-                const n = (this.playbackCams || []).length;
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
                 if (n <= 1) return 'display:grid;gap:6px;grid-template-columns:1fr;';
-                if (this.playbackLayout === 'v') return 'display:grid;gap:6px;grid-template-columns:1fr;';
                 if (this.playbackLayout === 'pip') return 'position:relative;';
+                // 四宫格/横排：按路数 2 列（对齐本地 remotePlayback）
                 return 'display:grid;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr));';
             },
-            // 单个视频槽样式:画中画模式下第 2 路缩到右下角小窗叠在主路上。
+            // 画中画：CAM1 大图，其余路小窗叠放（按 --pip-i 横向排开）
             pbSlotStyle(idx) {
-                if (this.playbackLayout === 'pip' && (this.playbackCams || []).length > 1 && idx > 0) {
-                    return 'position:absolute;right:10px;bottom:10px;width:32%;min-width:120px;z-index:4;border:2px solid rgba(255,255,255,0.75);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
+                if (this.playbackLayout === 'pip' && n > 1 && idx > 0) {
+                    const left = 8 + (idx - 1) * 34;
+                    return 'position:absolute;left:'+left+'%;top:8px;width:32%;min-width:120px;z-index:4;border:2px solid rgba(255,255,255,0.75);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
                 }
                 return 'position:relative;min-width:0;';
             },
@@ -13151,6 +13112,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
                 return Math.max(1, m + 1, n);
             },
+            // 单条时间轴：把各路 blocks 拍平合并到同一条轨道（对齐本地页）
+            timelineBlocksMerged() {
+                let all = [];
+                const n = this.timelineCamCount();
+                for (let ci = 0; ci < n; ci++) all = all.concat(this.timelineBlocks(ci) || []);
+                return all;
+            },
             // 该路摄像头的渲染块（相邻同类型段合并 + 按可见窗口裁剪）
             timelineBlocks(camera) {
                 const v = this.timelineView, span = (v.end - v.start) || 1;
@@ -13213,7 +13181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.remotePlaybackLoading = true;         // 点击即时反馈(拉列表期间也有 spinner)
                 this.pageNumber = 1;                       // 复位到第一页,确保拉到含点击时刻的最新一页
                 await this.fetchRecords(true);
-                const anchorCam = (this.playbackChannels === 1) ? (this.playbackSingleCam || 0) : 0;
+                const anchorCam = 0; // 全路同步：以 CAM1 为锚，其余路由 startKvsPlayback 按 cameraCounts 补齐
                 let rec = this._recordAtSecs(secs, anchorCam);
                 if (!rec) { const seg = this.findSegmentAt(secs, anchorCam); rec = seg ? this.segToRecord(seg) : null; }
                 if (rec) this.playRecord(rec);
