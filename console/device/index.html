@@ -2762,7 +2762,6 @@
                         </div>
                         <div class="vs-param-pane" x-show="aiParamTab==='llm'" x-cloak>
                             <div class="cloud-tab-form">
-{ initChatGptInformation() })">
 
                     <!-- 服务模式（AWS 中转 / 本地直连）：选标签自动填地址+模型，避免手输出错；对接固件 get/setOpenaiServiceCommand -->
                     <div class="card">
@@ -3106,7 +3105,6 @@
                         </div>
                         <div class="vs-param-pane" x-show="recordParamTab==='storage'" x-cloak>
                             <div class="cloud-tab-form">
-{ initStorageInformation() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="st_title">Storage Information</h3>
@@ -4269,7 +4267,6 @@
                                     data-i18n="nav_about">About</button>
                         </div>
                         <div class="vs-param-pane" x-show="deviceInfoParamTab==='info'" x-cloak>
-{ initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation() })">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="di_title">Device Information</h3>
@@ -4693,7 +4690,6 @@
                                 </div>
                         </div>
                         <div class="vs-param-pane" x-show="deviceInfoParamTab==='about'" x-cloak>
-{ QrGeneratorDeviceUuid() })">
                     <div class="card shadow">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="ab_qrcode">QR Code</h3>
@@ -4908,7 +4904,6 @@
                                     data-i18n="nav_factory_test">Factory Test</button>
                         </div>
                         <div class="vs-param-pane" x-show="productionParamTab==='provisioning'" x-cloak>
-{ initProvisioningServiceInformation() })">
                     <div class="page-body">
                         <div class="container-xl">
                             <div class="row row-deck ">
@@ -5174,7 +5169,6 @@
                     </div>
                         </div>
                         <div class="vs-param-pane" x-show="productionParamTab==='factory'" x-cloak>
-{ initFactoryTestServiceInformation() })" >
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h3 class="card-title" data-i18n="ft_setting_title">Factory Test Setting</h3>
@@ -6246,7 +6240,6 @@
                                     data-i18n="nav_log">Log</button>
                         </div>
                         <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
- { initLogInformation();initWatchdogInformation() })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
                     <!-- 摄像头健康状态 -->
                     <div class="card shadow mb-3">
                         <div class="card-header d-flex align-items-center justify-content-between">
