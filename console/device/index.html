@@ -5394,15 +5394,36 @@
 
                 </div>
                 <!-- 设备网络页面 -->
-                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="onPage('network-information', () => { initNetworkInformation();initRtspServerInformation();initWebserverService() })">
+                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="onPage('network-information', () => { initNetworkInformation();initRtspServerInformation();initWebserverService() })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="nw_title">Network Information</h3>
-                        </div>
+                    <!-- Network Settings：分段 Tab（仿 Cloud Settings / 视频 ISP/OSD），内容用原表单布局 -->
 
-                        <div class="card-body">
-                            <!-- ============ 有线网 Ethernet（可编辑）============ -->
+                    <div class="card shadow vs-param-panel">
+                        <div class="card-body card-body-compact">
+                                            <div class="vs-param-tabs" role="tablist" aria-label="Network settings groups">
+                                                <button type="button" class="btn btn-sm"
+                                                        role="tab"
+                                                        :class="networkParamTab==='net' ? 'btn-primary' : 'btn-outline-primary'"
+                                                        :aria-selected="networkParamTab==='net'"
+                                                        @click="networkParamTab='net'"
+                                                        data-i18n="nw_title">Network Information</button>
+                                                <button type="button" class="btn btn-sm"
+                                                        role="tab"
+                                                        :class="networkParamTab==='rtsp' ? 'btn-primary' : 'btn-outline-primary'"
+                                                        :aria-selected="networkParamTab==='rtsp'"
+                                                        @click="networkParamTab='rtsp'"
+                                                        data-i18n="nw_rtsp_title">RTSP Information</button>
+                                                <button type="button" class="btn btn-sm"
+                                                        role="tab"
+                                                        :class="networkParamTab==='web' ? 'btn-primary' : 'btn-outline-primary'"
+                                                        :aria-selected="networkParamTab==='web'"
+                                                        @click="networkParamTab='web'"
+                                                        data-i18n="ab_webserver">Webserver</button>
+                                            </div>
+
+                                                <div class="vs-param-pane" x-show="networkParamTab==='net'" x-cloak>
+                                                    <div class="cloud-tab-form">
+<!-- ============ 有线网 Ethernet（可编辑）============ -->
                             <h4 class="mb-3" style="border-bottom:2px solid var(--primary,var(--accent));padding-bottom:6px;">
                                 <i class="fa-solid fa-network-wired me-2"></i><span data-i18n="nw_eth_group">Ethernet</span>
                             </h4>
@@ -5483,66 +5504,16 @@
                                     <input class="form-control" readonly x-model="networkInformation.NetworkInformationWifiNetmask" />
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitNetworkInformation">
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="submitNetworkInformation">
                                 <span data-i18n="nw_update">Update Network</span>
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- ===== WiFi 扫描模态框 ===== -->
-                    <div class="dv-modal-backdrop" x-cloak x-show="wifiModalOpen" @click.self="wifiModalOpen=false">
-                        <div class="dv-modal" style="max-width:480px;">
-                            <div class="dv-modal-head">
-                                <i class="fa-solid fa-wifi" style="color:var(--primary,var(--accent));"></i>
-                                <span data-i18n="nw_scan_title">Available WiFi Networks</span>
-                                <button class="btn btn-sm btn-outline-secondary ms-auto" style="padding:2px 9px;"
-                                        @click="scanWifi()" :disabled="wifiScanning" :title="tIdx('nw_scan')">
-                                    <i class="fa fa-rotate" :class="wifiScanning?'fa-spin':''"></i>
-                                </button>
-                            </div>
-                            <div class="dv-modal-body" style="padding:6px 16px 10px;max-height:360px;overflow:auto;white-space:normal;color:var(--text);">
-                                <div x-show="wifiScanning" style="text-align:center;padding:26px 0;color:var(--text-muted);">
-                                    <i class="fa fa-spinner fa-spin fa-2x" style="color:var(--primary,var(--accent));"></i>
-                                    <div style="margin-top:8px;" data-i18n="nw_scanning">Scanning...</div>
-                                </div>
-                                <div x-show="!wifiScanning && wifiScanList.length===0" style="text-align:center;padding:26px 0;color:var(--text-muted);" data-i18n="nw_no_wifi">No networks found</div>
-                                <div x-show="!wifiScanning && wifiScanList.length>0">
-                                    <template x-for="ap in wifiScanList" :key="ap.ssid">
-                                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border,#2a3441);">
-                                            <span style="display:flex;align-items:center;gap:8px;min-width:0;color:var(--text);">
-                                                <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="ap.ssid"></span>
-                                                <span x-show="ap.saved" class="badge bg-success" style="font-size:10px;" data-i18n="nw_saved">Saved</span>
-                                            </span>
-                                            <span style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
-                                                <span style="font-size:12px;color:var(--text-muted);">
-                                                    <i class="fa" :class="(ap.security && ap.security!=='') ? 'fa-lock':'fa-lock-open'"></i>
-                                                    <span x-text="ap.signal + '%'"></span>
-                                                </span>
-                                                <button x-show="ap.saved" class="btn btn-sm btn-success" style="padding:2px 10px;"
-                                                        @click="connectWifi(ap.ssid)"><i class="fa fa-link me-1"></i><span data-i18n="nw_connect">Connect</span></button>
-                                                <button x-show="!ap.saved" class="btn btn-sm btn-outline-primary" style="padding:2px 10px;"
-                                                        @click="networkInformation.NetworkInformationWifiSsid=ap.ssid; wifiModalOpen=false"><span data-i18n="nw_select">Select</span></button>
-                                            </span>
-                                        </div>
-                                    </template>
-                                </div>
-                            </div>
-                            <div class="dv-modal-foot">
-                                <button class="btn btn-secondary" @click="wifiModalOpen=false" data-i18n="cm_close">Close</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="nw_rtsp_title">RTSP Information</h3>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="mb-4 row">
+                                                    </div>
+                                                </div>
+                                                <div class="vs-param-pane" x-show="networkParamTab==='rtsp'" x-cloak>
+                                                    <div class="cloud-tab-form">
+<div class="mb-4 row">
                                 <div class="col-12 col-md-3">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="nw_rtsp_enable">RTSP Enable</label>
                                     <select class="form-control" x-model="rtspServerService.rtsp_enable">
@@ -5609,23 +5580,16 @@
                                     </template>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitRtspServerInformation">
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="submitRtspServerInformation">
                                 <span data-i18n="nw_rtsp_update">Update RTSP Server</span>
                             </button>
-
-                        </div>
-                    </div>
-
-                    <!-- Webserver：HTTP/HTTPS 端口与页面配置（从 About 移入 Network） -->
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="ab_webserver">Webserver</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3 row g-3">
+                                                    </div>
+                                                </div>
+                                                <div class="vs-param-pane" x-show="networkParamTab==='web'" x-cloak>
+                                                    <div class="cloud-tab-form">
+<div class="mb-3 row g-3">
                                 <div class="col-12 col-md-3">
                                     <label for="webserverServiceRoot" class="form-label" data-i18n="ab_root">Root</label>
                                     <input id="webserverServiceRoot" class="form-control"
@@ -5687,17 +5651,61 @@
                                     </select>
                                 </div>
                             </div>
-                        </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitWebserverService">
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2 mt-3">
+<button class="btn btn-primary me-2" @click="submitWebserverService">
                                 <span data-i18n="ab_update">Update Webserver</span>
                             </button>
+                                                    </div>
+                                                </div>
                         </div>
                     </div>
 
+                    <!-- ===== WiFi 扫描模态框 ===== -->
+                    <div class="dv-modal-backdrop" x-cloak x-show="wifiModalOpen" @click.self="wifiModalOpen=false">
+                        <div class="dv-modal" style="max-width:480px;">
+                            <div class="dv-modal-head">
+                                <i class="fa-solid fa-wifi" style="color:var(--primary,var(--accent));"></i>
+                                <span data-i18n="nw_scan_title">Available WiFi Networks</span>
+                                <button class="btn btn-sm btn-outline-secondary ms-auto" style="padding:2px 9px;"
+                                        @click="scanWifi()" :disabled="wifiScanning" :title="tIdx('nw_scan')">
+                                    <i class="fa fa-rotate" :class="wifiScanning?'fa-spin':''"></i>
+                                </button>
+                            </div>
+                            <div class="dv-modal-body" style="padding:6px 16px 10px;max-height:360px;overflow:auto;white-space:normal;color:var(--text);">
+                                <div x-show="wifiScanning" style="text-align:center;padding:26px 0;color:var(--text-muted);">
+                                    <i class="fa fa-spinner fa-spin fa-2x" style="color:var(--primary,var(--accent));"></i>
+                                    <div style="margin-top:8px;" data-i18n="nw_scanning">Scanning...</div>
+                                </div>
+                                <div x-show="!wifiScanning && wifiScanList.length===0" style="text-align:center;padding:26px 0;color:var(--text-muted);" data-i18n="nw_no_wifi">No networks found</div>
+                                <div x-show="!wifiScanning && wifiScanList.length>0">
+                                    <template x-for="ap in wifiScanList" :key="ap.ssid">
+                                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border,#2a3441);">
+                                            <span style="display:flex;align-items:center;gap:8px;min-width:0;color:var(--text);">
+                                                <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="ap.ssid"></span>
+                                                <span x-show="ap.saved" class="badge bg-success" style="font-size:10px;" data-i18n="nw_saved">Saved</span>
+                                            </span>
+                                            <span style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
+                                                <span style="font-size:12px;color:var(--text-muted);">
+                                                    <i class="fa" :class="(ap.security && ap.security!=='') ? 'fa-lock':'fa-lock-open'"></i>
+                                                    <span x-text="ap.signal + '%'"></span>
+                                                </span>
+                                                <button x-show="ap.saved" class="btn btn-sm btn-success" style="padding:2px 10px;"
+                                                        @click="connectWifi(ap.ssid)"><i class="fa fa-link me-1"></i><span data-i18n="nw_connect">Connect</span></button>
+                                                <button x-show="!ap.saved" class="btn btn-sm btn-outline-primary" style="padding:2px 10px;"
+                                                        @click="networkInformation.NetworkInformationWifiSsid=ap.ssid; wifiModalOpen=false"><span data-i18n="nw_select">Select</span></button>
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="dv-modal-foot">
+                                <button class="btn btn-secondary" @click="wifiModalOpen=false" data-i18n="cm_close">Close</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <!-- 设备网络页面 -->
-                                                <div class="page-section" id="cloud-information" x-data="deviceSettings()"
+<div class="page-section" id="cloud-information" x-data="deviceSettings()"
                      x-init="initTransport();onPage('cloud-information', () => { initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService() })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
@@ -8566,6 +8574,7 @@ document.addEventListener('DOMContentLoaded', function() {
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
             vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
             cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|info|agora
+            networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web|vis
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
