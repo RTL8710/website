@@ -891,9 +891,7 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('ai-detection', this); return false;">
                     <i class="fas fa-brain"></i> <span data-i18n="nav_ai_detection">AI Settings</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('chatgpt-information', this); return false;">
-                    <i class="fas fa-comment-dots"></i> <span data-i18n="nav_openai_service">LLM Settings</span>
-                </a>
+
                 <a class="dv-nav-item" href="#" onclick="showPage('cloud-information', this); return false;">
                     <i class="fa fa-cloud"></i> <span data-i18n="nav_cloud">Cloud Settings</span>
                 </a>
@@ -2139,12 +2137,27 @@
                     </div>
                 </div>
 
-                <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
+                                <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('ai-detection', () => { initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras() })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('ai-detection', () => { initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation() })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
-                              <div class="row row-deck">
+                        <div class="vs-param-tabs" role="tablist" aria-label="AI settings groups" style="margin-bottom:14px;">
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="aiParamTab==='detect' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="aiParamTab==='detect'"
+                                    @click="aiParamTab='detect'"
+                                    data-i18n="ai_tab_detect">Detection</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="aiParamTab==='llm' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="aiParamTab==='llm'"
+                                    @click="aiParamTab='llm'"
+                                    data-i18n="gpt_title">LLM Settings</button>
+                        </div>
+                        <div class="vs-param-pane" x-show="aiParamTab==='detect'" x-cloak>
+<div class="row row-deck">
                                 <!-- 左：实时视频预览（检测框 + OSD 已烧进画面，调参即时可见）-->
                                 <div class="col-lg-7 d-flex flex-column" style="margin-bottom:8px;">
                                   <div class="card shadow flex-fill">
@@ -2555,10 +2568,218 @@
                                     </div>
                                 </div><!-- /右列 col-lg-5 -->
                               </div><!-- /row -->
+                        </div>
+                        <div class="vs-param-pane" x-show="aiParamTab==='llm'" x-cloak>
+                            <div class="cloud-tab-form">
+{ initChatGptInformation() })">
+
+                    <!-- 服务模式（AWS 中转 / 本地直连）：选标签自动填地址+模型，避免手输出错；对接固件 get/setOpenaiServiceCommand -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="gpt_relay_title">Service Mode (AWS relay / Local direct)</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_relay_mode">Mode</label>
+                                    <select class="form-control" x-model="openaiService.openai_service_relay_mode" @change="onRelayModeChange()">
+                                        <option value="direct" data-i18n="gpt_relay_direct">direct (local Ollama/vLLM)</option>
+                                        <option value="aws" data-i18n="gpt_relay_aws">aws (cloud relay → gpt-4o)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_relay_url">Service URL</label>
+                                    <input type="text" class="form-control" x-model="openaiService.openai_service_relay_url"
+                                           placeholder="http://127.0.0.1:11434/v1/chat/completions">
+                                </div>
+                            </div>
+                            <div class="mb-2 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_model">Model</label>
+                                    <input type="text" class="form-control" x-model="openaiService.openai_service_model"
+                                           placeholder="smolvlm:latest / gpt-4o">
+                                </div>
+                                <div class="col-12 d-flex align-items-end">
+                                    <small class="text-muted" data-i18n="gpt_relay_hint">Pick a mode and URL + model fill in automatically. direct = on-device local model (no internet); aws = cloud relay.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="saveOpenaiServiceConfig()">
+                                <span data-i18n="gpt_relay_save">Save Service Config</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="gpt_title">LLM Settings</h3>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="mb-4 row">
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_enabled" class="col-form-label col-12 col-md-6" data-i18n="gpt_enabled">Enabled</label>
+                                    <select
+                                            id="openai_service_enabled"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_enabled"
+                                    >
+                                        <option value="enable" data-i18n="cm_enable">enable</option>
+                                        <option value="disable" data-i18n="cm_disable">disable</option>
+                                    </select>
+
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_type" class="col-form-label col-12 col-md-6" data-i18n="gpt_type">Type</label>
+
+                                    <select
+                                            id="openai_service_type"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_type"
+                                    >
+                                        <option value="openai">openai</option>
+                                        <option value="tongyiqianwen">tongyiqianwen</option>
+                                        <option value="doubao">doubao</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_model" class="col-form-label col-12 col-md-6" data-i18n="gpt_model">Model</label>
+
+                                    <select
+                                            id="openai_service_model"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_model"
+                                    >
+                                        <option value="smolvlm:latest">smolvlm:latest (local)</option>
+                                        <option value="gpt-4o">gpt-4o</option>
+                                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                        <option value="o1-mini">o1-mini</option>
+                                    </select>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body">
+                            <div class="mb-4 row">
+
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_store_enabled" class="col-form-label col-12 col-md-6" data-i18n="gpt_store_enabled">Store Enabled</label>
+                                    <select
+                                            id="openai_service_store_enabled"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_store_enabled"
+                                    >
+                                        <option value="enable" data-i18n="cm_enable">enable</option>
+                                        <option value="disable" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_modalities"
+                                           class="col-form-label col-12 col-md-6" data-i18n="gpt_modalities">Modalities</label>
+                                    <select
+                                            id="openai_service_modalities"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_modalities"
+                                    >
+                                        <option value="text">text</option>
+                                        <option value="audio">audio</option>
+                                        <option value="text&audio">text&audio</option>
+                                    </select>
+
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_response_format" class="col-form-label col-12 col-md-6" data-i18n="gpt_response_format">Response Format</label>
+                                    <select
+                                            id="openai_service_response_format"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_response_format"
+                                    >
+                                        <option value="json_schema">json_schema</option>
+                                        <option value="json_object">json_object</option>
+                                        <option value="protoco">protoco</option>
+                                    </select>
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="card-body">
+                            <div class="mb-4 row">
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_mode" class="col-form-label col-12 col-md-6" data-i18n="gpt_mode">Mode</label>
+
+                                    <select
+                                            id="openai_service_mode"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_mode"
+                                    >
+                                        <option value="manual">manual</option>
+                                        <option value="auto">auto</option>
+                                    </select>
+
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_role_system_content" class="col-form-label col-12 col-md-6" data-i18n="gpt_system_content">System Content</label>
+                                    <input
+                                            id="openai_service_role_system_content"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_role_system_content"
+                                            readonly
+                                    />
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="openai_service_content"
+                                           class="col-form-label col-12 col-md-6" data-i18n="gpt_user_content">User Content</label>
+                                    <input
+                                            id="openai_service_content"
+                                            class="form-control"
+                                            x-model="openaiService.openai_service_content"
+                                    />
+
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="submitChatGptInformation">
+                                <span data-i18n="gpt_update">Update GPT</span>
+                            </button>
+
+                            <button class="btn btn-primary me-2" @click="initChatGptInformation">
+                                <span data-i18n="gpt_refresh">Refresh GPT</span>
+                            </button>
+                        </div>
+
+
+                    </div>
+                            </div>
+                        </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+
 
                 <!-- 音频设置页面 -->
                 <div class="page-section " id="audio-settings">
@@ -4396,213 +4617,10 @@
 <!--                                Update ScanService-->
 <!--                            </button>-->
 
-<!--                        </div>-->
-<!--                    </div>-->
-                </div>
-                <!-- device gpt -->
-                <div class="page-section" id="chatgpt-information" x-data="deviceSettings()" x-init="onPage('chatgpt-information', () => { initChatGptInformation() })">
-
-                    <!-- 服务模式（AWS 中转 / 本地直连）：选标签自动填地址+模型，避免手输出错；对接固件 get/setOpenaiServiceCommand -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="gpt_relay_title">Service Mode (AWS relay / Local direct)</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3 row">
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_relay_mode">Mode</label>
-                                    <select class="form-control" x-model="openaiService.openai_service_relay_mode" @change="onRelayModeChange()">
-                                        <option value="direct" data-i18n="gpt_relay_direct">direct (local Ollama/vLLM)</option>
-                                        <option value="aws" data-i18n="gpt_relay_aws">aws (cloud relay → gpt-4o)</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-8">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_relay_url">Service URL</label>
-                                    <input type="text" class="form-control" x-model="openaiService.openai_service_relay_url"
-                                           placeholder="http://127.0.0.1:11434/v1/chat/completions">
-                                </div>
-                            </div>
-                            <div class="mb-2 row">
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="gpt_model">Model</label>
-                                    <input type="text" class="form-control" x-model="openaiService.openai_service_model"
-                                           placeholder="smolvlm:latest / gpt-4o">
-                                </div>
-                                <div class="col-12 d-flex align-items-end">
-                                    <small class="text-muted" data-i18n="gpt_relay_hint">Pick a mode and URL + model fill in automatically. direct = on-device local model (no internet); aws = cloud relay.</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="saveOpenaiServiceConfig()">
-                                <span data-i18n="gpt_relay_save">Save Service Config</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="gpt_title">LLM Settings</h3>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="mb-4 row">
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_enabled" class="col-form-label col-12 col-md-6" data-i18n="gpt_enabled">Enabled</label>
-                                    <select
-                                            id="openai_service_enabled"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_enabled"
-                                    >
-                                        <option value="enable" data-i18n="cm_enable">enable</option>
-                                        <option value="disable" data-i18n="cm_disable">disable</option>
-                                    </select>
-
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_type" class="col-form-label col-12 col-md-6" data-i18n="gpt_type">Type</label>
-
-                                    <select
-                                            id="openai_service_type"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_type"
-                                    >
-                                        <option value="openai">openai</option>
-                                        <option value="tongyiqianwen">tongyiqianwen</option>
-                                        <option value="doubao">doubao</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_model" class="col-form-label col-12 col-md-6" data-i18n="gpt_model">Model</label>
-
-                                    <select
-                                            id="openai_service_model"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_model"
-                                    >
-                                        <option value="smolvlm:latest">smolvlm:latest (local)</option>
-                                        <option value="gpt-4o">gpt-4o</option>
-                                        <option value="gpt-4o-mini">gpt-4o-mini</option>
-                                        <option value="o1-mini">o1-mini</option>
-                                    </select>
-                                </div>
-
-                            </div>
-
-                        </div>
+                <!-- device gpt：已并入 AI Settings → LLM Tab；保留空 section 以兼容旧链接 -->
+                <div class="page-section" id="chatgpt-information"></div>
 
 
-                        <div class="card-body">
-                            <div class="mb-4 row">
-
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_store_enabled" class="col-form-label col-12 col-md-6" data-i18n="gpt_store_enabled">Store Enabled</label>
-                                    <select
-                                            id="openai_service_store_enabled"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_store_enabled"
-                                    >
-                                        <option value="enable" data-i18n="cm_enable">enable</option>
-                                        <option value="disable" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_modalities"
-                                           class="col-form-label col-12 col-md-6" data-i18n="gpt_modalities">Modalities</label>
-                                    <select
-                                            id="openai_service_modalities"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_modalities"
-                                    >
-                                        <option value="text">text</option>
-                                        <option value="audio">audio</option>
-                                        <option value="text&audio">text&audio</option>
-                                    </select>
-
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_response_format" class="col-form-label col-12 col-md-6" data-i18n="gpt_response_format">Response Format</label>
-                                    <select
-                                            id="openai_service_response_format"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_response_format"
-                                    >
-                                        <option value="json_schema">json_schema</option>
-                                        <option value="json_object">json_object</option>
-                                        <option value="protoco">protoco</option>
-                                    </select>
-
-                                </div>
-
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="card-body">
-                            <div class="mb-4 row">
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_mode" class="col-form-label col-12 col-md-6" data-i18n="gpt_mode">Mode</label>
-
-                                    <select
-                                            id="openai_service_mode"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_mode"
-                                    >
-                                        <option value="manual">manual</option>
-                                        <option value="auto">auto</option>
-                                    </select>
-
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_role_system_content" class="col-form-label col-12 col-md-6" data-i18n="gpt_system_content">System Content</label>
-                                    <input
-                                            id="openai_service_role_system_content"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_role_system_content"
-                                            readonly
-                                    />
-                                </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="openai_service_content"
-                                           class="col-form-label col-12 col-md-6" data-i18n="gpt_user_content">User Content</label>
-                                    <input
-                                            id="openai_service_content"
-                                            class="form-control"
-                                            x-model="openaiService.openai_service_content"
-                                    />
-
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitChatGptInformation">
-                                <span data-i18n="gpt_update">Update GPT</span>
-                            </button>
-
-                            <button class="btn btn-primary me-2" @click="initChatGptInformation">
-                                <span data-i18n="gpt_refresh">Refresh GPT</span>
-                            </button>
-                        </div>
-
-
-                    </div>
-
-                </div>
                 <!-- device gpt -->
                 <div class="page-section " id="chatdevice-information">
                     <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('chatdevice-information', () => { loadAskHistory() })">
@@ -6822,7 +6840,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Factory Test', page_debug:'Debug Settings',
     page_log:'Log', page_about:'About',
     vs_camera_select:'Camera Select', vs_camera:'Camera',
-    nav_ai_detection:'AI Settings', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
+    nav_ai_detection:'AI Settings', ai_tab_detect:'Detection', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
     vs_main_stream:'Main Stream', vs_sub_stream:'Sub Stream',
     vs_resolution:'Resolution', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: same quality at ~40% lower bitrate',
     vs_brightness:'Brightness', vs_saturation:'Saturation',
@@ -6969,7 +6987,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'工厂测试', page_debug:'调试设置',
     page_log:'日志', page_about:'关于',
     vs_camera_select:'摄像头选择', vs_camera:'摄像头',
-    nav_ai_detection:'AI 设置', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
+    nav_ai_detection:'AI 设置', ai_tab_detect:'检测', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
     vs_main_stream:'主码流', vs_sub_stream:'子码流',
     vs_resolution:'分辨率', vs_fps:'帧率', vs_bitrate:'码率', vs_codec_hint:'H265 同画质约省 40% 码流，可适当调低',
     vs_brightness:'亮度', vs_saturation:'饱和度',
@@ -7116,7 +7134,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'工場テスト', page_debug:'デバッグ設定',
     page_log:'ログ', page_about:'バージョン情報',
     vs_camera_select:'カメラ選択', vs_camera:'カメラ',
-    nav_ai_detection:'AI 設定', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
+    nav_ai_detection:'AI 設定', ai_tab_detect:'検出', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
     vs_main_stream:'メインストリーム', vs_sub_stream:'サブストリーム',
     vs_resolution:'解像度', vs_fps:'FPS', vs_bitrate:'ビットレート', vs_codec_hint:'H265 同画質で約40%低いビットレート',
     vs_brightness:'明るさ', vs_saturation:'彩度',
@@ -7262,7 +7280,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Werkstest', page_debug:'Debug-Einstellungen',
     page_log:'Protokoll', page_about:'Über',
     vs_camera_select:'Kameraauswahl', vs_camera:'Kamera',
-    nav_ai_detection:'KI-Einstellungen', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
+    nav_ai_detection:'KI-Einstellungen', ai_tab_detect:'Erkennung', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
     vs_main_stream:'Hauptstream', vs_sub_stream:'Substream',
     vs_resolution:'Auflösung', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: gleiche Qualität bei ~40% weniger Bitrate',
     vs_brightness:'Helligkeit', vs_saturation:'Sättigung',
@@ -7408,7 +7426,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Test usine', page_debug:'Paramètres debug',
     page_log:'Journal', page_about:'À propos',
     vs_camera_select:'Sélection caméra', vs_camera:'Caméra',
-    nav_ai_detection:'Paramètres IA', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
+    nav_ai_detection:'Paramètres IA', ai_tab_detect:'Détection', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
     vs_main_stream:'Flux principal', vs_sub_stream:'Flux secondaire',
     vs_resolution:'Résolution', vs_fps:'IPS', vs_bitrate:'Débit', vs_codec_hint:'H265 : même qualité à ~40% de débit en moins',
     vs_brightness:'Luminosité', vs_saturation:'Saturation',
@@ -7554,7 +7572,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Test de fábrica', page_debug:'Ajustes debug',
     page_log:'Registro', page_about:'Acerca de',
     vs_camera_select:'Selección de cámara', vs_camera:'Cámara',
-    nav_ai_detection:'Ajustes IA', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
+    nav_ai_detection:'Ajustes IA', ai_tab_detect:'Detección', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
     vs_main_stream:'Flujo principal', vs_sub_stream:'Subflujo',
     vs_resolution:'Resolución', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: misma calidad con ~40% menos bitrate',
     vs_brightness:'Brillo', vs_saturation:'Saturación',
@@ -8001,6 +8019,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 通过 ID 显示相应页面
     function showPage(pageId, el) {
+        // LLM Settings 已并入 AI Settings 的 LLM Tab
+        if (pageId === 'chatgpt-information') {
+            pageId = 'ai-detection';
+            window.__pendingAiParamTab = 'llm';
+            el = document.querySelector('.dv-nav-item[onclick*="ai-detection"]') || el;
+        }
         const sections = document.querySelectorAll('.page-section');
         sections.forEach(section => section.classList.remove('active'));
         const target = document.getElementById(pageId);
@@ -8020,6 +8044,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // 通知各 Alpine 页面组件页面已切换：用于按需启停轮询（如摄像头健康检测），
         // 进入页面才请求，离开页面自动停止
         window.dispatchEvent(new CustomEvent('pagechange', { detail: { pageId } }));
+        if (pageId === 'ai-detection' && window.__pendingAiParamTab) {
+            setTimeout(function() {
+                const root = document.getElementById('ai-detection');
+                const wrap = root && root.querySelector('[x-data]');
+                const stack = (wrap && wrap._x_dataStack) || (root && root._x_dataStack);
+                if (stack && stack[0]) stack[0].aiParamTab = window.__pendingAiParamTab;
+                window.__pendingAiParamTab = null;
+            }, 0);
+        }
     }
 
     // 深链:?page=<pageId>(或 sessionStorage._test_page)→ 加载后自动切页(云控制台入口/测试用)。
@@ -8639,6 +8672,7 @@ document.addEventListener('DOMContentLoaded', function() {
             vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
             cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|info|agora
             networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web|vis
+            aiParamTab: 'detect', // AI Settings 分段: detect|llm
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
