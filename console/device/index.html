@@ -881,6 +881,116 @@
         }
 
 
+
+        /* AI Settings 页布局：预览 16:9 无大块留白；侧栏控件收紧；右栏层级更清晰 */
+        #ai-detection.page-section {
+            padding: 10px 14px 16px !important;
+            overflow-x: hidden;
+        }
+        #ai-detection .ai-detect-row {
+            --bs-gutter-x: 1rem;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            align-items: stretch;
+        }
+        #ai-detection .ai-preview-card {
+            margin-bottom: 0;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        #ai-detection #videoAiContainer {
+            min-height: 0 !important;
+            aspect-ratio: 16 / 9;
+            max-height: min(68vh, 720px);
+            background: #0b1020 !important;
+        }
+        #ai-detection .ai-preview-playbar {
+            position: absolute !important;
+            bottom: 14px !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 22;
+            gap: 10px !important;
+        }
+        #ai-detection .btn-group-side-left,
+        #ai-detection .btn-group-side-right {
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            gap: 4px !important;
+            padding: 8px 6px !important;
+            margin-top: 0 !important;
+            background: rgba(8, 12, 24, 0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+        }
+        #ai-detection .btn-group-side-left { left: 10px !important; }
+        #ai-detection .btn-group-side-right { right: 10px !important; }
+        #ai-detection .btn-group-side-left .btn,
+        #ai-detection .btn-group-side-right .btn {
+            width: 34px;
+            height: 34px;
+            padding: 0 !important;
+            margin-top: 0 !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1;
+        }
+        #ai-detection .ai-settings-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+        }
+        #ai-detection .ai-settings-col > .col-12 {
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+            margin: 0 !important;
+        }
+        #ai-detection .ai-tabs {
+            margin-bottom: 0 !important;
+        }
+        #ai-detection .algo-global-card .card-body {
+            padding: 12px 14px !important;
+        }
+        #ai-detection .algo-global-list {
+            gap: 6px;
+        }
+        #ai-detection .algo-global-item {
+            padding: 7px 10px;
+            background: color-mix(in srgb, var(--bg-card2, #152033) 92%, var(--accent) 8%);
+        }
+        #ai-detection .algo-cam-card .card-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        #ai-detection .algo-cam-card .card-body {
+            padding: 12px 14px 14px;
+        }
+        #ai-detection .algo-cam-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        #ai-detection .vs-param-tabs {
+            margin-bottom: 12px !important;
+        }
+        @media (max-width: 991.98px) {
+            #ai-detection #videoAiContainer {
+                max-height: none;
+            }
+            #ai-detection .btn-group-side-left,
+            #ai-detection .btn-group-side-right {
+                display: none !important;
+            }
+        }
+
         /* Playback：避免 row 负边距顶进侧栏，并给内容区留白 */
         #playback.page-section {
             padding: 12px 16px 20px !important;
@@ -2452,8 +2562,7 @@
                                                     </div>
 
                                                     <!-- ========== 悬浮按钮组（在大图底部中间，毛玻璃效果） ========== -->
-                                                    <div class="d-flex justify-content-center gap-3"
-                                                         style="position: absolute; bottom: 40px; left: 0; right: 0; z-index: 20;">
+                                                    <div class="d-flex justify-content-center ai-preview-playbar">
 
                                                         <button type="button"
                                                                 class="btn rounded-pill btn-frosted"
@@ -2571,9 +2680,9 @@
                                             </div>
                                 </div>
                                 <!-- 右：算法设置 -->
-                                <div class="col-lg-5 d-flex flex-column">
+                                <div class="col-lg-5 d-flex flex-column ai-settings-col">
                                 <style>
-                                    .ai-tabs{ display:flex; gap:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:5px; margin-bottom:10px; }
+                                    .ai-tabs{ display:flex; gap:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:5px; margin-bottom:0; }
                                     .ai-tab{ flex:1; padding:8px 10px; border:none; border-radius:7px; background:transparent; color:var(--text-secondary); font-weight:600; font-size:13px; cursor:pointer; transition:.15s; display:flex; align-items:center; justify-content:center; gap:6px; }
                                     .ai-tab:hover{ color:var(--text-primary); }
                                     .ai-tab.active{ background:var(--accent); color:var(--on-accent); }
@@ -2584,9 +2693,9 @@
                                     <button type="button" class="ai-tab" :class="aiTab==='hull' ? 'active' : ''" @click="aiTab='hull'"><i class="fa-solid fa-ship"></i>HullMap</button>
                                 </div>
                                 <!-- 全局开关：右栏窄宽用单卡纵向开关行，避免三列小卡文字溢出 -->
-                                <div class="col-12" style="margin-bottom: 8px;" x-show="aiTab==='detect'">
-                                    <div class="card shadow">
-                                        <div class="card-body py-2 px-3">
+                                <div class="col-12" x-show="aiTab==='detect'">
+                                    <div class="card shadow algo-global-card">
+                                        <div class="card-body">
                                             <div class="hr-text hr-text-center hr-text-section"><span data-i18n="algo_global">Detection (Global)</span></div>
                                             <div class="algo-global-list">
                                                 <div class="algo-global-item">
@@ -2613,10 +2722,10 @@
                                 </div>
 <!-- 当前摄像头算法配置（camera0/camera1 选择器合并进标题栏）-->
                                 <div class="col-12" x-show="aiTab==='detect'">
-                                    <div class="card shadow">
+                                    <div class="card shadow algo-cam-card">
                                         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                             <h3 class="card-title mb-0" data-i18n="algo_camera_cfg">Camera Detection</h3>
-                                            <div class="d-flex gap-2" x-show="algorithmInformation.cameraCounts > 1">
+                                            <div class="algo-cam-tabs" x-show="algorithmInformation.cameraCounts > 1">
                                                 <template x-for="n in algorithmInformation.cameraCounts" :key="'algo-cam-'+n">
                                                     <button type="button" class="btn btn-sm"
                                                         :class="algorithmInformation.activeCameraIndex === n - 1 ? 'btn-primary' : 'btn-outline-primary'"
