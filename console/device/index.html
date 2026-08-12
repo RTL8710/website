@@ -2893,16 +2893,16 @@
                                             </div>
                                             </div><!-- /algo-fold-stack -->
                                             <div class="row g-3">
-                                                <div class="col-12 col-md-4">
-                                                    <div class="row align-items-center">
-                                                        <label class="col-6 col-form-label" data-i18n="algo_threshold">Confidence</label>
-                                                        <div class="col-6"><input type="number" min="0" max="1" step="0.05" class="form-control" x-model.number="algorithmInformation.confThreshold" @change="saveAlgorithmInformation()"></div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <label class="form-label mb-0 text-nowrap" data-i18n="algo_threshold">Confidence</label>
+                                                        <input type="number" min="0" max="1" step="0.05" class="form-control" style="max-width:8rem;" x-model.number="algorithmInformation.confThreshold" @change="saveAlgorithmInformation()">
                                                     </div>
                                                 </div>
-                                                <div class="col-12 col-md-4">
-                                                    <div class="row align-items-center">
-                                                        <label class="col-6 col-form-label" data-i18n="algo_interval">Infer interval</label>
-                                                        <div class="col-6"><input type="number" min="1" step="1" class="form-control" x-model.number="algorithmInformation.frameInterval" @change="saveAlgorithmInformation()"></div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <label class="form-label mb-0 text-nowrap" data-i18n="algo_interval">Infer interval</label>
+                                                        <input type="number" min="1" step="1" class="form-control" style="max-width:8rem;" x-model.number="algorithmInformation.frameInterval" @change="saveAlgorithmInformation()">
                                                     </div>
                                                 </div>
                                             </div>
