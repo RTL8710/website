@@ -845,9 +845,6 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('upgrade', this); return false;">
                     <i class="fas fa-arrow-up"></i> <span data-i18n="nav_ota_upgrade">OTA Upgrade</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('user-management', this); return false;">
-                    <i class="fa-solid fa-users"></i> <span data-i18n="nav_user">User</span>
-                </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('help', this); return false;">
                     <i class="fa-solid fa-circle-question"></i> <span>帮助 / Help</span>
                 </a>
@@ -5662,51 +5659,6 @@
                         </div>
                     </div>
 
-                    <!-- 云数据(Amplify/AppSync 直连)关键信息 -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="cd_title">Cloud Data (Amplify)</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-4 row">
-                                <div class="col-12">
-                                    <label class="col-form-label col-12 col-md-3" data-i18n="cd_endpoint">AppSync Endpoint</label>
-                                    <input class="form-control" x-model="cloudDataService.cloud_appsync_endpoint" placeholder="https://xxxx.appsync-api.ap-northeast-1.amazonaws.com/graphql" />
-                                </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12">
-                                    <label class="col-form-label col-12 col-md-3" data-i18n="cd_api_key">API Key</label>
-                                    <input class="form-control" x-model="cloudDataService.cloud_appsync_api_key" placeholder="da2-xxxxxxxxxxxxxxxxxxxxxxxxxx" />
-                                </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cd_region">Region</label>
-                                    <input class="form-control" x-model="cloudDataService.cloud_appsync_region" placeholder="ap-northeast-1" />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cd_auth_mode">Auth Mode</label>
-                                    <select class="form-control" x-model="cloudDataService.cloud_appsync_auth_mode">
-                                        <option value="apikey">apikey</option>
-                                        <option value="iam">iam</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cd_direct_enable">Direct Write Enable</label>
-                                    <select class="form-control" x-model="cloudDataService.cloud_appsync_direct_enable">
-                                        <option value="true" data-i18n="cm_enable">enable</option>
-                                        <option value="false" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="setCloudDataService">
-                                <span data-i18n="cd_save">Save</span>
-                            </button>
-                        </div>
-                    </div>
 
                     <!-- 抓拍图上传 S3（IoT role-alias 临时凭证） -->
                     <div class="card">
@@ -5980,27 +5932,6 @@
                         </div>
                     </div>
 
-                    <!-- 远程连接（控制命令传输）：局域网走 HTTP，外网自动回退 RTM -->
-                    <div class="card mt-3" @transport-need-uuid.window="!window.__suppressUuidNotice && showAlert('warning','Notice', tIdx('cl_transport_need_uuid'))">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="cl_transport_title">Remote Connection</h3>
-                            <span class="ms-auto badge"
-                                  :class="transportActive === 'rtm' ? 'bg-azure' : (transportActive === 'awsIot' ? 'bg-cyan' : 'bg-green')"
-                                  x-text="transportActive === 'rtm' ? tIdx('cl_transport_link_rtm') : (transportActive === 'awsIot' ? 'AWS IoT · WAN' : tIdx('cl_transport_link_http'))"></span>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-secondary" data-i18n="cl_transport_hint">
-                                Video streams over Agora RTC (works on WAN). Control commands use the LAN HTTP link by default and automatically fall back to Agora RTM when the device is not directly reachable. For WAN use, fill in the device UUID (also the RTC channel) below.
-                            </p>
-                            <div class="mb-2 row">
-                                <div class="col-12 col-md-8">
-                                    <label class="col-form-label col-12 col-md-4" data-i18n="cl_transport_remote_uuid">Device UUID</label>
-                                    <input class="form-control" x-model="remoteDeviceUuid"
-                                           placeholder="00000000-0000-0000-0000-000000000000" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <!--云端回放页面：KVS 已归档媒体 (MPEG-DASH) 回放-->
                 <div class="page-section" id="cloud-playback" x-data="deviceSettings()" x-init="onPage('cloud-playback', () => { getCloudRecordService(); initCloudPlayback() })">
@@ -7830,7 +7761,6 @@ const HELP_I18N = (function () {
                 { icon: 'fa fa-microscope', title: 'Factory Test', desc: 'Factory / hardware self-test. Internal use.', tips: [] },
                 { icon: 'fa-solid fa-code', title: 'Debug Settings', desc: 'Debug / diagnostics options. Technical page.', tips: [] },
                 { icon: 'fa-solid fa-spider', title: 'Log', desc: 'View and export device logs.', tips: ['Attach logs when reporting a problem to support.'] },
-                { icon: 'fa-solid fa-users', title: 'User', desc: 'User management — add/delete/modify users, roles and passwords.', tips: ['Use strong passwords; remove unused accounts.'] },
                 { icon: 'fa-solid fa-info-circle', title: 'About', desc: 'Version, copyright and device QR code.', tips: [] },
             ] },
         ],
@@ -7877,7 +7807,6 @@ const HELP_I18N = (function () {
                 { icon: 'fa fa-microscope', title: '工厂测试', desc: '工厂 / 硬件自检。内部使用。', tips: [] },
                 { icon: 'fa-solid fa-code', title: '调试设置', desc: '调试 / 诊断选项。技术页。', tips: [] },
                 { icon: 'fa-solid fa-spider', title: '日志', desc: '查看与导出设备日志。', tips: ['向支持反馈问题时附上日志。'] },
-                { icon: 'fa-solid fa-users', title: '用户管理', desc: '增删改用户、角色与密码。', tips: ['使用强密码,删除不再使用的账号。'] },
                 { icon: 'fa-solid fa-info-circle', title: '关于', desc: '版本、版权与设备二维码。', tips: [] },
             ] },
         ],
@@ -8675,7 +8604,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cam3Uid : null,          // 设备 CAM3 发布者 uid（前缀 1230，第三路起）(与 camUids[2] 同步)
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
             vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
-            liveLayout: (function(){ try { const v = localStorage.getItem('dv_live_layout'); return v === 'grid' ? 'grid' : 'pip'; } catch(e){ return 'pip'; } })(), // 多路显示：仅 pip / grid（四宫格）
+            liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
                 // appid:"fdf6cd7bf249413eb395907bbe647e5a",
