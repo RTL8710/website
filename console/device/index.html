@@ -3299,9 +3299,6 @@
                                 <div class="row row-deck ">
                                     <!-- 云端 OTA（AWS IoT Jobs）：当前版本 + 实时进度 + 下发升级（平台3 Orin） -->
                                     <div class="card shadow mb-3" x-init="onPage('upgrade', () => { initCloudOta() })">
-                                        <div class="card-header">
-                                            <h3 class="card-title" data-i18n="ot_cloud_title">Cloud OTA (AWS IoT)</h3>
-                                        </div>
                                         <div class="card-body">
                                             <div class="mb-2"><span data-i18n="ot_cur_version">Current version</span>:
                                                 <b x-text="deviceGeneralInformation.deviceVersion || '-'"></b></div>
