@@ -14099,59 +14099,44 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
 
-            // 按摄像头+时刻在当前图片列表中找最近一张（120s 内），供云端多路补 ImageUrl
-            _nearestImageForCam(cam, secs) {
+            // 图片 DateTime → 当天秒
+            _snapDtSecs(dt) {
+                dt = String(dt || '');
+                if (dt.length < 19) return -1;
+                return (parseInt(dt.substring(11, 13)) || 0) * 3600
+                     + (parseInt(dt.substring(14, 16)) || 0) * 60
+                     + (parseInt(dt.substring(17, 19)) || 0);
+            },
+            // 按摄像头+点击时刻在当前图片列表取最近一张（默认 3min 内）
+            // 注意：时间轴合并段的头封面/段首时间会偏十几分钟，多路必须以列表时刻为准
+            _nearestImageForCam(cam, secs, maxDist) {
+                if (maxDist == null) maxDist = 180;
                 let best = null, bestDist = Infinity;
                 for (const img of (this.images || [])) {
                     const p = img && img.RecordIndexInformationImage;
                     if (!p || this.tlCamOf(p) !== cam) continue;
-                    const dt = String(img.RecordIndexInformationDateTime || '');
-                    if (dt.length < 19) continue;
-                    const s = (parseInt(dt.substring(11, 13)) || 0) * 3600
-                            + (parseInt(dt.substring(14, 16)) || 0) * 60
-                            + (parseInt(dt.substring(17, 19)) || 0);
+                    const s = this._snapDtSecs(img.RecordIndexInformationDateTime);
+                    if (s < 0) continue;
                     const dist = Math.abs(s - secs);
                     if (dist < bestDist) { bestDist = dist; best = img; }
                 }
-                return (best && bestDist <= 120) ? best : null;
+                return (best && bestDist <= maxDist) ? best : null;
             },
-            // 把时间轴段/残缺 sync 项补全为可 thumbSrc 的完整记录（优先列表命中 → 段 iu → 同路近邻）
-            _enrichSnapRec(partial, secs) {
-                const path = partial && partial.RecordIndexInformationImage;
-                const hit = path ? (this.images || []).find(x => x.RecordIndexInformationImage === path) : null;
-                const cam = this.tlCamOf(path);
-                const near = (!hit || !(hit.RecordIndexInformationImageUrl || hit.RecordIndexInformationWidth))
-                    ? this._nearestImageForCam(cam, secs) : null;
-                const base = hit || near || {};
-                return Object.assign({}, base, partial, {
-                    RecordIndexInformationImage: path || base.RecordIndexInformationImage || '',
-                    RecordIndexInformationImageUrl: partial.RecordIndexInformationImageUrl
-                        || base.RecordIndexInformationImageUrl || '',
-                });
-            },
-            _enrichSyncImages(secs) {
-                if (!this.syncImages || !this.syncImages.length) return;
-                const s = (secs != null) ? secs : this.tlClickSecs;
-                this.syncImages = this.syncImages.map(img => this._enrichSnapRec(img, s >= 0 ? s : 0));
-                if (this.syncImages[0]) this.snapSelectedRecord = this.syncImages[this.playbackFocusIdx] || this.syncImages[0];
-            },
-            // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
-            onTimelineClickImage(event, camera) {
-                if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
-                const rect = event.currentTarget.getBoundingClientRect();
-                const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-                const v = this.timelineView;
-                const secs = Math.round(v.start + pct * (v.end - v.start));
-                this.tlClickSecs = secs;
-                const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-                const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-                this.snapStartTime = this.timelineDate + 'T00:00';
-                this.snapEndTime = this.timelineDate + 'T' + hh + ':' + mm;
-                this.fetchImages(true, { preserveSync: true });
+            // 按点击时刻为各路挑选同步图：优先列表近邻（真时刻）；无列表再退时间轴段占位
+            _buildSyncImagesAt(secs, camera) {
                 const ncam = (camera < 0) ? this.timelineCamCount() : 1;
                 const cams = (camera < 0) ? Array.from({length: ncam}, (_, i) => i) : [camera];
+                const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
+                const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+                const ss = String(secs % 60).padStart(2, '0');
+                const clickDt = this.timelineDate + ' ' + hh + ':' + mm + ':' + ss;
                 const list = [];
                 for (const cam of cams) {
+                    const near = this._nearestImageForCam(cam, secs, 180);
+                    if (near) {
+                        list.push(Object.assign({}, near));
+                        continue;
+                    }
                     const segs = this.recordTimeline.filter(e => e.p && e.i && this.tlCamOf(e.p) === cam
                                      && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
                     let best = null, bestDist = Infinity;
@@ -14161,22 +14146,50 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (dist < bestDist) { bestDist = dist; best = e; }
                     }
                     if (best && bestDist <= 120) {
-                        const eh = String(Math.floor(best.s / 3600)).padStart(2, '0');
-                        const em = String(Math.floor((best.s % 3600) / 60)).padStart(2, '0');
-                        const es = String(best.s % 60).padStart(2, '0');
-                        list.push(this._enrichSnapRec({
+                        // 合并段头封面不准，仅占位；DateTime 用点击时刻，等列表返回后再 rebuild
+                        list.push({
                             RecordIndexInformationImage: best.i,
                             RecordIndexInformationImageUrl: best.iu || '',
-                            RecordIndexInformationDateTime: this.timelineDate + ' ' + eh + ':' + em + ':' + es,
+                            RecordIndexInformationDateTime: clickDt,
                             RecordIndexInformationType: best.ty
-                        }, secs));
+                        });
                     }
                 }
+                return list;
+            },
+            _rebuildSyncFromClick(camera) {
+                const secs = this.tlClickSecs;
+                if (secs == null || secs < 0) return;
+                const camArg = (camera != null) ? camera : -1;
+                const list = this._buildSyncImagesAt(secs, camArg);
+                if (!list.length) return;
+                const focus = Math.min(Math.max(this.playbackFocusIdx || 0, 0), list.length - 1);
+                this.syncImages = list;
+                this.playbackFocusIdx = focus;
+                this.snapSelectedRecord = list[focus];
+            },
+            // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
+            onTimelineClickImage(event, camera) {
+                if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
+                const rect = event.currentTarget.getBoundingClientRect();
+                const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+                const v = this.timelineView;
+                const secs = Math.round(v.start + pct * (v.end - v.start));
+                this.tlClickSecs = secs;
+                this._syncClickCamera = camera;
+                const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
+                const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+                this.snapStartTime = this.timelineDate + 'T00:00';
+                this.snapEndTime = this.timelineDate + 'T' + hh + ':' + mm;
+                this.snapPageNumber = 1;
+                // 先按当前列表立刻对齐；fetch 返回后再按新列表 rebuild（避免合并段头偏十几分钟）
+                const list = this._buildSyncImagesAt(secs, camera);
                 if (list.length) {
                     this.syncImages = list;
                     this.snapSelectedRecord = list[0];
                     this.playbackFocusIdx = 0;
                 }
+                this.fetchImages(true, { preserveSync: true });
             },
             // 当前播放段在时间轴上的位置(%)，用于竖线标记；非本日/未选返回 -1
             timelinePlayheadPct() {
@@ -14252,8 +14265,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 如果是搜索，重置分页信息
                 if (isSearch) {
-                    // this.snapPageNumber = 1;
+                    this.snapPageNumber = 1;
                     this.images = [];
+                    this.snapHasMore = true;
                     this.hasMore = true;
                 }
 
@@ -14302,7 +14316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (this.images.length > 0 && !this._snapPreserveSync) {
                             this.displayImage(this.images[0]);
                         } else if (this._snapPreserveSync) {
-                            this._enrichSyncImages(this.tlClickSecs);
+                            this._rebuildSyncFromClick(this._syncClickCamera != null ? this._syncClickCamera : -1);
                         }
                         this._snapPreserveSync = false;
                     } else {
