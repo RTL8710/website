@@ -1007,7 +1007,10 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('upgrade', this); return false;">
                     <i class="fas fa-arrow-up"></i> <span data-i18n="nav_ota_upgrade">OTA Upgrade</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('help', this); return false;">
+                <a class="dv-nav-item" href="#" onclick="                <a class="dv-nav-item" href="#" onclick="showPage('debug', this); return false;">
+                    <i class="fa-solid fa-file-lines"></i> <span data-i18n="nav_debug">Log Settings</span>
+                </a>
+showPage('help', this); return false;">
                     <i class="fa-solid fa-circle-question"></i> <span data-i18n="nav_help">Help</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('about', this); return false;">
@@ -6173,7 +6176,23 @@
 
                 <!--日志页面-->
                 <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation() })" >-->
-                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation();initWatchdogInformation() })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
+                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); initWatchdogInformation(); } })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
+                        <div class="vs-param-tabs" role="tablist" aria-label="Log settings groups" style="margin-bottom:14px;">
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="logParamTab==='settings' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="logParamTab==='settings'"
+                                    @click="logParamTab='settings'; initLogInformation(); initWatchdogInformation()"
+                                    data-i18n="ls_tab_settings">Settings</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="logParamTab==='viewer' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="logParamTab==='viewer'"
+                                    @click="logParamTab='viewer'; fetchLogs()"
+                                    data-i18n="nav_log">Log</button>
+                        </div>
+                        <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
+ { initLogInformation();initWatchdogInformation() })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
                     <!-- 摄像头健康状态 -->
                     <div class="card shadow mb-3">
                         <div class="card-header d-flex align-items-center justify-content-between">
@@ -6421,12 +6440,9 @@
 
                         </div>
                     </div>
-
-                </div>
-                <!--调试页面-->
-                <!--        <div  class="page-section" id="log" x-data="deviceSettings()" x-init="onPage('log', () => { fetchLogs() })" >-->
-                <div class="page-section" id="log" x-data="deviceSettings()">
-                    <div class="card shadow">
+                        </div>
+                        <div class="vs-param-pane" x-show="logParamTab==='viewer'" x-cloak>
+<div class="card shadow">
                         <!--                <div class="card-header" style="padding: 10px;">-->
                         <!--                    <h3 class="card-title">Log Content</h3>-->
                         <!--                </div>-->
@@ -6528,7 +6544,10 @@
                             </div>
                         </div>
                     </div>
+                        </div>
                 </div>
+<!-- log：已并入 Log Settings → Log Tab -->
+                <div class="page-section" id="log"></div>
                 <!--关于-->
                 <div class="page-section" id="help">
                     <style>
@@ -6786,7 +6805,7 @@ const I18N_INDEX = {
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
-    nav_debug:'Debug Settings', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
+    nav_debug:'Log Settings', ls_tab_settings:'Settings', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
     page_home:'Home', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
@@ -6795,7 +6814,7 @@ const I18N_INDEX = {
     page_storage:'Storage Settings', page_network_information:'Network Settings',
     page_cloud_information:'Cloud Settings', page_device_information:'Device Info',
     page_upgrade:'OTA Upgrade', page_provisioning_information:'Provisioning',
-    page_factoryTest_information:'Factory Test', page_debug:'Debug Settings',
+    page_factoryTest_information:'Factory Test', page_debug:'Log Settings',
     page_log:'Log', page_about:'About',
     vs_camera_select:'Camera Select', vs_camera:'Camera',
     nav_ai_detection:'AI Settings', ai_tab_detect:'Detection', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
@@ -6933,7 +6952,7 @@ const I18N_INDEX = {
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_provisioning:'配网', nav_factory_test:'工厂测试',
-    nav_debug:'调试设置', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
+    nav_debug:'日志设置', ls_tab_settings:'设置', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
     page_home:'主页', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
@@ -6942,7 +6961,7 @@ const I18N_INDEX = {
     page_storage:'存储设置', page_network_information:'网络设置',
     page_cloud_information:'云端设置', page_device_information:'设备信息',
     page_upgrade:'OTA 升级', page_provisioning_information:'配网',
-    page_factoryTest_information:'工厂测试', page_debug:'调试设置',
+    page_factoryTest_information:'工厂测试', page_debug:'日志设置',
     page_log:'日志', page_about:'关于',
     vs_camera_select:'摄像头选择', vs_camera:'摄像头',
     nav_ai_detection:'AI 设置', ai_tab_detect:'检测', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
@@ -7080,7 +7099,7 @@ const I18N_INDEX = {
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
-    nav_debug:'デバッグ設定', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
+    nav_debug:'ログ設定', ls_tab_settings:'設定', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
     page_home:'ホーム', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
@@ -7089,7 +7108,7 @@ const I18N_INDEX = {
     page_storage:'ストレージ設定', page_network_information:'ネットワーク設定',
     page_cloud_information:'クラウド設定', page_device_information:'デバイス情報',
     page_upgrade:'OTA アップデート', page_provisioning_information:'プロビジョニング',
-    page_factoryTest_information:'工場テスト', page_debug:'デバッグ設定',
+    page_factoryTest_information:'工場テスト', page_debug:'ログ設定',
     page_log:'ログ', page_about:'バージョン情報',
     vs_camera_select:'カメラ選択', vs_camera:'カメラ',
     nav_ai_detection:'AI 設定', ai_tab_detect:'検出', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
@@ -7226,7 +7245,7 @@ const I18N_INDEX = {
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
-    nav_debug:'Debug-Einstellungen', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
+    nav_debug:'Log-Einstellungen', ls_tab_settings:'Einstellungen', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
     page_home:'Startseite', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
@@ -7235,7 +7254,7 @@ const I18N_INDEX = {
     page_storage:'Speichereinstellungen', page_network_information:'Netzwerkeinstellungen',
     page_cloud_information:'Cloud-Einstellungen', page_device_information:'Geräteinformationen',
     page_upgrade:'OTA-Update', page_provisioning_information:'Bereitstellung',
-    page_factoryTest_information:'Werkstest', page_debug:'Debug-Einstellungen',
+    page_factoryTest_information:'Werkstest', page_debug:'Log-Einstellungen',
     page_log:'Protokoll', page_about:'Über',
     vs_camera_select:'Kameraauswahl', vs_camera:'Kamera',
     nav_ai_detection:'KI-Einstellungen', ai_tab_detect:'Erkennung', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
@@ -7372,7 +7391,7 @@ const I18N_INDEX = {
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
-    nav_debug:'Paramètres debug', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
+    nav_debug:'Paramètres journal', ls_tab_settings:'Paramètres', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
     page_home:'Accueil', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
@@ -7381,7 +7400,7 @@ const I18N_INDEX = {
     page_storage:'Paramètres stockage', page_network_information:'Paramètres réseau',
     page_cloud_information:'Paramètres cloud', page_device_information:'Infos appareil',
     page_upgrade:'Mise à jour OTA', page_provisioning_information:'Provisionnement',
-    page_factoryTest_information:'Test usine', page_debug:'Paramètres debug',
+    page_factoryTest_information:'Test usine', page_debug:'Paramètres journal',
     page_log:'Journal', page_about:'À propos',
     vs_camera_select:'Sélection caméra', vs_camera:'Caméra',
     nav_ai_detection:'Paramètres IA', ai_tab_detect:'Détection', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
@@ -7518,7 +7537,7 @@ const I18N_INDEX = {
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
-    nav_debug:'Ajustes debug', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
+    nav_debug:'Ajustes de registro', ls_tab_settings:'Ajustes', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
     page_home:'Inicio', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
@@ -7527,7 +7546,7 @@ const I18N_INDEX = {
     page_storage:'Ajustes de almacenamiento', page_network_information:'Ajustes de red',
     page_cloud_information:'Ajustes de nube', page_device_information:'Info dispositivo',
     page_upgrade:'Actualización OTA', page_provisioning_information:'Aprovisionamiento',
-    page_factoryTest_information:'Test de fábrica', page_debug:'Ajustes debug',
+    page_factoryTest_information:'Test de fábrica', page_debug:'Ajustes de registro',
     page_log:'Registro', page_about:'Acerca de',
     vs_camera_select:'Selección de cámara', vs_camera:'Cámara',
     nav_ai_detection:'Ajustes IA', ai_tab_detect:'Detección', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
@@ -7993,6 +8012,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+
+        // Log 已并入 Log Settings 的 Log Tab
+        if (pageId === 'log') {
+            pageId = 'debug';
+            window.__pendingLogParamTab = 'viewer';
+            el = document.querySelector('.dv-nav-item[onclick*="debug"]') || el;
+        }
+
         // Video / Image / Cloud Playback 已并入 Playback 分段 Tab
         if (pageId === 'video-replay' || pageId === 'image-capture' || pageId === 'cloud-playback') {
             const tabMap = { 'video-replay': 'video', 'image-capture': 'image', 'cloud-playback': 'cloud' };
@@ -8054,6 +8081,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const stack = (wrap && wrap._x_dataStack) || (root && root._x_dataStack);
                 if (stack && stack[0]) stack[0].videoPageTab = window.__pendingVideoPageTab;
                 window.__pendingVideoPageTab = null;
+            }, 0);
+        }
+
+
+        if (pageId === 'debug' && window.__pendingLogParamTab) {
+            setTimeout(function() {
+                const root = document.getElementById('debug');
+                if (root && root._x_dataStack && root._x_dataStack[0]) {
+                    root._x_dataStack[0].logParamTab = window.__pendingLogParamTab;
+                }
+                window.__pendingLogParamTab = null;
             }, 0);
         }
 
@@ -8689,6 +8727,7 @@ document.addEventListener('DOMContentLoaded', function() {
             recordParamTab: 'record', // Record Settings 分段: record|storage
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
+            logParamTab: 'settings', // Log Settings 分段: settings|viewer
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
