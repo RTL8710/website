@@ -6157,7 +6157,7 @@
                                                         :class="cloudParamTab==='s3' ? 'btn-primary' : 'btn-outline-primary'"
                                                         :aria-selected="cloudParamTab==='s3'"
                                                         @click="cloudParamTab='s3'"
-                                                        data-i18n="s3_title">Snapshot Upload (S3)</button>
+                                                        data-i18n="s3_title">File Storage</button>
                                                 <button type="button" class="btn btn-sm"
                                                         role="tab"
                                                         :class="cloudParamTab==='info' ? 'btn-primary' : 'btn-outline-primary'"
@@ -7133,7 +7133,7 @@ const I18N_INDEX = {
     nw_update:'Update Network',
     cr_title:'Cloud Recording', cr_col_param:'Parameter', cr_col_value:'Value', cr_enable:'Cloud Record Enable', cr_stream_type:'Upload Stream', cr_retention_hours:'Retention', cr_ret_2h:'2 Hours', cr_ret_12h:'12 Hours', cr_ret_1d:'1 Day', cr_ret_1w:'1 Week', cr_ret_1mo:'1 Month', cr_ret_1q:'1 Quarter', cr_ret_6mo:'6 Months', cr_ret_1y:'1 Year', cr_ret_2y:'2 Years', cr_trig_emr:'Trigger on EMR', cr_trig_prerecord:'Trigger on Pre-record', cr_stream_name:'Stream Name', cr_region:'Region', cr_save:'Save',
     cd_title:'Cloud Data', cd_endpoint:'AppSync Endpoint', cd_api_key:'API Key', cd_region:'Region', cd_auth_mode:'Auth Mode', cd_direct_enable:'Direct Write Enable', cd_save:'Save',
-    s3_title:'Snapshot Upload (S3)', s3_enable:'Auto upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Key Prefix', s3_role_alias:'Role Alias', s3_url:'Last uploaded URL', s3_save:'Save', s3_upload_now:'Upload current snapshot', s3_uploading:'Uploading...', opt_on:'On', opt_off:'Off',
+    s3_title:'File Storage', s3_enable:'Auto upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Key Prefix', s3_role_alias:'Role Alias', s3_url:'Last uploaded URL', s3_save:'Save', s3_upload_now:'Upload current snapshot', s3_uploading:'Uploading...', opt_on:'On', opt_off:'Off',
     nav_cloud_playback:'Cloud Playback', cp_title:'Cloud Playback', cp_stream_name:'Stream Name', cp_region:'Region', cp_start:'Start Time', cp_end:'End Time', cp_play:'Play', cp_list:'Cloud Recordings', cp_no_records:'No cloud recordings', cp_refresh:'Refresh',
     nw_rtsp_title:'RTSP Information', nw_rtsp_enable:'RTSP Enable',
     nw_rtsp_video_type:'Video Type', nw_rtsp_main:'Main', nw_rtsp_sub:'Sub',
@@ -7281,7 +7281,7 @@ const I18N_INDEX = {
     nw_update:'更新网络',
     cr_title:'云录像', cr_col_param:'参数', cr_col_value:'取值', cr_enable:'云录像启用', cr_stream_type:'上传码流', cr_retention_hours:'保留时长', cr_ret_2h:'2小时', cr_ret_12h:'12小时', cr_ret_1d:'1天', cr_ret_1w:'一周', cr_ret_1mo:'一个月', cr_ret_1q:'一季度', cr_ret_6mo:'半年', cr_ret_1y:'一年', cr_ret_2y:'二年', cr_trig_emr:'紧急事件触发', cr_trig_prerecord:'预录触发', cr_stream_name:'流名称', cr_region:'区域', cr_save:'保存',
     cd_title:'云数据', cd_endpoint:'AppSync 端点', cd_api_key:'API 密钥', cd_region:'区域', cd_auth_mode:'鉴权模式', cd_direct_enable:'直连写入启用', cd_save:'保存',
-    s3_title:'抓拍上传 (S3)', s3_enable:'抓拍即上传', s3_bucket:'存储桶', s3_region:'区域', s3_prefix:'路径前缀', s3_role_alias:'角色别名', s3_url:'最近上传 URL', s3_save:'保存', s3_upload_now:'上传当前抓拍', s3_uploading:'上传中...', opt_on:'开', opt_off:'关',
+    s3_title:'文件存储', s3_enable:'抓拍即上传', s3_bucket:'存储桶', s3_region:'区域', s3_prefix:'路径前缀', s3_role_alias:'角色别名', s3_url:'最近上传 URL', s3_save:'保存', s3_upload_now:'上传当前抓拍', s3_uploading:'上传中...', opt_on:'开', opt_off:'关',
     nav_cloud_playback:'云回放', cp_title:'云端回放', cp_stream_name:'流名称', cp_region:'区域', cp_start:'开始时间', cp_end:'结束时间', cp_play:'播放', cp_list:'云录像列表', cp_no_records:'暂无云录像', cp_refresh:'刷新',
     nw_rtsp_title:'RTSP 信息', nw_rtsp_enable:'RTSP 启用',
     nw_rtsp_video_type:'视频类型', nw_rtsp_main:'主码流', nw_rtsp_sub:'子码流',
@@ -7428,7 +7428,7 @@ const I18N_INDEX = {
     nw_update:'ネットワーク更新',
     cr_title:'クラウド録画', cr_col_param:'項目', cr_col_value:'値', cr_enable:'クラウド録画有効', cr_stream_type:'アップロードストリーム', cr_retention_hours:'保持期間', cr_ret_2h:'2時間', cr_ret_12h:'12時間', cr_ret_1d:'1日', cr_ret_1w:'1週間', cr_ret_1mo:'1ヶ月', cr_ret_1q:'四半期', cr_ret_6mo:'半年', cr_ret_1y:'1年', cr_ret_2y:'2年', cr_trig_emr:'緊急イベントトリガー', cr_trig_prerecord:'プリ録画トリガー', cr_stream_name:'ストリーム名', cr_region:'リージョン', cr_save:'保存',
     cd_title:'クラウドデータ', cd_endpoint:'AppSync エンドポイント', cd_api_key:'API キー', cd_region:'リージョン', cd_auth_mode:'認証モード', cd_direct_enable:'直接書き込み有効', cd_save:'保存',
-    s3_title:'スナップショットアップロード (S3)', s3_enable:'自動アップロード', s3_bucket:'バケット', s3_region:'リージョン', s3_prefix:'キープレフィックス', s3_role_alias:'ロールエイリアス', s3_url:'最終アップロードURL', s3_save:'保存', s3_upload_now:'現在のスナップショットをアップロード', s3_uploading:'アップロード中...', opt_on:'オン', opt_off:'オフ',
+    s3_title:'ファイルストレージ', s3_enable:'自動アップロード', s3_bucket:'バケット', s3_region:'リージョン', s3_prefix:'キープレフィックス', s3_role_alias:'ロールエイリアス', s3_url:'最終アップロードURL', s3_save:'保存', s3_upload_now:'現在のスナップショットをアップロード', s3_uploading:'アップロード中...', opt_on:'オン', opt_off:'オフ',
     nav_cloud_playback:'クラウド再生', cp_title:'クラウド再生', cp_stream_name:'ストリーム名', cp_region:'リージョン', cp_start:'開始時間', cp_end:'終了時間', cp_play:'再生', cp_list:'クラウド録画一覧', cp_no_records:'クラウド録画がありません', cp_refresh:'更新',
     nw_rtsp_title:'RTSP 情報', nw_rtsp_enable:'RTSP 有効',
     nw_rtsp_video_type:'映像タイプ', nw_rtsp_main:'メイン', nw_rtsp_sub:'サブ',
@@ -7575,7 +7575,7 @@ const I18N_INDEX = {
     nw_update:'Netzwerk aktualisieren',
     cr_title:'Cloud-Aufnahme', cr_col_param:'Parameter', cr_col_value:'Wert', cr_enable:'Cloud-Aufnahme aktiv', cr_stream_type:'Upload-Stream', cr_retention_hours:'Aufbewahrung', cr_ret_2h:'2 Stunden', cr_ret_12h:'12 Stunden', cr_ret_1d:'1 Tag', cr_ret_1w:'1 Woche', cr_ret_1mo:'1 Monat', cr_ret_1q:'1 Quartal', cr_ret_6mo:'6 Monate', cr_ret_1y:'1 Jahr', cr_ret_2y:'2 Jahre', cr_trig_emr:'Auslösung bei Notfall', cr_trig_prerecord:'Auslösung bei Voraufnahme', cr_stream_name:'Stream-Name', cr_region:'Region', cr_save:'Speichern',
     cd_title:'Cloud-Daten', cd_endpoint:'AppSync-Endpunkt', cd_api_key:'API-Schlüssel', cd_region:'Region', cd_auth_mode:'Auth-Modus', cd_direct_enable:'Direktes Schreiben aktiv', cd_save:'Speichern',
-    s3_title:'Schnappschuss-Upload (S3)', s3_enable:'Auto-Upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Schlüsselpräfix', s3_role_alias:'Rollen-Alias', s3_url:'Zuletzt hochgeladene URL', s3_save:'Speichern', s3_upload_now:'Aktuellen Schnappschuss hochladen', s3_uploading:'Wird hochgeladen...', opt_on:'Ein', opt_off:'Aus',
+    s3_title:'Dateispeicher', s3_enable:'Auto-Upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Schlüsselpräfix', s3_role_alias:'Rollen-Alias', s3_url:'Zuletzt hochgeladene URL', s3_save:'Speichern', s3_upload_now:'Aktuellen Schnappschuss hochladen', s3_uploading:'Wird hochgeladen...', opt_on:'Ein', opt_off:'Aus',
     nav_cloud_playback:'Cloud-Wiedergabe', cp_title:'Cloud-Wiedergabe', cp_stream_name:'Stream-Name', cp_region:'Region', cp_start:'Startzeit', cp_end:'Endzeit', cp_play:'Abspielen', cp_list:'Cloud-Aufnahmen', cp_no_records:'Keine Cloud-Aufnahmen', cp_refresh:'Aktualisieren',
     nw_rtsp_title:'RTSP-Informationen', nw_rtsp_enable:'RTSP aktiv',
     nw_rtsp_video_type:'Videotyp', nw_rtsp_main:'Haupt', nw_rtsp_sub:'Sub',
@@ -7722,7 +7722,7 @@ const I18N_INDEX = {
     nw_update:'Mettre à jour réseau',
     cr_title:'Enregistrement cloud', cr_col_param:'Paramètre', cr_col_value:'Valeur', cr_enable:'Enregistrement cloud activé', cr_stream_type:'Flux d\'envoi', cr_retention_hours:'Conservation', cr_ret_2h:'2 heures', cr_ret_12h:'12 heures', cr_ret_1d:'1 jour', cr_ret_1w:'1 semaine', cr_ret_1mo:'1 mois', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 mois', cr_ret_1y:'1 an', cr_ret_2y:'2 ans', cr_trig_emr:'Déclenchement sur urgence', cr_trig_prerecord:'Déclenchement sur pré-enregistrement', cr_stream_name:'Nom du flux', cr_region:'Région', cr_save:'Enregistrer',
     cd_title:'Données cloud', cd_endpoint:'Point de terminaison AppSync', cd_api_key:'Clé API', cd_region:'Région', cd_auth_mode:'Mode d\'authentification', cd_direct_enable:'Écriture directe activée', cd_save:'Enregistrer',
-    s3_title:'Téléversement instantané (S3)', s3_enable:'Téléversement auto', s3_bucket:'Bucket', s3_region:'Région', s3_prefix:'Préfixe de clé', s3_role_alias:'Alias de rôle', s3_url:'Dernière URL téléversée', s3_save:'Enregistrer', s3_upload_now:'Téléverser l\'instantané actuel', s3_uploading:'Téléversement...', opt_on:'Activé', opt_off:'Désactivé',
+    s3_title:'Stockage de fichiers', s3_enable:'Téléversement auto', s3_bucket:'Bucket', s3_region:'Région', s3_prefix:'Préfixe de clé', s3_role_alias:'Alias de rôle', s3_url:'Dernière URL téléversée', s3_save:'Enregistrer', s3_upload_now:'Téléverser l\'instantané actuel', s3_uploading:'Téléversement...', opt_on:'Activé', opt_off:'Désactivé',
     nav_cloud_playback:'Lecture cloud', cp_title:'Lecture cloud', cp_stream_name:'Nom du flux', cp_region:'Région', cp_start:'Heure de début', cp_end:'Heure de fin', cp_play:'Lire', cp_list:'Enregistrements cloud', cp_no_records:'Aucun enregistrement cloud', cp_refresh:'Actualiser',
     nw_rtsp_title:'Infos RTSP', nw_rtsp_enable:'RTSP activé',
     nw_rtsp_video_type:'Type vidéo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secondaire',
@@ -7869,7 +7869,7 @@ const I18N_INDEX = {
     nw_update:'Actualizar red',
     cr_title:'Grabación en la nube', cr_col_param:'Parámetro', cr_col_value:'Valor', cr_enable:'Grabación en la nube activada', cr_stream_type:'Flujo de subida', cr_retention_hours:'Retención', cr_ret_2h:'2 horas', cr_ret_12h:'12 horas', cr_ret_1d:'1 día', cr_ret_1w:'1 semana', cr_ret_1mo:'1 mes', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 meses', cr_ret_1y:'1 año', cr_ret_2y:'2 años', cr_trig_emr:'Activar en emergencia', cr_trig_prerecord:'Activar en pre-grabación', cr_stream_name:'Nombre del flujo', cr_region:'Región', cr_save:'Guardar',
     cd_title:'Datos en la nube', cd_endpoint:'Endpoint de AppSync', cd_api_key:'Clave API', cd_region:'Región', cd_auth_mode:'Modo de autenticación', cd_direct_enable:'Escritura directa activada', cd_save:'Guardar',
-    s3_title:'Subida de captura (S3)', s3_enable:'Subida automática', s3_bucket:'Bucket', s3_region:'Región', s3_prefix:'Prefijo de clave', s3_role_alias:'Alias de rol', s3_url:'Última URL subida', s3_save:'Guardar', s3_upload_now:'Subir captura actual', s3_uploading:'Subiendo...', opt_on:'Activado', opt_off:'Desactivado',
+    s3_title:'Almacenamiento de archivos', s3_enable:'Subida automática', s3_bucket:'Bucket', s3_region:'Región', s3_prefix:'Prefijo de clave', s3_role_alias:'Alias de rol', s3_url:'Última URL subida', s3_save:'Guardar', s3_upload_now:'Subir captura actual', s3_uploading:'Subiendo...', opt_on:'Activado', opt_off:'Desactivado',
     nav_cloud_playback:'Reproducción en la nube', cp_title:'Reproducción en la nube', cp_stream_name:'Nombre del flujo', cp_region:'Región', cp_start:'Hora de inicio', cp_end:'Hora de fin', cp_play:'Reproducir', cp_list:'Grabaciones en la nube', cp_no_records:'Sin grabaciones en la nube', cp_refresh:'Actualizar',
     nw_rtsp_title:'Info RTSP', nw_rtsp_enable:'RTSP activo',
     nw_rtsp_video_type:'Tipo vídeo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secundario',
