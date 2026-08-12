@@ -4393,13 +4393,13 @@
 
 
                                 <!-- Device Info：Info / OTA / About 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="onPage('device-information', () => { if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); } })">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="onPage('device-information', () => { if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
                                     :class="deviceInfoParamTab==='info' ? 'btn-primary' : 'btn-outline-primary'"
                                     :aria-selected="deviceInfoParamTab==='info'"
-                                    @click="deviceInfoParamTab='info'; initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation()"
+                                    @click="deviceInfoParamTab='info'; initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation()"
                                     data-i18n="nav_device_info">Device Info</button>
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -4516,6 +4516,33 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="card shadow mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="db_watchdog_title">Watchdog Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label for="watchdog_enable" class="col-form-label col-12 col-md-6" data-i18n="db_watchdog_enable">Watchdog Enable</label>
+                                    <select id="watchdog_enable" class="form-control" x-model="watchdogService.watchdog_enable">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="watchdog_timeout" class="col-form-label col-12 col-md-6" data-i18n="db_watchdog_timeout">Watchdog Timeout</label>
+                                    <input id="watchdog_timeout" class="form-control" x-model.number="watchdogService.watchdog_timeout" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="submitWatchdongInformation">
+                                <span data-i18n="db_watchdog_update">Update Watchdog</span>
+                            </button>
+                        </div>
+                    </div>
+
 <!--                    <div class="card">-->
 <!--                        <div class="card-header">-->
 <!--                            <h3 class="card-title">Ntp information</h3>-->
@@ -6372,13 +6399,13 @@
 
                 <!--日志页面-->
                 <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation() })" >-->
-                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); initWatchdogInformation(); } })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
+                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
                         <div class="vs-param-tabs" role="tablist" aria-label="Log settings groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
                                     :class="logParamTab==='settings' ? 'btn-primary' : 'btn-outline-primary'"
                                     :aria-selected="logParamTab==='settings'"
-                                    @click="logParamTab='settings'; initLogInformation(); initWatchdogInformation()"
+                                    @click="logParamTab='settings'; initLogInformation()"
                                     data-i18n="ls_tab_settings">Settings</button>
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -6390,11 +6417,7 @@
                         <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
                     <!-- 摄像头健康状态 -->
                     <div class="card shadow mb-3">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <h3 class="card-title mb-0" data-i18n="db_camera_health">Camera Health</h3>
-                            <button type="button" class="btn btn-sm btn-primary" @click="fetchCameraHealth()" data-i18n="ch_refresh">Refresh</button>
-                        </div>
-                        <div class="card-body">
+                                                <div class="card-body">
                             <div class="row">
                                 <template x-for="cam in cameraHealth" :key="'health-'+cam.cameraIndex">
                                     <div class="col-12 col-md-6 mb-2">
@@ -6599,10 +6622,7 @@
                     </div>
 
                     <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="db_watchdog_title">Watchdog Information</h3>
-                        </div>
-
+                        
                         <div class="card-body">
                             <div class="mb-4 row">
                                 <div class="col-12 col-md-4">
@@ -6636,6 +6656,12 @@
                         </div>
                     </div>
                         </div>
+
+<div class="card-header d-flex align-items-center justify-content-between">
+                            <h3 class="card-title mb-0" data-i18n="db_camera_health">Camera Health</h3>
+                            <button type="button" class="btn btn-sm btn-primary" @click="fetchCameraHealth()" data-i18n="ch_refresh">Refresh</button>
+                        </div>
+
                         <div class="vs-param-pane" x-show="logParamTab==='viewer'" x-cloak>
 <div class="card shadow">
                         <!--                <div class="card-header" style="padding: 10px;">-->
