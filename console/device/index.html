@@ -817,7 +817,7 @@
                     <i class="fas fa-video"></i> <span data-i18n="nav_video_settings">Video Settings</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('ai-detection', this); return false;">
-                    <i class="fas fa-brain"></i> <span data-i18n="nav_ai_detection">AI Detection</span>
+                    <i class="fas fa-brain"></i> <span data-i18n="nav_ai_detection">AI Detection Settings</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('chatgpt-information', this); return false;">
                     <i class="fas fa-comment-dots"></i> <span data-i18n="nav_openai_service">OpenAI Service</span>
@@ -829,13 +829,13 @@
                     <i class="fas fa-record-vinyl"></i> <span data-i18n="nav_record_settings">Record Settings</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('storage', this); return false;">
-                    <i class="fa fa-database"></i> <span data-i18n="nav_storage">Storage</span>
+                    <i class="fa fa-database"></i> <span data-i18n="nav_storage">Storage Settings</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('network-information', this); return false;">
-                    <i class="fa fa-wifi"></i> <span data-i18n="nav_network">Network</span>
+                    <i class="fa fa-wifi"></i> <span data-i18n="nav_network">Network Settings</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('cloud-information', this); return false;">
-                    <i class="fa fa-cloud"></i> <span data-i18n="nav_cloud">Cloud</span>
+                    <i class="fa fa-cloud"></i> <span data-i18n="nav_cloud">Cloud Settings</span>
                 </a>
 
                 <div class="dv-nav-section" data-i18n="nav_sec_system">System</div>
@@ -6738,7 +6738,7 @@ const I18N_INDEX = {
     vp_waiting:'Waiting for stream', vp_connecting:'connecting…', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', pl_switch_hint:'Click a sub view to focus it', nav_home:'Home', nav_video_playback:'Video Playback', nav_image_playback:'Image Playback',
     nav_chat_device:'Chat Device', nav_openai_service:'OpenAI Service', nav_video_settings:'Video Settings',
     nav_audio_settings:'Audio Settings', nav_record_settings:'Record Settings',
-    nav_storage:'Storage', nav_network:'Network', nav_cloud:'Cloud',
+    nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
     nav_debug:'Debug Settings', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
@@ -6746,13 +6746,13 @@ const I18N_INDEX = {
     page_home:'Home', page_dashboard:'Dashboard', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Video Settings',
     page_audio_settings:'Audio Settings', page_record_settings:'Record Settings',
-    page_storage:'Storage', page_network_information:'Network',
-    page_cloud_information:'Cloud', page_device_information:'Device Info',
+    page_storage:'Storage Settings', page_network_information:'Network Settings',
+    page_cloud_information:'Cloud Settings', page_device_information:'Device Info',
     page_upgrade:'OTA Upgrade', page_provisioning_information:'Provisioning',
     page_factoryTest_information:'Factory Test', page_debug:'Debug Settings',
     page_log:'Log', page_about:'About',
     vs_camera_select:'Camera Select', vs_camera:'Camera',
-    nav_ai_detection:'AI Detection', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
+    nav_ai_detection:'AI Detection Settings', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
     vs_main_stream:'Main Stream', vs_sub_stream:'Sub Stream',
     vs_resolution:'Resolution', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: same quality at ~40% lower bitrate',
     vs_brightness:'Brightness', vs_saturation:'Saturation',
@@ -6884,7 +6884,7 @@ const I18N_INDEX = {
     vp_waiting:'等待远程画面', vp_connecting:'连接中…', ll_pip:'画中画', ll_grid:'四宫格', ll_cycle_hint:'点击切换布局', pl_switch_hint:'点击小窗切换聚焦画面', nav_home:'主页', nav_video_playback:'视频回放', nav_image_playback:'图片回放',
     nav_chat_device:'设备对话', nav_openai_service:'OpenAI 服务', nav_video_settings:'视频设置',
     nav_audio_settings:'音频设置', nav_record_settings:'录像设置',
-    nav_storage:'存储', nav_network:'网络', nav_cloud:'云端',
+    nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_provisioning:'配网', nav_factory_test:'工厂测试',
     nav_debug:'调试设置', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
@@ -6892,13 +6892,13 @@ const I18N_INDEX = {
     page_home:'主页', page_dashboard:'仪表盘', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'视频设置',
     page_audio_settings:'音频设置', page_record_settings:'录像设置',
-    page_storage:'存储', page_network_information:'网络',
-    page_cloud_information:'云端', page_device_information:'设备信息',
+    page_storage:'存储设置', page_network_information:'网络设置',
+    page_cloud_information:'云端设置', page_device_information:'设备信息',
     page_upgrade:'OTA 升级', page_provisioning_information:'配网',
     page_factoryTest_information:'工厂测试', page_debug:'调试设置',
     page_log:'日志', page_about:'关于',
     vs_camera_select:'摄像头选择', vs_camera:'摄像头',
-    nav_ai_detection:'AI 视觉', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
+    nav_ai_detection:'AI 视觉设置', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
     vs_main_stream:'主码流', vs_sub_stream:'子码流',
     vs_resolution:'分辨率', vs_fps:'帧率', vs_bitrate:'码率', vs_codec_hint:'H265 同画质约省 40% 码流，可适当调低',
     vs_brightness:'亮度', vs_saturation:'饱和度',
@@ -7030,7 +7030,7 @@ const I18N_INDEX = {
     vp_waiting:'映像を待機中', vp_connecting:'接続中…', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', pl_switch_hint:'子画面をクリックしてフォーカス', nav_home:'ホーム', nav_video_playback:'動画再生', nav_image_playback:'画像再生',
     nav_chat_device:'デバイス対話', nav_openai_service:'OpenAI サービス', nav_video_settings:'動画設定',
     nav_audio_settings:'音声設定', nav_record_settings:'録画設定',
-    nav_storage:'ストレージ', nav_network:'ネットワーク', nav_cloud:'クラウド',
+    nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
     nav_debug:'デバッグ設定', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
@@ -7038,13 +7038,13 @@ const I18N_INDEX = {
     page_home:'ホーム', page_dashboard:'ダッシュボード', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'動画設定',
     page_audio_settings:'音声設定', page_record_settings:'録画設定',
-    page_storage:'ストレージ', page_network_information:'ネットワーク',
-    page_cloud_information:'クラウド', page_device_information:'デバイス情報',
+    page_storage:'ストレージ設定', page_network_information:'ネットワーク設定',
+    page_cloud_information:'クラウド設定', page_device_information:'デバイス情報',
     page_upgrade:'OTA アップデート', page_provisioning_information:'プロビジョニング',
     page_factoryTest_information:'工場テスト', page_debug:'デバッグ設定',
     page_log:'ログ', page_about:'バージョン情報',
     vs_camera_select:'カメラ選択', vs_camera:'カメラ',
-    nav_ai_detection:'AI 検出', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
+    nav_ai_detection:'AI 検出設定', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
     vs_main_stream:'メインストリーム', vs_sub_stream:'サブストリーム',
     vs_resolution:'解像度', vs_fps:'FPS', vs_bitrate:'ビットレート', vs_codec_hint:'H265 同画質で約40%低いビットレート',
     vs_brightness:'明るさ', vs_saturation:'彩度',
@@ -7175,7 +7175,7 @@ const I18N_INDEX = {
     vp_waiting:'Warte auf Stream', vp_connecting:'verbinde…', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', nav_home:'Startseite', nav_video_playback:'Videowiedergabe', nav_image_playback:'Bildwiedergabe',
     nav_chat_device:'Gerät-Chat', nav_openai_service:'OpenAI-Dienst', nav_video_settings:'Videoeinstellungen',
     nav_audio_settings:'Audioeinstellungen', nav_record_settings:'Aufnahmeeinstellungen',
-    nav_storage:'Speicher', nav_network:'Netzwerk', nav_cloud:'Cloud',
+    nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
     nav_debug:'Debug-Einstellungen', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
@@ -7183,13 +7183,13 @@ const I18N_INDEX = {
     page_home:'Startseite', page_dashboard:'Dashboard', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Videoeinstellungen',
     page_audio_settings:'Audioeinstellungen', page_record_settings:'Aufnahmeeinstellungen',
-    page_storage:'Speicher', page_network_information:'Netzwerk',
-    page_cloud_information:'Cloud', page_device_information:'Geräteinformationen',
+    page_storage:'Speichereinstellungen', page_network_information:'Netzwerkeinstellungen',
+    page_cloud_information:'Cloud-Einstellungen', page_device_information:'Geräteinformationen',
     page_upgrade:'OTA-Update', page_provisioning_information:'Bereitstellung',
     page_factoryTest_information:'Werkstest', page_debug:'Debug-Einstellungen',
     page_log:'Protokoll', page_about:'Über',
     vs_camera_select:'Kameraauswahl', vs_camera:'Kamera',
-    nav_ai_detection:'KI-Erkennung', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
+    nav_ai_detection:'KI-Erkennung Einstellungen', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
     vs_main_stream:'Hauptstream', vs_sub_stream:'Substream',
     vs_resolution:'Auflösung', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: gleiche Qualität bei ~40% weniger Bitrate',
     vs_brightness:'Helligkeit', vs_saturation:'Sättigung',
@@ -7320,7 +7320,7 @@ const I18N_INDEX = {
     vp_waiting:'En attente du flux', vp_connecting:'connexion…', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', nav_home:'Accueil', nav_video_playback:'Lecture vidéo', nav_image_playback:'Lecture image',
     nav_chat_device:'Chat appareil', nav_openai_service:'Service OpenAI', nav_video_settings:'Paramètres vidéo',
     nav_audio_settings:'Paramètres audio', nav_record_settings:'Paramètres enreg.',
-    nav_storage:'Stockage', nav_network:'Réseau', nav_cloud:'Cloud',
+    nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
     nav_debug:'Paramètres debug', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
@@ -7328,13 +7328,13 @@ const I18N_INDEX = {
     page_home:'Accueil', page_dashboard:'Tableau de bord', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres vidéo',
     page_audio_settings:'Paramètres audio', page_record_settings:'Paramètres enreg.',
-    page_storage:'Stockage', page_network_information:'Réseau',
-    page_cloud_information:'Cloud', page_device_information:'Infos appareil',
+    page_storage:'Paramètres stockage', page_network_information:'Paramètres réseau',
+    page_cloud_information:'Paramètres cloud', page_device_information:'Infos appareil',
     page_upgrade:'Mise à jour OTA', page_provisioning_information:'Provisionnement',
     page_factoryTest_information:'Test usine', page_debug:'Paramètres debug',
     page_log:'Journal', page_about:'À propos',
     vs_camera_select:'Sélection caméra', vs_camera:'Caméra',
-    nav_ai_detection:'Détection IA', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
+    nav_ai_detection:'Paramètres détection IA', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
     vs_main_stream:'Flux principal', vs_sub_stream:'Flux secondaire',
     vs_resolution:'Résolution', vs_fps:'IPS', vs_bitrate:'Débit', vs_codec_hint:'H265 : même qualité à ~40% de débit en moins',
     vs_brightness:'Luminosité', vs_saturation:'Saturation',
@@ -7465,7 +7465,7 @@ const I18N_INDEX = {
     vp_waiting:'Esperando transmisión', vp_connecting:'conectando…', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', pl_switch_hint:'Haga clic en una subvista para enfocarla', nav_home:'Inicio', nav_video_playback:'Reproducción vídeo', nav_image_playback:'Reproducción imagen',
     nav_chat_device:'Chat dispositivo', nav_openai_service:'Servicio OpenAI', nav_video_settings:'Ajustes vídeo',
     nav_audio_settings:'Ajustes audio', nav_record_settings:'Ajustes grabación',
-    nav_storage:'Almacenamiento', nav_network:'Red', nav_cloud:'Nube',
+    nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
     nav_debug:'Ajustes debug', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
@@ -7473,13 +7473,13 @@ const I18N_INDEX = {
     page_home:'Inicio', page_dashboard:'Panel', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes vídeo',
     page_audio_settings:'Ajustes audio', page_record_settings:'Ajustes grabación',
-    page_storage:'Almacenamiento', page_network_information:'Red',
-    page_cloud_information:'Nube', page_device_information:'Info dispositivo',
+    page_storage:'Ajustes de almacenamiento', page_network_information:'Ajustes de red',
+    page_cloud_information:'Ajustes de nube', page_device_information:'Info dispositivo',
     page_upgrade:'Actualización OTA', page_provisioning_information:'Aprovisionamiento',
     page_factoryTest_information:'Test de fábrica', page_debug:'Ajustes debug',
     page_log:'Registro', page_about:'Acerca de',
     vs_camera_select:'Selección de cámara', vs_camera:'Cámara',
-    nav_ai_detection:'Detección IA', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
+    nav_ai_detection:'Ajustes de detección IA', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
     vs_main_stream:'Flujo principal', vs_sub_stream:'Subflujo',
     vs_resolution:'Resolución', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: misma calidad con ~40% menos bitrate',
     vs_brightness:'Brillo', vs_saturation:'Saturación',
