@@ -371,6 +371,18 @@
             font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
             color: var(--text-secondary, #8a9bb4);
         }
+
+        .rs-mode-toggle {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .rs-mode-toggle .btn {
+            min-width: 6.5rem;
+            border-radius: 8px !important;
+        }
+
         .rs-param-card {
             height: 100%;
             border: 1px solid var(--border, #1e2a44);
@@ -3237,7 +3249,7 @@
                                         <div class="rs-toolbar">
                                             <div class="rs-toolbar-item">
                                                 <div class="rs-toolbar-label" data-i18n="rs_record_run_mode">Record Mode</div>
-                                                <div class="btn-group" role="group" aria-label="Record run mode">
+                                                <div class="rs-mode-toggle" role="group" aria-label="Record run mode">
                                                     <button type="button" class="btn btn-sm"
                                                             :class="recordRunMode===1 ? 'btn-primary' : 'btn-outline-primary'"
                                                             @click="setRecordRunMode(1)" data-i18n="rs_mode_loop">Loop</button>
