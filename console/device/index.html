@@ -359,7 +359,7 @@
             grid-template-columns:repeat(2, minmax(0,1fr));
         }
 
-        /* Cloud Recording 等设置项：参数表布局试跑 */
+        /* Cloud Settings 页：参数表布局试跑 */
         .dv-settings-table { --tblr-table-bg: transparent; }
         .dv-settings-table thead th {
             background: color-mix(in srgb, var(--bg-card2, #1a2438) 88%, transparent);
@@ -5704,9 +5704,71 @@
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
 
                     <div class="card">
+                                            <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="cr_title">Cloud Recording</h3>
                         </div>
+
+                        <div class="card-body">
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_enable">Cloud Record Enable</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_enable">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_stream_type">Upload Stream</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_stream_type">
+                                        <option value="sub">sub</option>
+                                        <option value="main">main</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_retention_hours">Retention</label>
+                                    <!-- 云录像保留时长：预设档位(值=小时)；后端仍按小时数存储 -->
+                                    <select class="form-control" x-model.number="cloudRecordService.cloud_record_retention_hours">
+                                        <template x-for="opt in [{h:2,k:'cr_ret_2h'},{h:12,k:'cr_ret_12h'},{h:24,k:'cr_ret_1d'},{h:168,k:'cr_ret_1w'},{h:720,k:'cr_ret_1mo'},{h:2160,k:'cr_ret_1q'},{h:4320,k:'cr_ret_6mo'},{h:8760,k:'cr_ret_1y'},{h:17520,k:'cr_ret_2y'}]" :key="opt.h">
+                                            <option :value="opt.h" x-text="tIdx(opt.k)"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_emr">Trigger on EMR</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_emr">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_prerecord">Trigger on Pre-record</label>
+                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_prerecord">
+                                        <option value="true" data-i18n="cm_enable">enable</option>
+                                        <option value="false" data-i18n="cm_disable">disable</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-6">
+                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_stream_name">Stream Name</label>
+                                    <input class="form-control" x-model="cloudRecordService.stream_name" readonly />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_region">Region</label>
+                                    <input class="form-control" x-model="cloudRecordService.region" readonly />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="setCloudRecordService">
+                                <span data-i18n="cr_save">Save</span>
+                            </button>
+                        </div>
+                    </div>
 
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -5799,9 +5861,80 @@
 
                     <!-- 抓拍图上传 S3（IoT role-alias 临时凭证） -->
                     <div class="card">
+                                            <!-- 抓拍图上传 S3（IoT role-alias 临时凭证） -->
+                    <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="s3_title">Snapshot Upload (S3)</h3>
                         </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table dv-settings-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
+                                            <th data-i18n="cr_col_value">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="s3_enable">Auto upload</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="s3UploadService.s3_upload_enable">
+                                                    <option value="true" data-i18n="opt_on">On</option>
+                                                    <option value="false" data-i18n="opt_off">Off</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="s3_bucket">Bucket</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="s3UploadService.s3_upload_bucket" placeholder="anhaivisionwebsite-storage-...-tokyo" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="s3_region">Region</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:220px;"
+                                                       x-model="s3UploadService.s3_upload_region" placeholder="ap-northeast-1" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="s3_prefix">Key Prefix</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="s3UploadService.s3_upload_prefix" placeholder="public/snapshots" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="s3_role_alias">Role Alias</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="s3UploadService.s3_upload_role_alias" placeholder="s3_uploader_role_alias" />
+                                            </td>
+                                        </tr>
+                                        <tr x-show="s3UploadResult.url">
+                                            <td class="text-secondary" data-i18n="s3_url">Last uploaded URL</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:100%;"
+                                                       :value="s3UploadResult.url" readonly />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="setS3UploadService">
+                                <span data-i18n="s3_save">Save</span>
+                            </button>
+                            <button class="btn btn-outline-primary" @click="uploadSnapshotToS3" :disabled="s3UploadResult.uploading">
+                                <span data-i18n="s3_upload_now" x-show="!s3UploadResult.uploading">Upload current snapshot</span>
+                                <span x-show="s3UploadResult.uploading" data-i18n="s3_uploading">Uploading...</span>
+                            </button>
+                        </div>
+                    </div>
                         <div class="card-body">
                             <div class="mb-4 row">
                                 <div class="col-12 col-md-4">
@@ -5849,9 +5982,96 @@
                     </div>
 
                     <div class="card">
+                                            <div class="card">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="cl_title">Cloud Information </h3>
                         </div>
+
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table dv-settings-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
+                                            <th data-i18n="cr_col_value">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_thing_name">Thing Name</td>
+                                            <td>
+                                                <input id="awsIotCoreThingName" class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="webrtcInformation.awsIotCoreThingName" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_access_key">Access Key ID</td>
+                                            <td>
+                                                <input id="awsAccessKeyId" class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="webrtcInformation.awsAccessKeyId" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_secret_key">Secret Access Key</td>
+                                            <td>
+                                                <input id="awsSecretAccessKey" class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="webrtcInformation.awsSecretAccessKey" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_region">Default Region</td>
+                                            <td>
+                                                <input id="awsDefaultRegion" class="form-control form-control-sm" style="max-width:220px;"
+                                                       x-model="webrtcInformation.awsDefaultRegion" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_log_level">KVS Log Level</td>
+                                            <td>
+                                                <select id="awsKvsLogLevel" class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model.number="webrtcInformation.awsKvsLogLevel">
+                                                    <option value="1">VERBOSE</option>
+                                                    <option value="2">DEBUG</option>
+                                                    <option value="3">INFO</option>
+                                                    <option value="4">WARN</option>
+                                                    <option value="5">ERROR</option>
+                                                    <option value="6">FATAL</option>
+                                                    <option value="7">SILENT</option>
+                                                    <option value="8">PROFILE</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_debug_sdp">Debug Log SDP</td>
+                                            <td>
+                                                <select id="debugLogSdp" class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="webrtcInformation.debugLogSdp">
+                                                    <option value=true>true</option>
+                                                    <option value=false>false</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_enable_webrtc">Enable WebRTC</td>
+                                            <td>
+                                                <select id="enableFileLogging" class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="webrtcInformation.enableFileLogging">
+                                                    <option value=true>true</option>
+                                                    <option value=false>false</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="submitMediaServerInformation">
+                                <span data-i18n="cl_update">Update Cloud Information</span>
+                            </button>
+                        </div>
+                    </div>
 
                         <div class="card-body">
                             <!--                    <div class="hr-text text-primary">Media</div>-->
@@ -6020,9 +6240,78 @@
                     </div>
 
                     <div class="card mt-3">
+                                            <div class="card mt-3">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="cl_agora_title">Agora RTC Service</h3>
                         </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table dv-settings-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
+                                            <th data-i18n="cr_col_value">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_agora_app_id">App ID</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="agoraRtcService.rtcAppId" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_agora_channel">Channel Name</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="agoraRtcService.rtcChannelName" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_agora_enable">RTC Enable</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="agoraRtcService.rtcServiceEnable">
+                                                    <option :value="true" data-i18n="cm_enable">Enable</option>
+                                                    <option :value="false" data-i18n="cm_disable">Disable</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_agora_token">Token</td>
+                                            <td>
+                                                <input class="form-control form-control-sm"
+                                                       x-model="agoraRtcService.rtcToken" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cl_agora_log_level">Log Level</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model.number="agoraRtcService.rtcLogLevel">
+                                                    <option value="0">DEFAULT</option>
+                                                    <option value="1">FATAL</option>
+                                                    <option value="2">ERROR</option>
+                                                    <option value="4">WARN</option>
+                                                    <option value="8">INFO</option>
+                                                    <option value="16">DEBUG</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="submitAgoraRtcService">
+                                <span data-i18n="cl_agora_update">Update Agora RTC</span>
+                            </button>
+                            <button class="btn btn-success me-2" @click="initAgoraRtcService">
+                                <span data-i18n="cl_agora_refresh">Refresh Agora RTC</span>
+                            </button>
+                        </div>
+                    </div>
                         <div class="card-body">
                             <div class="mb-4 row">
                                 <div class="col-12 col-md-4">
