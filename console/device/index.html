@@ -358,6 +358,28 @@
             display:grid !important; gap:4px; align-content:start;
             grid-template-columns:repeat(2, minmax(0,1fr));
         }
+
+        /* Cloud Recording 等设置项：参数表布局试跑 */
+        .dv-settings-table { --tblr-table-bg: transparent; }
+        .dv-settings-table thead th {
+            background: color-mix(in srgb, var(--bg-card2, #1a2438) 88%, transparent);
+            color: var(--text-secondary, #8a9bb4);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border, #1e2a44) !important;
+            padding: 10px 16px !important;
+        }
+        .dv-settings-table tbody td {
+            border-color: var(--border, #1e2a44) !important;
+            padding: 12px 16px !important;
+            vertical-align: middle !important;
+        }
+        .dv-settings-table tbody tr:hover td {
+            background: color-mix(in srgb, var(--accent, #22d3ee) 6%, transparent);
+        }
+
         .page-section > .page-wrapper { margin: 0; }
         .page-section > .page-wrapper > .page-body { margin: 0; padding: 0; }
 
@@ -5686,57 +5708,84 @@
                             <h3 class="card-title" data-i18n="cr_title">Cloud Recording</h3>
                         </div>
 
-                        <div class="card-body">
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_enable">Cloud Record Enable</label>
-                                    <select class="form-control" x-model="cloudRecordService.cloud_record_enable">
-                                        <option value="true" data-i18n="cm_enable">enable</option>
-                                        <option value="false" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_stream_type">Upload Stream</label>
-                                    <select class="form-control" x-model="cloudRecordService.cloud_record_stream_type">
-                                        <option value="sub">sub</option>
-                                        <option value="main">main</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_retention_hours">Retention</label>
-                                    <!-- 云录像保留时长：预设档位(值=小时)；后端仍按小时数存储 -->
-                                    <select class="form-control" x-model.number="cloudRecordService.cloud_record_retention_hours">
-                                        <template x-for="opt in [{h:2,k:'cr_ret_2h'},{h:12,k:'cr_ret_12h'},{h:24,k:'cr_ret_1d'},{h:168,k:'cr_ret_1w'},{h:720,k:'cr_ret_1mo'},{h:2160,k:'cr_ret_1q'},{h:4320,k:'cr_ret_6mo'},{h:8760,k:'cr_ret_1y'},{h:17520,k:'cr_ret_2y'}]" :key="opt.h">
-                                            <option :value="opt.h" x-text="tIdx(opt.k)"></option>
-                                        </template>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_emr">Trigger on EMR</label>
-                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_emr">
-                                        <option value="true" data-i18n="cm_enable">enable</option>
-                                        <option value="false" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cr_trig_prerecord">Trigger on Pre-record</label>
-                                    <select class="form-control" x-model="cloudRecordService.cloud_record_trig_prerecord">
-                                        <option value="true" data-i18n="cm_enable">enable</option>
-                                        <option value="false" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_stream_name">Stream Name</label>
-                                    <input class="form-control" x-model="cloudRecordService.stream_name" readonly />
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label col-12 col-md-4" data-i18n="cr_region">Region</label>
-                                    <input class="form-control" x-model="cloudRecordService.region" readonly />
-                                </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table dv-settings-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:32%;" data-i18n="cr_col_param">Parameter</th>
+                                            <th data-i18n="cr_col_value">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_enable">Cloud Record Enable</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="cloudRecordService.cloud_record_enable">
+                                                    <option value="true" data-i18n="cm_enable">enable</option>
+                                                    <option value="false" data-i18n="cm_disable">disable</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_stream_type">Upload Stream</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="cloudRecordService.cloud_record_stream_type">
+                                                    <option value="sub">sub</option>
+                                                    <option value="main">main</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_retention_hours">Retention</td>
+                                            <td>
+                                                <!-- 云录像保留时长：预设档位(值=小时)；后端仍按小时数存储 -->
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model.number="cloudRecordService.cloud_record_retention_hours">
+                                                    <template x-for="opt in [{h:2,k:'cr_ret_2h'},{h:12,k:'cr_ret_12h'},{h:24,k:'cr_ret_1d'},{h:168,k:'cr_ret_1w'},{h:720,k:'cr_ret_1mo'},{h:2160,k:'cr_ret_1q'},{h:4320,k:'cr_ret_6mo'},{h:8760,k:'cr_ret_1y'},{h:17520,k:'cr_ret_2y'}]" :key="opt.h">
+                                                        <option :value="opt.h" x-text="tIdx(opt.k)"></option>
+                                                    </template>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_trig_emr">Trigger on EMR</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="cloudRecordService.cloud_record_trig_emr">
+                                                    <option value="true" data-i18n="cm_enable">enable</option>
+                                                    <option value="false" data-i18n="cm_disable">disable</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_trig_prerecord">Trigger on Pre-record</td>
+                                            <td>
+                                                <select class="form-select form-select-sm" style="max-width:220px;"
+                                                        x-model="cloudRecordService.cloud_record_trig_prerecord">
+                                                    <option value="true" data-i18n="cm_enable">enable</option>
+                                                    <option value="false" data-i18n="cm_disable">disable</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_stream_name">Stream Name</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:420px;"
+                                                       x-model="cloudRecordService.stream_name" readonly />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-secondary" data-i18n="cr_region">Region</td>
+                                            <td>
+                                                <input class="form-control form-control-sm" style="max-width:220px;"
+                                                       x-model="cloudRecordService.region" readonly />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -6838,7 +6887,7 @@ const I18N_INDEX = {
     nw_wifi_password:'WiFi Password', nw_status:'Status', nw_conn_type:'Connection', nw_eth:'Ethernet', nw_wifi:'WiFi', nw_ip_mode:'IP Mode', nw_dhcp:'DHCP (Auto)', nw_static:'Static', nw_eth_group:'Ethernet (Wired)', nw_wifi_group:'WiFi (Wireless)', nw_scan:'Scan', nw_scan_title:'Available WiFi Networks', nw_scanning:'Scanning...', nw_no_wifi:'No networks found', cm_close:'Close', nw_saved:'Saved', nw_connect:'Connect', nw_select:'Select', nw_connecting:'Connecting to',
     nw_connected:'Connected', nw_disconnected:'Disconnected',
     nw_update:'Update Network',
-    cr_title:'Cloud Recording', cr_enable:'Cloud Record Enable', cr_stream_type:'Upload Stream', cr_retention_hours:'Retention', cr_ret_2h:'2 Hours', cr_ret_12h:'12 Hours', cr_ret_1d:'1 Day', cr_ret_1w:'1 Week', cr_ret_1mo:'1 Month', cr_ret_1q:'1 Quarter', cr_ret_6mo:'6 Months', cr_ret_1y:'1 Year', cr_ret_2y:'2 Years', cr_trig_emr:'Trigger on EMR', cr_trig_prerecord:'Trigger on Pre-record', cr_stream_name:'Stream Name', cr_region:'Region', cr_save:'Save',
+    cr_title:'Cloud Recording', cr_col_param:'Parameter', cr_col_value:'Value', cr_enable:'Cloud Record Enable', cr_stream_type:'Upload Stream', cr_retention_hours:'Retention', cr_ret_2h:'2 Hours', cr_ret_12h:'12 Hours', cr_ret_1d:'1 Day', cr_ret_1w:'1 Week', cr_ret_1mo:'1 Month', cr_ret_1q:'1 Quarter', cr_ret_6mo:'6 Months', cr_ret_1y:'1 Year', cr_ret_2y:'2 Years', cr_trig_emr:'Trigger on EMR', cr_trig_prerecord:'Trigger on Pre-record', cr_stream_name:'Stream Name', cr_region:'Region', cr_save:'Save',
     cd_title:'Cloud Data (Amplify)', cd_endpoint:'AppSync Endpoint', cd_api_key:'API Key', cd_region:'Region', cd_auth_mode:'Auth Mode', cd_direct_enable:'Direct Write Enable', cd_save:'Save',
     s3_title:'Snapshot Upload (S3)', s3_enable:'Auto upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Key Prefix', s3_role_alias:'Role Alias', s3_url:'Last uploaded URL', s3_save:'Save', s3_upload_now:'Upload current snapshot', s3_uploading:'Uploading...', opt_on:'On', opt_off:'Off',
     nav_cloud_playback:'Cloud Playback', cp_title:'Cloud Playback', cp_stream_name:'Stream Name', cp_region:'Region', cp_start:'Start Time', cp_end:'End Time', cp_play:'Play', cp_list:'Cloud Recordings', cp_no_records:'No cloud recordings', cp_refresh:'Refresh',
@@ -6985,7 +7034,7 @@ const I18N_INDEX = {
     nw_wifi_password:'WiFi 密码', nw_status:'状态', nw_conn_type:'连接方式', nw_eth:'有线', nw_wifi:'WiFi', nw_ip_mode:'IP 模式', nw_dhcp:'DHCP (自动)', nw_static:'静态', nw_eth_group:'有线网', nw_wifi_group:'无线网', nw_scan:'扫描', nw_scan_title:'可用 WiFi 网络', nw_scanning:'扫描中...', nw_no_wifi:'未发现网络', cm_close:'关闭', nw_saved:'已保存', nw_connect:'连接', nw_select:'选择', nw_connecting:'正在连接',
     nw_connected:'已连接', nw_disconnected:'未连接',
     nw_update:'更新网络',
-    cr_title:'云录像', cr_enable:'云录像启用', cr_stream_type:'上传码流', cr_retention_hours:'保留时长', cr_ret_2h:'2小时', cr_ret_12h:'12小时', cr_ret_1d:'1天', cr_ret_1w:'一周', cr_ret_1mo:'一个月', cr_ret_1q:'一季度', cr_ret_6mo:'半年', cr_ret_1y:'一年', cr_ret_2y:'二年', cr_trig_emr:'紧急事件触发', cr_trig_prerecord:'预录触发', cr_stream_name:'流名称', cr_region:'区域', cr_save:'保存',
+    cr_title:'云录像', cr_col_param:'参数', cr_col_value:'取值', cr_enable:'云录像启用', cr_stream_type:'上传码流', cr_retention_hours:'保留时长', cr_ret_2h:'2小时', cr_ret_12h:'12小时', cr_ret_1d:'1天', cr_ret_1w:'一周', cr_ret_1mo:'一个月', cr_ret_1q:'一季度', cr_ret_6mo:'半年', cr_ret_1y:'一年', cr_ret_2y:'二年', cr_trig_emr:'紧急事件触发', cr_trig_prerecord:'预录触发', cr_stream_name:'流名称', cr_region:'区域', cr_save:'保存',
     cd_title:'云数据 (Amplify)', cd_endpoint:'AppSync 端点', cd_api_key:'API 密钥', cd_region:'区域', cd_auth_mode:'鉴权模式', cd_direct_enable:'直连写入启用', cd_save:'保存',
     s3_title:'抓拍上传 (S3)', s3_enable:'抓拍即上传', s3_bucket:'存储桶', s3_region:'区域', s3_prefix:'路径前缀', s3_role_alias:'角色别名', s3_url:'最近上传 URL', s3_save:'保存', s3_upload_now:'上传当前抓拍', s3_uploading:'上传中...', opt_on:'开', opt_off:'关',
     nav_cloud_playback:'云回放', cp_title:'云端回放', cp_stream_name:'流名称', cp_region:'区域', cp_start:'开始时间', cp_end:'结束时间', cp_play:'播放', cp_list:'云录像列表', cp_no_records:'暂无云录像', cp_refresh:'刷新',
@@ -7131,7 +7180,7 @@ const I18N_INDEX = {
     nw_wifi_password:'WiFiパスワード', nw_status:'状態', nw_conn_type:'接続方式', nw_eth:'有線', nw_wifi:'WiFi', nw_ip_mode:'IP モード', nw_dhcp:'DHCP (自動)', nw_static:'固定', nw_eth_group:'有線 (Ethernet)', nw_wifi_group:'無線 (WiFi)', nw_scan:'スキャン', nw_scan_title:'利用可能な WiFi', nw_scanning:'スキャン中...', nw_no_wifi:'ネットワークなし', cm_close:'閉じる', nw_saved:'保存済', nw_connect:'接続', nw_select:'選択', nw_connecting:'接続中',
     nw_connected:'接続済み', nw_disconnected:'未接続',
     nw_update:'ネットワーク更新',
-    cr_title:'クラウド録画', cr_enable:'クラウド録画有効', cr_stream_type:'アップロードストリーム', cr_retention_hours:'保持期間', cr_ret_2h:'2時間', cr_ret_12h:'12時間', cr_ret_1d:'1日', cr_ret_1w:'1週間', cr_ret_1mo:'1ヶ月', cr_ret_1q:'四半期', cr_ret_6mo:'半年', cr_ret_1y:'1年', cr_ret_2y:'2年', cr_trig_emr:'緊急イベントトリガー', cr_trig_prerecord:'プリ録画トリガー', cr_stream_name:'ストリーム名', cr_region:'リージョン', cr_save:'保存',
+    cr_title:'クラウド録画', cr_col_param:'項目', cr_col_value:'値', cr_enable:'クラウド録画有効', cr_stream_type:'アップロードストリーム', cr_retention_hours:'保持期間', cr_ret_2h:'2時間', cr_ret_12h:'12時間', cr_ret_1d:'1日', cr_ret_1w:'1週間', cr_ret_1mo:'1ヶ月', cr_ret_1q:'四半期', cr_ret_6mo:'半年', cr_ret_1y:'1年', cr_ret_2y:'2年', cr_trig_emr:'緊急イベントトリガー', cr_trig_prerecord:'プリ録画トリガー', cr_stream_name:'ストリーム名', cr_region:'リージョン', cr_save:'保存',
     cd_title:'クラウドデータ (Amplify)', cd_endpoint:'AppSync エンドポイント', cd_api_key:'API キー', cd_region:'リージョン', cd_auth_mode:'認証モード', cd_direct_enable:'直接書き込み有効', cd_save:'保存',
     s3_title:'スナップショットアップロード (S3)', s3_enable:'自動アップロード', s3_bucket:'バケット', s3_region:'リージョン', s3_prefix:'キープレフィックス', s3_role_alias:'ロールエイリアス', s3_url:'最終アップロードURL', s3_save:'保存', s3_upload_now:'現在のスナップショットをアップロード', s3_uploading:'アップロード中...', opt_on:'オン', opt_off:'オフ',
     nav_cloud_playback:'クラウド再生', cp_title:'クラウド再生', cp_stream_name:'ストリーム名', cp_region:'リージョン', cp_start:'開始時間', cp_end:'終了時間', cp_play:'再生', cp_list:'クラウド録画一覧', cp_no_records:'クラウド録画がありません', cp_refresh:'更新',
@@ -7277,7 +7326,7 @@ const I18N_INDEX = {
     nw_wifi_password:'WLAN-Passwort', nw_status:'Status', nw_conn_type:'Verbindung', nw_eth:'Ethernet', nw_wifi:'WLAN', nw_ip_mode:'IP-Modus', nw_dhcp:'DHCP (Auto)', nw_static:'Statisch', nw_eth_group:'Ethernet (Kabel)', nw_wifi_group:'WLAN', nw_scan:'Suchen', nw_scan_title:'Verfügbare WLANs', nw_scanning:'Suche...', nw_no_wifi:'Keine Netzwerke', cm_close:'Schließen', nw_saved:'Gespeichert', nw_connect:'Verbinden', nw_select:'Wählen', nw_connecting:'Verbinde mit',
     nw_connected:'Verbunden', nw_disconnected:'Getrennt',
     nw_update:'Netzwerk aktualisieren',
-    cr_title:'Cloud-Aufnahme', cr_enable:'Cloud-Aufnahme aktiv', cr_stream_type:'Upload-Stream', cr_retention_hours:'Aufbewahrung', cr_ret_2h:'2 Stunden', cr_ret_12h:'12 Stunden', cr_ret_1d:'1 Tag', cr_ret_1w:'1 Woche', cr_ret_1mo:'1 Monat', cr_ret_1q:'1 Quartal', cr_ret_6mo:'6 Monate', cr_ret_1y:'1 Jahr', cr_ret_2y:'2 Jahre', cr_trig_emr:'Auslösung bei Notfall', cr_trig_prerecord:'Auslösung bei Voraufnahme', cr_stream_name:'Stream-Name', cr_region:'Region', cr_save:'Speichern',
+    cr_title:'Cloud-Aufnahme', cr_col_param:'Parameter', cr_col_value:'Wert', cr_enable:'Cloud-Aufnahme aktiv', cr_stream_type:'Upload-Stream', cr_retention_hours:'Aufbewahrung', cr_ret_2h:'2 Stunden', cr_ret_12h:'12 Stunden', cr_ret_1d:'1 Tag', cr_ret_1w:'1 Woche', cr_ret_1mo:'1 Monat', cr_ret_1q:'1 Quartal', cr_ret_6mo:'6 Monate', cr_ret_1y:'1 Jahr', cr_ret_2y:'2 Jahre', cr_trig_emr:'Auslösung bei Notfall', cr_trig_prerecord:'Auslösung bei Voraufnahme', cr_stream_name:'Stream-Name', cr_region:'Region', cr_save:'Speichern',
     cd_title:'Cloud-Daten (Amplify)', cd_endpoint:'AppSync-Endpunkt', cd_api_key:'API-Schlüssel', cd_region:'Region', cd_auth_mode:'Auth-Modus', cd_direct_enable:'Direktes Schreiben aktiv', cd_save:'Speichern',
     s3_title:'Schnappschuss-Upload (S3)', s3_enable:'Auto-Upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Schlüsselpräfix', s3_role_alias:'Rollen-Alias', s3_url:'Zuletzt hochgeladene URL', s3_save:'Speichern', s3_upload_now:'Aktuellen Schnappschuss hochladen', s3_uploading:'Wird hochgeladen...', opt_on:'Ein', opt_off:'Aus',
     nav_cloud_playback:'Cloud-Wiedergabe', cp_title:'Cloud-Wiedergabe', cp_stream_name:'Stream-Name', cp_region:'Region', cp_start:'Startzeit', cp_end:'Endzeit', cp_play:'Abspielen', cp_list:'Cloud-Aufnahmen', cp_no_records:'Keine Cloud-Aufnahmen', cp_refresh:'Aktualisieren',
@@ -7423,7 +7472,7 @@ const I18N_INDEX = {
     nw_wifi_password:'Mot de passe WiFi', nw_status:'État', nw_conn_type:'Connexion', nw_eth:'Ethernet', nw_wifi:'WiFi', nw_ip_mode:'Mode IP', nw_dhcp:'DHCP (Auto)', nw_static:'Statique', nw_eth_group:'Ethernet (Filaire)', nw_wifi_group:'WiFi', nw_scan:'Scanner', nw_scan_title:'Réseaux WiFi disponibles', nw_scanning:'Analyse...', nw_no_wifi:'Aucun réseau', cm_close:'Fermer', nw_saved:'Enregistré', nw_connect:'Connecter', nw_select:'Choisir', nw_connecting:'Connexion à',
     nw_connected:'Connecté', nw_disconnected:'Déconnecté',
     nw_update:'Mettre à jour réseau',
-    cr_title:'Enregistrement cloud', cr_enable:'Enregistrement cloud activé', cr_stream_type:'Flux d\'envoi', cr_retention_hours:'Conservation', cr_ret_2h:'2 heures', cr_ret_12h:'12 heures', cr_ret_1d:'1 jour', cr_ret_1w:'1 semaine', cr_ret_1mo:'1 mois', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 mois', cr_ret_1y:'1 an', cr_ret_2y:'2 ans', cr_trig_emr:'Déclenchement sur urgence', cr_trig_prerecord:'Déclenchement sur pré-enregistrement', cr_stream_name:'Nom du flux', cr_region:'Région', cr_save:'Enregistrer',
+    cr_title:'Enregistrement cloud', cr_col_param:'Paramètre', cr_col_value:'Valeur', cr_enable:'Enregistrement cloud activé', cr_stream_type:'Flux d\'envoi', cr_retention_hours:'Conservation', cr_ret_2h:'2 heures', cr_ret_12h:'12 heures', cr_ret_1d:'1 jour', cr_ret_1w:'1 semaine', cr_ret_1mo:'1 mois', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 mois', cr_ret_1y:'1 an', cr_ret_2y:'2 ans', cr_trig_emr:'Déclenchement sur urgence', cr_trig_prerecord:'Déclenchement sur pré-enregistrement', cr_stream_name:'Nom du flux', cr_region:'Région', cr_save:'Enregistrer',
     cd_title:'Données cloud (Amplify)', cd_endpoint:'Point de terminaison AppSync', cd_api_key:'Clé API', cd_region:'Région', cd_auth_mode:'Mode d\'authentification', cd_direct_enable:'Écriture directe activée', cd_save:'Enregistrer',
     s3_title:'Téléversement instantané (S3)', s3_enable:'Téléversement auto', s3_bucket:'Bucket', s3_region:'Région', s3_prefix:'Préfixe de clé', s3_role_alias:'Alias de rôle', s3_url:'Dernière URL téléversée', s3_save:'Enregistrer', s3_upload_now:'Téléverser l\'instantané actuel', s3_uploading:'Téléversement...', opt_on:'Activé', opt_off:'Désactivé',
     nav_cloud_playback:'Lecture cloud', cp_title:'Lecture cloud', cp_stream_name:'Nom du flux', cp_region:'Région', cp_start:'Heure de début', cp_end:'Heure de fin', cp_play:'Lire', cp_list:'Enregistrements cloud', cp_no_records:'Aucun enregistrement cloud', cp_refresh:'Actualiser',
@@ -7569,7 +7618,7 @@ const I18N_INDEX = {
     nw_wifi_password:'Contraseña WiFi', nw_status:'Estado', nw_conn_type:'Conexión', nw_eth:'Ethernet', nw_wifi:'WiFi', nw_ip_mode:'Modo IP', nw_dhcp:'DHCP (Auto)', nw_static:'Estática', nw_eth_group:'Ethernet (Cable)', nw_wifi_group:'WiFi', nw_scan:'Escanear', nw_scan_title:'Redes WiFi disponibles', nw_scanning:'Escaneando...', nw_no_wifi:'Sin redes', cm_close:'Cerrar', nw_saved:'Guardada', nw_connect:'Conectar', nw_select:'Elegir', nw_connecting:'Conectando a',
     nw_connected:'Conectado', nw_disconnected:'Desconectado',
     nw_update:'Actualizar red',
-    cr_title:'Grabación en la nube', cr_enable:'Grabación en la nube activada', cr_stream_type:'Flujo de subida', cr_retention_hours:'Retención', cr_ret_2h:'2 horas', cr_ret_12h:'12 horas', cr_ret_1d:'1 día', cr_ret_1w:'1 semana', cr_ret_1mo:'1 mes', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 meses', cr_ret_1y:'1 año', cr_ret_2y:'2 años', cr_trig_emr:'Activar en emergencia', cr_trig_prerecord:'Activar en pre-grabación', cr_stream_name:'Nombre del flujo', cr_region:'Región', cr_save:'Guardar',
+    cr_title:'Grabación en la nube', cr_col_param:'Parámetro', cr_col_value:'Valor', cr_enable:'Grabación en la nube activada', cr_stream_type:'Flujo de subida', cr_retention_hours:'Retención', cr_ret_2h:'2 horas', cr_ret_12h:'12 horas', cr_ret_1d:'1 día', cr_ret_1w:'1 semana', cr_ret_1mo:'1 mes', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 meses', cr_ret_1y:'1 año', cr_ret_2y:'2 años', cr_trig_emr:'Activar en emergencia', cr_trig_prerecord:'Activar en pre-grabación', cr_stream_name:'Nombre del flujo', cr_region:'Región', cr_save:'Guardar',
     cd_title:'Datos en la nube (Amplify)', cd_endpoint:'Endpoint de AppSync', cd_api_key:'Clave API', cd_region:'Región', cd_auth_mode:'Modo de autenticación', cd_direct_enable:'Escritura directa activada', cd_save:'Guardar',
     s3_title:'Subida de captura (S3)', s3_enable:'Subida automática', s3_bucket:'Bucket', s3_region:'Región', s3_prefix:'Prefijo de clave', s3_role_alias:'Alias de rol', s3_url:'Última URL subida', s3_save:'Guardar', s3_upload_now:'Subir captura actual', s3_uploading:'Subiendo...', opt_on:'Activado', opt_off:'Desactivado',
     nav_cloud_playback:'Reproducción en la nube', cp_title:'Reproducción en la nube', cp_stream_name:'Nombre del flujo', cp_region:'Región', cp_start:'Hora de inicio', cp_end:'Hora de fin', cp_play:'Reproducir', cp_list:'Grabaciones en la nube', cp_no_records:'Sin grabaciones en la nube', cp_refresh:'Actualizar',
