@@ -2479,7 +2479,7 @@
 
                                 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('ai-detection', () => { initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation() })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();onPage('ai-detection', () => { if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="AI settings groups" style="margin-bottom:14px;">
@@ -2495,6 +2495,13 @@
                                     :aria-selected="aiParamTab==='llm'"
                                     @click="aiParamTab='llm'"
                                     data-i18n="gpt_title">LLM Settings</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="aiParamTab==='vis' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="aiParamTab==='vis'"
+                                    @click="aiParamTab='vis'; initVisualizationService()"
+                                    data-i18n="vis_title">Foxglove Visualization</button>
+
                         </div>
                         <div class="vs-param-pane" x-show="aiParamTab==='detect'" x-cloak>
 <div class="row row-deck">
@@ -3112,6 +3119,60 @@
                     </div>
                             </div>
                         </div>
+                        <div class="vs-param-pane" x-show="aiParamTab==='vis'" x-cloak>
+                            <div class="cloud-tab-form">
+                                <div class="mb-4 row">
+                                    <div class="col-12 col-md-3">
+                                        <label class="col-form-label col-12 col-md-6" data-i18n="vis_enable">Enable</label>
+                                        <select class="form-control" x-model="visualizationService.visualization_enable">
+                                            <option value="true" data-i18n="cm_enable">enable</option>
+                                            <option value="false" data-i18n="cm_disable">disable</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="col-form-label col-12 col-md-6" data-i18n="vis_port">Port</label>
+                                        <input class="form-control" x-model.number="visualizationService.visualization_port" />
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="col-form-label col-12 col-md-6" data-i18n="vis_host">Host</label>
+                                        <input class="form-control" x-model="visualizationService.visualization_host" />
+                                        <div class="form-hint" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vis_host_hint">0.0.0.0 = all NICs; eth0/tap0/wlan0 = one NIC; or a specific IPv4</div>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="col-form-label col-12 col-md-6" data-i18n="vis_frame_id">Frame ID</label>
+                                        <input class="form-control" x-model="visualizationService.visualization_frame_id" />
+                                    </div>
+                                </div>
+                                <div class="mb-4 row">
+                                    <div class="col-12 col-md-3">
+                                        <label class="col-form-label col-12 col-md-6" data-i18n="vis_mcap_enable">MCAP Record</label>
+                                        <select class="form-control" x-model="visualizationService.visualization_mcap_enable">
+                                            <option value="true" data-i18n="cm_enable">enable</option>
+                                            <option value="false" data-i18n="cm_disable">disable</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="col-form-label col-12 col-md-3" data-i18n="vis_mcap_dir">MCAP Dir</label>
+                                        <input class="form-control" x-model="visualizationService.visualization_mcap_dir" />
+                                    </div>
+                                </div>
+                                <div class="mb-3" x-show="visualizationService.visualization_urls && visualizationService.visualization_urls.length">
+                                    <label class="col-form-label" data-i18n="vis_urls">Reachable URLs</label>
+                                    <ul class="list-unstyled mb-0" style="font-size:13px;font-family:monospace;">
+                                        <template x-for="(u,i) in (visualizationService.visualization_urls||[])" :key="i">
+                                            <li x-text="u"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                                <p class="text-secondary" style="font-size:12px;" data-i18n="vis_hint">enable / port / host take effect after service restart</p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <button class="btn btn-primary me-2" @click="submitVisualizationService">
+                                    <span data-i18n="vis_update">Update Visualization</span>
+                                </button>
+                            </div>
+                        </div>
+
                             </div>
                         </div>
                     </div>
@@ -6415,35 +6476,7 @@
                                     data-i18n="nav_log">Log</button>
                         </div>
                         <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
-                    <!-- 摄像头健康状态 -->
-                    <div class="card shadow mb-3">
-                                                <div class="card-body">
-                            <div class="row">
-                                <template x-for="cam in cameraHealth" :key="'health-'+cam.cameraIndex">
-                                    <div class="col-12 col-md-6 mb-2">
-                                        <div class="d-flex align-items-center justify-content-between p-2"
-                                             style="border-radius:8px;border:1px solid var(--border-color);"
-                                             :style="cam.status==2 ? 'background:rgba(239,68,68,0.12)' : cam.status==1 ? 'background:rgba(245,158,11,0.12)' : 'background:rgba(34,197,94,0.10)'">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="badge" :class="cam.cameraIndex===0 ? 'bg-primary' : 'bg-success'" x-text="'CAM'+(cam.cameraIndex+1)"></span>
-                                                <span class="badge" :class="cam.status==2 ? 'bg-danger' : cam.status==1 ? 'bg-warning text-dark' : 'bg-success'"
-                                                      x-text="cam.stalled ? tIdx('ch_stalled') : (cam.status==0 ? tIdx('ch_normal') : cam.status==1 ? tIdx('ch_degraded') : tIdx('ch_abnormal'))"></span>
-                                            </div>
-                                            <div style="font-size:12px;">
-                                                <span data-i18n="ch_fps">FPS</span>:
-                                                <strong :style="cam.status>0 ? 'color:#ef4444' : ''" x-text="cam.measuredFps + '/' + cam.configFps"></strong>
-                                                &nbsp;|&nbsp;
-                                                <span data-i18n="ch_bitrate">Bitrate</span>:
-                                                <strong x-text="cam.measuredBitrate + '/' + cam.configBitrate + ' kbps'"></strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                                <div x-show="!cameraHealth.length" class="col-12 text-muted" data-i18n="ch_tap_refresh">Tap Refresh to load</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card shadow">
+<div class="card shadow">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="db_log_title">Log Information</h3>
                         </div>
@@ -6621,48 +6654,39 @@
 
                     </div>
 
-                    <div class="card">
-                        
-                        <div class="card-body">
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label for="watchdog_enable" class="col-form-label col-12 col-md-6" data-i18n="db_watchdog_enable">Watchdog Enable</label>
-                                    <select
-                                            id="watchdog_enable"
-                                            class="form-control"
-                                            x-model="watchdogService.watchdog_enable"
-                                    >
-                                        <option value="true" data-i18n="cm_enable">enable</option>
-                                        <option value="false" data-i18n="cm_disable">disable</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="watchdog_timeout" class="col-form-label col-12 col-md-6" data-i18n="db_watchdog_timeout">Watchdog Timeout</label>
-                                    <input
-                                            id="watchdog_timeout"
-                                            class="form-control"
-                                            x-model.number="watchdogService.watchdog_timeout"
-                                    />
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitWatchdongInformation">
-                                <span data-i18n="db_watchdog_update">Update Watchdog</span>
-                            </button>
-
-                        </div>
-                    </div>
-                        </div>
-
-<div class="card-header d-flex align-items-center justify-content-between">
+                    <!-- Camera Health（完整卡片：header + body 检测指标） -->
+                    <div class="card shadow mb-3">
+                        <div class="card-header d-flex align-items-center justify-content-between">
                             <h3 class="card-title mb-0" data-i18n="db_camera_health">Camera Health</h3>
                             <button type="button" class="btn btn-sm btn-primary" @click="fetchCameraHealth()" data-i18n="ch_refresh">Refresh</button>
                         </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                <template x-for="cam in cameraHealth" :key="'health-'+cam.cameraIndex">
+                                    <div class="col-12 col-md-6">
+                                        <div class="d-flex flex-wrap align-items-center gap-2 p-2"
+                                             style="border-radius:8px;border:1px solid var(--border-color);min-height:44px;"
+                                             :style="cam.status==2 ? 'background:rgba(239,68,68,0.12)' : cam.status==1 ? 'background:rgba(245,158,11,0.12)' : 'background:rgba(34,197,94,0.10)'">
+                                            <span class="badge" style="min-width:3.2rem;text-align:center;" :class="cam.cameraIndex===0 ? 'bg-primary' : 'bg-success'" x-text="'CAM'+(cam.cameraIndex+1)"></span>
+                                            <span class="badge" :class="cam.status==2 ? 'bg-danger' : cam.status==1 ? 'bg-warning text-dark' : 'bg-success'"
+                                                  x-text="cam.stalled ? tIdx('ch_stalled') : (cam.status==0 ? tIdx('ch_normal') : cam.status==1 ? tIdx('ch_degraded') : tIdx('ch_abnormal'))"></span>
+                                            <div class="ms-md-auto" style="font-size:12px;white-space:nowrap;">
+                                                <span data-i18n="ch_fps">FPS</span>:
+                                                <strong :style="cam.status>0 ? 'color:#ef4444' : ''" x-text="cam.measuredFps + '/' + cam.configFps"></strong>
+                                                <span class="mx-1">|</span>
+                                                <span data-i18n="ch_bitrate">Bitrate</span>:
+                                                <strong x-text="cam.measuredBitrate + '/' + cam.configBitrate + ' kbps'"></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="!cameraHealth.length" class="col-12 text-muted" data-i18n="ch_tap_refresh">Tap Refresh to load</div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div class="vs-param-pane" x-show="logParamTab==='viewer'" x-cloak>
+</div>
+<div class="vs-param-pane" x-show="logParamTab==='viewer'" x-cloak>
 <div class="card shadow">
                         <!--                <div class="card-header" style="padding: 10px;">-->
                         <!--                    <h3 class="card-title">Log Content</h3>-->
@@ -7113,6 +7137,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'RTSP Auth', nw_rtsp_port:'RTSP Port', nw_rtsp_clients:'RTSP Clients',
     osd_title:'OSD Display', osd_time_section:'Time Watermark', osd_box_section:'Detection Label', osd_position:'Position', osd_pos_tl:'Top-Left', osd_pos_tr:'Top-Right', osd_pos_bl:'Bottom-Left', osd_pos_br:'Bottom-Right', osd_pos_custom:'Custom (X/Y)', osd_font_size:'Font Size (0=auto)', osd_sub_font_size:'Sub Font Size (0=auto)', osd_color:'Color', osd_c_white:'White', osd_c_black:'Black', osd_c_red:'Red', osd_c_green:'Green', osd_c_blue:'Blue', osd_c_yellow:'Yellow', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'Save OSD', osd_saved:'OSD saved', osd_subtitle:'Time watermark & detection label overlay', osd_font_path:'Font', osd_font_hint:'Path to a .ttf font file (e.g. /lib/font.ttf). Supports custom / CJK fonts via FreeType.',
     nw_rtsp_sub_port:'Sub Port', nw_rtsp_live_path:'Live Path', nw_rtsp_sub_live:'Sub Live Path', nw_rtsp_auth_user:'Auth User', nw_rtsp_auth_pass:'Auth Password', nw_rtsp_urls:'RTSP URLs', nw_rtsp_urls_empty:'No RTSP URLs', nw_rtsp_copy:'Copy', nw_rtsp_copied:'Copied', nw_rtsp_copy_fail:'Copy failed', nw_rtsp_url_main:'Main URL', nw_rtsp_url_sub:'Sub URL', nw_rtsp_update:'Update RTSP Server',
+    vis_title:'Foxglove Visualization', vis_enable:'Enable', vis_port:'Port', vis_host:'Host', vis_host_hint:'0.0.0.0 = all NICs; eth0/tap0/wlan0 = one NIC; or a specific IPv4', vis_urls:'Reachable URLs', vis_frame_id:'Frame ID', vis_mcap_enable:'MCAP Record', vis_mcap_dir:'MCAP Dir', vis_hint:'enable / port / host take effect after service restart', vis_update:'Update Visualization', vis_saved:'Visualization settings saved',
     cl_title:'WebRTC', cl_thing_name:'Thing Name',
     cl_access_key:'Access Key ID', cl_secret_key:'Secret Access Key',
     cl_region:'Default Region', cl_log_level:'Log Level',
@@ -7260,6 +7285,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'RTSP 认证', nw_rtsp_port:'RTSP 端口', nw_rtsp_clients:'RTSP 客户端',
     osd_title:'OSD 显示', osd_time_section:'时间水印', osd_box_section:'检测框标签', osd_position:'位置', osd_pos_tl:'左上', osd_pos_tr:'右上', osd_pos_bl:'左下', osd_pos_br:'右下', osd_pos_custom:'自定义(X/Y)', osd_font_size:'字号(0=自动)', osd_sub_font_size:'次码流字号(0=自动)', osd_color:'颜色', osd_c_white:'白', osd_c_black:'黑', osd_c_red:'红', osd_c_green:'绿', osd_c_blue:'蓝', osd_c_yellow:'黄', osd_c_cyan:'青', osd_c_magenta:'品红', osd_save:'保存 OSD', osd_saved:'OSD 已保存', osd_subtitle:'时间水印与检测框标签叠加', osd_font_path:'字体', osd_font_hint:'字库 .ttf 文件路径（如 /lib/font.ttf）。经 FreeType 渲染，支持自定义/中文字库。',
     nw_rtsp_sub_port:'子码流端口', nw_rtsp_live_path:'直播路径', nw_rtsp_sub_live:'子码流路径', nw_rtsp_auth_user:'认证用户', nw_rtsp_auth_pass:'认证密码', nw_rtsp_urls:'RTSP 地址', nw_rtsp_urls_empty:'暂无 RTSP 地址', nw_rtsp_copy:'复制', nw_rtsp_copied:'已复制', nw_rtsp_copy_fail:'复制失败', nw_rtsp_url_main:'主码流 URL', nw_rtsp_url_sub:'子码流 URL', nw_rtsp_update:'更新 RTSP 服务器',
+    vis_title:'Foxglove 可视化', vis_enable:'启用', vis_port:'端口', vis_host:'主机', vis_host_hint:'0.0.0.0=全网卡；eth0/tap0/wlan0=单网卡；或填具体 IPv4', vis_urls:'可连接地址', vis_frame_id:'坐标系 Frame ID', vis_mcap_enable:'MCAP 录制', vis_mcap_dir:'MCAP 目录', vis_hint:'启用/端口/主机 重启服务后生效', vis_update:'更新可视化', vis_saved:'可视化配置已保存',
     cl_title:'WebRTC', cl_thing_name:'设备名称',
     cl_access_key:'访问密钥 ID', cl_secret_key:'访问密钥',
     cl_region:'默认区域', cl_log_level:'日志级别',
@@ -7406,6 +7432,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'RTSP 認証', nw_rtsp_port:'RTSP ポート', nw_rtsp_clients:'RTSP クライアント',
     osd_title:'OSD 表示', osd_time_section:'時刻ウォーターマーク', osd_box_section:'検出ラベル', osd_position:'位置', osd_pos_tl:'左上', osd_pos_tr:'右上', osd_pos_bl:'左下', osd_pos_br:'右下', osd_pos_custom:'カスタム(X/Y)', osd_font_size:'文字サイズ(0=自動)', osd_sub_font_size:'サブ文字サイズ(0=自動)', osd_color:'色', osd_c_white:'白', osd_c_black:'黒', osd_c_red:'赤', osd_c_green:'緑', osd_c_blue:'青', osd_c_yellow:'黄', osd_c_cyan:'シアン', osd_c_magenta:'マゼンタ', osd_save:'OSD を保存', osd_saved:'OSD を保存しました', osd_subtitle:'時刻ウォーターマークと検出ラベルの重畳', osd_font_path:'フォント', osd_font_hint:'フォント .ttf ファイルのパス（例 /lib/font.ttf）。FreeType でレンダリング、カスタム/CJK フォント対応。',
     nw_rtsp_sub_port:'サブポート', nw_rtsp_live_path:'ライブパス', nw_rtsp_sub_live:'サブライブパス', nw_rtsp_auth_user:'認証ユーザー', nw_rtsp_auth_pass:'認証パスワード', nw_rtsp_urls:'RTSP URL一覧', nw_rtsp_urls_empty:'RTSP URL なし', nw_rtsp_copy:'コピー', nw_rtsp_copied:'コピー済み', nw_rtsp_copy_fail:'コピー失敗', nw_rtsp_url_main:'メインURL', nw_rtsp_url_sub:'サブURL', nw_rtsp_update:'RTSP サーバー更新',
+    vis_title:'Foxglove 可視化', vis_enable:'有効', vis_port:'ポート', vis_host:'ホスト', vis_host_hint:'0.0.0.0=全NIC；eth0/tap0/wlan0=単一NIC；またはIPv4', vis_urls:'接続可能なURL', vis_frame_id:'フレームID', vis_mcap_enable:'MCAP 記録', vis_mcap_dir:'MCAP ディレクトリ', vis_hint:'有効/ポート/ホストは再起動後に反映', vis_update:'可視化を更新', vis_saved:'可視化設定を保存しました',
     cl_title:'WebRTC', cl_thing_name:'デバイス名',
     cl_access_key:'アクセスキーID', cl_secret_key:'シークレットキー',
     cl_region:'デフォルトリージョン', cl_log_level:'ログレベル',
@@ -7552,6 +7579,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'RTSP-Auth', nw_rtsp_port:'RTSP-Port', nw_rtsp_clients:'RTSP-Clients',
     osd_title:'OSD-Anzeige', osd_time_section:'Zeit-Wasserzeichen', osd_box_section:'Erkennungslabel', osd_position:'Position', osd_pos_tl:'Oben-Links', osd_pos_tr:'Oben-Rechts', osd_pos_bl:'Unten-Links', osd_pos_br:'Unten-Rechts', osd_pos_custom:'Benutzerdef. (X/Y)', osd_font_size:'Schriftgröße (0=auto)', osd_sub_font_size:'Sub-Schriftgröße (0=auto)', osd_color:'Farbe', osd_c_white:'Weiß', osd_c_black:'Schwarz', osd_c_red:'Rot', osd_c_green:'Grün', osd_c_blue:'Blau', osd_c_yellow:'Gelb', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'OSD speichern', osd_saved:'OSD gespeichert', osd_subtitle:'Zeit-Wasserzeichen & Erkennungslabel-Overlay', osd_font_path:'Schrift', osd_font_hint:'Pfad zu einer .ttf-Schriftdatei (z.B. /lib/font.ttf). Unterstützt eigene / CJK-Schriften via FreeType.',
     nw_rtsp_sub_port:'Sub-Port', nw_rtsp_live_path:'Live-Pfad', nw_rtsp_sub_live:'Sub-Live-Pfad', nw_rtsp_auth_user:'Auth-Benutzer', nw_rtsp_auth_pass:'Auth-Passwort', nw_rtsp_urls:'RTSP-URLs', nw_rtsp_urls_empty:'Keine RTSP-URLs', nw_rtsp_copy:'Kopieren', nw_rtsp_copied:'Kopiert', nw_rtsp_copy_fail:'Kopieren fehlgeschlagen', nw_rtsp_url_main:'Haupt-URL', nw_rtsp_url_sub:'Sub-URL', nw_rtsp_update:'RTSP-Server aktualisieren',
+    vis_title:'Foxglove-Visualisierung', vis_enable:'Aktivieren', vis_port:'Port', vis_host:'Host', vis_host_hint:'0.0.0.0=alle NICs; eth0/tap0/wlan0=eine NIC; oder IPv4', vis_urls:'Erreichbare URLs', vis_frame_id:'Frame-ID', vis_mcap_enable:'MCAP-Aufnahme', vis_mcap_dir:'MCAP-Verzeichnis', vis_hint:'Aktivieren/Port/Host erst nach Neustart wirksam', vis_update:'Visualisierung aktualisieren', vis_saved:'Visualisierungseinstellungen gespeichert',
     cl_title:'WebRTC', cl_thing_name:'Gerätename',
     cl_access_key:'Zugriffsschlüssel-ID', cl_secret_key:'Geheimer Zugriffsschlüssel',
     cl_region:'Standardregion', cl_log_level:'Protokollstufe',
@@ -7698,6 +7726,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Port RTSP', nw_rtsp_clients:'Clients RTSP',
     osd_title:'Affichage OSD', osd_time_section:'Filigrane horaire', osd_box_section:'Étiquette détection', osd_position:'Position', osd_pos_tl:'Haut-Gauche', osd_pos_tr:'Haut-Droite', osd_pos_bl:'Bas-Gauche', osd_pos_br:'Bas-Droite', osd_pos_custom:'Personnalisé (X/Y)', osd_font_size:'Taille police (0=auto)', osd_sub_font_size:'Taille police sous-flux (0=auto)', osd_color:'Couleur', osd_c_white:'Blanc', osd_c_black:'Noir', osd_c_red:'Rouge', osd_c_green:'Vert', osd_c_blue:'Bleu', osd_c_yellow:'Jaune', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'Enregistrer OSD', osd_saved:'OSD enregistré', osd_subtitle:'Filigrane horaire et étiquette de détection', osd_font_path:'Police', osd_font_hint:'Chemin vers un fichier de police .ttf (ex. /lib/font.ttf). Prend en charge les polices personnalisées / CJK via FreeType.',
     nw_rtsp_sub_port:'Port sub', nw_rtsp_live_path:'Chemin live', nw_rtsp_sub_live:'Chemin sub', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_urls_empty:'Aucune URL RTSP', nw_rtsp_copy:'Copier', nw_rtsp_copied:'Copié', nw_rtsp_copy_fail:'Échec de la copie', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Mettre à jour RTSP',
+    vis_title:'Visualisation Foxglove', vis_enable:'Activer', vis_port:'Port', vis_host:'Hôte', vis_host_hint:'0.0.0.0=toutes NIC; eth0/tap0/wlan0=une NIC; ou IPv4', vis_urls:'URL accessibles', vis_frame_id:'Frame ID', vis_mcap_enable:'Enregistrement MCAP', vis_mcap_dir:'Dossier MCAP', vis_hint:'activer/port/hôte effectifs après redémarrage', vis_update:'Mettre à jour la visualisation', vis_saved:'Paramètres de visualisation enregistrés',
     cl_title:'WebRTC', cl_thing_name:'Nom appareil',
     cl_access_key:'ID clé d\'accès', cl_secret_key:'Clé secrète',
     cl_region:'Région par défaut', cl_log_level:'Niveau de log',
@@ -7844,6 +7873,7 @@ const I18N_INDEX = {
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Puerto RTSP', nw_rtsp_clients:'Clientes RTSP',
     osd_title:'Visualización OSD', osd_time_section:'Marca de tiempo', osd_box_section:'Etiqueta detección', osd_position:'Posición', osd_pos_tl:'Arriba-Izq.', osd_pos_tr:'Arriba-Der.', osd_pos_bl:'Abajo-Izq.', osd_pos_br:'Abajo-Der.', osd_pos_custom:'Personalizado (X/Y)', osd_font_size:'Tamaño fuente (0=auto)', osd_sub_font_size:'Tamaño fuente sub (0=auto)', osd_color:'Color', osd_c_white:'Blanco', osd_c_black:'Negro', osd_c_red:'Rojo', osd_c_green:'Verde', osd_c_blue:'Azul', osd_c_yellow:'Amarillo', osd_c_cyan:'Cian', osd_c_magenta:'Magenta', osd_save:'Guardar OSD', osd_saved:'OSD guardado', osd_subtitle:'Marca de tiempo y etiqueta de detección', osd_font_path:'Fuente', osd_font_hint:'Ruta a un archivo de fuente .ttf (p.ej. /lib/font.ttf). Admite fuentes personalizadas / CJK via FreeType.',
     nw_rtsp_sub_port:'Puerto sub', nw_rtsp_live_path:'Ruta live', nw_rtsp_sub_live:'Ruta sub live', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_urls_empty:'Sin URLs RTSP', nw_rtsp_copy:'Copiar', nw_rtsp_copied:'Copiado', nw_rtsp_copy_fail:'Error al copiar', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Actualizar RTSP',
+    vis_title:'Visualización Foxglove', vis_enable:'Activar', vis_port:'Puerto', vis_host:'Host', vis_host_hint:'0.0.0.0=todas NIC; eth0/tap0/wlan0=una NIC; o IPv4', vis_urls:'URLs accesibles', vis_frame_id:'Frame ID', vis_mcap_enable:'Grabación MCAP', vis_mcap_dir:'Dir. MCAP', vis_hint:'activar/puerto/host efectivos tras reinicio', vis_update:'Actualizar visualización', vis_saved:'Ajustes de visualización guardados',
     cl_title:'WebRTC', cl_thing_name:'Nombre dispositivo',
     cl_access_key:'ID clave acceso', cl_secret_key:'Clave secreta',
     cl_region:'Región por defecto', cl_log_level:'Nivel de log',
@@ -7914,6 +7944,7 @@ const STATUS = Object.freeze({
     GET_CLOUD_RECORD:         1091, SET_CLOUD_RECORD:         1092,
     GET_CLOUD_DATA:           1097, SET_CLOUD_DATA:           1098,
     UPLOAD_SNAPSHOT_S3:       1099, GET_S3_UPLOAD: 1100, SET_S3_UPLOAD: 1101,
+    GET_VISUALIZATION:        1102, SET_VISUALIZATION: 1103,
     GET_WATCHDOG_SERVICE:     1058, SET_WATCHDOG_SERVICE:     1059,
     GET_IDS_SERVICE:          1060, SET_IDS_SERVICE:          1061,
     GET_SCAN_SERVER:          1062, SET_SCAN_SERVER:          1063,
@@ -8688,6 +8719,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 rtsp_url_sub: "",
                 rtsp_urls: []
             },
+            visualizationService: {},   // Foxglove 可视化配置(平台3)
 
             cloudRecordService: {
                 cloud_record_enable: "false",
@@ -8962,8 +8994,8 @@ document.addEventListener('DOMContentLoaded', function() {
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
             vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
             cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|info|agora
-            networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web|vis
-            aiParamTab: 'detect', // AI Settings 分段: detect|llm
+            networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web
+            aiParamTab: 'detect', // AI Settings 分段: detect|llm|vis
             recordParamTab: 'record', // Record Settings 分段: record|storage
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
@@ -10692,6 +10724,35 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             //watchdog 基本信息
+                        // Foxglove 可视化配置(平台3)
+            async initVisualizationService() {
+                try {
+                    const response = await fetch('/getDeviceCommand', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: "getVisualizationService", params: {} })
+                    });
+                    const responseData = await response.json();
+                    if (responseData.status === STATUS.GET_VISUALIZATION) {
+                        this.visualizationService = responseData.params.visualizationService || {};
+                    }
+                } catch (error) { console.error('Error fetching visualizationService: ', error); }
+            },
+            async submitVisualizationService() {
+                const v = this.visualizationService;
+                v.visualization_enable = (v.visualization_enable === true || v.visualization_enable === "true") ? "true" : "false";
+                v.visualization_mcap_enable = (v.visualization_mcap_enable === true || v.visualization_mcap_enable === "true") ? "true" : "false";
+                if (v.visualization_port != null) v.visualization_port = parseInt(v.visualization_port) || 0;
+                try {
+                    const response = await fetch('/setDeviceCommand', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: "setVisualizationService", params: { visualizationService: v } })
+                    });
+                    const responseData = await response.json();
+                    if (responseData.status === STATUS.SET_VISUALIZATION) {
+                        this.showAlert("success", "Notice", tIdx('vis_saved'));
+                    }
+                } catch (error) { console.error('Error setting visualizationService: ', error); this.showAlert("warning", "Notice", "update visualizationService error"); }
+            },
             async initWatchdogInformation() {
                 const url = '/getDeviceCommand';
                 const data = {
