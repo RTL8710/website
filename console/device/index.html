@@ -3219,19 +3219,23 @@
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <!-- 云端回放：按 cameraCounts 开槽；实际有流的路显示；一条进度条统控（对齐本地） -->
-                                                        <div :style="pbGridStyle()">
-                                                            <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
-                                                                <div :style="pbSlotStyle(pi-1)" x-show="pi===1 || (playbackCams||[]).indexOf(pi-1)>=0 || pbCamUids[pi-1]">
-                                                                    <video :id="pi===1?'remotePlaybackView':('remotePlaybackView'+pi)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
-                                                                    <div x-show="remotePlaybackLoading && pi===1" x-transition style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);z-index:3;">
-                                                                        <div class="spinner-border text-light" role="status" style="width:2rem;height:2rem;"></div>
-                                                                        <div style="color:#fff;font-size:12px;margin-top:10px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
-                                                                        <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:2px;" x-text="remotePlaybackLabel"></div>
+                                                        <!-- 云端回放：按 cameraCounts 开槽；加载遮罩盖住整个视频区居中（非整格 CAM1） -->
+                                                        <div style="position:relative;">
+                                                            <div :style="pbGridStyle()">
+                                                                <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
+                                                                    <div :style="pbSlotStyle(pi-1)" x-show="pi===1 || (playbackCams||[]).indexOf(pi-1)>=0 || pbCamUids[pi-1]">
+                                                                        <video :id="pi===1?'remotePlaybackView':('remotePlaybackView'+pi)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
+                                                                        <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
                                                                     </div>
-                                                                </div>
-                                                            </template>
+                                                                </template>
+                                                            </div>
+                                                            <div x-show="remotePlaybackLoading" x-transition
+                                                                 style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                                                                        background:rgba(0,0,0,0.55);z-index:10;border-radius:6px;pointer-events:none;">
+                                                                <div class="spinner-border text-light" role="status" style="width:3.25rem;height:3.25rem;border-width:0.3rem;"></div>
+                                                                <div style="color:#fff;font-size:15px;font-weight:500;margin-top:14px;" x-text="(tIdx('rp_switching')||'正在加载录像…')"></div>
+                                                                <div x-show="remotePlaybackLabel" style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:6px;" x-text="remotePlaybackLabel"></div>
+                                                            </div>
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
                                                             <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
