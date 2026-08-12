@@ -2522,33 +2522,51 @@
                                     <button type="button" class="ai-tab" :class="aiTab==='detect' ? 'active' : ''" @click="aiTab='detect'"><i class="fas fa-brain"></i>AI 视觉</button>
                                     <button type="button" class="ai-tab" :class="aiTab==='hull' ? 'active' : ''" @click="aiTab='hull'"><i class="fa-solid fa-ship"></i>HullMap</button>
                                 </div>
-                                <!-- 全局开关 -->
+                                <!-- 全局开关：三列参数卡（对齐 Audio/视频 card-body-param 样式，避免右栏竖排堆叠）-->
                                 <div class="col-12" style="margin-bottom: 8px;" x-show="aiTab==='detect'">
-                                    <div class="card shadow">
-                                        <div class="card-body">
-                                            <div class="hr-text hr-text-center hr-text-section"><span data-i18n="algo_global">Detection (Global)</span></div>
-                                            <div class="row g-3">
-                                                <div class="col-12 col-md-4 d-flex align-items-center justify-content-between">
-                                                    <span data-i18n="algo_master_enable">Master Enable</span>
-                                                    <label class="form-check form-switch m-0">
-                                                        <input class="form-check-input" type="checkbox" x-model="algorithmInformation.enable" @change="saveAlgorithmInformation()">
-                                                    </label>
+                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="algo_global">Detection (Global)</span></div>
+                                    <div class="row row-deck g-2 algo-global-row">
+                                        <div class="col-4 d-flex flex-column">
+                                            <div class="card shadow h-100">
+                                                <div class="card-body center algo-global-card">
+                                                    <div class="hr-text hr-text-center"><span data-i18n="algo_master_enable">Master Enable</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                                        <span x-text="algorithmInformation.enable ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
+                                                        <label class="form-check form-switch m-0">
+                                                            <input class="form-check-input" type="checkbox" x-model="algorithmInformation.enable" @change="saveAlgorithmInformation()">
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                                <div class="col-12 col-md-4 d-flex align-items-center justify-content-between">
-                                                    <span data-i18n="algo_osd_draw">Draw Box on Video</span>
-                                                    <label class="form-check form-switch m-0">
-                                                        <input class="form-check-input" type="checkbox" x-model="algorithmInformation.osdDraw" @change="saveAlgorithmInformation()">
-                                                    </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 d-flex flex-column">
+                                            <div class="card shadow h-100">
+                                                <div class="card-body center algo-global-card">
+                                                    <div class="hr-text hr-text-center"><span data-i18n="algo_osd_draw">Draw Box on Video</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                                        <span x-text="algorithmInformation.osdDraw ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
+                                                        <label class="form-check form-switch m-0">
+                                                            <input class="form-check-input" type="checkbox" x-model="algorithmInformation.osdDraw" @change="saveAlgorithmInformation()">
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                                <div class="col-12 col-md-4 d-flex align-items-center justify-content-between">
-                                                    <span data-i18n="algo_foxglove">Publish to Foxglove</span>
-                                                    <label class="form-check form-switch m-0">
-                                                        <input class="form-check-input" type="checkbox" x-model="algorithmInformation.foxglovePublish" @change="saveAlgorithmInformation()">
-                                                    </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 d-flex flex-column">
+                                            <div class="card shadow h-100">
+                                                <div class="card-body center algo-global-card">
+                                                    <div class="hr-text hr-text-center"><span data-i18n="algo_foxglove">Publish to Foxglove</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                                        <span x-text="algorithmInformation.foxglovePublish ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
+                                                        <label class="form-check form-switch m-0">
+                                                            <input class="form-check-input" type="checkbox" x-model="algorithmInformation.foxglovePublish" @change="saveAlgorithmInformation()">
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                                 <!-- 当前摄像头算法配置（camera0/camera1 选择器合并进标题栏）-->
                                 <div class="col-12" x-show="aiTab==='detect'">
