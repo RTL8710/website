@@ -4296,37 +4296,59 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <!-- 图片显示控件 -->
+                                        <!-- 图片显示控件（多路网格 / 单画面 / PiP，对齐 Video Playback）-->
                                         <div class="card shadow">
                                             <div class="card-body p-1">
-                                                <!-- 图片显示区域 -->
-                                                <div class="text-center mt-3" style="position:relative;display:inline-block;width:100%;">
-                                                    <img
-                                                            :src="snapSelectedRecord?.RecordIndexInformationImage"
-                                                            x-show="snapSelectedRecord"
-                                                            alt="Selected Image"
-                                                            style="max-width: 100%; height: auto;"
-                                                    />
-                                                    <!-- 当前图片的信息叠加（顶部） -->
-                                                    <div x-show="snapSelectedRecord" style="position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start;pointer-events:none;">
-                                                        <span class="badge" style="font-size:10px;"
-                                                              :class="'bg-'+['primary','success','info','warning'][tlCamOf(snapSelectedRecord?.RecordIndexInformationImage)%4]"
-                                                              x-text="'CAM'+(tlCamOf(snapSelectedRecord?.RecordIndexInformationImage)+1)"></span>
-                                                        <span class="badge" style="font-size:10px;"
-                                                              :class="snapSelectedRecord?.RecordIndexInformationType==1 ? 'bg-primary' : snapSelectedRecord?.RecordIndexInformationType==2 ? 'bg-danger' : snapSelectedRecord?.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
-                                                              :style="(!snapSelectedRecord?.RecordIndexInformationType || (snapSelectedRecord.RecordIndexInformationType!=1 && snapSelectedRecord.RecordIndexInformationType!=2 && snapSelectedRecord.RecordIndexInformationType!=3)) ? 'background:#7c3aed' : ''"
-                                                              x-text="snapSelectedRecord?.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : snapSelectedRecord?.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : snapSelectedRecord?.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
-                                                        <span class="badge bg-secondary" style="font-size:10px;"><i class="fa fa-clock me-1"></i><span x-text="snapSelectedRecord?.RecordIndexInformationDateTime.substring(0,19)"></span></span>
-                                                        <span class="badge bg-dark" style="font-size:10px;" x-show="snapSelectedRecord?.RecordIndexInformationWidth" x-text="snapSelectedRecord?.RecordIndexInformationWidth + 'x' + snapSelectedRecord?.RecordIndexInformationHeight"></span>
-                                                        <span class="badge bg-info" style="font-size:10px;" x-show="snapSelectedRecord?.RecordIndexInformationImageSize" x-text="(snapSelectedRecord?.RecordIndexInformationImageSize/1024).toFixed(0)+'KB'"></span>
-                                                        <span class="badge bg-dark" style="font-size:10px;opacity:0.8;">#<span x-text="snapSelectedRecord?.RecordIndexInformationImage.match(/(\d{6,})\./)?.[1] || ''"></span></span>
+                                                <div class="text-center mt-2" style="position:relative;width:100%;">
+                                                    <div x-show="syncImages.length>1" class="d-flex align-items-center gap-2 mb-2">
+                                                        <div class="btn-group btn-group-sm" role="group">
+                                                            <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
+                                                            <button type="button" class="btn" :class="playbackLayout==='single'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')"><i class="fa-regular fa-square"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_single')"></span></button>
+                                                            <button type="button" class="btn" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='pip'" :title="tIdx('pl_pip')"><i class="fa-solid fa-clone"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_pip')"></span></button>
+                                                        </div>
+                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout!=='grid'" x-text="tIdx('pl_switch_hint')"></span>
                                                     </div>
-                                                    <p x-show="!snapSelectedRecord" class="text-muted mt-3" data-i18n="ip_select_image">
+                                                    <div x-show="syncImages.length" :style="layoutContainerStyle(syncImages.length)">
+                                                        <template x-for="(img, idx) in syncImages" :key="(img.RecordIndexInformationImage||'')+'-'+idx">
+                                                            <div :style="layoutItemStyle(idx, syncImages.length)" @click="setSnapFocus(idx)">
+                                                                <img :src="img.RecordIndexInformationImage"
+                                                                     alt="snap"
+                                                                     style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;"
+                                                                     onerror="this.style.opacity=0.3">
+                                                                <div x-show="isLayoutFocused(idx, syncImages.length)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
+                                                                    <button class="btn btn-sm btn-primary" style="padding:2px 9px;"
+                                                                            @click.stop="downloadFile(img.RecordIndexInformationImage)" title="JPEG">
+                                                                        <i class="fa-solid fa-download"></i><i class="fa-solid fa-image ms-1"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <div x-show="isLayoutFocused(idx, syncImages.length)" style="position:absolute;top:8px;left:8px;right:110px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start;pointer-events:none;">
+                                                                    <span class="badge" style="font-size:10px;"
+                                                                          :class="'bg-'+['primary','success','info','warning'][tlCamOf(img.RecordIndexInformationImage)%4]"
+                                                                          x-text="'CAM'+(tlCamOf(img.RecordIndexInformationImage)+1)"></span>
+                                                                    <span class="badge" style="font-size:10px;"
+                                                                          :class="img.RecordIndexInformationType==1 ? 'bg-primary' : img.RecordIndexInformationType==2 ? 'bg-danger' : img.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
+                                                                          :style="(img.RecordIndexInformationType!=1 && img.RecordIndexInformationType!=2 && img.RecordIndexInformationType!=3) ? 'background:#7c3aed' : ''"
+                                                                          x-text="img.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : img.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : img.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
+                                                                    <span class="badge bg-secondary" style="font-size:10px;" x-show="img.RecordIndexInformationDateTime"><i class="fa fa-clock me-1"></i><span x-text="String(img.RecordIndexInformationDateTime).substring(0,19)"></span></span>
+                                                                    <span class="badge bg-dark" style="font-size:10px;" x-show="img.RecordIndexInformationWidth" x-text="img.RecordIndexInformationWidth + 'x' + img.RecordIndexInformationHeight"></span>
+                                                                    <span class="badge bg-info" style="font-size:10px;" x-show="img.RecordIndexInformationImageSize" x-text="(img.RecordIndexInformationImageSize/1024).toFixed(0)+'KB'"></span>
+                                                                </div>
+                                                                <div x-show="!isLayoutFocused(idx, syncImages.length)" style="position:absolute;top:2px;left:4px;font-size:9px;color:#fff;background:rgba(0,0,0,0.6);padding:0 5px;border-radius:3px;pointer-events:none;z-index:2;"
+                                                                     x-text="'CAM'+(tlCamOf(img.RecordIndexInformationImage)+1)"></div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                    <p x-show="!syncImages.length" class="text-muted mt-3" data-i18n="ip_select_image">
                                                         Please select an image to display.
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+
                                     </div>
 
                                     <!-- 右侧部分: 图片列表 -->
@@ -4343,7 +4365,7 @@
                                                             <div
                                                                     class="card shadow-sm"
                                                                     style="cursor: pointer; overflow:hidden;"
-                                                                    :style="snapSelectedRecord && snapSelectedRecord.RecordIndexInformationImage === image.RecordIndexInformationImage ? 'cursor:pointer;overflow:hidden;border:2px solid #2fbf71;box-shadow:0 0 7px rgba(47,191,113,0.55);' : 'cursor:pointer;overflow:hidden;'"
+                                                                    :style="isSnapInSync(image) ? 'cursor:pointer;overflow:hidden;border:2px solid #2fbf71;box-shadow:0 0 7px rgba(47,191,113,0.55);' : 'cursor:pointer;overflow:hidden;'"
                                                                     @click="displayImage(image)"
                                                             >
                                                                 <div class="d-flex align-items-center w-100" style="height: 80px; padding: 4px 8px;">
@@ -4357,7 +4379,7 @@
                                                                               :class="'bg-'+['primary','success','info','warning'][tlCamOf(image.RecordIndexInformationImage)%4]"
                                                                               x-text="'CAM'+(tlCamOf(image.RecordIndexInformationImage)+1)"></span>
                                                                         <!-- 选中标识：缩略图中央对勾图标（绝对居中，避免 x-show 移除 display:flex）-->
-                                                                        <div x-show="snapSelectedRecord && snapSelectedRecord.RecordIndexInformationImage === image.RecordIndexInformationImage"
+                                                                        <div x-show="isSnapInSync(image)"
                                                                              style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);">
                                                                             <i class="fa-solid fa-circle-check" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);"></i>
                                                                         </div>
@@ -8995,7 +9017,8 @@ document.addEventListener('DOMContentLoaded', function() {
             snapPageSize: 10, // 每页加载记录数量
             snapHasMore: true, // 是否还有更多数据
             snapLoading: false, // 是否处于加载状态
-            snapSelectedRecord: null, // 当前选中的记录
+            snapSelectedRecord: null, // 当前选中的记录（聚焦路）
+            syncImages: [],           // 图片回放多路同步封面（对齐 syncRecords）
             // snapStartTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // snapEndTime: new Date().toISOString().slice(0, 16), // 默认结束时间
             snapStartTime: new Date().toISOString().slice(0, 16), // 默认开始时间
@@ -14016,6 +14039,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rec = this.segToRecord(e);
                 this.playRecord(rec);   // 统一走 playRecord:云模式自动转 WebRTC(KVS)回放,LAN 原生播放
             },
+
+            // —— 图片回放布局（grid / single / pip；与设备端 layoutContainerStyle 对齐）——
+            _layoutFocus(n) {
+                return (this.playbackFocusIdx >= 0 && this.playbackFocusIdx < n) ? this.playbackFocusIdx : 0;
+            },
+            layoutContainerStyle(n) {
+                if (n <= 1 || this.playbackLayout === 'grid')
+                    return 'display:grid;gap:8px;grid-template-columns:repeat(' + (n > 1 ? 2 : 1) + ',minmax(0,1fr));';
+                if (this.playbackLayout === 'single')
+                    return 'display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;';
+                return 'display:block;position:relative;';
+            },
+            layoutItemStyle(idx, n) {
+                if (n <= 1 || this.playbackLayout === 'grid')
+                    return 'position:relative;min-width:0;';
+                const focus = this._layoutFocus(n);
+                if (this.playbackLayout === 'single')
+                    return idx === focus
+                        ? 'position:relative;min-width:0;flex:0 0 100%;order:0;'
+                        : 'position:relative;min-width:0;flex:0 0 calc(33.333% - 6px);order:1;cursor:pointer;';
+                if (idx === focus)
+                    return 'position:relative;min-width:0;width:100%;';
+                const k = idx < focus ? idx : idx - 1;
+                return 'position:absolute;z-index:5;right:8px;width:22%;top:calc(44px + ' + k + ' * 24%);cursor:pointer;'
+                     + 'border:2px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);';
+            },
+            isLayoutFocused(idx, n) {
+                return n <= 1 || this.playbackLayout === 'grid' || idx === this._layoutFocus(n);
+            },
+            setSnapFocus(idx) {
+                if (this.playbackLayout !== 'grid') this.playbackFocusIdx = idx;
+                if (this.syncImages[idx]) this.snapSelectedRecord = this.syncImages[idx];
+            },
+            isSnapInSync(image) {
+                const path = image && image.RecordIndexInformationImage;
+                return !!(path && (this.syncImages || []).some(x => x.RecordIndexInformationImage === path));
+            },
+
             // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
             onTimelineClickImage(event, camera) {
                 if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
@@ -14028,26 +14089,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
                 this.snapStartTime = this.timelineDate + 'T00:00';
                 this.snapEndTime = this.timelineDate + 'T' + hh + ':' + mm;
-                this.fetchImages(true);
-                // camera < 0：单条合并轨道，在所有摄像头中找最近带封面的段（对齐 Video 合并时间轴）
-                const segs = this.recordTimeline.filter(e => e.p && e.i
-                                 && (camera < 0 || this.tlCamOf(e.p) === camera)
-                                 && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
-                let best = null, bestDist = Infinity;
-                for (const e of segs) {
-                    if (secs >= e.s && secs <= e.s + e.d) { best = e; bestDist = 0; break; }
-                    const dist = Math.min(Math.abs(secs - e.s), Math.abs(secs - (e.s + e.d)));
-                    if (dist < bestDist) { bestDist = dist; best = e; }
+                this.fetchImages(true, { preserveSync: true });
+                const ncam = (camera < 0) ? this.timelineCamCount() : 1;
+                const cams = (camera < 0) ? Array.from({length: ncam}, (_, i) => i) : [camera];
+                const list = [];
+                for (const cam of cams) {
+                    const segs = this.recordTimeline.filter(e => e.p && e.i && this.tlCamOf(e.p) === cam
+                                     && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
+                    let best = null, bestDist = Infinity;
+                    for (const e of segs) {
+                        if (secs >= e.s && secs <= e.s + e.d) { best = e; bestDist = 0; break; }
+                        const dist = Math.min(Math.abs(secs - e.s), Math.abs(secs - (e.s + e.d)));
+                        if (dist < bestDist) { bestDist = dist; best = e; }
+                    }
+                    if (best && bestDist <= 120) {
+                        const eh = String(Math.floor(best.s / 3600)).padStart(2, '0');
+                        const em = String(Math.floor((best.s % 3600) / 60)).padStart(2, '0');
+                        const es = String(best.s % 60).padStart(2, '0');
+                        list.push({
+                            RecordIndexInformationImage: best.i,
+                            RecordIndexInformationDateTime: this.timelineDate + ' ' + eh + ':' + em + ':' + es,
+                            RecordIndexInformationType: best.ty
+                        });
+                    }
                 }
-                if (best && bestDist <= 120) {
-                    const eh = String(Math.floor(best.s / 3600)).padStart(2, '0');
-                    const em = String(Math.floor((best.s % 3600) / 60)).padStart(2, '0');
-                    const es = String(best.s % 60).padStart(2, '0');
-                    this.snapSelectedRecord = {
-                        RecordIndexInformationImage: best.i,
-                        RecordIndexInformationDateTime: this.timelineDate + ' ' + eh + ':' + em + ':' + es,
-                        RecordIndexInformationType: best.ty
-                    };
+                if (list.length) {
+                    this.syncImages = list;
+                    this.snapSelectedRecord = list[0];
+                    this.playbackFocusIdx = 0;
                 }
             },
             // 当前播放段在时间轴上的位置(%)，用于竖线标记；非本日/未选返回 -1
@@ -14071,7 +14140,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             // 获取抓拍列表
-            async fetchImages(isSearch = false) {
+            async fetchImages(isSearch = false, opts = {}) {
+                this._snapPreserveSync = !!(opts && opts.preserveSync);
                 // 创建日期格式化器
                 const formatter = new Intl.DateTimeFormat("en-GB", {
                     timeZone: "Asia/Shanghai", // 设置时区
@@ -14169,10 +14239,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 检查是否还有更多数据
                         this.snapHasMore = validRecords.length >= this.snapPageSize;
 
-                        // 如果是搜索操作且有数据，默认选择第一个记录
-                        if (this.images.length > 0) {
-                            this.snapSelectedRecord = this.images[0];
+                        // 默认选第一张；时间轴多路选图时 preserveSync 避免覆盖 syncImages
+                        if (this.images.length > 0 && !this._snapPreserveSync) {
+                            this.displayImage(this.images[0]);
                         }
+                        this._snapPreserveSync = false;
                     } else {
                         console.warn('No records found or invalid response structure:', result);
                     }
@@ -14183,9 +14254,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.loading = false;
                 }
             },
-            // 播放选中的录像
+            // 图片列表选中：单张预览（不显示多路布局条）
             displayImage(record) {
+                this.syncImages = record ? [record] : [];
                 this.snapSelectedRecord = record;
+                this.playbackFocusIdx = 0;
             },
             // 加载更多数据
             loadSnapMore() {
