@@ -6470,13 +6470,13 @@
                                     :class="logParamTab==='settings' ? 'btn-primary' : 'btn-outline-primary'"
                                     :aria-selected="logParamTab==='settings'"
                                     @click="logParamTab='settings'; initLogInformation()"
-                                    data-i18n="ls_tab_settings">Settings</button>
+                                    data-i18n="ls_tab_settings">Log Settings</button>
                             <button type="button" class="btn btn-sm"
                                     role="tab"
                                     :class="logParamTab==='viewer' ? 'btn-primary' : 'btn-outline-primary'"
                                     :aria-selected="logParamTab==='viewer'"
                                     @click="logParamTab='viewer'; fetchLogs()"
-                                    data-i18n="nav_log">Log</button>
+                                    data-i18n="ls_tab_logfile">Log File</button>
                         </div>
                         <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
 <div class="card shadow">
@@ -7034,7 +7034,7 @@ const I18N_INDEX = {
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_production:'Production', nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
-    nav_debug:'Log Settings', ls_tab_settings:'Settings', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
+    nav_debug:'Log Settings', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
     page_home:'Home', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
@@ -7182,7 +7182,7 @@ const I18N_INDEX = {
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_production:'生产', nav_provisioning:'配网', nav_factory_test:'工厂测试',
-    nav_debug:'日志设置', ls_tab_settings:'设置', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
+    nav_debug:'日志设置', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
     page_home:'主页', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
@@ -7330,7 +7330,7 @@ const I18N_INDEX = {
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_production:'生産', nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
-    nav_debug:'ログ設定', ls_tab_settings:'設定', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
+    nav_debug:'ログ設定', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
     page_home:'ホーム', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
@@ -7477,7 +7477,7 @@ const I18N_INDEX = {
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_production:'Produktion', nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
-    nav_debug:'Log-Einstellungen', ls_tab_settings:'Einstellungen', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
+    nav_debug:'Log-Einstellungen', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
     page_home:'Startseite', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
@@ -7624,7 +7624,7 @@ const I18N_INDEX = {
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_production:'Production', nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
-    nav_debug:'Paramètres journal', ls_tab_settings:'Paramètres', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
+    nav_debug:'Paramètres journal', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
     page_home:'Accueil', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
@@ -7771,7 +7771,7 @@ const I18N_INDEX = {
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_production:'Producción', nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
-    nav_debug:'Ajustes de registro', ls_tab_settings:'Ajustes', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
+    nav_debug:'Ajustes de registro', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
     page_home:'Inicio', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
