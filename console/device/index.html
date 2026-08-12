@@ -1571,6 +1571,12 @@
                                                         data-i18n="vs_image_basic">Basic Image</button>
                                                 <button type="button" class="btn btn-sm"
                                                         role="tab"
+                                                        :class="vsParamTab==='isp' ? 'btn-primary' : 'btn-outline-primary'"
+                                                        :aria-selected="vsParamTab==='isp'"
+                                                        @click="vsParamTab='isp'"
+                                                        data-i18n="vs_image_adv">Advanced ISP</button>
+                                                <button type="button" class="btn btn-sm"
+                                                        role="tab"
                                                         :class="vsParamTab==='osd' ? 'btn-primary' : 'btn-outline-primary'"
                                                         :aria-selected="vsParamTab==='osd'"
                                                         @click="vsParamTab='osd'"
@@ -1860,6 +1866,101 @@
                                                 </div>
                                             </div>
                                         </div>
+                                                </div>
+                                                <div class="vs-param-pane" x-show="vsParamTab==='isp'" x-cloak>
+                                        <div class="col-12 d-flex flex-row">
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_denoise">Denoise</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <input class="form-control form-number-sm" type="number" min="0" max="255" step="1" x-model.number="videoInformation.videoDenoise" @keydown.enter="submitVideoSettings" @blur="submitVideoSettings">
+                                                        <input class="form-range form-range-w200" type="range" min="0" max="255" step="1" x-model.number="videoInformation.videoDenoise" @change="submitVideoSettings">
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_denoise_hint">0–255, higher = stronger noise reduction (softens detail)</div>
+                                                </div></div>
+                                            </div>
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_wdr_mode">WDR Mode</span></div>
+                                                    <div style="text-align:center;">
+                                                        <select class="form-select" style="max-width:180px;margin:auto;" x-model.number="videoInformation.videoWdrMode" @change="submitVideoSettings">
+                                                            <option value="0">OFF</option><option value="1">WDR</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_wdr_mode_hint">0 Off / 1 WDR — backlit / high-contrast (this camera has no HDR)</div>
+                                                </div></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 d-flex flex-row">
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_wdr_level">WDR Level</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <input class="form-control form-number-sm" type="number" min="1" max="10" step="1" x-model.number="videoInformation.videoWdrLevel" @keydown.enter="submitVideoSettings" @blur="submitVideoSettings">
+                                                        <input class="form-range form-range-w200" type="range" min="1" max="10" step="1" x-model.number="videoInformation.videoWdrLevel" @change="submitVideoSettings">
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_wdr_level_hint">1–10, only active when WDR mode ≠ Off</div>
+                                                </div></div>
+                                            </div>
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_ev_comp">EV Compensation</span></div>
+                                                    <div style="text-align:center;">
+                                                        <select class="form-select" style="max-width:180px;margin:auto;" x-model.number="videoInformation.videoEvCompEnable" @change="submitVideoSettings">
+                                                            <option value="0" data-i18n="vs_disable">Disable</option><option value="1" data-i18n="vs_enable">Enable</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_ev_comp_hint">Master switch — EV Level below only applies when enabled</div>
+                                                </div></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 d-flex flex-row">
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_ev_comp_level">EV Level</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <input class="form-control form-number-sm" type="number" min="0" max="255" step="1" x-model.number="videoInformation.videoEvCompLevel" @keydown.enter="submitVideoSettings" @blur="submitVideoSettings">
+                                                        <input class="form-range form-range-w200" type="range" min="0" max="255" step="1" x-model.number="videoInformation.videoEvCompLevel" @change="submitVideoSettings">
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_ev_comp_level_hint">0–255, 128 = neutral; lower darkens, higher brightens</div>
+                                                </div></div>
+                                            </div>
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_ae_max_shutter">AE Max Shutter</span></div>
+                                                    <div style="text-align:center;">
+                                                        <select class="form-select" style="max-width:180px;margin:auto;" x-model.number="videoInformation.videoAeMaxShutter" @change="submitVideoSettings">
+                                                            <option value="0">1/2s</option><option value="1">1/4s</option><option value="2">1/7.5s</option><option value="3">1/15s</option><option value="4">1/30s</option><option value="5">1/60s</option><option value="6">1/120s</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_ae_max_shutter_hint">Slowest AE shutter — slower = brighter in dark but more motion blur</div>
+                                                </div></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 d-flex flex-row">
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_ae_max_gain">AE Max Gain</span></div>
+                                                    <div style="text-align:center;">
+                                                        <select class="form-select" style="max-width:180px;margin:auto;" x-model.number="videoInformation.videoAeMaxGain" @change="submitVideoSettings">
+                                                            <option value="0">6dB</option><option value="1">12dB</option><option value="2">18dB</option><option value="3">24dB</option><option value="4">30dB</option><option value="5">36dB</option><option value="6">42dB</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_ae_max_gain_hint">Max AE gain — higher = brighter in dark but more noise</div>
+                                                </div></div>
+                                            </div>
+                                            <div class="col-6" style="margin-bottom: 2px;">
+                                                <div class="card shadow"><div class="card-body center card-body-param">
+                                                    <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_ldc_level">Lens Distortion (LDC)</span></div>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <input class="form-control form-number-sm" type="number" min="0" max="100" step="1" x-model.number="videoInformation.videoLdcLevel" @keydown.enter="submitVideoSettings" @blur="submitVideoSettings">
+                                                        <input class="form-range form-range-w200" type="range" min="0" max="100" step="1" x-model.number="videoInformation.videoLdcLevel" @change="submitVideoSettings">
+                                                    </div>
+                                                    <div class="form-hint text-center" style="font-size:11px;margin-top:3px;line-height:1.3;" data-i18n="vs_ldc_level_hint">0–100, corrects wide-angle barrel distortion (0 = off)</div>
+                                                </div></div>
+                                            </div>
+                                        </div>
+                                        
                                                 </div>
                                                 <div class="vs-param-pane" x-show="vsParamTab==='osd'" x-cloak>
                                         <!-- ===== OSD 显示配置（字库 / 时间水印 / 检测框标签，改动即时生效，无需保存按钮）===== -->
@@ -6768,7 +6869,7 @@ const I18N_INDEX = {
     vs_stream_mode:'Stream Mode', vs_main_stream_opt:'Main stream', vs_sub_stream_opt:'Sub stream', vs_osd_enable:'OSD (Timestamp)', vs_scene_mode:'Scene Mode',
     vs_stream_type:'Stream Type',
     vs_logo_display:'Logo Display', vs_enable:'Enable', vs_disable:'Disable',
-    vs_mirror_flip:'Mirror & Flip', vs_enc_display:'Encoding & Display', vs_image_basic:'Basic Image',
+    vs_mirror_flip:'Mirror & Flip', vs_enc_display:'Encoding & Display', vs_image_basic:'Basic Image', vs_image_adv:'Advanced ISP', vs_hue:'Hue', vs_denoise:'Denoise', vs_wdr_mode:'WDR Mode', vs_wdr_level:'WDR Level', vs_ev_comp:'EV Compensation', vs_ev_comp_level:'EV Level', vs_ae_max_shutter:'AE Max Shutter', vs_ae_max_gain:'AE Max Gain', vs_ldc_level:'Lens Distortion (LDC)', vs_denoise_hint:'0–255, higher = stronger noise reduction (softens detail)', vs_wdr_mode_hint:'0 Off / 1 WDR — backlit / high-contrast (this camera has no HDR)', vs_wdr_level_hint:'1–10, only active when WDR mode ≠ Off', vs_ev_comp_hint:'Master switch — EV Level below only applies when enabled', vs_ev_comp_level_hint:'0–255, 128 = neutral; lower darkens, higher brightens', vs_ae_max_shutter_hint:'Slowest AE shutter — slower = brighter in dark but more motion blur', vs_ae_max_gain_hint:'Max AE gain — higher = brighter in dark but more noise', vs_ldc_level_hint:'0–100, corrects wide-angle barrel distortion (0 = off)',
     vs_normal:'Normal', vs_mirror:'Mirror', vs_flip:'Flip', vs_mirror_and_flip:'M&F',
     as_speak_mode:'Speaker Mode', as_record_audio:'Record Audio',
     as_microphone:'Microphone Mode', as_volume:'Volume Control',
@@ -6914,7 +7015,7 @@ const I18N_INDEX = {
     vs_stream_mode:'码流模式', vs_main_stream_opt:'主码流', vs_sub_stream_opt:'子码流', vs_osd_enable:'OSD 时间水印', vs_scene_mode:'场景模式',
     vs_stream_type:'编码类型',
     vs_logo_display:'Logo 显示', vs_enable:'启用', vs_disable:'禁用',
-    vs_mirror_flip:'镜像与翻转', vs_enc_display:'编码与显示', vs_image_basic:'基础图像',
+    vs_mirror_flip:'镜像与翻转', vs_enc_display:'编码与显示', vs_image_basic:'基础图像', vs_image_adv:'其他 ISP', vs_hue:'色调', vs_denoise:'降噪', vs_wdr_mode:'宽动态', vs_wdr_level:'WDR 级别', vs_ev_comp:'曝光补偿', vs_ev_comp_level:'补偿级别', vs_ae_max_shutter:'最大快门', vs_ae_max_gain:'最大增益', vs_ldc_level:'镜头畸变校正', vs_denoise_hint:'0–255,越大降噪越强(细节变糊)', vs_wdr_mode_hint:'0关 / 1宽动态 — 逆光/大光比(本机无 HDR)', vs_wdr_level_hint:'1–10,仅在宽动态模式≠关时生效', vs_ev_comp_hint:'总开关 — 启用后下方补偿级别才生效', vs_ev_comp_level_hint:'0–255,128为中性;小则变暗,大则变亮', vs_ae_max_shutter_hint:'AE最慢快门 — 越慢暗处越亮但拖影越重', vs_ae_max_gain_hint:'AE最大增益 — 越高暗处越亮但噪点越多', vs_ldc_level_hint:'0–100,校正广角桶形畸变(0=关)',
     vs_normal:'正常', vs_mirror:'镜像', vs_flip:'翻转', vs_mirror_and_flip:'镜像翻转',
     as_speak_mode:'扬声器模式', as_record_audio:'录音',
     as_microphone:'麦克风模式', as_volume:'音量控制',
@@ -7060,7 +7161,7 @@ const I18N_INDEX = {
     vs_stream_mode:'ストリームモード', vs_main_stream_opt:'メイン', vs_sub_stream_opt:'サブ', vs_osd_enable:'OSD タイムスタンプ', vs_scene_mode:'シーンモード',
     vs_stream_type:'ストリーム種別',
     vs_logo_display:'ロゴ表示', vs_enable:'有効', vs_disable:'無効',
-    vs_mirror_flip:'ミラー・反転', vs_enc_display:'エンコード・表示', vs_image_basic:'基本画像',
+    vs_mirror_flip:'ミラー・反転', vs_enc_display:'エンコード・表示', vs_image_basic:'基本画像', vs_image_adv:'その他 ISP', vs_hue:'色相', vs_denoise:'ノイズ低減', vs_wdr_mode:'WDRモード', vs_wdr_level:'WDRレベル', vs_ev_comp:'露出補正', vs_ev_comp_level:'補正レベル', vs_ae_max_shutter:'AE最大シャッター', vs_ae_max_gain:'AE最大ゲイン', vs_ldc_level:'歪み補正(LDC)', vs_denoise_hint:'0–255、大きいほどノイズ低減が強い(細部が甘くなる)', vs_wdr_mode_hint:'0オフ / 1 WDR — 逆光・高コントラスト(本機にHDRなし)', vs_wdr_level_hint:'1–10、WDRモードがオフ以外の時のみ有効', vs_ev_comp_hint:'マスタースイッチ — 有効時のみ下のEVレベルが適用', vs_ev_comp_level_hint:'0–255、128が中立;小で暗く大で明るく', vs_ae_max_shutter_hint:'AE最遅シャッター — 遅いほど暗所で明るいがブレ増加', vs_ae_max_gain_hint:'AE最大ゲイン — 高いほど暗所で明るいがノイズ増加', vs_ldc_level_hint:'0–100、広角の樽型歪みを補正(0=オフ)',
     vs_normal:'通常', vs_mirror:'ミラー', vs_flip:'反転', vs_mirror_and_flip:'両方',
     as_speak_mode:'スピーカーモード', as_record_audio:'録音',
     as_microphone:'マイクモード', as_volume:'音量調整',
@@ -7205,7 +7306,7 @@ const I18N_INDEX = {
     vs_stream_mode:'Stream-Modus', vs_main_stream_opt:'Hauptstream', vs_sub_stream_opt:'Substream', vs_osd_enable:'OSD Zeitstempel', vs_scene_mode:'Szenenmodus',
     vs_stream_type:'Stream-Typ',
     vs_logo_display:'Logo-Anzeige', vs_enable:'Aktiviert', vs_disable:'Deaktiviert',
-    vs_mirror_flip:'Spiegel & Flip', vs_enc_display:'Kodierung & Anzeige', vs_image_basic:'Basisbild',
+    vs_mirror_flip:'Spiegel & Flip', vs_enc_display:'Kodierung & Anzeige', vs_image_basic:'Basisbild', vs_image_adv:'Erweitert ISP', vs_hue:'Farbton', vs_denoise:'Rauschreduz.', vs_wdr_mode:'WDR-Modus', vs_wdr_level:'WDR-Stufe', vs_ev_comp:'Belicht.-korrektur', vs_ev_comp_level:'EV-Stufe', vs_ae_max_shutter:'AE Max Verschluss', vs_ae_max_gain:'AE Max Verstärkung', vs_ldc_level:'Verzeichnungskorr. (LDC)', vs_denoise_hint:'0–255, höher = stärkere Rauschreduzierung (weniger Details)', vs_wdr_mode_hint:'0 Aus / 1 WDR — Gegenlicht/hoher Kontrast (kein HDR)', vs_wdr_level_hint:'1–10, nur aktiv wenn WDR-Modus ≠ Aus', vs_ev_comp_hint:'Hauptschalter — EV-Stufe unten nur bei aktiviert wirksam', vs_ev_comp_level_hint:'0–255, 128 = neutral; niedriger dunkler, höher heller', vs_ae_max_shutter_hint:'Langsamster AE-Verschluss — langsamer = heller aber mehr Bewegungsunschärfe', vs_ae_max_gain_hint:'Max AE-Verstärkung — höher = heller aber mehr Rauschen', vs_ldc_level_hint:'0–100, korrigiert Weitwinkel-Verzeichnung (0 = aus)',
     vs_normal:'Normal', vs_mirror:'Spiegel', vs_flip:'Flip', vs_mirror_and_flip:'S&F',
     as_speak_mode:'Lautsprechermodus', as_record_audio:'Audioaufnahme',
     as_microphone:'Mikrofonmodus', as_volume:'Lautstärkeregler',
@@ -7350,7 +7451,7 @@ const I18N_INDEX = {
     vs_stream_mode:'Mode flux', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secondaire', vs_osd_enable:'OSD horodatage', vs_scene_mode:'Mode scène',
     vs_stream_type:'Type de flux',
     vs_logo_display:'Affichage logo', vs_enable:'Activé', vs_disable:'Désactivé',
-    vs_mirror_flip:'Miroir & Retourner', vs_enc_display:'Encodage & Affichage', vs_image_basic:'Image de base',
+    vs_mirror_flip:'Miroir & Retourner', vs_enc_display:'Encodage & Affichage', vs_image_basic:'Image de base', vs_image_adv:'ISP avancé', vs_hue:'Teinte', vs_denoise:'Réduction bruit', vs_wdr_mode:'Mode WDR', vs_wdr_level:'Niveau WDR', vs_ev_comp:'Compensation EV', vs_ev_comp_level:'Niveau EV', vs_ae_max_shutter:'Obturateur max AE', vs_ae_max_gain:'Gain max AE', vs_ldc_level:'Correction distorsion (LDC)', vs_denoise_hint:'0–255, plus élevé = réduction de bruit plus forte (adoucit les détails)', vs_wdr_mode_hint:'0 Arrêt / 1 WDR — contre-jour/fort contraste (pas de HDR)', vs_wdr_level_hint:'1–10, actif seulement si mode WDR ≠ Arrêt', vs_ev_comp_hint:'Interrupteur principal — niveau EV ci-dessous actif si activé', vs_ev_comp_level_hint:'0–255, 128 = neutre; plus bas assombrit, plus haut éclaircit', vs_ae_max_shutter_hint:'Obturateur AE le plus lent — plus lent = plus lumineux mais plus de flou', vs_ae_max_gain_hint:'Gain AE max — plus élevé = plus lumineux mais plus de bruit', vs_ldc_level_hint:'0–100, corrige la distorsion grand-angle (0 = arrêt)',
     vs_normal:'Normal', vs_mirror:'Miroir', vs_flip:'Retourner', vs_mirror_and_flip:'M&R',
     as_speak_mode:'Mode haut-parleur', as_record_audio:'Enregistrement audio',
     as_microphone:'Mode microphone', as_volume:'Contrôle du volume',
@@ -7495,7 +7596,7 @@ const I18N_INDEX = {
     vs_stream_mode:'Modo de flujo', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secundario', vs_osd_enable:'OSD marca de tiempo', vs_scene_mode:'Modo escena',
     vs_stream_type:'Tipo de flujo',
     vs_logo_display:'Mostrar logo', vs_enable:'Activar', vs_disable:'Desactivar',
-    vs_mirror_flip:'Espejo y volteo', vs_enc_display:'Codificación y pantalla', vs_image_basic:'Imagen básica',
+    vs_mirror_flip:'Espejo y volteo', vs_enc_display:'Codificación y pantalla', vs_image_basic:'Imagen básica', vs_image_adv:'ISP avanzado', vs_hue:'Tono', vs_denoise:'Reducción ruido', vs_wdr_mode:'Modo WDR', vs_wdr_level:'Nivel WDR', vs_ev_comp:'Compensación EV', vs_ev_comp_level:'Nivel EV', vs_ae_max_shutter:'Obturador máx AE', vs_ae_max_gain:'Ganancia máx AE', vs_ldc_level:'Corrección distorsión (LDC)', vs_denoise_hint:'0–255, mayor = reducción de ruido más fuerte (suaviza detalles)', vs_wdr_mode_hint:'0 Apag / 1 WDR — contraluz/alto contraste (sin HDR)', vs_wdr_level_hint:'1–10, activo solo si modo WDR ≠ Apagado', vs_ev_comp_hint:'Interruptor principal — nivel EV abajo solo si está activado', vs_ev_comp_level_hint:'0–255, 128 = neutral; menor oscurece, mayor aclara', vs_ae_max_shutter_hint:'Obturador AE más lento — más lento = más brillo pero más desenfoque', vs_ae_max_gain_hint:'Ganancia AE máx — mayor = más brillo pero más ruido', vs_ldc_level_hint:'0–100, corrige distorsión de gran angular (0 = apagado)',
     vs_normal:'Normal', vs_mirror:'Espejo', vs_flip:'Volteo', vs_mirror_and_flip:'E&V',
     as_speak_mode:'Modo altavoz', as_record_audio:'Grabar audio',
     as_microphone:'Modo micrófono', as_volume:'Control de volumen',
@@ -8149,7 +8250,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 "videoStreamSubHeigth":	360,
                 "videoStreamSubFps":	30,
                 "videoOsdEnable":	0,
-                "videoSceneMode":	0
+                "videoSceneMode":	0,
+                "videoHue":	128,
+                "videoDenoise":	128,
+                "videoWdrMode":	1,
+                "videoWdrLevel":	3,
+                "videoEvCompEnable":	0,
+                "videoEvCompLevel":	128,
+                "videoAeMaxShutter":	4,
+                "videoAeMaxGain":	3,
+                "videoLdcLevel":	100
             },
 
             audioInformation: {
@@ -8561,7 +8671,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cam2Uid : null,          // 设备 CAM2 发布者 uid（前缀 1225）(与 camUids[1] 同步)
             cam3Uid : null,          // 设备 CAM3 发布者 uid（前缀 1230，第三路起）(与 camUids[2] 同步)
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
-            vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|osd
+            vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
             liveLayout: (function(){ try { const v = localStorage.getItem('dv_live_layout'); return v === 'grid' ? 'grid' : 'pip'; } catch(e){ return 'pip'; } })(), // 多路显示：仅 pip / grid（四宫格）
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
@@ -12319,6 +12429,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 cam.videoStreamMode        = this.videoInformation.videoStreamMode;   // 每路主/次码流
                 cam.videoOsdEnable         = this.videoInformation.videoOsdEnable;    // 每路 OSD 开关
                 cam.videoSceneMode         = this.videoInformation.videoSceneMode;    // 每路场景模式
+                cam.videoHue               = this.videoInformation.videoHue;
+                cam.videoDenoise           = this.videoInformation.videoDenoise;
+                cam.videoWdrMode           = this.videoInformation.videoWdrMode;
+                cam.videoWdrLevel          = this.videoInformation.videoWdrLevel;
+                cam.videoEvCompEnable      = this.videoInformation.videoEvCompEnable;
+                cam.videoEvCompLevel       = this.videoInformation.videoEvCompLevel;
+                cam.videoAeMaxShutter      = this.videoInformation.videoAeMaxShutter;
+                cam.videoAeMaxGain         = this.videoInformation.videoAeMaxGain;
+                cam.videoLdcLevel          = this.videoInformation.videoLdcLevel;
             },
             // Load cameraParams[camIndex] → flat UI fields
             loadCameraParamsToFlat(camIndex) {
@@ -12341,6 +12460,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.videoInformation.videoStreamMode        = cam.videoStreamMode;   // 每路主/次码流
                 this.videoInformation.videoOsdEnable         = cam.videoOsdEnable;    // 每路 OSD 开关
                 this.videoInformation.videoSceneMode         = cam.videoSceneMode;    // 每路场景模式
+                this.videoInformation.videoHue               = cam.videoHue;
+                this.videoInformation.videoDenoise           = cam.videoDenoise;
+                this.videoInformation.videoWdrMode           = cam.videoWdrMode;
+                this.videoInformation.videoWdrLevel          = cam.videoWdrLevel;
+                this.videoInformation.videoEvCompEnable      = cam.videoEvCompEnable;
+                this.videoInformation.videoEvCompLevel       = cam.videoEvCompLevel;
+                this.videoInformation.videoAeMaxShutter      = cam.videoAeMaxShutter;
+                this.videoInformation.videoAeMaxGain         = cam.videoAeMaxGain;
+                this.videoInformation.videoLdcLevel          = cam.videoLdcLevel
             },
             // Switch camera locally: save current → switch index → load target
             // persist=true：显式切换视频设置页摄像头时回写设备（保留原行为）；
