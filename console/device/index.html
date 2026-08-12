@@ -359,6 +359,38 @@
             grid-template-columns:repeat(2, minmax(0,1fr));
         }
 
+        /* Record Settings 精简布局 */
+        .rs-settings-panel { margin-bottom: 0; }
+        .rs-toolbar {
+            display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+            gap: 16px 24px; padding-bottom: 4px;
+        }
+        .rs-toolbar-item { display: flex; flex-direction: column; gap: 8px; }
+        .rs-toolbar-mute { min-width: 140px; }
+        .rs-toolbar-label {
+            font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+            color: var(--text-secondary, #8a9bb4);
+        }
+        .rs-param-card {
+            height: 100%;
+            border: 1px solid var(--border, #1e2a44);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--bg-card2, #1a2438) 55%, transparent);
+            padding: 14px 16px;
+        }
+        .rs-param-title {
+            font-size: 13px; font-weight: 600; margin-bottom: 12px;
+            color: var(--text-primary, #e8eef8); text-align: center;
+        }
+        .rs-param-ctrl {
+            display: flex; align-items: center; gap: 10px; justify-content: center;
+        }
+        .rs-param-ctrl .form-range { max-width: 200px; }
+        .rs-unit {
+            flex: 0 0 auto; font-size: 12px; color: var(--text-secondary, #8a9bb4); min-width: 28px;
+        }
+
+
         /* RTSP URL 列表：两路合成一卡，cameraN 展示名 */
         .rtsp-url-grid {
             display: grid;
@@ -2876,271 +2908,107 @@
                 <div class="page-section " id="record-settings">
                     <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('record-settings', () => { initRecordSettings() })">
                         <div class="page-body">
-                            <div class="container-xl">
-                                <div class="row row-deck ">
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_record_enable">Record Enable</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span x-text="motionDetectionInformation.motionDetectionEnable ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
-                                                    <label class="form-check form-switch">
-                                                        <input
-                                                                class="form-check-input "
-                                                                type="checkbox"
-                                                                x-model="motionDetectionInformation.motionDetectionEnable"
-                                                                @change="submitRecordSettings">
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_record_run_mode">Record Mode</span>
-                                                </div>
-                                                <div class="btn-group w-100" role="group">
-                                                    <button type="button"
-                                                            :class="recordRunMode===1 ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                                                        <div class="container-xl">
+                                <div class="card shadow vs-param-panel rs-settings-panel">
+                                    <div class="card-body">
+                                        <!-- 顶栏：运行模式 + 静音 -->
+                                        <div class="rs-toolbar">
+                                            <div class="rs-toolbar-item">
+                                                <div class="rs-toolbar-label" data-i18n="rs_record_run_mode">Record Mode</div>
+                                                <div class="btn-group" role="group" aria-label="Record run mode">
+                                                    <button type="button" class="btn btn-sm"
+                                                            :class="recordRunMode===1 ? 'btn-primary' : 'btn-outline-primary'"
                                                             @click="setRecordRunMode(1)" data-i18n="rs_mode_loop">Loop</button>
-                                                    <button type="button"
-                                                            :class="recordRunMode===0 ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                                                    <button type="button" class="btn btn-sm"
+                                                            :class="recordRunMode===0 ? 'btn-primary' : 'btn-outline-primary'"
                                                             @click="setRecordRunMode(0)" data-i18n="rs_mode_timelapse">Timelapse</button>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_mute_enable">Mute Enable</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span x-text="motionDetectionInformation.recordMuteFlag ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
-                                                    <label class="form-check form-switch">
-                                                        <input
-                                                                class="form-check-input "
-                                                                type="checkbox"
-                                                                x-model="motionDetectionInformation.recordMuteFlag"
-                                                                @change="submitRecordSettings">
-                                                    </label>
-                                                </div>
+                                            <div class="rs-toolbar-item rs-toolbar-mute">
+                                                <div class="rs-toolbar-label" data-i18n="rs_mute_enable">Mute Enable</div>
+                                                <label class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           x-model="motionDetectionInformation.recordMuteFlag"
+                                                           @change="submitRecordSettings">
+                                                    <span class="form-check-label"
+                                                          x-text="motionDetectionInformation.recordMuteFlag ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
+                                                </label>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_record_mode">Record Mode</span>
-                                                </div>
-                                                <div style="align-items: end">
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="securitySceneSnapGruop"
-                                                                value=2
-                                                                x-model.number="motionDetectionInformation.securityScene"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_recycle_record">Recycle Record</span>
-                                                    </label>
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="securitySceneSnapGruop"
-                                                                value=1
-                                                                x-model.number="motionDetectionInformation.securityScene"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_manual_record">Manual Record</span>
-                                                    </label>
+
+                                        <div class="hr-text hr-text-left my-3"><span data-i18n="rs_sec_loop" x-show="recordRunMode===1">Loop Recording</span><span data-i18n="rs_sec_timelapse" x-show="recordRunMode===0">Timelapse Recording</span></div>
+
+                                        <div class="row g-3 rs-param-grid">
+                                            <!-- 循环录像参数 -->
+                                            <div class="col-12 col-md-6 col-xl-4" x-show="recordRunMode===1" x-cloak>
+                                                <div class="rs-param-card">
+                                                    <div class="rs-param-title" data-i18n="rs_record_duration">Record Duration</div>
+                                                    <div class="rs-param-ctrl">
+                                                        <input class="form-control form-number-xs" type="number" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.motionDetectionSensitivity"
+                                                               @keydown.enter="submitRecordSettings" @blur="submitRecordSettings">
+                                                        <input class="form-range flex-grow-1" type="range" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.motionDetectionSensitivity"
+                                                               @change="submitRecordSettings">
+                                                        <span class="rs-unit">s</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_record_type">Record Type</span>
-                                                </div>
-                                                <div style="align-items: end">
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="motionDetectionModeGruop"
-                                                                value=0
-                                                                x-model.number="motionDetectionInformation.motionDetectionMode"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_none">None</span>
-                                                    </label>
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="motionDetectionModeGruop"
-                                                                value=1
-                                                                x-model.number="motionDetectionInformation.motionDetectionMode"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_local_only">Local Only</span>
-                                                    </label>
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="motionDetectionModeGruop"
-                                                                value=2
-                                                                x-model.number="motionDetectionInformation.motionDetectionMode"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_cloud">Cloud</span>
-                                                    </label>
-                                                    <label class="form-check form-check-inline">
-                                                        <input
-                                                                class="form-check-input"
-                                                                type="radio"
-                                                                name="motionDetectionModeGruop"
-                                                                value=3
-                                                                x-model.number="motionDetectionInformation.motionDetectionMode"
-                                                                @change="submitRecordSettings">
-                                                        <span class="form-check-label" data-i18n="rs_local_and_cloud">Local & Cloud</span>
-                                                    </label>
+                                            <div class="col-12 col-md-6 col-xl-4" x-show="recordRunMode===1" x-cloak>
+                                                <div class="rs-param-card">
+                                                    <div class="rs-param-title" data-i18n="rs_pre_record_duration">Pre-record Duration</div>
+                                                    <div class="rs-param-ctrl">
+                                                        <input class="form-control form-number-xs" type="number" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.preRecordDuration"
+                                                               @keydown.enter="submitRecordSettings" @blur="submitRecordSettings">
+                                                        <input class="form-range flex-grow-1" type="range" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.preRecordDuration"
+                                                               @change="submitRecordSettings">
+                                                        <span class="rs-unit">s</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_record_duration">Record Duration</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <input
-                                                            class="form-control form-number-xs"
-                                                            type="number"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.motionDetectionSensitivity"
-                                                            @keydown.enter="submitRecordSettings"
-                                                            @blur="submitRecordSettings">
-                                                    <input
-                                                            class="form-range form-range-w200"
-                                                            type="range"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.motionDetectionSensitivity"
-                                                            @change="submitRecordSettings">
+
+                                            <!-- 缩时录像参数 -->
+                                            <div class="col-12 col-md-6 col-xl-4" x-show="recordRunMode===0" x-cloak>
+                                                <div class="rs-param-card">
+                                                    <div class="rs-param-title" data-i18n="rs_timelapse_max">Timelapse Max Duration</div>
+                                                    <div class="rs-param-ctrl">
+                                                        <input class="form-control form-number-xs" type="number" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.timeLapseMaxDuration"
+                                                               @keydown.enter="submitRecordSettings" @blur="submitRecordSettings">
+                                                        <input class="form-range flex-grow-1" type="range" min="0" max="600" step="1"
+                                                               x-model.number="motionDetectionInformation.timeLapseMaxDuration"
+                                                               @change="submitRecordSettings">
+                                                        <span class="rs-unit">s</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_pre_record_duration">Pre-record Duration</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <input
-                                                            class="form-control form-number-xs"
-                                                            type="number"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.preRecordDuration"
-                                                            @keydown.enter="submitRecordSettings"
-                                                            @blur="submitRecordSettings">
-                                                    <input
-                                                            class="form-range form-range-w200"
-                                                            type="range"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.preRecordDuration"
-                                                            @change="submitRecordSettings">
+                                            <div class="col-12 col-md-6 col-xl-4" x-show="recordRunMode===0" x-cloak>
+                                                <div class="rs-param-card">
+                                                    <div class="rs-param-title" data-i18n="rs_timelapse_fps">Timelapse FPS</div>
+                                                    <div class="rs-param-ctrl">
+                                                        <input class="form-control form-number-xs" type="number" min="0" max="10" step="1"
+                                                               x-model.number="motionDetectionInformation.timeLapseFps"
+                                                               @keydown.enter="submitRecordSettings" @blur="submitRecordSettings">
+                                                        <input class="form-range flex-grow-1" type="range" min="0" max="10" step="1"
+                                                               x-model.number="motionDetectionInformation.timeLapseFps"
+                                                               @change="submitRecordSettings">
+                                                        <span class="rs-unit">fps</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_timelapse_max">Timelapse Max Duration</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <input
-                                                            class="form-control form-number-xs"
-                                                            type="number"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.timeLapseMaxDuration"
-                                                            @keydown.enter="submitRecordSettings"
-                                                            @blur="submitRecordSettings">
-                                                    <input
-                                                            class="form-range form-range-w200"
-                                                            type="range"
-                                                            min="0"
-                                                            max="600"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.timeLapseMaxDuration"
-                                                            @change="submitRecordSettings">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_timelapse_fps">Timelapse FPS</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <input
-                                                            class="form-control form-number-xs"
-                                                            type="number"
-                                                            min="0"
-                                                            max="10"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.timeLapseFps"
-                                                            @keydown.enter="submitRecordSettings"
-                                                            @blur="submitRecordSettings">
-                                                    <input
-                                                            class="form-range form-range-w200"
-                                                            type="range"
-                                                            min="0"
-                                                            max="10"
-                                                            step="1"
-                                                            x-model.number="motionDetectionInformation.timeLapseFps"
-                                                            @change="submitRecordSettings">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4" style="margin-bottom: 10px;">
-                                        <div class="card shadow">
-                                            <div class="card-body center card-body-param">
-                                                <div class="hr-text hr-text-center">
-                                                    <span data-i18n="rs_file_counts">Record File Counts</span>
-                                                </div>
-                                                <div class="col-12 col-md-4">
-                                                    <input
-                                                            id="recordFileCounts"
-                                                            class="form-control"
-                                                            data-bs-toggle="tooltip"
-                                                            :title="tIdx('rs_file_counts_tip')"
-                                                            x-model.number="motionDetectionInformation.recordFileCounts"
-                                                    />
+
+                                            <!-- 通用 -->
+                                            <div class="col-12 col-md-6 col-xl-4">
+                                                <div class="rs-param-card">
+                                                    <div class="rs-param-title" data-i18n="rs_file_counts">Record File Counts</div>
+                                                    <div class="rs-param-ctrl">
+                                                        <input id="recordFileCounts" class="form-control" style="max-width:160px;"
+                                                               data-bs-toggle="tooltip" :title="tIdx('rs_file_counts_tip')"
+                                                               x-model.number="motionDetectionInformation.recordFileCounts"
+                                                               @keydown.enter="submitRecordSettings" @blur="submitRecordSettings">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6858,7 +6726,7 @@ const I18N_INDEX = {
     rs_cloud:'Cloud', rs_local_and_cloud:'Local & Cloud',
     rs_record_duration:'Record Duration', rs_pre_record_duration:'Pre-record Duration',
     rs_timelapse_max:'Timelapse Max Duration', rs_timelapse_fps:'Timelapse FPS',
-    rs_file_counts:'Record File Counts', rs_file_counts_tip:'Record file count',
+    rs_file_counts:'Record File Counts', rs_file_counts_tip:'Record file count', rs_sec_loop:'Loop Recording', rs_sec_timelapse:'Timelapse Recording',
     cm_start_time:'Start Time', cm_end_time:'End Time',
     cm_page_size:'Page Size', cm_page_number:'Page Number',
     cm_search:'Search', cm_load_more:'Load More', cm_cancel:'Cancel', cm_confirm:'Confirm',
@@ -7005,7 +6873,7 @@ const I18N_INDEX = {
     rs_cloud:'云端', rs_local_and_cloud:'本地与云端',
     rs_record_duration:'录像时长', rs_pre_record_duration:'预录时长',
     rs_timelapse_max:'延时录像最大时长', rs_timelapse_fps:'延时录像帧率',
-    rs_file_counts:'录像文件数量', rs_file_counts_tip:'录像文件记录个数',
+    rs_file_counts:'录像文件数量', rs_file_counts_tip:'录像文件记录个数', rs_sec_loop:'循环录像', rs_sec_timelapse:'缩时录像',
     cm_start_time:'开始时间', cm_end_time:'结束时间',
     cm_page_size:'每页条数', cm_page_number:'页码',
     cm_search:'搜索', cm_load_more:'加载更多', cm_cancel:'取消', cm_confirm:'确定',
@@ -7152,7 +7020,7 @@ const I18N_INDEX = {
     rs_cloud:'クラウド', rs_local_and_cloud:'ローカル+クラウド',
     rs_record_duration:'録画時間', rs_pre_record_duration:'プレ録画時間',
     rs_timelapse_max:'タイムラプス最大時間', rs_timelapse_fps:'タイムラプスFPS',
-    rs_file_counts:'録画ファイル数', rs_file_counts_tip:'録画ファイル記録数',
+    rs_file_counts:'録画ファイル数', rs_file_counts_tip:'録画ファイル記録数', rs_sec_loop:'ループ録画', rs_sec_timelapse:'タイムラプス録画',
     cm_start_time:'開始時刻', cm_end_time:'終了時刻',
     cm_page_size:'ページサイズ', cm_page_number:'ページ番号',
     cm_search:'検索', cm_load_more:'さらに読み込む', cm_cancel:'キャンセル', cm_confirm:'確認',
@@ -7298,7 +7166,7 @@ const I18N_INDEX = {
     rs_cloud:'Cloud', rs_local_and_cloud:'Lokal & Cloud',
     rs_record_duration:'Aufnahmedauer', rs_pre_record_duration:'Vorlaufzeit',
     rs_timelapse_max:'Zeitraffer max. Dauer', rs_timelapse_fps:'Zeitraffer-FPS',
-    rs_file_counts:'Aufnahmedateien', rs_file_counts_tip:'Anzahl der Aufnahmedateien',
+    rs_file_counts:'Aufnahmedateien', rs_file_counts_tip:'Anzahl der Aufnahmedateien', rs_sec_loop:'Schleifenaufnahme', rs_sec_timelapse:'Zeitrafferaufnahme',
     cm_start_time:'Startzeit', cm_end_time:'Endzeit',
     cm_page_size:'Seitengröße', cm_page_number:'Seitennummer',
     cm_search:'Suchen', cm_load_more:'Mehr laden', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
@@ -7444,7 +7312,7 @@ const I18N_INDEX = {
     rs_cloud:'Cloud', rs_local_and_cloud:'Local & Cloud',
     rs_record_duration:'Durée enreg.', rs_pre_record_duration:'Durée pré-enreg.',
     rs_timelapse_max:'Durée max timelapse', rs_timelapse_fps:'IPS timelapse',
-    rs_file_counts:'Fichiers enreg.', rs_file_counts_tip:'Nombre de fichiers enregistrés',
+    rs_file_counts:'Fichiers enreg.', rs_file_counts_tip:'Nombre de fichiers enregistrés', rs_sec_loop:'Enregistrement en boucle', rs_sec_timelapse:'Enregistrement accéléré',
     cm_start_time:'Début', cm_end_time:'Fin',
     cm_page_size:'Taille page', cm_page_number:'N° page',
     cm_search:'Rechercher', cm_load_more:'Charger plus', cm_cancel:'Annuler', cm_confirm:'Confirmer',
@@ -7590,7 +7458,7 @@ const I18N_INDEX = {
     rs_cloud:'Nube', rs_local_and_cloud:'Local y nube',
     rs_record_duration:'Duración grabación', rs_pre_record_duration:'Duración pre-grabación',
     rs_timelapse_max:'Duración máx. timelapse', rs_timelapse_fps:'FPS timelapse',
-    rs_file_counts:'Archivos grabación', rs_file_counts_tip:'Cantidad de archivos grabados',
+    rs_file_counts:'Archivos grabación', rs_file_counts_tip:'Cantidad de archivos grabados', rs_sec_loop:'Grabación en bucle', rs_sec_timelapse:'Grabación timelapse',
     cm_start_time:'Inicio', cm_end_time:'Fin',
     cm_page_size:'Tamaño página', cm_page_number:'N° página',
     cm_search:'Buscar', cm_load_more:'Cargar más', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
