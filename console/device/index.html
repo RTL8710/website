@@ -4032,7 +4032,7 @@
                                                                           :class="rec.RecordIndexInformationType==1 ? 'bg-primary' : rec.RecordIndexInformationType==2 ? 'bg-danger' : 'bg-purple'"
                                                                           :style="rec.RecordIndexInformationType==3 ? 'background:#7c3aed' : ''"
                                                                           x-text="rec.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : rec.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : tIdx('vp_type_timelapse')"></span>
-                                                                    <span class="badge bg-secondary" style="font-size:10px;"><i class="fa fa-clock me-1"></i><span x-text="rec.RecordIndexInformationDateTime.substring(0,19)"></span></span>
+                                                                    <span class="badge bg-secondary" style="font-size:10px;"><i class="fa fa-clock me-1"></i><span x-text="syncWallClockLabel(rec)"></span></span>
                                                                     <span class="badge bg-dark" style="font-size:10px;" x-show="rec.RecordIndexInformationWidth" x-text="rec.RecordIndexInformationWidth + 'x' + rec.RecordIndexInformationHeight"></span>
                                                                     <span class="badge bg-warning text-dark" style="font-size:10px;"><i class="fa fa-stopwatch me-1"></i><span x-text="rec.RecordIndexInformationDuration + 's'"></span></span>
                                                                 </div>
@@ -13941,11 +13941,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.records = [...recs, ...rest];
             },
             // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」
+            // 各路 60s 分段边界常错开：先找覆盖路数最多的同步墙钟，再逐路取包含该时刻的真实段并 seek。
             async resolveSegmentsAt(secs) {
                 const pad = n => String(n).padStart(2, '0');
-                const fmt = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60));
-                const startS = Math.max(0, secs - 360), endS = Math.min(86399, secs + 60);  // 点击前6min~后1min
-                const secOf = dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; };
+                const fmt = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(Math.floor(s % 60));
+                const startS = Math.max(0, secs - 900), endS = Math.min(86399, secs + 120);
                 try {
                     if (typeof this.initDeviceGeneralInformation === 'function') {
                         await this.initDeviceGeneralInformation();
@@ -13959,33 +13959,85 @@ document.addEventListener('DOMContentLoaded', function() {
                             params: {
                                 deviceID,
                                 startTime: fmt(startS), endTime: fmt(endS),
-                                pageSize: 200, pageNumber: 1, recordType: this.searchRecordType,
+                                pageSize: 400, pageNumber: 1, recordType: this.searchRecordType,
                             },
                         }),
                     });
                     const result = await resp.json();
                     const all = (result && result.params && result.params.records) ? result.params.records : [];
-                    const ncam = this.timelineCamCount();
-                    const list = [];
-                    for (let cam = 0; cam < ncam; cam++) {
-                        const camRecs = all.filter(r => this._camOfRecord(r) === cam);
-                        let hit = null, best = null, bd = Infinity;
-                        for (const r of camRecs) {
-                            const s = secOf(r.RecordIndexInformationDateTime);
-                            if (s < 0) continue;
-                            const d = (r.RecordIndexInformationDuration || 0);
-                            if (secs >= s && secs <= s + Math.max(d, 1)) { hit = r; break; }
-                            const dist = Math.min(Math.abs(secs - s), Math.abs(secs - (s + d)));
-                            if (dist < bd) { bd = dist; best = r; }
-                        }
-                        const pick = hit || (best && bd <= 120 ? best : null);
-                        if (pick) list.push(Object.assign({}, pick, { _segStart: secOf(pick.RecordIndexInformationDateTime) }));
-                    }
-                    return list;
+                    return this._buildSyncedSegments(all, secs);
                 } catch (e) {
                     console.error('resolveSegmentsAt error:', e);
                     return [];
                 }
+            },
+            _buildSyncedSegments(all, secs) {
+                const ncam = this.timelineCamCount();
+                const byCam = [];
+                for (let cam = 0; cam < ncam; cam++) {
+                    byCam.push((all || []).filter(r => this._camOfRecord(r) === cam));
+                }
+                const syncT = this._bestSyncTime(byCam, secs);
+                this.syncSeekSecs = syncT;
+                const list = [];
+                for (let cam = 0; cam < ncam; cam++) {
+                    const pick = this._pickRecordAtSecs(byCam[cam], syncT, false);
+                    if (pick) {
+                        const s0 = this._recSecs(pick);
+                        list.push(Object.assign({}, pick, { _segStart: s0 >= 0 ? s0 : 0 }));
+                    }
+                }
+                return list;
+            },
+            _bestSyncTime(byCam, secs) {
+                const covers = (T) => {
+                    let n = 0;
+                    for (const camRecs of byCam) {
+                        if (this._pickRecordAtSecs(camRecs, T, true)) n++;
+                    }
+                    return n;
+                };
+                let bestT = secs, bestScore = covers(secs), bestDist = 0;
+                if (bestScore === byCam.length) return secs;
+                for (let delta = 1; delta <= 90; delta++) {
+                    for (const T of [secs - delta, secs + delta]) {
+                        if (T < 0 || T > 86399) continue;
+                        const score = covers(T);
+                        if (score > bestScore || (score === bestScore && delta < bestDist)) {
+                            bestScore = score; bestT = T; bestDist = delta;
+                        }
+                        if (score === byCam.length) return T;
+                    }
+                }
+                return bestT;
+            },
+            _pickRecordAtSecs(camRecs, secs, containOnly) {
+                let hit = null, hitStart = -1;
+                let pastBest = null, pastDist = Infinity;
+                let futureBest = null, futureDist = Infinity;
+                for (const r of (camRecs || [])) {
+                    const s = this._recSecs(r);
+                    if (s < 0) continue;
+                    const d = Math.max(Number(r.RecordIndexInformationDuration) || 0, 1);
+                    const end = s + d;
+                    if (secs >= s && secs <= end) {
+                        if (!hit || s >= hitStart) { hit = r; hitStart = s; }
+                        continue;
+                    }
+                    if (secs > end) {
+                        const dist = secs - end;
+                        if (dist < pastDist) { pastDist = dist; pastBest = r; }
+                    } else {
+                        const dist = s - secs;
+                        if (dist < futureDist) { futureDist = dist; futureBest = r; }
+                    }
+                }
+                if (hit) return hit;
+                if (containOnly) return null;
+                if (pastBest && pastDist <= 120 && pastDist <= futureDist + 5) return pastBest;
+                if (futureBest && futureDist <= 120) return futureBest;
+                if (pastBest && pastDist <= 120) return pastBest;
+                return null;
             },
             // 云模式:优先用 resolveSegmentsAt 真实段；再退回列表/_recordAtSecs；startKvsPlayback 按 cameraCounts 补齐各路
             async _playAtTimelineSecs(secs, resolved) {
@@ -14046,11 +14098,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     _segStart: e.s            // 段起始秒(当天)，多路同步时据此 seek 到点击时刻
                 };
             },
-            // 多路同步：把每路视频 seek 到点击的墙钟时刻(= 点击秒 - 该段起始秒)；越界/短片则跳过(从头播，不回归)
+            // 多路同步：seek 到 syncSeekSecs 墙钟；越界则 clamp 到 [0, dur)，避免某路段边界错开时整路从头播导致差几十秒
             syncSeekVideo(ev, rec) {
-                const t = (this.syncSeekSecs == null ? -1 : this.syncSeekSecs) - (rec && rec._segStart != null ? rec._segStart : 0);
+                if (this.syncSeekSecs == null || this.syncSeekSecs < 0) return;
+                const start = (rec && rec._segStart != null) ? rec._segStart : 0;
+                let t = this.syncSeekSecs - start;
                 const dur = ev && ev.target ? ev.target.duration : NaN;
-                if (t > 0.5 && isFinite(dur) && t < dur - 0.2) ev.target.currentTime = t;
+                if (!isFinite(dur) || dur <= 0) return;
+                if (t < 0) t = 0;
+                if (t > dur - 0.05) t = Math.max(0, dur - 0.05);
+                try { ev.target.currentTime = t; } catch (e) {}
+            },
+            // 多路回放角标：显示同步墙钟（各路文件头时间可能差 1 分钟）
+            syncWallClockLabel(rec) {
+                if (this.syncSeekSecs != null && this.syncSeekSecs >= 0 && (this.syncRecords || []).length > 1) {
+                    const s = this.syncSeekSecs;
+                    const pad = n => String(n).padStart(2, '0');
+                    return (this.timelineDate || '') + ' ' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+                }
+                const dt = rec && rec.RecordIndexInformationDateTime;
+                return dt ? String(dt).substring(0, 19) : '';
             },
             // 该列表项是否正在（同步）播放
             isPlaying(record) {
