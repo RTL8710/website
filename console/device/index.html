@@ -3297,34 +3297,7 @@
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row row-deck ">
-                                    <!-- 云端 OTA（AWS IoT Jobs）：当前版本 + 实时进度 + 下发升级（平台3 Orin） -->
-                                    <div class="card shadow mb-3" x-init="onPage('upgrade', () => { initCloudOta() })">
-                                        <div class="card-body">
-                                            <div class="mb-2"><span data-i18n="ot_cur_version">Current version</span>:
-                                                <b x-text="deviceGeneralInformation.deviceVersion || '-'"></b></div>
-                                            <div class="mb-2" x-show="otaCloudStatus">
-                                                <span data-i18n="ot_status">Status</span>: <b x-text="otaCloudStatus"></b>
-                                                <span x-show="otaCloudJobId"> (job <span x-text="otaCloudJobId"></span>)</span>
-                                                <div class="progress mt-1">
-                                                    <div class="progress-bar" :style="'width:'+otaCloudProgress+'%'"
-                                                         x-text="otaCloudProgress+'%'"></div>
-                                                </div>
-                                            </div>
-                                            <div class="row g-2 mt-2">
-                                                <div class="col-12"><input class="form-control" x-model="otaPkgUrl"
-                                                     placeholder="packageUrl (https, S3 presigned ...)"></div>
-                                                <div class="col-6"><input class="form-control" x-model="otaPkgVer"
-                                                     placeholder="packageVersion e.g. 1.0.1"></div>
-                                                <div class="col-6"><input class="form-control" x-model="otaPkgSha"
-                                                     placeholder="sha256 (optional)"></div>
-                                            </div>
-                                            <button class="btn btn-primary mt-2" @click="dispatchCloudOta()"
-                                                    data-i18n="ot_dispatch">Dispatch upgrade</button>
-                                            <p class="text-secondary mt-1" style="font-size:12px" data-i18n="ot_cloud_hint">
-                                                Creates an AWS IoT Job; device downloads + sha256-verifies + reports progress.</p>
-                                        </div>
-                                    </div>
-                                    <div class="card shadow">
+<div class="card shadow">
                                         <div class="card-header">
                                             <h3 class="card-title" data-i18n="ot_title"> Upgrade </h3>
                                         </div>
