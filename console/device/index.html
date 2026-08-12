@@ -4062,7 +4062,7 @@
                                                         <div class="p-1 mb-1 rounded" style="cursor:pointer;background:rgba(47,191,113,0.10);font-size:11px;"
                                                              @click="playRecord(r)">
                                                             <span class="badge bg-secondary" style="font-size:9px;" x-text="r.RecordIndexInformationDateTime.substring(0,19)"></span>
-                                                            <span :class="r.RecordIndexInformationPath.includes('/second/') ? 'badge bg-success' : 'badge bg-primary'"
+                                                            <span :class="'badge bg-'+['primary','success','info','warning'][tlCamOf(r.RecordIndexInformationPath)%4]"
                                                                   style="font-size:9px;" x-text="'CAM'+(tlCamOf(r.RecordIndexInformationPath)+1)"></span>
                                                             <div style="color:#9fe6c0;line-height:1.35;" x-text="r.RecordIndexInformationDescription"></div>
                                                         </div>
@@ -4091,7 +4091,7 @@
                                                                              onerror="this.style.display='none'">
                                                                         <i class="fa fa-lock" x-show="record.isLocked" style="position:absolute;top:21px;left:4px;font-size:11px;color:#ef4444;drop-shadow(0 0 2px rgba(0,0,0,0.8));"></i>
                                                                         <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;"
-                                                                              :class="record.RecordIndexInformationPath.includes('/second/') ? 'bg-success' : 'bg-primary'"
+                                                                              :class="'bg-'+['primary','success','info','warning'][tlCamOf(record.RecordIndexInformationPath)%4]"
                                                                               x-text="'CAM'+(tlCamOf(record.RecordIndexInformationPath)+1)"></span>
                                                                         <span class="badge bg-dark" x-show="record.RecordIndexInformationFps" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;opacity:0.85;"
                                                                               x-text="record.RecordIndexInformationFps + 'fps'"></span>
