@@ -6015,25 +6015,27 @@
                             </button>
                                                     </div>
                                                 </div>
-                                                <div class="vs-param-pane" x-show="networkParamTab==='web'" x-cloak>
+                                                                                                <div class="vs-param-pane" x-show="networkParamTab==='web'" x-cloak>
                                                     <div class="cloud-tab-form">
-<div class="mb-3 row g-3">
-                                <div class="col-12 col-md-3">
+                            <div class="mb-3 row g-3">
+                                <div class="col-12 col-md-6">
                                     <label for="webserverServiceRoot" class="form-label" data-i18n="ab_root">Root</label>
                                     <input id="webserverServiceRoot" class="form-control"
                                            x-model="webserverService.webserverServiceRoot" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-6 col-md-3">
                                     <label for="webserverServicePort" class="form-label" data-i18n="ab_port">Port</label>
                                     <input id="webserverServicePort" class="form-control"
                                            x-model="webserverService.webserverServicePort" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-6 col-md-3">
                                     <label for="webserverServiceHttpsPort" class="form-label" data-i18n="ab_https_port">HTTPS Port</label>
                                     <input id="webserverServiceHttpsPort" class="form-control"
                                            x-model="webserverService.webserverServiceHttpsPort" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                            </div>
+                            <div class="mb-1 row g-3">
+                                <div class="col-12 col-md-4">
                                     <label for="webserverServicePageLog" class="form-label" data-i18n="ab_log">Log</label>
                                     <select id="webserverServicePageLog" class="form-select"
                                             x-model="webserverService.webserverServicePageLog">
@@ -6041,8 +6043,6 @@
                                         <option value="false" data-i18n="cm_disable">disable</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div class="mb-3 row g-3">
                                 <div class="col-12 col-md-4">
                                     <label for="webserverServiceThemeStyle" class="form-label" data-i18n="ab_theme">Theme Style</label>
                                     <select id="webserverServiceThemeStyle" class="form-select"
@@ -6052,31 +6052,9 @@
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-4">
-                                    <label for="webserverServiceLanguage" class="form-label" data-i18n="ab_language">Language</label>
-                                    <input id="webserverServiceLanguage" class="form-control"
-                                           x-model="webserverService.webserverServiceLanguage" />
-                                </div>
-                                <div class="col-12 col-md-4">
                                     <label for="webserverServiceVersion" class="form-label" data-i18n="ab_version">Version</label>
                                     <input id="webserverServiceVersion" class="form-control"
                                            x-model="webserverService.webserverServiceVersion" readonly />
-                                </div>
-                            </div>
-                            <div class="mb-1 row g-3">
-                                <div class="col-12 col-md-6">
-                                    <label for="webserverServiceOther" class="form-label" data-i18n="ab_showcase">Showcase Video</label>
-                                    <select id="webserverServiceOther" class="form-select"
-                                            x-model="webserverService.webserverServiceOther">
-                                        <option value="/config/record/17-47-27.mp4" data-i18n="ab_showcase_1">Traffic light w/ OSD</option>
-                                        <option value="/config/record/16-43-53.mp4" data-i18n="ab_showcase_2">Traffic light w/o OSD</option>
-                                        <option value="/config/record/16-34-49.mp4" data-i18n="ab_showcase_3">Intersection w/ OSD</option>
-                                        <option value="/config/record/16-40-52.mp4" data-i18n="ab_showcase_4">Intersection w/o OSD</option>
-                                        <option value="/config/record/20-29-19.mp4" data-i18n="ab_showcase_5">Indoor frog</option>
-                                        <option value="/config/record/demo_200fhd.mp4" data-i18n="ab_showcase_6">Demo UHD</option>
-                                        <option value="/config/record/demo_100hw.mp4" data-i18n="ab_showcase_7">Demo HD</option>
-                                        <option value="/config/record/demo_sd.mp4" data-i18n="ab_showcase_8">Demo SD</option>
-                                        <option value="/config/record/aws_demo.mp4" data-i18n="ab_showcase_9">Curve demo</option>
-                                    </select>
                                 </div>
                             </div>
                                                     </div>
