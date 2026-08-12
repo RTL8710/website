@@ -1666,8 +1666,20 @@
                                                     <div class="card-body center card-body-param">
                                                         <div class="hr-text hr-text-center hr-text-section"><span data-i18n="vs_scene_mode">Scene Mode</span></div>
                                                         <div class="vs-ctrl">
-                                                            <input type="number" min="0" class="form-control" style="max-width:120px;margin:auto;"
-                                                                   x-model.number="videoInformation.videoSceneMode" @change="submitVideoSettings">
+                                                            <!-- 场景模式=相机 awb_mode(0-9)直通；选项与 V4L2 awb_mode 档位一一对应（对齐设备页） -->
+                                                            <select class="form-select" style="max-width:220px;"
+                                                                    x-model.number="videoInformation.videoSceneMode" @change="submitVideoSettings">
+                                                                <option value="0" data-i18n="scene_auto">Auto</option>
+                                                                <option value="1" data-i18n="scene_manual_gain">Manual Gain</option>
+                                                                <option value="2" data-i18n="scene_manual_ct">Manual Color Temp</option>
+                                                                <option value="3" data-i18n="scene_sunny">Sunny</option>
+                                                                <option value="4" data-i18n="scene_shadow">Shadow</option>
+                                                                <option value="5" data-i18n="scene_indoor">Indoor</option>
+                                                                <option value="6" data-i18n="scene_lamp">Lamp</option>
+                                                                <option value="7" data-i18n="scene_fl1">Fluorescent 1</option>
+                                                                <option value="8" data-i18n="scene_fl2">Fluorescent 2</option>
+                                                                <option value="9" data-i18n="scene_onepush">One-Push</option>
+                                                            </select>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -6799,7 +6811,7 @@ const I18N_INDEX = {
     vs_resolution:'Resolution', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: same quality at ~40% lower bitrate',
     vs_brightness:'Brightness', vs_saturation:'Saturation',
     vs_contrast:'Contrast', vs_sharpness:'Sharpness',
-    vs_stream_mode:'Stream Mode', vs_main_stream_opt:'Main stream', vs_sub_stream_opt:'Sub stream', vs_osd_enable:'OSD (Timestamp)', vs_scene_mode:'Scene Mode',
+    vs_stream_mode:'Stream Mode', vs_main_stream_opt:'Main stream', vs_sub_stream_opt:'Sub stream', vs_osd_enable:'OSD (Timestamp)', vs_scene_mode:'Scene Mode', scene_auto:'Auto', scene_manual_gain:'Manual Gain', scene_manual_ct:'Manual Color Temp', scene_sunny:'Sunny', scene_shadow:'Shadow', scene_indoor:'Indoor', scene_lamp:'Lamp', scene_fl1:'Fluorescent 1', scene_fl2:'Fluorescent 2', scene_onepush:'One-Push',
     vs_stream_type:'Stream Type',
     vs_logo_display:'Logo Display', vs_enable:'Enable', vs_disable:'Disable',
     vs_mirror_flip:'Mirror & Flip', vs_enc_display:'Encoding & Display', vs_image_basic:'Basic Image', vs_image_adv:'Advanced ISP', vs_hue:'Hue', vs_denoise:'Denoise', vs_wdr_mode:'WDR Mode', vs_wdr_level:'WDR Level', vs_ev_comp:'EV Compensation', vs_ev_comp_level:'EV Level', vs_ae_max_shutter:'AE Max Shutter', vs_ae_max_gain:'AE Max Gain', vs_ldc_level:'Lens Distortion (LDC)', vs_denoise_hint:'0–255, higher = stronger noise reduction (softens detail)', vs_wdr_mode_hint:'0 Off / 1 WDR — backlit / high-contrast (this camera has no HDR)', vs_wdr_level_hint:'1–10, only active when WDR mode ≠ Off', vs_ev_comp_hint:'Master switch — EV Level below only applies when enabled', vs_ev_comp_level_hint:'0–255, 128 = neutral; lower darkens, higher brightens', vs_ae_max_shutter_hint:'Slowest AE shutter — slower = brighter in dark but more motion blur', vs_ae_max_gain_hint:'Max AE gain — higher = brighter in dark but more noise', vs_ldc_level_hint:'0–100, corrects wide-angle barrel distortion (0 = off)',
@@ -6945,7 +6957,7 @@ const I18N_INDEX = {
     vs_resolution:'分辨率', vs_fps:'帧率', vs_bitrate:'码率', vs_codec_hint:'H265 同画质约省 40% 码流，可适当调低',
     vs_brightness:'亮度', vs_saturation:'饱和度',
     vs_contrast:'对比度', vs_sharpness:'锐度',
-    vs_stream_mode:'码流模式', vs_main_stream_opt:'主码流', vs_sub_stream_opt:'子码流', vs_osd_enable:'OSD 时间水印', vs_scene_mode:'场景模式',
+    vs_stream_mode:'码流模式', vs_main_stream_opt:'主码流', vs_sub_stream_opt:'子码流', vs_osd_enable:'OSD 时间水印', vs_scene_mode:'场景模式', scene_auto:'自动', scene_manual_gain:'手动增益', scene_manual_ct:'手动色温', scene_sunny:'晴天', scene_shadow:'阴影', scene_indoor:'室内', scene_lamp:'灯光', scene_fl1:'荧光灯1', scene_fl2:'荧光灯2', scene_onepush:'单次(One-Push)',
     vs_stream_type:'编码类型',
     vs_logo_display:'Logo 显示', vs_enable:'启用', vs_disable:'禁用',
     vs_mirror_flip:'镜像与翻转', vs_enc_display:'编码与显示', vs_image_basic:'基础图像', vs_image_adv:'其他 ISP', vs_hue:'色调', vs_denoise:'降噪', vs_wdr_mode:'宽动态', vs_wdr_level:'WDR 级别', vs_ev_comp:'曝光补偿', vs_ev_comp_level:'补偿级别', vs_ae_max_shutter:'最大快门', vs_ae_max_gain:'最大增益', vs_ldc_level:'镜头畸变校正', vs_denoise_hint:'0–255,越大降噪越强(细节变糊)', vs_wdr_mode_hint:'0关 / 1宽动态 — 逆光/大光比(本机无 HDR)', vs_wdr_level_hint:'1–10,仅在宽动态模式≠关时生效', vs_ev_comp_hint:'总开关 — 启用后下方补偿级别才生效', vs_ev_comp_level_hint:'0–255,128为中性;小则变暗,大则变亮', vs_ae_max_shutter_hint:'AE最慢快门 — 越慢暗处越亮但拖影越重', vs_ae_max_gain_hint:'AE最大增益 — 越高暗处越亮但噪点越多', vs_ldc_level_hint:'0–100,校正广角桶形畸变(0=关)',
@@ -7091,7 +7103,7 @@ const I18N_INDEX = {
     vs_resolution:'解像度', vs_fps:'FPS', vs_bitrate:'ビットレート', vs_codec_hint:'H265 同画質で約40%低いビットレート',
     vs_brightness:'明るさ', vs_saturation:'彩度',
     vs_contrast:'コントラスト', vs_sharpness:'シャープネス',
-    vs_stream_mode:'ストリームモード', vs_main_stream_opt:'メイン', vs_sub_stream_opt:'サブ', vs_osd_enable:'OSD タイムスタンプ', vs_scene_mode:'シーンモード',
+    vs_stream_mode:'ストリームモード', vs_main_stream_opt:'メイン', vs_sub_stream_opt:'サブ', vs_osd_enable:'OSD タイムスタンプ', vs_scene_mode:'シーンモード', scene_auto:'オート', scene_manual_gain:'手動ゲイン', scene_manual_ct:'手動色温度', scene_sunny:'晴天', scene_shadow:'日陰', scene_indoor:'室内', scene_lamp:'ランプ', scene_fl1:'蛍光灯1', scene_fl2:'蛍光灯2', scene_onepush:'ワンプッシュ',
     vs_stream_type:'ストリーム種別',
     vs_logo_display:'ロゴ表示', vs_enable:'有効', vs_disable:'無効',
     vs_mirror_flip:'ミラー・反転', vs_enc_display:'エンコード・表示', vs_image_basic:'基本画像', vs_image_adv:'その他 ISP', vs_hue:'色相', vs_denoise:'ノイズ低減', vs_wdr_mode:'WDRモード', vs_wdr_level:'WDRレベル', vs_ev_comp:'露出補正', vs_ev_comp_level:'補正レベル', vs_ae_max_shutter:'AE最大シャッター', vs_ae_max_gain:'AE最大ゲイン', vs_ldc_level:'歪み補正(LDC)', vs_denoise_hint:'0–255、大きいほどノイズ低減が強い(細部が甘くなる)', vs_wdr_mode_hint:'0オフ / 1 WDR — 逆光・高コントラスト(本機にHDRなし)', vs_wdr_level_hint:'1–10、WDRモードがオフ以外の時のみ有効', vs_ev_comp_hint:'マスタースイッチ — 有効時のみ下のEVレベルが適用', vs_ev_comp_level_hint:'0–255、128が中立;小で暗く大で明るく', vs_ae_max_shutter_hint:'AE最遅シャッター — 遅いほど暗所で明るいがブレ増加', vs_ae_max_gain_hint:'AE最大ゲイン — 高いほど暗所で明るいがノイズ増加', vs_ldc_level_hint:'0–100、広角の樽型歪みを補正(0=オフ)',
@@ -7236,7 +7248,7 @@ const I18N_INDEX = {
     vs_resolution:'Auflösung', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: gleiche Qualität bei ~40% weniger Bitrate',
     vs_brightness:'Helligkeit', vs_saturation:'Sättigung',
     vs_contrast:'Kontrast', vs_sharpness:'Schärfe',
-    vs_stream_mode:'Stream-Modus', vs_main_stream_opt:'Hauptstream', vs_sub_stream_opt:'Substream', vs_osd_enable:'OSD Zeitstempel', vs_scene_mode:'Szenenmodus',
+    vs_stream_mode:'Stream-Modus', vs_main_stream_opt:'Hauptstream', vs_sub_stream_opt:'Substream', vs_osd_enable:'OSD Zeitstempel', vs_scene_mode:'Szenenmodus', scene_auto:'Auto', scene_manual_gain:'Man. Verstärkung', scene_manual_ct:'Man. Farbtemp.', scene_sunny:'Sonnig', scene_shadow:'Schatten', scene_indoor:'Innen', scene_lamp:'Lampe', scene_fl1:'Leuchtstoff 1', scene_fl2:'Leuchtstoff 2', scene_onepush:'One-Push',
     vs_stream_type:'Stream-Typ',
     vs_logo_display:'Logo-Anzeige', vs_enable:'Aktiviert', vs_disable:'Deaktiviert',
     vs_mirror_flip:'Spiegel & Flip', vs_enc_display:'Kodierung & Anzeige', vs_image_basic:'Basisbild', vs_image_adv:'Erweitert ISP', vs_hue:'Farbton', vs_denoise:'Rauschreduz.', vs_wdr_mode:'WDR-Modus', vs_wdr_level:'WDR-Stufe', vs_ev_comp:'Belicht.-korrektur', vs_ev_comp_level:'EV-Stufe', vs_ae_max_shutter:'AE Max Verschluss', vs_ae_max_gain:'AE Max Verstärkung', vs_ldc_level:'Verzeichnungskorr. (LDC)', vs_denoise_hint:'0–255, höher = stärkere Rauschreduzierung (weniger Details)', vs_wdr_mode_hint:'0 Aus / 1 WDR — Gegenlicht/hoher Kontrast (kein HDR)', vs_wdr_level_hint:'1–10, nur aktiv wenn WDR-Modus ≠ Aus', vs_ev_comp_hint:'Hauptschalter — EV-Stufe unten nur bei aktiviert wirksam', vs_ev_comp_level_hint:'0–255, 128 = neutral; niedriger dunkler, höher heller', vs_ae_max_shutter_hint:'Langsamster AE-Verschluss — langsamer = heller aber mehr Bewegungsunschärfe', vs_ae_max_gain_hint:'Max AE-Verstärkung — höher = heller aber mehr Rauschen', vs_ldc_level_hint:'0–100, korrigiert Weitwinkel-Verzeichnung (0 = aus)',
@@ -7381,7 +7393,7 @@ const I18N_INDEX = {
     vs_resolution:'Résolution', vs_fps:'IPS', vs_bitrate:'Débit', vs_codec_hint:'H265 : même qualité à ~40% de débit en moins',
     vs_brightness:'Luminosité', vs_saturation:'Saturation',
     vs_contrast:'Contraste', vs_sharpness:'Netteté',
-    vs_stream_mode:'Mode flux', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secondaire', vs_osd_enable:'OSD horodatage', vs_scene_mode:'Mode scène',
+    vs_stream_mode:'Mode flux', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secondaire', vs_osd_enable:'OSD horodatage', vs_scene_mode:'Mode scène', scene_auto:'Auto', scene_manual_gain:'Gain manuel', scene_manual_ct:'Temp. couleur man.', scene_sunny:'Ensoleillé', scene_shadow:'Ombre', scene_indoor:'Intérieur', scene_lamp:'Lampe', scene_fl1:'Fluorescent 1', scene_fl2:'Fluorescent 2', scene_onepush:'One-Push',
     vs_stream_type:'Type de flux',
     vs_logo_display:'Affichage logo', vs_enable:'Activé', vs_disable:'Désactivé',
     vs_mirror_flip:'Miroir & Retourner', vs_enc_display:'Encodage & Affichage', vs_image_basic:'Image de base', vs_image_adv:'ISP avancé', vs_hue:'Teinte', vs_denoise:'Réduction bruit', vs_wdr_mode:'Mode WDR', vs_wdr_level:'Niveau WDR', vs_ev_comp:'Compensation EV', vs_ev_comp_level:'Niveau EV', vs_ae_max_shutter:'Obturateur max AE', vs_ae_max_gain:'Gain max AE', vs_ldc_level:'Correction distorsion (LDC)', vs_denoise_hint:'0–255, plus élevé = réduction de bruit plus forte (adoucit les détails)', vs_wdr_mode_hint:'0 Arrêt / 1 WDR — contre-jour/fort contraste (pas de HDR)', vs_wdr_level_hint:'1–10, actif seulement si mode WDR ≠ Arrêt', vs_ev_comp_hint:'Interrupteur principal — niveau EV ci-dessous actif si activé', vs_ev_comp_level_hint:'0–255, 128 = neutre; plus bas assombrit, plus haut éclaircit', vs_ae_max_shutter_hint:'Obturateur AE le plus lent — plus lent = plus lumineux mais plus de flou', vs_ae_max_gain_hint:'Gain AE max — plus élevé = plus lumineux mais plus de bruit', vs_ldc_level_hint:'0–100, corrige la distorsion grand-angle (0 = arrêt)',
@@ -7526,7 +7538,7 @@ const I18N_INDEX = {
     vs_resolution:'Resolución', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: misma calidad con ~40% menos bitrate',
     vs_brightness:'Brillo', vs_saturation:'Saturación',
     vs_contrast:'Contraste', vs_sharpness:'Nitidez',
-    vs_stream_mode:'Modo de flujo', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secundario', vs_osd_enable:'OSD marca de tiempo', vs_scene_mode:'Modo escena',
+    vs_stream_mode:'Modo de flujo', vs_main_stream_opt:'Principal', vs_sub_stream_opt:'Secundario', vs_osd_enable:'OSD marca de tiempo', vs_scene_mode:'Modo escena', scene_auto:'Auto', scene_manual_gain:'Ganancia manual', scene_manual_ct:'Temp. color manual', scene_sunny:'Soleado', scene_shadow:'Sombra', scene_indoor:'Interior', scene_lamp:'Lámpara', scene_fl1:'Fluorescente 1', scene_fl2:'Fluorescente 2', scene_onepush:'One-Push',
     vs_stream_type:'Tipo de flujo',
     vs_logo_display:'Mostrar logo', vs_enable:'Activar', vs_disable:'Desactivar',
     vs_mirror_flip:'Espejo y volteo', vs_enc_display:'Codificación y pantalla', vs_image_basic:'Imagen básica', vs_image_adv:'ISP avanzado', vs_hue:'Tono', vs_denoise:'Reducción ruido', vs_wdr_mode:'Modo WDR', vs_wdr_level:'Nivel WDR', vs_ev_comp:'Compensación EV', vs_ev_comp_level:'Nivel EV', vs_ae_max_shutter:'Obturador máx AE', vs_ae_max_gain:'Ganancia máx AE', vs_ldc_level:'Corrección distorsión (LDC)', vs_denoise_hint:'0–255, mayor = reducción de ruido más fuerte (suaviza detalles)', vs_wdr_mode_hint:'0 Apag / 1 WDR — contraluz/alto contraste (sin HDR)', vs_wdr_level_hint:'1–10, activo solo si modo WDR ≠ Apagado', vs_ev_comp_hint:'Interruptor principal — nivel EV abajo solo si está activado', vs_ev_comp_level_hint:'0–255, 128 = neutral; menor oscurece, mayor aclara', vs_ae_max_shutter_hint:'Obturador AE más lento — más lento = más brillo pero más desenfoque', vs_ae_max_gain_hint:'Ganancia AE máx — mayor = más brillo pero más ruido', vs_ldc_level_hint:'0–100, corrige distorsión de gran angular (0 = apagado)',
