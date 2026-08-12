@@ -359,6 +359,59 @@
             grid-template-columns:repeat(2, minmax(0,1fr));
         }
 
+        /* RTSP URL 列表：两路合成一卡，cameraN 展示名 */
+        .rtsp-url-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        .rtsp-url-pair {
+            border: 1px solid var(--border, #1e2a44);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--bg-card2, #1a2438) 70%, transparent);
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .rtsp-url-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .rtsp-cam-badge {
+            flex: 0 0 auto;
+            min-width: 72px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .02em;
+            color: var(--accent, #22d3ee);
+            background: color-mix(in srgb, var(--accent, #22d3ee) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent, #22d3ee) 35%, transparent);
+            border-radius: 999px;
+            padding: 3px 8px;
+        }
+        .rtsp-url-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 12px;
+            line-height: 1.35;
+            color: var(--text-primary, #e8eef8);
+            background: transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .rtsp-copy-btn {
+            flex: 0 0 auto;
+            padding: 2px 8px !important;
+            line-height: 1.2;
+        }
+
+
         /* Cloud Settings：分段 Tab 内参数表（仿视频 ISP/OSD） */
         .dv-settings-table { --tblr-table-bg: transparent; }
         .dv-settings-table thead th {
@@ -5568,18 +5621,29 @@
                                     <input class="form-control" x-model="rtspServerService.rtsp_auth_password" />
                                 </div>
                             </div>
-                            <div class="mb-4 row">
-                                <div class="col-12">
-                                    <label class="col-form-label" data-i18n="nw_rtsp_urls">RTSP URLs</label>
-                                    <!-- 单 server 单端口,按摄像头数 live1/live2/…;遍历设备返回的 rtsp_urls -->
-                                    <template x-for="(rurl, ridx) in (rtspServerService.rtsp_urls || [])" :key="ridx">
-                                        <div class="input-group mb-2">
-                                            <span class="input-group-text" x-text="'live' + (ridx + 1)"></span>
-                                            <input class="form-control" :value="rurl" readonly />
-                                        </div>
-                                    </template>
+                            <div class="mb-3">
+                                    <label class="col-form-label mb-2" data-i18n="nw_rtsp_urls">RTSP URLs</label>
+                                    <!-- 展示名 camera1/camera2…；两路合成一张卡片；真实路径仍是设备 live{i+1} -->
+                                    <div class="rtsp-url-grid" x-show="(rtspServerService.rtsp_urls || []).length">
+                                        <template x-for="(pair, pidx) in rtspUrlPairs()" :key="'rp'+pidx">
+                                            <div class="rtsp-url-pair">
+                                                <template x-for="cam in pair" :key="'rc'+cam.n">
+                                                    <div class="rtsp-url-row">
+                                                        <span class="rtsp-cam-badge" x-text="'camera' + cam.n"></span>
+                                                        <code class="rtsp-url-text" x-text="cam.url" :title="cam.url"></code>
+                                                        <button type="button" class="btn btn-sm btn-outline-primary rtsp-copy-btn"
+                                                                @click="copyRtspUrl(cam.url, cam.n)"
+                                                                :title="tIdx('nw_rtsp_copy')">
+                                                            <i class="fa-regular fa-copy"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="text-secondary" style="font-size:12px;" x-show="!(rtspServerService.rtsp_urls || []).length"
+                                         data-i18n="nw_rtsp_urls_empty">No RTSP URLs</div>
                                 </div>
-                            </div>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-2 mt-3">
 <button class="btn btn-primary me-2" @click="submitRtspServerInformation">
@@ -6851,7 +6915,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'Video Type', nw_rtsp_main:'Main', nw_rtsp_sub:'Sub',
     nw_rtsp_auth:'RTSP Auth', nw_rtsp_port:'RTSP Port', nw_rtsp_clients:'RTSP Clients',
     osd_title:'OSD Display', osd_time_section:'Time Watermark', osd_box_section:'Detection Label', osd_position:'Position', osd_pos_tl:'Top-Left', osd_pos_tr:'Top-Right', osd_pos_bl:'Bottom-Left', osd_pos_br:'Bottom-Right', osd_pos_custom:'Custom (X/Y)', osd_font_size:'Font Size (0=auto)', osd_sub_font_size:'Sub Font Size (0=auto)', osd_color:'Color', osd_c_white:'White', osd_c_black:'Black', osd_c_red:'Red', osd_c_green:'Green', osd_c_blue:'Blue', osd_c_yellow:'Yellow', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'Save OSD', osd_saved:'OSD saved', osd_subtitle:'Time watermark & detection label overlay', osd_font_path:'Font', osd_font_hint:'Path to a .ttf font file (e.g. /lib/font.ttf). Supports custom / CJK fonts via FreeType.',
-    nw_rtsp_sub_port:'Sub Port', nw_rtsp_live_path:'Live Path', nw_rtsp_sub_live:'Sub Live Path', nw_rtsp_auth_user:'Auth User', nw_rtsp_auth_pass:'Auth Password', nw_rtsp_urls:'RTSP URLs', nw_rtsp_url_main:'Main URL', nw_rtsp_url_sub:'Sub URL', nw_rtsp_update:'Update RTSP Server',
+    nw_rtsp_sub_port:'Sub Port', nw_rtsp_live_path:'Live Path', nw_rtsp_sub_live:'Sub Live Path', nw_rtsp_auth_user:'Auth User', nw_rtsp_auth_pass:'Auth Password', nw_rtsp_urls:'RTSP URLs', nw_rtsp_urls_empty:'No RTSP URLs', nw_rtsp_copy:'Copy', nw_rtsp_copied:'Copied', nw_rtsp_copy_fail:'Copy failed', nw_rtsp_url_main:'Main URL', nw_rtsp_url_sub:'Sub URL', nw_rtsp_update:'Update RTSP Server',
     cl_title:'WebRTC', cl_thing_name:'Thing Name',
     cl_access_key:'Access Key ID', cl_secret_key:'Secret Access Key',
     cl_region:'Default Region', cl_log_level:'Log Level',
@@ -6998,7 +7062,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'视频类型', nw_rtsp_main:'主码流', nw_rtsp_sub:'子码流',
     nw_rtsp_auth:'RTSP 认证', nw_rtsp_port:'RTSP 端口', nw_rtsp_clients:'RTSP 客户端',
     osd_title:'OSD 显示', osd_time_section:'时间水印', osd_box_section:'检测框标签', osd_position:'位置', osd_pos_tl:'左上', osd_pos_tr:'右上', osd_pos_bl:'左下', osd_pos_br:'右下', osd_pos_custom:'自定义(X/Y)', osd_font_size:'字号(0=自动)', osd_sub_font_size:'次码流字号(0=自动)', osd_color:'颜色', osd_c_white:'白', osd_c_black:'黑', osd_c_red:'红', osd_c_green:'绿', osd_c_blue:'蓝', osd_c_yellow:'黄', osd_c_cyan:'青', osd_c_magenta:'品红', osd_save:'保存 OSD', osd_saved:'OSD 已保存', osd_subtitle:'时间水印与检测框标签叠加', osd_font_path:'字体', osd_font_hint:'字库 .ttf 文件路径（如 /lib/font.ttf）。经 FreeType 渲染，支持自定义/中文字库。',
-    nw_rtsp_sub_port:'子码流端口', nw_rtsp_live_path:'直播路径', nw_rtsp_sub_live:'子码流路径', nw_rtsp_auth_user:'认证用户', nw_rtsp_auth_pass:'认证密码', nw_rtsp_urls:'RTSP 地址', nw_rtsp_url_main:'主码流 URL', nw_rtsp_url_sub:'子码流 URL', nw_rtsp_update:'更新 RTSP 服务器',
+    nw_rtsp_sub_port:'子码流端口', nw_rtsp_live_path:'直播路径', nw_rtsp_sub_live:'子码流路径', nw_rtsp_auth_user:'认证用户', nw_rtsp_auth_pass:'认证密码', nw_rtsp_urls:'RTSP 地址', nw_rtsp_urls_empty:'暂无 RTSP 地址', nw_rtsp_copy:'复制', nw_rtsp_copied:'已复制', nw_rtsp_copy_fail:'复制失败', nw_rtsp_url_main:'主码流 URL', nw_rtsp_url_sub:'子码流 URL', nw_rtsp_update:'更新 RTSP 服务器',
     cl_title:'WebRTC', cl_thing_name:'设备名称',
     cl_access_key:'访问密钥 ID', cl_secret_key:'访问密钥',
     cl_region:'默认区域', cl_log_level:'日志级别',
@@ -7144,7 +7208,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'映像タイプ', nw_rtsp_main:'メイン', nw_rtsp_sub:'サブ',
     nw_rtsp_auth:'RTSP 認証', nw_rtsp_port:'RTSP ポート', nw_rtsp_clients:'RTSP クライアント',
     osd_title:'OSD 表示', osd_time_section:'時刻ウォーターマーク', osd_box_section:'検出ラベル', osd_position:'位置', osd_pos_tl:'左上', osd_pos_tr:'右上', osd_pos_bl:'左下', osd_pos_br:'右下', osd_pos_custom:'カスタム(X/Y)', osd_font_size:'文字サイズ(0=自動)', osd_sub_font_size:'サブ文字サイズ(0=自動)', osd_color:'色', osd_c_white:'白', osd_c_black:'黒', osd_c_red:'赤', osd_c_green:'緑', osd_c_blue:'青', osd_c_yellow:'黄', osd_c_cyan:'シアン', osd_c_magenta:'マゼンタ', osd_save:'OSD を保存', osd_saved:'OSD を保存しました', osd_subtitle:'時刻ウォーターマークと検出ラベルの重畳', osd_font_path:'フォント', osd_font_hint:'フォント .ttf ファイルのパス（例 /lib/font.ttf）。FreeType でレンダリング、カスタム/CJK フォント対応。',
-    nw_rtsp_sub_port:'サブポート', nw_rtsp_live_path:'ライブパス', nw_rtsp_sub_live:'サブライブパス', nw_rtsp_auth_user:'認証ユーザー', nw_rtsp_auth_pass:'認証パスワード', nw_rtsp_urls:'RTSP URL一覧', nw_rtsp_url_main:'メインURL', nw_rtsp_url_sub:'サブURL', nw_rtsp_update:'RTSP サーバー更新',
+    nw_rtsp_sub_port:'サブポート', nw_rtsp_live_path:'ライブパス', nw_rtsp_sub_live:'サブライブパス', nw_rtsp_auth_user:'認証ユーザー', nw_rtsp_auth_pass:'認証パスワード', nw_rtsp_urls:'RTSP URL一覧', nw_rtsp_urls_empty:'RTSP URL なし', nw_rtsp_copy:'コピー', nw_rtsp_copied:'コピー済み', nw_rtsp_copy_fail:'コピー失敗', nw_rtsp_url_main:'メインURL', nw_rtsp_url_sub:'サブURL', nw_rtsp_update:'RTSP サーバー更新',
     cl_title:'WebRTC', cl_thing_name:'デバイス名',
     cl_access_key:'アクセスキーID', cl_secret_key:'シークレットキー',
     cl_region:'デフォルトリージョン', cl_log_level:'ログレベル',
@@ -7290,7 +7354,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'Videotyp', nw_rtsp_main:'Haupt', nw_rtsp_sub:'Sub',
     nw_rtsp_auth:'RTSP-Auth', nw_rtsp_port:'RTSP-Port', nw_rtsp_clients:'RTSP-Clients',
     osd_title:'OSD-Anzeige', osd_time_section:'Zeit-Wasserzeichen', osd_box_section:'Erkennungslabel', osd_position:'Position', osd_pos_tl:'Oben-Links', osd_pos_tr:'Oben-Rechts', osd_pos_bl:'Unten-Links', osd_pos_br:'Unten-Rechts', osd_pos_custom:'Benutzerdef. (X/Y)', osd_font_size:'Schriftgröße (0=auto)', osd_sub_font_size:'Sub-Schriftgröße (0=auto)', osd_color:'Farbe', osd_c_white:'Weiß', osd_c_black:'Schwarz', osd_c_red:'Rot', osd_c_green:'Grün', osd_c_blue:'Blau', osd_c_yellow:'Gelb', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'OSD speichern', osd_saved:'OSD gespeichert', osd_subtitle:'Zeit-Wasserzeichen & Erkennungslabel-Overlay', osd_font_path:'Schrift', osd_font_hint:'Pfad zu einer .ttf-Schriftdatei (z.B. /lib/font.ttf). Unterstützt eigene / CJK-Schriften via FreeType.',
-    nw_rtsp_sub_port:'Sub-Port', nw_rtsp_live_path:'Live-Pfad', nw_rtsp_sub_live:'Sub-Live-Pfad', nw_rtsp_auth_user:'Auth-Benutzer', nw_rtsp_auth_pass:'Auth-Passwort', nw_rtsp_urls:'RTSP-URLs', nw_rtsp_url_main:'Haupt-URL', nw_rtsp_url_sub:'Sub-URL', nw_rtsp_update:'RTSP-Server aktualisieren',
+    nw_rtsp_sub_port:'Sub-Port', nw_rtsp_live_path:'Live-Pfad', nw_rtsp_sub_live:'Sub-Live-Pfad', nw_rtsp_auth_user:'Auth-Benutzer', nw_rtsp_auth_pass:'Auth-Passwort', nw_rtsp_urls:'RTSP-URLs', nw_rtsp_urls_empty:'Keine RTSP-URLs', nw_rtsp_copy:'Kopieren', nw_rtsp_copied:'Kopiert', nw_rtsp_copy_fail:'Kopieren fehlgeschlagen', nw_rtsp_url_main:'Haupt-URL', nw_rtsp_url_sub:'Sub-URL', nw_rtsp_update:'RTSP-Server aktualisieren',
     cl_title:'WebRTC', cl_thing_name:'Gerätename',
     cl_access_key:'Zugriffsschlüssel-ID', cl_secret_key:'Geheimer Zugriffsschlüssel',
     cl_region:'Standardregion', cl_log_level:'Protokollstufe',
@@ -7436,7 +7500,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'Type vidéo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secondaire',
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Port RTSP', nw_rtsp_clients:'Clients RTSP',
     osd_title:'Affichage OSD', osd_time_section:'Filigrane horaire', osd_box_section:'Étiquette détection', osd_position:'Position', osd_pos_tl:'Haut-Gauche', osd_pos_tr:'Haut-Droite', osd_pos_bl:'Bas-Gauche', osd_pos_br:'Bas-Droite', osd_pos_custom:'Personnalisé (X/Y)', osd_font_size:'Taille police (0=auto)', osd_sub_font_size:'Taille police sous-flux (0=auto)', osd_color:'Couleur', osd_c_white:'Blanc', osd_c_black:'Noir', osd_c_red:'Rouge', osd_c_green:'Vert', osd_c_blue:'Bleu', osd_c_yellow:'Jaune', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'Enregistrer OSD', osd_saved:'OSD enregistré', osd_subtitle:'Filigrane horaire et étiquette de détection', osd_font_path:'Police', osd_font_hint:'Chemin vers un fichier de police .ttf (ex. /lib/font.ttf). Prend en charge les polices personnalisées / CJK via FreeType.',
-    nw_rtsp_sub_port:'Port sub', nw_rtsp_live_path:'Chemin live', nw_rtsp_sub_live:'Chemin sub', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Mettre à jour RTSP',
+    nw_rtsp_sub_port:'Port sub', nw_rtsp_live_path:'Chemin live', nw_rtsp_sub_live:'Chemin sub', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_urls_empty:'Aucune URL RTSP', nw_rtsp_copy:'Copier', nw_rtsp_copied:'Copié', nw_rtsp_copy_fail:'Échec de la copie', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Mettre à jour RTSP',
     cl_title:'WebRTC', cl_thing_name:'Nom appareil',
     cl_access_key:'ID clé d\'accès', cl_secret_key:'Clé secrète',
     cl_region:'Région par défaut', cl_log_level:'Niveau de log',
@@ -7582,7 +7646,7 @@ const I18N_INDEX = {
     nw_rtsp_video_type:'Tipo vídeo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secundario',
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Puerto RTSP', nw_rtsp_clients:'Clientes RTSP',
     osd_title:'Visualización OSD', osd_time_section:'Marca de tiempo', osd_box_section:'Etiqueta detección', osd_position:'Posición', osd_pos_tl:'Arriba-Izq.', osd_pos_tr:'Arriba-Der.', osd_pos_bl:'Abajo-Izq.', osd_pos_br:'Abajo-Der.', osd_pos_custom:'Personalizado (X/Y)', osd_font_size:'Tamaño fuente (0=auto)', osd_sub_font_size:'Tamaño fuente sub (0=auto)', osd_color:'Color', osd_c_white:'Blanco', osd_c_black:'Negro', osd_c_red:'Rojo', osd_c_green:'Verde', osd_c_blue:'Azul', osd_c_yellow:'Amarillo', osd_c_cyan:'Cian', osd_c_magenta:'Magenta', osd_save:'Guardar OSD', osd_saved:'OSD guardado', osd_subtitle:'Marca de tiempo y etiqueta de detección', osd_font_path:'Fuente', osd_font_hint:'Ruta a un archivo de fuente .ttf (p.ej. /lib/font.ttf). Admite fuentes personalizadas / CJK via FreeType.',
-    nw_rtsp_sub_port:'Puerto sub', nw_rtsp_live_path:'Ruta live', nw_rtsp_sub_live:'Ruta sub live', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Actualizar RTSP',
+    nw_rtsp_sub_port:'Puerto sub', nw_rtsp_live_path:'Ruta live', nw_rtsp_sub_live:'Ruta sub live', nw_rtsp_auth_user:'Utilisateur auth', nw_rtsp_auth_pass:'Mot de passe', nw_rtsp_auth_user:'Usuario auth', nw_rtsp_auth_pass:'Contraseña', nw_rtsp_urls:'URLs RTSP', nw_rtsp_urls_empty:'Sin URLs RTSP', nw_rtsp_copy:'Copiar', nw_rtsp_copied:'Copiado', nw_rtsp_copy_fail:'Error al copiar', nw_rtsp_url_main:'URL principal', nw_rtsp_url_sub:'URL sub', nw_rtsp_update:'Actualizar RTSP',
     cl_title:'WebRTC', cl_thing_name:'Nombre dispositivo',
     cl_access_key:'ID clave acceso', cl_secret_key:'Clave secreta',
     cl_region:'Región por defecto', cl_log_level:'Nivel de log',
@@ -10362,6 +10426,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
 
+
+            rtspUrlPairs() {
+                const urls = this.rtspServerService && this.rtspServerService.rtsp_urls
+                    ? this.rtspServerService.rtsp_urls : [];
+                const pairs = [];
+                for (let i = 0; i < urls.length; i += 2) {
+                    const chunk = [];
+                    chunk.push({ n: i + 1, url: urls[i] });
+                    if (i + 1 < urls.length) chunk.push({ n: i + 2, url: urls[i + 1] });
+                    pairs.push(chunk);
+                }
+                return pairs;
+            },
+            async copyRtspUrl(url, camN) {
+                if (!url) return;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(url);
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = url; document.body.appendChild(ta);
+                        ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                    }
+                    this.showAlert('success', 'Notice', (tIdx('nw_rtsp_copied') || 'Copied') + ' · camera' + camN);
+                } catch (e) {
+                    console.error('copyRtspUrl', e);
+                    this.showAlert('warning', 'Notice', tIdx('nw_rtsp_copy_fail') || 'Copy failed');
+                }
+            },
             //rtspServer 基本信息
             async initRtspServerInformation() {
                 const url = '/getDeviceCommand';
