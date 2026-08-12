@@ -3422,8 +3422,10 @@
                                                         <div style="position:relative;">
                                                             <div :style="pbGridStyle()">
                                                                 <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
-                                                                    <div :style="pbSlotStyle(pi-1)" x-show="pi===1 || (playbackCams||[]).indexOf(pi-1)>=0 || pbCamUids[pi-1]">
-                                                                        <video :id="pi===1?'remotePlaybackView':('remotePlaybackView'+pi)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
+                                                                    <div :style="pbSlotStyle(pi-1)" x-show="pi===1 || (playbackCams||[]).indexOf(pi-1)>=0 || pbCamUids[pi-1]"
+                                                                         @click="setPlaybackFocus(pi-1)" :title="playbackLayout==='pip' && !isPbFocused(pi-1) ? (tIdx('pl_switch_hint')||'') : ''">
+                                                                        <video :id="pi===1?'remotePlaybackView':('remotePlaybackView'+pi)" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline
+                                                                               :controls="isPbFocused(pi-1)"></video>
                                                                         <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
                                                                     </div>
                                                                 </template>
@@ -8594,7 +8596,8 @@ document.addEventListener('DOMContentLoaded', function() {
             _pbStarting: false,           // start 进行中锁（防连点并发累积 client）
             playbackChannels: 0,          // 已废弃：回放路数改由 cameraCounts 决定（保留字段兼容旧逻辑）
             playbackSingleCam: 0,         // 单路模式播哪一路（0=第一路 CAM1，1=第二路 CAM2；多相机可选）
-            playbackLayout: 'h',          // 双路布局：'h'横排 / 'v'竖排堆叠 / 'pip'画中画
+            playbackLayout: 'h',          // 双路布局：'h'/grid 四宫格 / 'pip'画中画（对齐本地：右侧竖排小窗）
+            playbackFocusIdx: 0,         // pip 聚焦摄像头下标（0=CAM1）
             playbackCams: [],             // 当前实际回放的摄像头序号列表（驱动视频网格渲染）
             _pbSeeking: false,            // 正在拖动进度条（拖动中冻结 ticker，避免打架）
             _segmentEnded: false,         // 本段是否已播完（设备会话结束，seek 需先重发 START）
@@ -12529,24 +12532,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (already) return;
                 if (this.remotePlaybackActive && this._lastPlayRecord) this.startKvsPlayback(this._lastPlayRecord);
             },
-            // 双路布局切换(横排/竖排/画中画):纯 CSS,无需重连。
-            setPlaybackLayout(mode) { this.playbackLayout = mode; },
-            // 视频网格容器样式:单路/竖排=单列;横排=两列;画中画=相对定位(副路绝对叠放)。
+            // 布局切换(四宫格/画中画):纯 CSS,无需重连。画中画对齐本地：聚焦路满宽，其余右侧竖排。
+            setPlaybackLayout(mode) {
+                this.playbackLayout = mode;
+                if (mode !== 'pip') this.playbackFocusIdx = 0;
+            },
+            _pbFocusIdx() {
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
+                const f = this.playbackFocusIdx;
+                return (f >= 0 && f < n) ? f : 0;
+            },
+            setPlaybackFocus(idx) {
+                if (this.playbackLayout === 'pip') this.playbackFocusIdx = idx;
+            },
+            isPbFocused(idx) {
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
+                return n <= 1 || this.playbackLayout !== 'pip' || idx === this._pbFocusIdx();
+            },
             pbGridStyle() {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
                 if (n <= 1) return 'display:grid;gap:6px;grid-template-columns:1fr;';
-                if (this.playbackLayout === 'pip') return 'position:relative;';
-                // 四宫格/横排：按路数 2 列（对齐本地 remotePlayback）
+                if (this.playbackLayout === 'pip') return 'display:block;position:relative;';
                 return 'display:grid;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr));';
             },
-            // 画中画：CAM1 大图，其余路小窗叠放（按 --pip-i 横向排开）
+            // 画中画：聚焦路满宽；其余路 22% 宽竖排右侧（对齐本地 syncItemStyle）
             pbSlotStyle(idx) {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || (this.playbackCams || []).length || 1;
-                if (this.playbackLayout === 'pip' && n > 1 && idx > 0) {
-                    const left = 8 + (idx - 1) * 34;
-                    return 'position:absolute;left:'+left+'%;top:8px;width:32%;min-width:120px;z-index:4;border:2px solid rgba(255,255,255,0.75);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.45);';
-                }
-                return 'position:relative;min-width:0;';
+                if (this.playbackLayout !== 'pip' || n <= 1) return 'position:relative;min-width:0;';
+                const focus = this._pbFocusIdx();
+                if (idx === focus) return 'position:relative;min-width:0;width:100%;';
+                const k = idx < focus ? idx : idx - 1;
+                return 'position:absolute;z-index:5;right:8px;width:22%;top:calc(44px + ' + k + ' * 24%);cursor:pointer;'
+                     + 'border:2px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);';
             },
             // 录像 → 摄像头序号(0-based):优先 RecordIndexInformationCameraIndex,回退路径 /second//third/ 反推。
             _camOfRecord(r) {
