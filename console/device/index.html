@@ -413,6 +413,7 @@
         }
         .rs-toolbar-item { display: flex; flex-direction: column; gap: 8px; }
         .rs-toolbar-mute { min-width: 140px; }
+        .rs-toolbar-end { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; margin-left: auto; }
         .rs-toolbar-label {
             font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
             color: var(--text-secondary, #8a9bb4);
@@ -3305,6 +3306,16 @@
                                                             @click="setRecordRunMode(0)" data-i18n="rs_mode_timelapse">Timelapse</button>
                                                 </div>
                                             </div>
+                                            <div class="rs-toolbar-end">
+                                            <div class="rs-toolbar-item">
+                                                <div class="rs-toolbar-label" data-i18n="rs_thumb_stream">Thumbnail Stream</div>
+                                                <select class="form-select form-select-sm" style="width:auto;min-width:8rem;"
+                                                        x-model="motionDetectionInformation.record_thumbnail_stream_type"
+                                                        @change="submitRecordSettings">
+                                                    <option value="sub" data-i18n="rs_thumb_sub">Sub (fast)</option>
+                                                    <option value="main" data-i18n="rs_thumb_main">Main (HD)</option>
+                                                </select>
+                                            </div>
                                             <div class="rs-toolbar-item rs-toolbar-mute">
                                                 <div class="rs-toolbar-label" data-i18n="rs_mute_enable">Mute Enable</div>
                                                 <label class="form-check form-switch mb-0">
@@ -3314,6 +3325,7 @@
                                                     <span class="form-check-label"
                                                           x-text="motionDetectionInformation.recordMuteFlag ? tIdx('vs_enable') : tIdx('vs_disable')"></span>
                                                 </label>
+                                            </div>
                                             </div>
                                         </div>
 
@@ -7140,7 +7152,7 @@ const I18N_INDEX = {
     vs_normal:'Normal', vs_mirror:'Mirror', vs_flip:'Flip', vs_mirror_and_flip:'M&F',
     as_speak_mode:'Speaker Mode', as_record_audio:'Record Audio',
     as_microphone:'Microphone Mode', as_volume:'Volume Control',
-    rs_record_enable:'Record Enable', rs_record_run_mode:'Record Mode', rs_mode_loop:'Loop', rs_mode_timelapse:'Timelapse', emr_record:'Emergency Record', emr_triggered:'Emergency record triggered', pre_record:'Pre-Record', pre_record_triggered:'Pre-record started', rs_mute_enable:'Mute Enable',
+    rs_record_enable:'Record Enable', rs_record_run_mode:'Record Mode', rs_mode_loop:'Loop', rs_mode_timelapse:'Timelapse', emr_record:'Emergency Record', emr_triggered:'Emergency record triggered', pre_record:'Pre-Record', pre_record_triggered:'Pre-record started', rs_mute_enable:'Mute Enable', rs_thumb_stream:'Thumbnail Stream', rs_thumb_sub:'Sub (fast)', rs_thumb_main:'Main (HD)',
     rs_record_mode:'Record Mode', rs_recycle_record:'Recycle Record', rs_manual_record:'Manual Record',
     rs_record_type:'Record Type', rs_none:'None', rs_local_only:'Local Only',
     rs_cloud:'Cloud', rs_local_and_cloud:'Local & Cloud',
@@ -7288,7 +7300,7 @@ const I18N_INDEX = {
     vs_normal:'正常', vs_mirror:'镜像', vs_flip:'翻转', vs_mirror_and_flip:'镜像翻转',
     as_speak_mode:'扬声器模式', as_record_audio:'录音',
     as_microphone:'麦克风模式', as_volume:'音量控制',
-    rs_record_enable:'录像开关', rs_record_run_mode:'录像模式', rs_mode_loop:'循环录像', rs_mode_timelapse:'缩时录像', emr_record:'紧急录像', emr_triggered:'紧急录像已触发', pre_record:'预录', pre_record_triggered:'预录已触发', rs_mute_enable:'静音开关',
+    rs_record_enable:'录像开关', rs_record_run_mode:'录像模式', rs_mode_loop:'循环录像', rs_mode_timelapse:'缩时录像', emr_record:'紧急录像', emr_triggered:'紧急录像已触发', pre_record:'预录', pre_record_triggered:'预录已触发', rs_mute_enable:'静音开关', rs_thumb_stream:'封面码流', rs_thumb_sub:'次码流(快)', rs_thumb_main:'主码流(高清)',
     rs_record_mode:'录像模式', rs_recycle_record:'循环录像', rs_manual_record:'手动录像',
     rs_record_type:'录像类型', rs_none:'无', rs_local_only:'仅本地',
     rs_cloud:'云端', rs_local_and_cloud:'本地与云端',
@@ -7436,7 +7448,7 @@ const I18N_INDEX = {
     vs_normal:'通常', vs_mirror:'ミラー', vs_flip:'反転', vs_mirror_and_flip:'両方',
     as_speak_mode:'スピーカーモード', as_record_audio:'録音',
     as_microphone:'マイクモード', as_volume:'音量調整',
-    rs_record_enable:'録画有効', rs_record_run_mode:'録画モード', rs_mode_loop:'ループ', rs_mode_timelapse:'タイムラプス', emr_record:'緊急録画', emr_triggered:'緊急録画を開始しました', pre_record:'プリ録画', pre_record_triggered:'プリ録画を開始しました', rs_mute_enable:'ミュート有効',
+    rs_record_enable:'録画有効', rs_record_run_mode:'録画モード', rs_mode_loop:'ループ', rs_mode_timelapse:'タイムラプス', emr_record:'緊急録画', emr_triggered:'緊急録画を開始しました', pre_record:'プリ録画', pre_record_triggered:'プリ録画を開始しました', rs_mute_enable:'ミュート有効', rs_thumb_stream:'サムネイルストリーム', rs_thumb_sub:'サブ(高速)', rs_thumb_main:'メイン(HD)',
     rs_record_mode:'録画モード', rs_recycle_record:'循環録画', rs_manual_record:'手動録画',
     rs_record_type:'録画種別', rs_none:'なし', rs_local_only:'ローカルのみ',
     rs_cloud:'クラウド', rs_local_and_cloud:'ローカル+クラウド',
@@ -7583,7 +7595,7 @@ const I18N_INDEX = {
     vs_normal:'Normal', vs_mirror:'Spiegel', vs_flip:'Flip', vs_mirror_and_flip:'S&F',
     as_speak_mode:'Lautsprechermodus', as_record_audio:'Audioaufnahme',
     as_microphone:'Mikrofonmodus', as_volume:'Lautstärkeregler',
-    rs_record_enable:'Aufnahme aktiv', rs_record_run_mode:'Aufnahmemodus', rs_mode_loop:'Schleife', rs_mode_timelapse:'Zeitraffer', emr_record:'Notfallaufnahme', emr_triggered:'Notfallaufnahme ausgelöst', pre_record:'Voraufnahme', pre_record_triggered:'Voraufnahme gestartet', rs_mute_enable:'Stummschaltung',
+    rs_record_enable:'Aufnahme aktiv', rs_record_run_mode:'Aufnahmemodus', rs_mode_loop:'Schleife', rs_mode_timelapse:'Zeitraffer', emr_record:'Notfallaufnahme', emr_triggered:'Notfallaufnahme ausgelöst', pre_record:'Voraufnahme', pre_record_triggered:'Voraufnahme gestartet', rs_mute_enable:'Stummschaltung', rs_thumb_stream:'Vorschaubild-Stream', rs_thumb_sub:'Sub (schnell)', rs_thumb_main:'Main (HD)',
     rs_record_mode:'Aufnahmemodus', rs_recycle_record:'Endlosaufnahme', rs_manual_record:'Manuelle Aufnahme',
     rs_record_type:'Aufnahmetyp', rs_none:'Keine', rs_local_only:'Nur lokal',
     rs_cloud:'Cloud', rs_local_and_cloud:'Lokal & Cloud',
@@ -7730,7 +7742,7 @@ const I18N_INDEX = {
     vs_normal:'Normal', vs_mirror:'Miroir', vs_flip:'Retourner', vs_mirror_and_flip:'M&R',
     as_speak_mode:'Mode haut-parleur', as_record_audio:'Enregistrement audio',
     as_microphone:'Mode microphone', as_volume:'Contrôle du volume',
-    rs_record_enable:'Enregistrement actif', rs_record_run_mode:'Mode enreg.', rs_mode_loop:'Boucle', rs_mode_timelapse:'Accéléré', emr_record:'Urgence', emr_triggered:'Enregistrement urgence déclenché', pre_record:'Pré-enreg.', pre_record_triggered:'Pré-enregistrement démarré', rs_mute_enable:'Sourdine',
+    rs_record_enable:'Enregistrement actif', rs_record_run_mode:'Mode enreg.', rs_mode_loop:'Boucle', rs_mode_timelapse:'Accéléré', emr_record:'Urgence', emr_triggered:'Enregistrement urgence déclenché', pre_record:'Pré-enreg.', pre_record_triggered:'Pré-enregistrement démarré', rs_mute_enable:'Sourdine', rs_thumb_stream:'Flux vignette', rs_thumb_sub:'Sub (rapide)', rs_thumb_main:'Main (HD)',
     rs_record_mode:'Mode enreg.', rs_recycle_record:'Enreg. en boucle', rs_manual_record:'Enreg. manuel',
     rs_record_type:'Type enreg.', rs_none:'Aucun', rs_local_only:'Local uniquement',
     rs_cloud:'Cloud', rs_local_and_cloud:'Local & Cloud',
@@ -7877,7 +7889,7 @@ const I18N_INDEX = {
     vs_normal:'Normal', vs_mirror:'Espejo', vs_flip:'Volteo', vs_mirror_and_flip:'E&V',
     as_speak_mode:'Modo altavoz', as_record_audio:'Grabar audio',
     as_microphone:'Modo micrófono', as_volume:'Control de volumen',
-    rs_record_enable:'Grabación activa', rs_record_run_mode:'Modo grabación', rs_mode_loop:'Bucle', rs_mode_timelapse:'Timelapse', emr_record:'Emergencia', emr_triggered:'Grabación de emergencia activada', pre_record:'Pre-grabación', pre_record_triggered:'Pre-grabación iniciada', rs_mute_enable:'Silencio activo',
+    rs_record_enable:'Grabación activa', rs_record_run_mode:'Modo grabación', rs_mode_loop:'Bucle', rs_mode_timelapse:'Timelapse', emr_record:'Emergencia', emr_triggered:'Grabación de emergencia activada', pre_record:'Pre-grabación', pre_record_triggered:'Pre-grabación iniciada', rs_mute_enable:'Silencio activo', rs_thumb_stream:'Stream miniatura', rs_thumb_sub:'Sub (rápido)', rs_thumb_main:'Main (HD)',
     rs_record_mode:'Modo grabación', rs_recycle_record:'Grabación cíclica', rs_manual_record:'Grabación manual',
     rs_record_type:'Tipo grabación', rs_none:'Ninguno', rs_local_only:'Solo local',
     rs_cloud:'Nube', rs_local_and_cloud:'Local y nube',
@@ -8700,6 +8712,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 "timeLapseMaxDuration": 60,
                 "timeLapseFps": 1,
                 "recordFileCounts": 2,
+                "record_thumbnail_stream_type": "sub",
                 "motionDetectionActivityZone": "{ \"position_x\": \"0\", \"position_y\": \"0\"}"
             },
 
