@@ -939,9 +939,7 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('audio-settings', this); return false;">
                     <i class="fas fa-volume-up"></i> <span data-i18n="nav_audio_settings">Audio Settings</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('storage', this); return false;">
-                    <i class="fa fa-database"></i> <span data-i18n="nav_storage">Storage Settings</span>
-                </a>
+
 
                 <div class="dv-nav-section" data-i18n="nav_sec_system">System</div>
                 <a class="dv-nav-item" href="#" onclick="showPage('device-information', this); return false;">
@@ -2905,11 +2903,27 @@
                 </div>
 
                 <!-- 录像设置页面 -->
+                
                 <div class="page-section " id="record-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('record-settings', () => { initRecordSettings() })">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('record-settings', () => { initRecordSettings();initStorageInformation() })">
                         <div class="page-body">
-                                                        <div class="container-xl">
-                                <div class="card shadow vs-param-panel rs-settings-panel">
+                            <div class="container-xl">
+                        <div class="vs-param-tabs" role="tablist" aria-label="Record settings groups" style="margin-bottom:14px;">
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="recordParamTab==='record' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="recordParamTab==='record'"
+                                    @click="recordParamTab='record'"
+                                    data-i18n="nav_record_settings">Record Settings</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="recordParamTab==='storage' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="recordParamTab==='storage'"
+                                    @click="recordParamTab='storage'"
+                                    data-i18n="nav_storage">Storage Settings</button>
+                        </div>
+                        <div class="vs-param-pane" x-show="recordParamTab==='record'" x-cloak>
+<div class="card shadow vs-param-panel rs-settings-panel">
                                     <div class="card-body">
                                         <!-- 顶栏：运行模式 + 静音 -->
                                         <div class="rs-toolbar">
@@ -3014,10 +3028,194 @@
                                         </div>
                                     </div>
                                 </div>
+                        </div>
+                        <div class="vs-param-pane" x-show="recordParamTab==='storage'" x-cloak>
+                            <div class="cloud-tab-form">
+{ initStorageInformation() })">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="st_title">Storage Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <!-- 存储使用可视化进度条 -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between flex-wrap mb-1" style="font-size:13px;">
+                                    <span><i class="fa fa-hdd me-1"></i><span data-i18n="st_storage_used">Used</span>:
+                                        <strong x-text="(storageInformation.storageUsed/1024).toFixed(2)+' GB'"></strong></span>
+                                    <span><span data-i18n="st_storage_available">Available</span>:
+                                        <strong style="color:#2fbf71;" x-text="(storageInformation.storageAvailable/1024).toFixed(2)+' GB'"></strong></span>
+                                    <span><span data-i18n="st_total">Total</span>:
+                                        <strong x-text="((storageInformation.storageUsed+storageInformation.storageAvailable)/1024).toFixed(2)+' GB'"></strong></span>
+                                </div>
+                                <div class="progress" style="height:22px;font-size:12px;">
+                                    <div class="progress-bar"
+                                         role="progressbar"
+                                         :class="(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100) > 90 ? 'bg-danger' : (storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100) > 75 ? 'bg-warning' : 'bg-success'"
+                                         :style="'width:'+ Math.max(2, Math.round(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100)) +'%'"
+                                         x-text="Math.round(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100)+'%'"></div>
+                                </div>
+                            </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label for="storageStatus" class="col-form-label col-12 col-md-6" data-i18n="st_status">Storage Status</label>
+                                    <input
+                                            id="storageStatus"
+                                            class="form-control"
+                                            x-model="storageInformation.storageStatus == 0 ? tIdx('st_available') : tIdx('st_not_available')"
+                                            readonly
+                                    />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="storageAvailable"
+                                           class="col-form-label col-12 col-md-6" data-i18n="st_storage_available">Available Space</label>
+                                    <input
+                                            id="storageAvailable"
+                                            class="form-control"
+                                            x-model="storageInformation.storageAvailable +'M'"
+                                            readonly
+                                    />
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="storageUsed" class="col-form-label col-12 col-md-6" data-i18n="st_storage_used">Used Space</label>
+                                    <input
+                                            id="storageUsed"
+                                            class="form-control"
+                                            x-model="storageInformation.storageUsed+'M'"
+                                            readonly
+                                    />
+                                </div>
+                            </div>
+                            <!-- 存储/清理参数：4 项一行（col-md-3）-->
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-3">
+                                    <label for="sdCardQueryCountDel"
+                                           class="col-form-label col-12 col-md-6" data-i18n="st_query_count_del">Query Count Del</label>
+                                    <input
+                                            id="sdCardQueryCountDel"
+                                            class="form-control"
+                                            data-bs-toggle="tooltip"
+                                            :title="tIdx('st_query_count_del')"
+                                            x-model.number="storageInformation.sdCardQueryCountDel"
+                                    />
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label for="storageAvailableMaxSize"
+                                           class="col-form-label col-12 col-md-6" data-i18n="st_max_size">Max Available Size (MB)</label>
+                                    <input
+                                            id="storageAvailableMaxSize"
+                                            class="form-control"
+                                            data-bs-toggle="tooltip"
+                                            :title="tIdx('st_max_size')"
+                                            x-model.number="storageInformation.storageAvailableMaxSize"
+                                    />
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label for="storageEmrQuotaRatio" class="col-form-label col-12 col-md-6" data-i18n="st_emr_quota">EMR Quota Ratio</label>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="col-12 col-md-6">
+                                            <input
+                                                    id = "storageEmrQuotaRatio"
+                                                    class="form-control"
+                                                    type="number"
+                                                    min="0"
+                                                    max="1"
+                                                    step="0.1"
+                                                    x-model.number="storageInformation.storageEmrQuotaRatio"
+                                                    @keydown.enter="submitRecordSettings"
+                                                    @blur="submitRecordSettings"
+                                                    style="width: 160px; margin-right: 10px;">
+                                        </div>
+                                        <!-- 比例对应的实际预留空间 = 比例 × 总容量(已用+可用) -->
+                                        <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;"
+                                              x-text="'≈ ' + (((storageInformation.storageUsed + storageInformation.storageAvailable) * (storageInformation.storageEmrQuotaRatio||0))/1024).toFixed(2) + ' GB'"></span>
+<!--                                        <div class="col-12 col-md-6">-->
+<!--                                        <input-->
+<!--                                                class="form-range"-->
+<!--                                                type="range"-->
+<!--                                                min="0"-->
+<!--                                                max="1"-->
+<!--                                                step="0.1"-->
+<!--                                                x-model.number="storageInformation.storageEmrQuotaRatio"-->
+<!--                                                @change="submitRecordSettings"-->
+<!--                                                style="width: 200px;">-->
+<!--                                        </div>-->
+                                    </div>
+
+                                </div>
+
+                                <!-- EMR 循环删除开关：true=可循环删除，false=保护(仅手动可删) -->
+                                <div class="col-12 col-md-3">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="st_emr_delete_allowed">EMR Loop-Delete</label>
+                                    <div class="d-flex align-items-center">
+                                        <select class="form-control" style="width:160px;"
+                                                x-model="storageInformation.emrDeleteAllowed"
+                                                @change="submitStorageInformation">
+                                            <option :value="true" data-i18n="st_emr_del_allowed">Allowed</option>
+                                            <option :value="false" data-i18n="st_emr_del_protected">Protected</option>
+                                        </select>
+                                        <span class="dv-tip" :data-tip="tIdx('st_emr_delete_hint')" style="margin-left:8px;">
+                                            <i class="fa-solid fa-circle-info" style="font-size:12px;color:var(--text-muted);cursor:help;"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 录像磁盘占用标尺：录像总占用 + 普通/缩时/紧急 分类占用 -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1" style="font-size:13px;">
+                                    <span><i class="fa fa-film me-1"></i><span data-i18n="st_record_usage">Recording Usage</span>:
+                                        <strong x-text="(recordDiskUsage.totalMB/1024).toFixed(2)+' GB'"></strong>
+                                        <span x-show="recordDiskUsage.loading" class="text-muted" style="font-size:11px;">(<span data-i18n="cm_loading">Loading...</span>)</span>
+                                    </span>
+                                </div>
+                                <div class="progress" style="height:22px;">
+                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_loop')+' '+(recordDiskUsage.loopMB/1024).toFixed(2)+'GB'"
+                                         :style="'background:var(--accent);width:'+(recordDiskUsage.totalMB ? recordDiskUsage.loopMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
+                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_timelapse')+' '+(recordDiskUsage.timelapseMB/1024).toFixed(2)+'GB'"
+                                         :style="'background:#7c3aed;width:'+(recordDiskUsage.totalMB ? recordDiskUsage.timelapseMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
+                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_pre')+' '+(recordDiskUsage.emergencyMB/1024).toFixed(2)+'GB'"
+                                         :style="'background:#dc3545;width:'+(recordDiskUsage.totalMB ? recordDiskUsage.emergencyMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-3 mt-1" style="font-size:11px;">
+                                    <span><i class="fa fa-circle" style="color:var(--accent)"></i> <span data-i18n="vp_type_loop">Loop</span>: <strong x-text="(recordDiskUsage.loopMB/1024).toFixed(2)+'GB'"></strong></span>
+                                    <span><i class="fa fa-circle" style="color:#7c3aed"></i> <span data-i18n="vp_type_timelapse">Timelapse</span>: <strong x-text="(recordDiskUsage.timelapseMB/1024).toFixed(2)+'GB'"></strong></span>
+                                    <span><i class="fa fa-circle" style="color:#dc3545"></i> <span data-i18n="vp_type_pre">EMR</span>: <strong x-text="(recordDiskUsage.emergencyMB/1024).toFixed(2)+'GB'"></strong></span>
+                                </div>
+                            </div>
+
+                            <!-- 录像清理（按比例，最旧优先，含 EMR；大小按录像实际占用计算）-->
+                            <div class="mb-2 mt-2">
+                                <label class="col-form-label" data-i18n="st_clear_records">Clear Recordings</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-danger dv-tip" @click="clearRecords(1)"
+                                            :data-tip="tIdx('st_clear_free') + ' ≈ ' + (recordDiskUsage.totalMB/1024).toFixed(2) + ' GB'">
+                                        <i class="fa-solid fa-trash me-1"></i><span data-i18n="st_clear_all">Clear All</span></button>
+                                    <template x-for="n in [2,3,4,5,6,7,8,9,10]" :key="n">
+                                        <button class="btn btn-sm btn-warning dv-tip" @click="clearRecords(n)"
+                                                :data-tip="tIdx('st_clear_free') + ' ≈ ' + (recordDiskUsage.totalMB/n/1024).toFixed(2) + ' GB'"
+                                                x-text="'1/'+n"></button>
+                                    </template>
+                                </div>
+                                <small class="text-muted" style="font-size:11px;" x-text="(storageInformation.emrDeleteAllowed===true || storageInformation.emrDeleteAllowed==='true') ? tIdx('st_clear_hint') : tIdx('st_clear_hint_protected')"></small>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary me-2" @click="submitStorageInformation">
+                                <span data-i18n="st_set_storage">Set Storage</span>
+                            </button>
+                            <p class="mt-3 text-center fs-md text-warning  fw-bold" x-text="statusStorageMessage"
+                               x-show="isFormating"></p>
+                        </div>
+                    </div>
+                            </div>
+                        </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+
                 <!-- OTA 升级页面 -->
                 <div class="page-section " id="upgrade">
                     <div class="page-wrapper" x-data="deviceSettings()">
@@ -4051,185 +4249,10 @@
                         </div>
                     </div>
                 </div>
-                <!--存储卡信息-->
-                <div class="page-section" id="storage" x-data="deviceSettings()" x-init="onPage('storage', () => { initStorageInformation() })">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="st_title">Storage Information</h3>
-                        </div>
-                        <div class="card-body">
-                            <!-- 存储使用可视化进度条 -->
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between flex-wrap mb-1" style="font-size:13px;">
-                                    <span><i class="fa fa-hdd me-1"></i><span data-i18n="st_storage_used">Used</span>:
-                                        <strong x-text="(storageInformation.storageUsed/1024).toFixed(2)+' GB'"></strong></span>
-                                    <span><span data-i18n="st_storage_available">Available</span>:
-                                        <strong style="color:#2fbf71;" x-text="(storageInformation.storageAvailable/1024).toFixed(2)+' GB'"></strong></span>
-                                    <span><span data-i18n="st_total">Total</span>:
-                                        <strong x-text="((storageInformation.storageUsed+storageInformation.storageAvailable)/1024).toFixed(2)+' GB'"></strong></span>
-                                </div>
-                                <div class="progress" style="height:22px;font-size:12px;">
-                                    <div class="progress-bar"
-                                         role="progressbar"
-                                         :class="(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100) > 90 ? 'bg-danger' : (storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100) > 75 ? 'bg-warning' : 'bg-success'"
-                                         :style="'width:'+ Math.max(2, Math.round(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100)) +'%'"
-                                         x-text="Math.round(storageInformation.storageUsed/((storageInformation.storageUsed+storageInformation.storageAvailable)||1)*100)+'%'"></div>
-                                </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label for="storageStatus" class="col-form-label col-12 col-md-6" data-i18n="st_status">Storage Status</label>
-                                    <input
-                                            id="storageStatus"
-                                            class="form-control"
-                                            x-model="storageInformation.storageStatus == 0 ? tIdx('st_available') : tIdx('st_not_available')"
-                                            readonly
-                                    />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="storageAvailable"
-                                           class="col-form-label col-12 col-md-6" data-i18n="st_storage_available">Available Space</label>
-                                    <input
-                                            id="storageAvailable"
-                                            class="form-control"
-                                            x-model="storageInformation.storageAvailable +'M'"
-                                            readonly
-                                    />
-                                </div>
+                                <!-- storage：已并入 Record Settings → Storage Tab；保留空 section 以兼容旧链接 -->
+                <div class="page-section" id="storage"></div>
 
-                                <div class="col-12 col-md-4">
-                                    <label for="storageUsed" class="col-form-label col-12 col-md-6" data-i18n="st_storage_used">Used Space</label>
-                                    <input
-                                            id="storageUsed"
-                                            class="form-control"
-                                            x-model="storageInformation.storageUsed+'M'"
-                                            readonly
-                                    />
-                                </div>
-                            </div>
-                            <!-- 存储/清理参数：4 项一行（col-md-3）-->
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-3">
-                                    <label for="sdCardQueryCountDel"
-                                           class="col-form-label col-12 col-md-6" data-i18n="st_query_count_del">Query Count Del</label>
-                                    <input
-                                            id="sdCardQueryCountDel"
-                                            class="form-control"
-                                            data-bs-toggle="tooltip"
-                                            :title="tIdx('st_query_count_del')"
-                                            x-model.number="storageInformation.sdCardQueryCountDel"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <label for="storageAvailableMaxSize"
-                                           class="col-form-label col-12 col-md-6" data-i18n="st_max_size">Max Available Size (MB)</label>
-                                    <input
-                                            id="storageAvailableMaxSize"
-                                            class="form-control"
-                                            data-bs-toggle="tooltip"
-                                            :title="tIdx('st_max_size')"
-                                            x-model.number="storageInformation.storageAvailableMaxSize"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <label for="storageEmrQuotaRatio" class="col-form-label col-12 col-md-6" data-i18n="st_emr_quota">EMR Quota Ratio</label>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="col-12 col-md-6">
-                                            <input
-                                                    id = "storageEmrQuotaRatio"
-                                                    class="form-control"
-                                                    type="number"
-                                                    min="0"
-                                                    max="1"
-                                                    step="0.1"
-                                                    x-model.number="storageInformation.storageEmrQuotaRatio"
-                                                    @keydown.enter="submitRecordSettings"
-                                                    @blur="submitRecordSettings"
-                                                    style="width: 160px; margin-right: 10px;">
-                                        </div>
-                                        <!-- 比例对应的实际预留空间 = 比例 × 总容量(已用+可用) -->
-                                        <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;"
-                                              x-text="'≈ ' + (((storageInformation.storageUsed + storageInformation.storageAvailable) * (storageInformation.storageEmrQuotaRatio||0))/1024).toFixed(2) + ' GB'"></span>
-<!--                                        <div class="col-12 col-md-6">-->
-<!--                                        <input-->
-<!--                                                class="form-range"-->
-<!--                                                type="range"-->
-<!--                                                min="0"-->
-<!--                                                max="1"-->
-<!--                                                step="0.1"-->
-<!--                                                x-model.number="storageInformation.storageEmrQuotaRatio"-->
-<!--                                                @change="submitRecordSettings"-->
-<!--                                                style="width: 200px;">-->
-<!--                                        </div>-->
-                                    </div>
 
-                                </div>
-
-                                <!-- EMR 循环删除开关：true=可循环删除，false=保护(仅手动可删) -->
-                                <div class="col-12 col-md-3">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="st_emr_delete_allowed">EMR Loop-Delete</label>
-                                    <div class="d-flex align-items-center">
-                                        <select class="form-control" style="width:160px;"
-                                                x-model="storageInformation.emrDeleteAllowed"
-                                                @change="submitStorageInformation">
-                                            <option :value="true" data-i18n="st_emr_del_allowed">Allowed</option>
-                                            <option :value="false" data-i18n="st_emr_del_protected">Protected</option>
-                                        </select>
-                                        <span class="dv-tip" :data-tip="tIdx('st_emr_delete_hint')" style="margin-left:8px;">
-                                            <i class="fa-solid fa-circle-info" style="font-size:12px;color:var(--text-muted);cursor:help;"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 录像磁盘占用标尺：录像总占用 + 普通/缩时/紧急 分类占用 -->
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between mb-1" style="font-size:13px;">
-                                    <span><i class="fa fa-film me-1"></i><span data-i18n="st_record_usage">Recording Usage</span>:
-                                        <strong x-text="(recordDiskUsage.totalMB/1024).toFixed(2)+' GB'"></strong>
-                                        <span x-show="recordDiskUsage.loading" class="text-muted" style="font-size:11px;">(<span data-i18n="cm_loading">Loading...</span>)</span>
-                                    </span>
-                                </div>
-                                <div class="progress" style="height:22px;">
-                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_loop')+' '+(recordDiskUsage.loopMB/1024).toFixed(2)+'GB'"
-                                         :style="'background:var(--accent);width:'+(recordDiskUsage.totalMB ? recordDiskUsage.loopMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
-                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_timelapse')+' '+(recordDiskUsage.timelapseMB/1024).toFixed(2)+'GB'"
-                                         :style="'background:#7c3aed;width:'+(recordDiskUsage.totalMB ? recordDiskUsage.timelapseMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
-                                    <div class="progress-bar dv-tip" :data-tip="tIdx('vp_type_pre')+' '+(recordDiskUsage.emergencyMB/1024).toFixed(2)+'GB'"
-                                         :style="'background:#dc3545;width:'+(recordDiskUsage.totalMB ? recordDiskUsage.emergencyMB/recordDiskUsage.totalMB*100 : 0)+'%'"></div>
-                                </div>
-                                <div class="d-flex flex-wrap gap-3 mt-1" style="font-size:11px;">
-                                    <span><i class="fa fa-circle" style="color:var(--accent)"></i> <span data-i18n="vp_type_loop">Loop</span>: <strong x-text="(recordDiskUsage.loopMB/1024).toFixed(2)+'GB'"></strong></span>
-                                    <span><i class="fa fa-circle" style="color:#7c3aed"></i> <span data-i18n="vp_type_timelapse">Timelapse</span>: <strong x-text="(recordDiskUsage.timelapseMB/1024).toFixed(2)+'GB'"></strong></span>
-                                    <span><i class="fa fa-circle" style="color:#dc3545"></i> <span data-i18n="vp_type_pre">EMR</span>: <strong x-text="(recordDiskUsage.emergencyMB/1024).toFixed(2)+'GB'"></strong></span>
-                                </div>
-                            </div>
-
-                            <!-- 录像清理（按比例，最旧优先，含 EMR；大小按录像实际占用计算）-->
-                            <div class="mb-2 mt-2">
-                                <label class="col-form-label" data-i18n="st_clear_records">Clear Recordings</label>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button class="btn btn-sm btn-danger dv-tip" @click="clearRecords(1)"
-                                            :data-tip="tIdx('st_clear_free') + ' ≈ ' + (recordDiskUsage.totalMB/1024).toFixed(2) + ' GB'">
-                                        <i class="fa-solid fa-trash me-1"></i><span data-i18n="st_clear_all">Clear All</span></button>
-                                    <template x-for="n in [2,3,4,5,6,7,8,9,10]" :key="n">
-                                        <button class="btn btn-sm btn-warning dv-tip" @click="clearRecords(n)"
-                                                :data-tip="tIdx('st_clear_free') + ' ≈ ' + (recordDiskUsage.totalMB/n/1024).toFixed(2) + ' GB'"
-                                                x-text="'1/'+n"></button>
-                                    </template>
-                                </div>
-                                <small class="text-muted" style="font-size:11px;" x-text="(storageInformation.emrDeleteAllowed===true || storageInformation.emrDeleteAllowed==='true') ? tIdx('st_clear_hint') : tIdx('st_clear_hint_protected')"></small>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitStorageInformation">
-                                <span data-i18n="st_set_storage">Set Storage</span>
-                            </button>
-                            <p class="mt-3 text-center fs-md text-warning  fw-bold" x-text="statusStorageMessage"
-                               x-show="isFormating"></p>
-                        </div>
-                    </div>
-                </div>
                 <!-- 设备状态页面 -->
                 <div class="page-section" id="device-information" x-data="deviceSettings();"
                      x-init="onPage('device-information', () => { initDeviceGeneralInformation();initNtpInformation();initScanServiceInformation() })">
@@ -7893,6 +7916,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.__pendingAiParamTab = 'llm';
             el = document.querySelector('.dv-nav-item[onclick*="ai-detection"]') || el;
         }
+
+        // Storage Settings 已并入 Record Settings 的 Storage Tab
+        if (pageId === 'storage') {
+            pageId = 'record-settings';
+            window.__pendingRecordParamTab = 'storage';
+            el = document.querySelector('.dv-nav-item[onclick*="record-settings"]') || el;
+        }
+
         const sections = document.querySelectorAll('.page-section');
         sections.forEach(section => section.classList.remove('active'));
         const target = document.getElementById(pageId);
@@ -7919,6 +7950,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const stack = (wrap && wrap._x_dataStack) || (root && root._x_dataStack);
                 if (stack && stack[0]) stack[0].aiParamTab = window.__pendingAiParamTab;
                 window.__pendingAiParamTab = null;
+            }, 0);
+        }
+
+        if (pageId === 'record-settings' && window.__pendingRecordParamTab) {
+            setTimeout(function() {
+                const root = document.getElementById('record-settings');
+                const wrap = root && root.querySelector('[x-data]');
+                const stack = (wrap && wrap._x_dataStack) || (root && root._x_dataStack);
+                if (stack && stack[0]) stack[0].recordParamTab = window.__pendingRecordParamTab;
+                window.__pendingRecordParamTab = null;
             }, 0);
         }
     }
@@ -8541,6 +8582,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|info|agora
             networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web|vis
             aiParamTab: 'detect', // AI Settings 分段: detect|llm
+            recordParamTab: 'record', // Record Settings 分段: record|storage
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
