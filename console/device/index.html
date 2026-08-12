@@ -906,14 +906,8 @@
                 <a class="dv-nav-item" href="#" onclick="showPage('home', this); return false;">
                     <i class="fas fa-home"></i> <span data-i18n="nav_home">Home</span>
                 </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('video-replay', this); return false;">
-                    <i class="fas fa-film"></i> <span data-i18n="nav_video_playback">Video Playback</span>
-                </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('cloud-playback', this); return false;">
-                    <i class="fas fa-cloud-download-alt"></i> <span data-i18n="nav_cloud_playback">Cloud Playback</span>
-                </a>
-                <a class="dv-nav-item" href="#" onclick="showPage('image-capture', this); return false;">
-                    <i class="fas fa-camera"></i> <span data-i18n="nav_image_playback">Image Playback</span>
+                <a class="dv-nav-item" href="#" onclick="showPage('playback', this); return false;">
+                    <i class="fas fa-play"></i> <span data-i18n="nav_playback">Playback</span>
                 </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('chatdevice-information', this); return false;">
                     <i class="fa fa-robot"></i> <span data-i18n="nav_chat_device">Chat Device</span>
@@ -3663,10 +3657,33 @@
                 </div>
 
                 <!-- 视频回放页面 -->
-                <div class="page-section" id="video-replay">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('video-replay', () => { initVedioSettings(); fetchRecords(false); initTimeline() })" @pagechange.window="onReplayPageLeave($event.detail.pageId)">
+                                <!-- Playback：Video / Image / Cloud 分段 Tab -->
+                <div class="page-section" id="playback">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('playback', () => { if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initVedioSettings(); fetchRecords(false); initTimeline(); } })" @pagechange.window="onReplayPageLeave($event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
+                        <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="playbackTab==='video' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="playbackTab==='video'"
+                                    @click="playbackTab='video'; fetchRecords(false); initTimeline()"
+                                    data-i18n="nav_video_playback">Video Playback</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="playbackTab==='image' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="playbackTab==='image'"
+                                    @click="playbackTab='image'; fetchImages(false); initTimeline()"
+                                    data-i18n="nav_image_playback">Image Playback</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="playbackTab==='cloud' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="playbackTab==='cloud'"
+                                    @click="playbackTab='cloud'; getCloudRecordService(); initCloudPlayback()"
+                                    data-i18n="nav_cloud_playback">Cloud Playback</button>
+                        </div>
+
+                        <div class="vs-param-pane" x-show="playbackTab==='video'" x-cloak>
                                 <div class="row">
                                     <!-- 左侧部分: 视频播放控件和搜索框（列表收起时占满整行）-->
                                     <div class="d-flex flex-column" :class="recordListCollapsed ? 'col-lg-12' : 'col-lg-8'">
@@ -4017,15 +4034,9 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            
                         </div>
-                    </div>
-                </div>
-                <!-- 图片抓拍页面 -->
-                <div class="page-section" id="image-capture">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="onPage('image-capture', () => { fetchImages(false); initTimeline() })">
-                        <div class="page-body">
-                            <div class="container-xl">
+                        <div class="vs-param-pane" x-show="playbackTab==='image'" x-cloak>
                                 <div class="row">
                                     <!-- 左侧部分: 图片显示和搜索框 -->
                                     <div class="col-lg-8 d-flex flex-column">
@@ -4277,10 +4288,122 @@
                                         </div>
                                     </div>
                                 </div>
+                            
+                        </div>
+                        <div class="vs-param-pane" x-show="playbackTab==='cloud'" x-cloak>
+ { getCloudRecordService(); initCloudPlayback() })">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" data-i18n="cp_title">Cloud Playback</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                            <!-- 左列：时间轴 + 视频 -->
+                            <div class="col-12 col-lg-8">
+                            <!-- 云录像时间轴（前端用列表合成；按天，点击定位播放，放大后可拖拽平移）-->
+                            <div class="card shadow mb-2">
+                                <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
+                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
+                                        <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
+                                        <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchCloudDay()">
+                                        <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
+                                        <span x-show="cloudPlayback.loading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
+                                        <span class="text-muted" style="font-size:11px;" x-show="!cloudPlayback.loading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
+                                        <!-- 缩放窗口 + 复位 -->
+                                        <span class="text-muted dv-tip" :data-tip="tIdx('tl_zoom_hint')" style="font-size:11px;margin-left:6px;"
+                                              x-show="timelineView.start>0 || timelineView.end<86400" x-text="timelineWindowLabel()"></span>
+                                        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px;padding:1px 6px;"
+                                                x-show="timelineView.start>0 || timelineView.end<86400"
+                                                @click="timelineResetZoom()"><i class="fa fa-magnifying-glass-minus me-1"></i><span data-i18n="tl_reset">Reset</span></button>
+                                    </div>
+                                    <!-- 动态刻度（随缩放窗口变化）-->
+                                    <div style="position:relative;height:14px;font-size:9px;color:var(--text-muted);overflow:hidden;">
+                                        <template x-for="(t,i) in timelineTicks()" :key="'ctk'+i">
+                                            <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
+                                        </template>
+                                    </div>
+                                    <!-- 云端单轨（滚轮缩放、点击定位）-->
+                                    <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
+                                         :class="{'tl-grabbing': tlDrag.active}"
+                                         @click="onCloudTimelineClick($event)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
+                                        <template x-for="(b,i) in timelineBlocks(0)" :key="'cc0-'+i">
+                                            <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
+                                        </template>
+                                        <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 视频播放区（KVS DASH，dash.js 注入 #cloudPlaybackVideo）-->
+                            <div class="card shadow mb-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex flex-wrap align-items-center gap-3 mb-2" style="font-size:11px;color:var(--text-muted);">
+                                        <span><i class="fa-solid fa-video me-1"></i><span data-i18n="cp_stream_name">Stream Name</span>: <b x-text="cloudPlayback.streamName"></b></span>
+                                        <span><i class="fa-solid fa-earth-asia me-1"></i><span data-i18n="cp_region">Region</span>: <b x-text="cloudPlayback.region"></b></span>
+                                        <span x-show="cloudPlayback.error" x-text="cloudPlayback.error" style="color:#d63939"></span>
+                                    </div>
+                                    <video id="cloudPlaybackVideo" controls autoplay playsinline :poster="cloudPlayback.posterThumb" style="width:100%;background:var(--video-bg, var(--bg-card2));display:block;border-radius:6px;"></video>
+                                </div>
+                            </div>
+                            </div><!-- /左列 col-lg-8 -->
+
+                            <!-- 右列：云录像列表 + 高级 -->
+                            <div class="col-12 col-lg-4">
+                            <!-- 云录像列表（极简卡片：云图标占位 + 时间/类型/时长）-->
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <h4 class="card-title mb-0" data-i18n="cp_list">Cloud Recordings</h4>
+                                    <button class="btn btn-sm btn-secondary" @click="fetchCloudDay()" :disabled="cloudPlayback.loading">
+                                        <i class="fa-solid fa-rotate-right me-1"></i><span data-i18n="cp_refresh">Refresh</span>
+                                    </button>
+                                </div>
+                                <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+                                    <div class="row">
+                                        <template x-for="r in cloudPlayback.records" :key="r.RecordIndexInformationDateTime">
+                                            <div class="col-12 mb-1">
+                                                <div class="card shadow-sm" style="cursor:pointer;overflow:hidden;"
+                                                     :style="cloudPlayback.selected === r ? 'cursor:pointer;overflow:hidden;border:2px solid #2fbf71;box-shadow:0 0 7px rgba(47,191,113,0.55);' : 'cursor:pointer;overflow:hidden;'"
+                                                     @click="playCloudRecord(r)">
+                                                    <div class="d-flex align-items-center w-100" style="height:64px;padding:4px 8px;">
+                                                        <!-- 缩略图位：本地同段封面就近匹配(云记录自身无缩略图);无则云图标占位 -->
+                                                        <div style="position:relative;width:84px;height:56px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2,#e9ecef);display:flex;align-items:center;justify-content:center;">
+                                                            <img x-show="r._thumb" :src="r._thumb" onerror="this.style.display='none'" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+                                                            <i class="fa-solid fa-cloud" x-show="!r._thumb" style="font-size:24px;color:#9aa4b2;"></i>
+                                                            <i class="fa-solid fa-circle-play" x-show="cloudPlayback.selected === r" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);z-index:2;"></i>
+                                                        </div>
+                                                        <!-- 右侧信息 -->
+                                                        <div class="ms-2 d-flex flex-column justify-content-center" style="height:100%;min-width:0;overflow:hidden;">
+                                                            <div class="text-start" style="font-size:12px;display:flex;flex-wrap:wrap;gap:3px;">
+                                                                <span class="badge" style="font-size:9px;"
+                                                                      :class="cloudTypeOf(r)==2 ? 'bg-danger' : cloudTypeOf(r)==3 ? '' : 'bg-primary'"
+                                                                      :style="cloudTypeOf(r)==3 ? 'background:#7c3aed' : ''"
+                                                                      x-text="cloudTypeOf(r)==2 ? tIdx('vp_type_pre') : cloudTypeOf(r)==3 ? tIdx('vp_type_timelapse') : tIdx('vp_type_loop')"></span>
+                                                                <span class="badge bg-secondary" style="font-size:9px;"><i class="fa fa-clock me-1"></i><span x-text="(r.RecordIndexInformationDateTime||'').substring(0,19)"></span></span>
+                                                                <span class="badge bg-warning text-dark" style="font-size:9px;"><i class="fa fa-stopwatch me-1"></i><span x-text="(r.RecordIndexInformationDuration||0) + 's'"></span></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <div x-show="!cloudPlayback.records.length" class="col-12 text-muted text-center py-3" data-i18n="cp_no_records">No cloud recordings</div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div><!-- /右列 col-lg-4 -->
+                            </div><!-- /row -->
+                        </div>
+                    </div>
+                
+                        </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- video/image/cloud：已并入 Playback Tab；保留空 section 以兼容旧链接 -->
+                <div class="page-section" id="video-replay"></div>
+                <div class="page-section" id="image-capture"></div>
+
                                 <!-- storage：已并入 Record Settings → Storage Tab；保留空 section 以兼容旧链接 -->
                 <div class="page-section" id="storage"></div>
 
@@ -6035,110 +6158,9 @@
 
                     <!-- 远程连接（外网 RTM/UUID）卡片已移除：设备无外网，不需要手填 UUID -->
                 </div>
-<div class="page-section" id="cloud-playback" x-data="deviceSettings()" x-init="onPage('cloud-playback', () => { getCloudRecordService(); initCloudPlayback() })">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="cp_title">Cloud Playback</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                            <!-- 左列：时间轴 + 视频 -->
-                            <div class="col-12 col-lg-8">
-                            <!-- 云录像时间轴（前端用列表合成；按天，点击定位播放，放大后可拖拽平移）-->
-                            <div class="card shadow mb-2">
-                                <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
-                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
-                                        <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                        <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchCloudDay()">
-                                        <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
-                                        <span x-show="cloudPlayback.loading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
-                                        <span class="text-muted" style="font-size:11px;" x-show="!cloudPlayback.loading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
-                                        <!-- 缩放窗口 + 复位 -->
-                                        <span class="text-muted dv-tip" :data-tip="tIdx('tl_zoom_hint')" style="font-size:11px;margin-left:6px;"
-                                              x-show="timelineView.start>0 || timelineView.end<86400" x-text="timelineWindowLabel()"></span>
-                                        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px;padding:1px 6px;"
-                                                x-show="timelineView.start>0 || timelineView.end<86400"
-                                                @click="timelineResetZoom()"><i class="fa fa-magnifying-glass-minus me-1"></i><span data-i18n="tl_reset">Reset</span></button>
-                                    </div>
-                                    <!-- 动态刻度（随缩放窗口变化）-->
-                                    <div style="position:relative;height:14px;font-size:9px;color:var(--text-muted);overflow:hidden;">
-                                        <template x-for="(t,i) in timelineTicks()" :key="'ctk'+i">
-                                            <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
-                                        </template>
-                                    </div>
-                                    <!-- 云端单轨（滚轮缩放、点击定位）-->
-                                    <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
-                                         :class="{'tl-grabbing': tlDrag.active}"
-                                         @click="onCloudTimelineClick($event)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                        <template x-for="(b,i) in timelineBlocks(0)" :key="'cc0-'+i">
-                                            <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
-                                        </template>
-                                        <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- cloud-playback：已并入 Playback → Cloud Tab -->
+                <div class="page-section" id="cloud-playback"></div>
 
-                            <!-- 视频播放区（KVS DASH，dash.js 注入 #cloudPlaybackVideo）-->
-                            <div class="card shadow mb-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex flex-wrap align-items-center gap-3 mb-2" style="font-size:11px;color:var(--text-muted);">
-                                        <span><i class="fa-solid fa-video me-1"></i><span data-i18n="cp_stream_name">Stream Name</span>: <b x-text="cloudPlayback.streamName"></b></span>
-                                        <span><i class="fa-solid fa-earth-asia me-1"></i><span data-i18n="cp_region">Region</span>: <b x-text="cloudPlayback.region"></b></span>
-                                        <span x-show="cloudPlayback.error" x-text="cloudPlayback.error" style="color:#d63939"></span>
-                                    </div>
-                                    <video id="cloudPlaybackVideo" controls autoplay playsinline :poster="cloudPlayback.posterThumb" style="width:100%;background:var(--video-bg, var(--bg-card2));display:block;border-radius:6px;"></video>
-                                </div>
-                            </div>
-                            </div><!-- /左列 col-lg-8 -->
-
-                            <!-- 右列：云录像列表 + 高级 -->
-                            <div class="col-12 col-lg-4">
-                            <!-- 云录像列表（极简卡片：云图标占位 + 时间/类型/时长）-->
-                            <div class="card shadow-sm h-100">
-                                <div class="card-header d-flex align-items-center justify-content-between">
-                                    <h4 class="card-title mb-0" data-i18n="cp_list">Cloud Recordings</h4>
-                                    <button class="btn btn-sm btn-secondary" @click="fetchCloudDay()" :disabled="cloudPlayback.loading">
-                                        <i class="fa-solid fa-rotate-right me-1"></i><span data-i18n="cp_refresh">Refresh</span>
-                                    </button>
-                                </div>
-                                <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
-                                    <div class="row">
-                                        <template x-for="r in cloudPlayback.records" :key="r.RecordIndexInformationDateTime">
-                                            <div class="col-12 mb-1">
-                                                <div class="card shadow-sm" style="cursor:pointer;overflow:hidden;"
-                                                     :style="cloudPlayback.selected === r ? 'cursor:pointer;overflow:hidden;border:2px solid #2fbf71;box-shadow:0 0 7px rgba(47,191,113,0.55);' : 'cursor:pointer;overflow:hidden;'"
-                                                     @click="playCloudRecord(r)">
-                                                    <div class="d-flex align-items-center w-100" style="height:64px;padding:4px 8px;">
-                                                        <!-- 缩略图位：本地同段封面就近匹配(云记录自身无缩略图);无则云图标占位 -->
-                                                        <div style="position:relative;width:84px;height:56px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2,#e9ecef);display:flex;align-items:center;justify-content:center;">
-                                                            <img x-show="r._thumb" :src="r._thumb" onerror="this.style.display='none'" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-                                                            <i class="fa-solid fa-cloud" x-show="!r._thumb" style="font-size:24px;color:#9aa4b2;"></i>
-                                                            <i class="fa-solid fa-circle-play" x-show="cloudPlayback.selected === r" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);z-index:2;"></i>
-                                                        </div>
-                                                        <!-- 右侧信息 -->
-                                                        <div class="ms-2 d-flex flex-column justify-content-center" style="height:100%;min-width:0;overflow:hidden;">
-                                                            <div class="text-start" style="font-size:12px;display:flex;flex-wrap:wrap;gap:3px;">
-                                                                <span class="badge" style="font-size:9px;"
-                                                                      :class="cloudTypeOf(r)==2 ? 'bg-danger' : cloudTypeOf(r)==3 ? '' : 'bg-primary'"
-                                                                      :style="cloudTypeOf(r)==3 ? 'background:#7c3aed' : ''"
-                                                                      x-text="cloudTypeOf(r)==2 ? tIdx('vp_type_pre') : cloudTypeOf(r)==3 ? tIdx('vp_type_timelapse') : tIdx('vp_type_loop')"></span>
-                                                                <span class="badge bg-secondary" style="font-size:9px;"><i class="fa fa-clock me-1"></i><span x-text="(r.RecordIndexInformationDateTime||'').substring(0,19)"></span></span>
-                                                                <span class="badge bg-warning text-dark" style="font-size:9px;"><i class="fa fa-stopwatch me-1"></i><span x-text="(r.RecordIndexInformationDuration||0) + 's'"></span></span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                        <div x-show="!cloudPlayback.records.length" class="col-12 text-muted text-center py-3" data-i18n="cp_no_records">No cloud recordings</div>
-                                    </div>
-                                </div>
-                            </div>
-                            </div><!-- /右列 col-lg-4 -->
-                            </div><!-- /row -->
-                        </div>
-                    </div>
-                </div>
                 <!--日志页面-->
                 <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation() })" >-->
                 <div class="page-section" id="debug" x-data="deviceSettings()" x-init="onPage('debug', () => { initLogInformation();initWatchdogInformation() })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
@@ -6748,7 +6770,7 @@ const I18N_INDEX = {
   en: {
     nav_sec_monitor:'Monitor', nav_sec_settings:'Settings', nav_sec_system:'System',
     nav_dashboard:'Dashboard', dash_device:'Device', dash_name:'Name', dash_model:'Model', dash_version:'Version', dash_uptime:'Uptime', dash_storage:'Storage', dash_used:'Used', dash_datetime:'Time', dash_model_type:'Model', dash_openai:'OpenAI', dash_duration:'Duration', dash_online:'Online', dash_free:'Free', dash_recordings:'Recordings', dash_total:'Total', dash_ai_detect:'AI Detection', dash_confidence:'Confidence', dash_draw_box:'Draw Box', dash_frame_int:'Frame Interval', dash_camera:'Cameras', dash_count:'Count', dash_resolution:'Resolution', dash_fps:'FPS', dash_bitrate:'Bitrate', dash_audio:'Audio', dash_speaker:'Speaker', dash_mic:'Microphone', dash_volume:'Volume', dash_record:'Recording', dash_mode:'Mode', dash_rec_audio:'Record Audio', dash_cloud:'Cloud', dash_cloud_rec:'Cloud Record', dash_retention:'Retention', dash_region:'Region', dash_rtsp:'RTSP', dash_clients:'Clients', dash_port:'Port', dash_open_live:'Open live view',
-    vp_waiting:'Waiting for stream', vp_connecting:'connecting…', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', pl_switch_hint:'Click a sub view to focus it', nav_home:'Home', nav_video_playback:'Video Playback', nav_image_playback:'Image Playback',
+    vp_waiting:'Waiting for stream', vp_connecting:'connecting…', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', pl_switch_hint:'Click a sub view to focus it', nav_home:'Home', nav_playback:'Playback', nav_video_playback:'Video Playback', nav_image_playback:'Image Playback',
     nav_chat_device:'Chat Device', nav_openai_service:'LLM Settings', nav_video_settings:'Video Settings', nav_media_settings:'Media Settings',
     nav_audio_settings:'Audio Settings', nav_record_settings:'Record Settings',
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
@@ -6756,7 +6778,7 @@ const I18N_INDEX = {
     nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
     nav_debug:'Debug Settings', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
-    page_home:'Home', page_dashboard:'Dashboard', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
+    page_home:'Home', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
     page_ai_detection:'AI Settings', page_chatgpt_information:'LLM Settings',
     page_audio_settings:'Audio Settings', page_record_settings:'Record Settings',
@@ -6895,7 +6917,7 @@ const I18N_INDEX = {
   zh: {
     nav_sec_monitor:'监控', nav_sec_settings:'设置', nav_sec_system:'系统',
     nav_dashboard:'仪表盘', dash_device:'设备', dash_name:'名称', dash_model:'型号', dash_version:'版本', dash_uptime:'在线时长', dash_storage:'存储', dash_used:'已用', dash_datetime:'时间', dash_model_type:'模型', dash_openai:'OpenAI', dash_duration:'时长', dash_online:'在线', dash_free:'剩余', dash_recordings:'录像数', dash_total:'总计', dash_ai_detect:'AI检测', dash_confidence:'置信度', dash_draw_box:'画框', dash_frame_int:'抽帧间隔', dash_camera:'摄像头', dash_count:'路数', dash_resolution:'分辨率', dash_fps:'帧率', dash_bitrate:'码率', dash_audio:'音频', dash_speaker:'扬声器', dash_mic:'麦克风', dash_volume:'音量', dash_record:'录像', dash_mode:'模式', dash_rec_audio:'录音', dash_cloud:'云', dash_cloud_rec:'云录像', dash_retention:'保留', dash_region:'区域', dash_rtsp:'RTSP', dash_clients:'连接数', dash_port:'端口', dash_open_live:'打开实时画面',
-    vp_waiting:'等待远程画面', vp_connecting:'连接中…', ll_pip:'画中画', ll_grid:'四宫格', ll_cycle_hint:'点击切换布局', pl_switch_hint:'点击小窗切换聚焦画面', nav_home:'主页', nav_video_playback:'视频回放', nav_image_playback:'图片回放',
+    vp_waiting:'等待远程画面', vp_connecting:'连接中…', ll_pip:'画中画', ll_grid:'四宫格', ll_cycle_hint:'点击切换布局', pl_switch_hint:'点击小窗切换聚焦画面', nav_home:'主页', nav_playback:'回放', nav_video_playback:'视频回放', nav_image_playback:'图片回放',
     nav_chat_device:'设备对话', nav_openai_service:'大模型设置', nav_video_settings:'视频设置', nav_media_settings:'媒体设置',
     nav_audio_settings:'音频设置', nav_record_settings:'录像设置',
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
@@ -6903,7 +6925,7 @@ const I18N_INDEX = {
     nav_provisioning:'配网', nav_factory_test:'工厂测试',
     nav_debug:'调试设置', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
-    page_home:'主页', page_dashboard:'仪表盘', page_video_replay:'视频回放', page_image_capture:'图片回放',
+    page_home:'主页', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
     page_ai_detection:'AI 设置', page_chatgpt_information:'大模型设置',
     page_audio_settings:'音频设置', page_record_settings:'录像设置',
@@ -7042,7 +7064,7 @@ const I18N_INDEX = {
   ja: {
     nav_sec_monitor:'モニター', nav_sec_settings:'設定', nav_sec_system:'システム',
     nav_dashboard:'ダッシュボード', dash_device:'デバイス', dash_name:'名前', dash_model:'モデル', dash_version:'バージョン', dash_uptime:'稼働時間', dash_storage:'ストレージ', dash_used:'使用済み', dash_datetime:'時刻', dash_model_type:'モデル', dash_openai:'OpenAI', dash_duration:'長さ', dash_online:'オンライン', dash_free:'空き', dash_recordings:'録画数', dash_total:'合計', dash_ai_detect:'AI検出', dash_confidence:'信頼度', dash_draw_box:'枠描画', dash_frame_int:'フレーム間隔', dash_camera:'カメラ', dash_count:'台数', dash_resolution:'解像度', dash_fps:'FPS', dash_bitrate:'ビットレート', dash_audio:'オーディオ', dash_speaker:'スピーカー', dash_mic:'マイク', dash_volume:'音量', dash_record:'録画', dash_mode:'モード', dash_rec_audio:'音声録音', dash_cloud:'クラウド', dash_cloud_rec:'クラウド録画', dash_retention:'保持', dash_region:'リージョン', dash_rtsp:'RTSP', dash_clients:'接続数', dash_port:'ポート', dash_open_live:'ライブ表示を開く',
-    vp_waiting:'映像を待機中', vp_connecting:'接続中…', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', pl_switch_hint:'子画面をクリックしてフォーカス', nav_home:'ホーム', nav_video_playback:'動画再生', nav_image_playback:'画像再生',
+    vp_waiting:'映像を待機中', vp_connecting:'接続中…', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', pl_switch_hint:'子画面をクリックしてフォーカス', nav_home:'ホーム', nav_playback:'再生', nav_video_playback:'動画再生', nav_image_playback:'画像再生',
     nav_chat_device:'デバイス対話', nav_openai_service:'LLM 設定', nav_video_settings:'動画設定', nav_media_settings:'メディア設定',
     nav_audio_settings:'音声設定', nav_record_settings:'録画設定',
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
@@ -7050,7 +7072,7 @@ const I18N_INDEX = {
     nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
     nav_debug:'デバッグ設定', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
-    page_home:'ホーム', page_dashboard:'ダッシュボード', page_video_replay:'動画再生', page_image_capture:'画像再生',
+    page_home:'ホーム', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
     page_ai_detection:'AI 設定', page_chatgpt_information:'LLM 設定',
     page_audio_settings:'音声設定', page_record_settings:'録画設定',
@@ -7188,7 +7210,7 @@ const I18N_INDEX = {
   de: {
     nav_sec_monitor:'Monitor', nav_sec_settings:'Einstellungen', nav_sec_system:'System',
     nav_dashboard:'Dashboard', dash_device:'Gerät', dash_name:'Name', dash_model:'Modell', dash_version:'Version', dash_uptime:'Betriebszeit', dash_storage:'Speicher', dash_used:'Belegt', dash_datetime:'Zeit', dash_model_type:'Modell', dash_openai:'OpenAI', dash_duration:'Dauer', dash_online:'Online', dash_free:'Frei', dash_recordings:'Aufnahmen', dash_total:'Gesamt', dash_ai_detect:'KI-Erkennung', dash_confidence:'Konfidenz', dash_draw_box:'Box zeichnen', dash_frame_int:'Bildintervall', dash_camera:'Kameras', dash_count:'Anzahl', dash_resolution:'Auflösung', dash_fps:'FPS', dash_bitrate:'Bitrate', dash_audio:'Audio', dash_speaker:'Lautsprecher', dash_mic:'Mikrofon', dash_volume:'Lautstärke', dash_record:'Aufnahme', dash_mode:'Modus', dash_rec_audio:'Audio aufn.', dash_cloud:'Cloud', dash_cloud_rec:'Cloud-Aufn.', dash_retention:'Aufbewahr.', dash_region:'Region', dash_rtsp:'RTSP', dash_clients:'Clients', dash_port:'Port', dash_open_live:'Live-Ansicht öffnen',
-    vp_waiting:'Warte auf Stream', vp_connecting:'verbinde…', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', nav_home:'Startseite', nav_video_playback:'Videowiedergabe', nav_image_playback:'Bildwiedergabe',
+    vp_waiting:'Warte auf Stream', vp_connecting:'verbinde…', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', nav_home:'Startseite', nav_playback:'Wiedergabe', nav_video_playback:'Videowiedergabe', nav_image_playback:'Bildwiedergabe',
     nav_chat_device:'Gerät-Chat', nav_openai_service:'LLM-Einstellungen', nav_video_settings:'Videoeinstellungen', nav_media_settings:'Medieneinstellungen',
     nav_audio_settings:'Audioeinstellungen', nav_record_settings:'Aufnahmeeinstellungen',
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
@@ -7196,7 +7218,7 @@ const I18N_INDEX = {
     nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
     nav_debug:'Debug-Einstellungen', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
-    page_home:'Startseite', page_dashboard:'Dashboard', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
+    page_home:'Startseite', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
     page_ai_detection:'KI-Einstellungen', page_chatgpt_information:'LLM-Einstellungen',
     page_audio_settings:'Audioeinstellungen', page_record_settings:'Aufnahmeeinstellungen',
@@ -7334,7 +7356,7 @@ const I18N_INDEX = {
   fr: {
     nav_sec_monitor:'Moniteur', nav_sec_settings:'Paramètres', nav_sec_system:'Système',
     nav_dashboard:'Tableau de bord', dash_device:'Appareil', dash_name:'Nom', dash_model:'Modèle', dash_version:'Version', dash_uptime:'Disponibilité', dash_storage:'Stockage', dash_used:'Utilisé', dash_datetime:'Heure', dash_model_type:'Modèle', dash_openai:'OpenAI', dash_duration:'Durée', dash_online:'En ligne', dash_free:'Libre', dash_recordings:'Enreg.', dash_total:'Total', dash_ai_detect:'Détection IA', dash_confidence:'Confiance', dash_draw_box:'Cadre', dash_frame_int:'Interv. image', dash_camera:'Caméras', dash_count:'Nombre', dash_resolution:'Résolution', dash_fps:'IPS', dash_bitrate:'Débit', dash_audio:'Audio', dash_speaker:'Haut-parleur', dash_mic:'Microphone', dash_volume:'Volume', dash_record:'Enregistrement', dash_mode:'Mode', dash_rec_audio:'Enreg. audio', dash_cloud:'Cloud', dash_cloud_rec:'Enreg. cloud', dash_retention:'Rétention', dash_region:'Région', dash_rtsp:'RTSP', dash_clients:'Clients', dash_port:'Port', dash_open_live:'Ouvrir le direct',
-    vp_waiting:'En attente du flux', vp_connecting:'connexion…', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', nav_home:'Accueil', nav_video_playback:'Lecture vidéo', nav_image_playback:'Lecture image',
+    vp_waiting:'En attente du flux', vp_connecting:'connexion…', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', nav_home:'Accueil', nav_playback:'Lecture', nav_video_playback:'Lecture vidéo', nav_image_playback:'Lecture image',
     nav_chat_device:'Chat appareil', nav_openai_service:'Paramètres LLM', nav_video_settings:'Paramètres vidéo', nav_media_settings:'Paramètres média',
     nav_audio_settings:'Paramètres audio', nav_record_settings:'Paramètres enreg.',
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
@@ -7342,7 +7364,7 @@ const I18N_INDEX = {
     nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
     nav_debug:'Paramètres debug', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
-    page_home:'Accueil', page_dashboard:'Tableau de bord', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
+    page_home:'Accueil', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
     page_ai_detection:'Paramètres IA', page_chatgpt_information:'Paramètres LLM',
     page_audio_settings:'Paramètres audio', page_record_settings:'Paramètres enreg.',
@@ -7480,7 +7502,7 @@ const I18N_INDEX = {
   es: {
     nav_sec_monitor:'Monitor', nav_sec_settings:'Ajustes', nav_sec_system:'Sistema',
     nav_dashboard:'Panel', dash_device:'Dispositivo', dash_name:'Nombre', dash_model:'Modelo', dash_version:'Versión', dash_uptime:'Tiempo activo', dash_storage:'Almacenamiento', dash_used:'Usado', dash_datetime:'Hora', dash_model_type:'Modelo', dash_openai:'OpenAI', dash_duration:'Duración', dash_online:'En línea', dash_free:'Libre', dash_recordings:'Grabaciones', dash_total:'Total', dash_ai_detect:'Detección IA', dash_confidence:'Confianza', dash_draw_box:'Dibujar caja', dash_frame_int:'Interv. cuadro', dash_camera:'Cámaras', dash_count:'Cantidad', dash_resolution:'Resolución', dash_fps:'FPS', dash_bitrate:'Tasa bits', dash_audio:'Audio', dash_speaker:'Altavoz', dash_mic:'Micrófono', dash_volume:'Volumen', dash_record:'Grabación', dash_mode:'Modo', dash_rec_audio:'Grabar audio', dash_cloud:'Nube', dash_cloud_rec:'Grab. nube', dash_retention:'Retención', dash_region:'Región', dash_rtsp:'RTSP', dash_clients:'Clientes', dash_port:'Puerto', dash_open_live:'Abrir en vivo',
-    vp_waiting:'Esperando transmisión', vp_connecting:'conectando…', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', pl_switch_hint:'Haga clic en una subvista para enfocarla', nav_home:'Inicio', nav_video_playback:'Reproducción vídeo', nav_image_playback:'Reproducción imagen',
+    vp_waiting:'Esperando transmisión', vp_connecting:'conectando…', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', pl_switch_hint:'Haga clic en una subvista para enfocarla', nav_home:'Inicio', nav_playback:'Reproducción', nav_video_playback:'Reproducción vídeo', nav_image_playback:'Reproducción imagen',
     nav_chat_device:'Chat dispositivo', nav_openai_service:'Ajustes LLM', nav_video_settings:'Ajustes vídeo', nav_media_settings:'Ajustes de medios',
     nav_audio_settings:'Ajustes audio', nav_record_settings:'Ajustes grabación',
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
@@ -7488,7 +7510,7 @@ const I18N_INDEX = {
     nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
     nav_debug:'Ajustes debug', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
-    page_home:'Inicio', page_dashboard:'Panel', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
+    page_home:'Inicio', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
     page_ai_detection:'Ajustes IA', page_chatgpt_information:'Ajustes LLM',
     page_audio_settings:'Ajustes audio', page_record_settings:'Ajustes grabación',
@@ -7960,6 +7982,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
 
+
+        // Video / Image / Cloud Playback 已并入 Playback 分段 Tab
+        if (pageId === 'video-replay' || pageId === 'image-capture' || pageId === 'cloud-playback') {
+            const tabMap = { 'video-replay': 'video', 'image-capture': 'image', 'cloud-playback': 'cloud' };
+            window.__pendingPlaybackTab = tabMap[pageId];
+            pageId = 'playback';
+            el = document.querySelector('.dv-nav-item[onclick*="playback"]') || el;
+        }
+
         // Audio Settings 已并入 Video Settings 的 Audio Tab
         if (pageId === 'audio-settings') {
             pageId = 'video-settings';
@@ -8013,6 +8044,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 const stack = (wrap && wrap._x_dataStack) || (root && root._x_dataStack);
                 if (stack && stack[0]) stack[0].videoPageTab = window.__pendingVideoPageTab;
                 window.__pendingVideoPageTab = null;
+            }, 0);
+        }
+
+        if (pageId === 'playback' && window.__pendingPlaybackTab) {
+            setTimeout(function() {
+                const root = document.getElementById('playback');
+                const wrap = root && root.querySelector('.page-wrapper');
+                const dataEl = wrap || root;
+                if (dataEl && dataEl._x_dataStack && dataEl._x_dataStack[0]) {
+                    dataEl._x_dataStack[0].playbackTab = window.__pendingPlaybackTab;
+                }
+                window.__pendingPlaybackTab = null;
             }, 0);
         }
     }
@@ -8637,6 +8680,7 @@ document.addEventListener('DOMContentLoaded', function() {
             aiParamTab: 'detect', // AI Settings 分段: detect|llm
             recordParamTab: 'record', // Record Settings 分段: record|storage
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
+            playbackTab: 'video',  // Playback 页分段: video|image|cloud
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 实时预览默认画中画
             options : {
                 // appid:"289f22d97eab4db98e53af72edbef3b7",
@@ -12837,7 +12881,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 离开录像回放页(切到其它标签)时关闭云回放:关各路 viewer + 发 stop 命令,
             // 避免切走后设备仍在 demux 推流、viewer/信令常驻后台占资源。仅正在回放的那个实例会真正停,其它 no-op。
             onReplayPageLeave(activePageId) {
-                if (activePageId === 'video-replay') return;   // 仍在本页,不处理
+                if (activePageId === 'playback' || activePageId === 'video-replay') return;   // 仍在本页,不处理
                 if (this.remotePlaybackActive || this.remotePlaybackLoading
                     || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer) {
                     try { this.stopRemotePlayback(); } catch (e) { console.warn('[replay] stop on leave failed:', e && e.message); }
