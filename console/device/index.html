@@ -14146,30 +14146,61 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」的问题。
             // 各路 60s 分段边界常错开：先找覆盖路数最多的同步墙钟，再逐路取包含该时刻的真实段并 seek。
+            // 时间轴点击 → 同刻多路真实段。外网 IoT 上 pageSize=400 极易超 MQTT 载荷/20s 超时，
+            // 故：先用已加载 records → 窄窗口小页查询 → 失败再用时间轴段兜底（可播，合并块路径可能偏段首）。
             async resolveSegmentsAt(secs) {
+                const secOf = dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; };
+                if ((this.records || []).length) {
+                    const cached = this._buildSyncedSegments(this.records, secs, secOf);
+                    if (cached.length) return cached;
+                }
+                const wan = (typeof this.isWanPlayback === 'function') ? this.isWanPlayback() : false;
+                // [回溯秒, 前瞻秒, pageSize]；WAN 先窄后宽，避免一次拉爆 IoT
+                const attempts = wan
+                    ? [[120, 90, 48], [300, 120, 64]]
+                    : [[900, 120, 200]];
+                for (const [back, fwd, psz] of attempts) {
+                    try {
+                        const all = await this._queryLocalRecordsAround(secs, back, fwd, psz);
+                        const built = this._buildSyncedSegments(all, secs, secOf);
+                        if (built.length) return built;
+                    } catch (e) {
+                        console.warn('[AHS] resolveSegmentsAt query fail', { back, fwd, psz }, e && e.message);
+                    }
+                }
+                const fb = this._resolveSegmentsFromTimeline(secs);
+                if (!fb.length) console.error('resolveSegmentsAt: query+timeline both empty @', secs);
+                else console.warn('[AHS] resolveSegmentsAt using timeline fallback, cams=', fb.length);
+                return fb;
+            },
+            async _queryLocalRecordsAround(secs, backSec, fwdSec, pageSize) {
                 const pad = n => String(n).padStart(2, '0');
                 const fmt = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(Math.floor(s % 60));
-                const startS = Math.max(0, secs - 900), endS = Math.min(86399, secs + 120);
-                const secOf = dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; };
-                try {
-                    const resp = await fetch('/getDeviceCommand', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            method: 'queryLocalRecordIndexInformationCommand',
-                            params: {
-                                deviceID: this.deviceGeneralInformation.deviceUuid,
-                                startTime: fmt(startS), endTime: fmt(endS),
-                                pageSize: 400, pageNumber: 1, recordType: this.searchRecordType,
-                            },
-                        }),
-                    });
-                    const result = await resp.json();
-                    const all = (result && result.params && result.params.records) ? result.params.records : [];
-                    return this._buildSyncedSegments(all, secs, secOf);
-                } catch (e) {
-                    console.error('resolveSegmentsAt error:', e);
-                    return [];
+                const startS = Math.max(0, secs - backSec), endS = Math.min(86399, secs + fwdSec);
+                const resp = await fetch('/getDeviceCommand', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'queryLocalRecordIndexInformationCommand',
+                        params: {
+                            deviceID: this.deviceGeneralInformation.deviceUuid,
+                            startTime: fmt(startS), endTime: fmt(endS),
+                            pageSize: pageSize, pageNumber: 1, recordType: this.searchRecordType,
+                        },
+                    }),
+                });
+                const result = await resp.json();
+                return (result && result.params && result.params.records) ? result.params.records : [];
+            },
+            _resolveSegmentsFromTimeline(secs) {
+                const n = (typeof this.timelineCamCount === 'function') ? this.timelineCamCount() : 1;
+                const list = [];
+                for (let cam = 0; cam < n; cam++) {
+                    const e = this.findSegmentAt(secs, cam);
+                    if (e) list.push(Object.assign({}, this.segToRecord(e), {
+                        RecordIndexInformationCameraIndex: cam,
+                    }));
                 }
+                return list;
             },
             _buildSyncedSegments(all, secs, secOf) {
                 secOf = secOf || (dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; });

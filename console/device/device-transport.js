@@ -365,8 +365,11 @@ window.DeviceTransport = {
             : ('r' + Date.now() + Math.random().toString(36).slice(2, 8));
         var payload = JSON.stringify({ method: method, params: params, requestId: requestId });
         var self = this, reqTopic = 'v1/devices/' + uuid + '/rpc/request/' + this.rtmUserId;
+        // 列表类应答可能很大/很慢；仍可能因 MQTT 128KB 上限丢包——调用方须缩小 pageSize
+        var heavy = /queryLocalRecordIndexInformationCommand|getRecordTimelineCommand|queryCloudRecord|getCloudRecordListCommand/.test(method);
+        var timeoutMs = heavy ? Math.max(self.rtmReplyTimeoutMs, 45000) : self.rtmReplyTimeoutMs;
         var p = new Promise(function (resolve, reject) {
-            var timer = setTimeout(function () { delete self.pending[requestId]; reject(new Error('IoT 应答超时: ' + method)); }, self.rtmReplyTimeoutMs);
+            var timer = setTimeout(function () { delete self.pending[requestId]; reject(new Error('IoT 应答超时: ' + method)); }, timeoutMs);
             self.pending[requestId] = { resolve: resolve, reject: reject, timer: timer };
         });
         this.iot.publish(reqTopic, payload, { qos: 1 });
