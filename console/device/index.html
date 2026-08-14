@@ -4172,11 +4172,18 @@ window.__presignThumbUrl = function (raw) {
                                                         <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
                                                         <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
-                                                                <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1]"
+                                                                <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1] || playbackCamPoster(pi-1)"
                                                                      @pointerdown="onPipPointerDown($event, pi-1, remotePbCount())"
                                                                      @click="onPipTileClick($event, pi-1)">
                                                                     <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="'width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;pointer-events:'+(isLayoutFocused(pi-1, remotePbCount())?'auto':'none')+';'" autoplay muted playsinline :controls="isLayoutFocused(pi-1, remotePbCount())"></video>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;pointer-events:none;" x-text="'CAM'+pi"></div>
+                                                                    <!-- 出流前垫封面（列表/同刻段缩略图），避免黑窗转圈 -->
+                                                                    <img x-show="!pbCamUids[pi-1] && playbackCamPoster(pi-1)" :src="playbackCamPoster(pi-1)" alt=""
+                                                                         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;pointer-events:none;"
+                                                                         onerror="this.style.display='none'">
+                                                                    <div x-show="!pbCamUids[pi-1]" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;background:rgba(0,0,0,0.25);">
+                                                                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:28px;color:#fff;opacity:0.9;"></i>
+                                                                    </div>
+                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:3;pointer-events:none;" x-text="'CAM'+pi"></div>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -4289,8 +4296,9 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div class="d-flex align-items-center w-100" style="height: 80px; padding: 4px 8px;">
                                                                     <!-- 左侧缩略图（含叠加 badge） -->
                                                                     <div style="position:relative;width:100px;height:70px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2);">
+                                                                        <i class="fa-solid fa-camera" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted,#888);opacity:.35;font-size:22px;"></i>
                                                                         <img :src="thumbSrc(record)"
-                                                                             style="width:100%;height:100%;object-fit:cover;"
+                                                                             style="position:relative;width:100%;height:100%;object-fit:cover;z-index:1;"
                                                                              onerror="this.style.display='none'">
                                                                         <i class="fa fa-lock" x-show="record.isLocked" style="position:absolute;top:21px;left:4px;font-size:11px;color:#ef4444;drop-shadow(0 0 2px rgba(0,0,0,0.8));"></i>
                                                                         <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;"
@@ -10234,7 +10242,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
-                        this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
+                        // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
                     } else {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
@@ -13927,6 +13935,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         const page = result.params.records || [];
                         if (soft || isSearch) this.records = page.slice();
                         else this.records.push(...page);
+                        // 外网补 S3 封面，列表/加载窗才能出缩略图
+                        this.enrichRecordThumbs(this.records).catch(() => {});
 
                         // 检查是否还有更多数据
                         if (page.length < this.pageSize) {
@@ -14132,6 +14142,8 @@ document.addEventListener('DOMContentLoaded', function() {
             async playRecord(record, siblingRecs) {
                 if (!record) return;
                 this.selectedRecord = record;
+                // 切段/加载期各路封面：优先同刻 siblings，否则单条
+                this._playbackSiblingRecs = (siblingRecs && siblingRecs.length) ? siblingRecs.slice() : [record];
                 const gen = ++this._playbackGen;
                 // 切段不展示全屏「连接中」：保留空态宫格/上一路直到新流 remotePlaybackActive
                 try {
@@ -14140,8 +14152,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const cloud = this.isWanPlayback();
                     if (cloud) {
-                        // 外网不能直拉 /mnt：清本地 sync，但切段时先起新流再建连间隙尽量短；
-                        // 停旧流后立刻 start，空态宫格顶住黑屏（勿再 await 无关的列表刷新）
+                        // 外网不能直拉 /mnt：清本地 sync；建连间隙靠 idle 宫格 + remote 窗内 poster 缩略图
                         this.syncRecords = [];
                         try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
                         if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
@@ -14191,7 +14202,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
                         this.renderPlaybackVideo();   // 回放流可能已到达：立即渲染
-                        this.showAlert('success', tIdx('rp_started'), tIdx('vp_remote_playback'));
+                        // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
                     } else {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
@@ -14950,6 +14961,78 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (e) { console.debug('[playback] idle thumbs', e && e.message); }
             },
 
+            // 远程回放加载中：按路取同刻段封面
+            playbackCamPoster(camIdx) {
+                const sib = this._playbackSiblingRecs || [];
+                let hit = sib.find(r => this.tlCamOf(r.RecordIndexInformationPath) === camIdx);
+                if (!hit && this.selectedRecord && this.tlCamOf(this.selectedRecord.RecordIndexInformationPath) === camIdx)
+                    hit = this.selectedRecord;
+                if (hit) {
+                    const src = this.thumbSrc(hit);
+                    if (src && !src.startsWith('data:image/gif')) return src;
+                }
+                return this.playbackIdleThumb(camIdx) || '';
+            },
+            // 外网列表封面：本地 Image 走不了 /download，用 AppSync 云缩略图就近匹配
+            async enrichRecordThumbs(list) {
+                const wan = (typeof this._injectedCreds === 'function') && this._injectedCreds();
+                if (!wan || !list || !list.length || !window.__fetchAppSyncCloudRecords) return;
+                const uuid = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                    || (window.DeviceTransport && DeviceTransport.remoteUuid) || '';
+                if (!uuid || uuid === 'default') return;
+                try {
+                    const endIso = new Date(Date.now() + 864e5).toISOString();
+                    const startIso = new Date(Date.now() - 3 * 864e5).toISOString();
+                    const cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                    if (!cloud || !cloud.length) return;
+                    const secOf = dt => {
+                        const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                        return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1;
+                    };
+                    const dayOf = dt => String(dt || '').slice(0, 10);
+                    let changed = false;
+                    for (const r of list) {
+                        if (r.RecordIndexInformationImageUrl || r._cloudThumbDone) continue;
+                        r._cloudThumbDone = true;
+                        const cam = this.tlCamOf(r.RecordIndexInformationPath);
+                        const day = dayOf(r.RecordIndexInformationDateTime);
+                        const sec = secOf(r.RecordIndexInformationDateTime);
+                        let best = null, bestDist = Infinity;
+                        for (const c of cloud) {
+                            if (!c.thumbnailUrl) continue;
+                            const cCam = (c.channel != null) ? Number(c.channel) : 0;
+                            if (cCam !== cam) continue;
+                            if (dayOf(c.dateTime) !== day && dayOf(c.dateTime) !== day.replace(/-/g, '')) continue;
+                            const cs = secOf(c.dateTime);
+                            if (cs < 0 || sec < 0) continue;
+                            const dist = Math.abs(cs - sec);
+                            if (dist < bestDist) { bestDist = dist; best = c; }
+                        }
+                        // 同日同路放宽到 3 分钟
+                        if (!best || bestDist > 180) {
+                            for (const c of cloud) {
+                                if (!c.thumbnailUrl) continue;
+                                const cCam = (c.channel != null) ? Number(c.channel) : 0;
+                                if (cCam !== cam) continue;
+                                const cs = secOf(c.dateTime);
+                                if (cs < 0 || sec < 0) continue;
+                                const dist = Math.abs(cs - sec);
+                                if (dist < bestDist) { bestDist = dist; best = c; }
+                            }
+                        }
+                        if (best && bestDist <= 600) {
+                            const signed = window.__presignThumbUrl(best.thumbnailUrl);
+                            if (signed) {
+                                r.RecordIndexInformationImageUrl = signed;
+                                changed = true;
+                            }
+                        }
+                    }
+                    if (changed) this.records = (this.records || []).slice();
+                } catch (e) {
+                    console.debug('[thumb] enrich failed', e && e.message);
+                }
+            },
             // 列表/预览缩略图：外网优先 RecordIndexInformationImageUrl(S3)；局域网优先本地 /download。
             thumbSrc(rec) {
                 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
@@ -14966,7 +15049,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (url && /^(https?:)/.test(url)) {
                         return (typeof this._s3PresignUrl === 'function') ? this._s3PresignUrl(url) : url;
                     }
-                    return (typeof this.dlSrc === 'function') ? this.dlSrc(path) : BLANK;
+                    // 外网本地 /download 必然 404，返回空白让上层走 enrichRecordThumbs / idle 封面
+                    return BLANK;
                 }
                 if (path) return '/download?filePath=' + path;
                 if (url && /^(https?:)/.test(url)) return url;
