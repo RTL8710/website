@@ -14336,6 +14336,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (gen !== this._playbackGen) return;
                     console.error('startRemotePlayback error:', error);
                     this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                }
             },
             // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView
             renderPlaybackVideo() {                 // N 路回放：各路渲染到 remotePlaybackView{i}
