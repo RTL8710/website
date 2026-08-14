@@ -10242,7 +10242,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
                     const msg = (e && (e.message || e.code)) ? String(e.message || e.code) : String(e);
                     this.showAlert('error', tIdx('rp_failed'), 'KVS playback: ' + msg, 8000);
-                } finally {
                 }
             },
 
