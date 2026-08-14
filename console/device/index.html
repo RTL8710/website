@@ -4138,15 +4138,16 @@ window.__presignThumbUrl = function (raw) {
                                                         <div class="d-flex align-items-center mb-1" style="font-size:12px;font-weight:600;">
                                                             <i class="fa-solid fa-cloud me-1"></i><span x-text="tIdx('vp_remote_playback')"></span>
                                                             <span class="badge bg-secondary ms-2" style="font-size:10px;" x-text="playbackCodec"></span>
+                                                            <span class="badge bg-primary ms-2" style="font-size:10px;" x-show="remotePbCount()>0" x-text="remotePbCount()+'×CAM'"></span>
                                                             <button class="btn btn-sm btn-danger ms-auto" style="padding:2px 9px;" @click.stop="stopRemotePlayback()">
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
-                                                        <!-- 云端多路同步回放：按 cameraCounts 网格排布，各路渲染到 remotePlaybackView{i} -->
-                                                        <div :style="'display:grid;gap:6px;grid-template-columns:repeat('+Math.min(Math.max(pbCamUids.filter(Boolean).length,1),2)+',minmax(0,1fr));'">
-                                                            <template x-for="pi in (videoInformation.cameraCounts||1)" :key="'pb'+pi">
-                                                                <div style="position:relative;min-width:0;" x-show="pi===1 || pbCamUids[pi-1]">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline controls></video>
+                                                        <!-- 云端多路同步回放：路数用 remotePbCount（勿仅依赖默认 cameraCounts=1）-->
+                                                        <div :style="layoutContainerStyle(remotePbCount())">
+                                                            <template x-for="pi in remotePbCount()" :key="'pb'+pi">
+                                                                <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1]" @click="setPlaybackFocus(pi-1)">
+                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline :controls="isLayoutFocused(pi-1, remotePbCount())"></video>
                                                                     <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
                                                                 </div>
                                                             </template>
@@ -4159,7 +4160,7 @@ window.__presignThumbUrl = function (raw) {
                                                         </div>
                                                     </div>
                                                     <!-- 显示样式切换（多路时可选：网格 / 单画面聚焦 / 画中画）-->
-                                                    <div x-show="syncRecords.length>1" class="d-flex align-items-center gap-2 mb-2">
+                                                    <div x-show="(remotePlaybackActive && remotePbCount()>1) || syncRecords.length>1" class="d-flex align-items-center gap-2 mb-2">
                                                         <div class="btn-group btn-group-sm" role="group">
                                                             <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
                                                                     @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
@@ -4171,7 +4172,7 @@ window.__presignThumbUrl = function (raw) {
                                                         <span class="text-muted" style="font-size:11px;" x-show="playbackLayout!=='grid'" x-text="tIdx('pl_switch_hint')"></span>
                                                     </div>
                                                     <!-- 多路同步播放：点击时间轴时收集同一时刻所有摄像头，按所选样式同步播放 -->
-                                                    <div x-show="syncRecords.length" :style="syncContainerStyle()">
+                                                    <div x-show="syncRecords.length && !remotePlaybackActive" :style="syncContainerStyle()">
                                                         <template x-for="(rec, idx) in syncRecords" :key="rec.RecordIndexInformationPath">
                                                             <div :style="syncItemStyle(idx)" @click="setPlaybackFocus(idx)">
                                                                 <video
@@ -4209,7 +4210,7 @@ window.__presignThumbUrl = function (raw) {
                                                             </div>
                                                         </template>
                                                     </div>
-                                                    <p x-show="!syncRecords.length" class="text-muted mt-3" data-i18n="vp_select_record">
+                                                    <p x-show="!syncRecords.length && !remotePlaybackActive" class="text-muted mt-3" data-i18n="vp_select_record">
                                                         Please select a record to play.
                                                     </p>
                                                 </div>
@@ -10091,16 +10092,28 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             // KVS 云端回放：连 <uuid>-playback 通道渲染回放流，并发 transport-agnostic 的回放命令（与 Agora 回放命令同一套）。
-            async startKvsPlayback(record) {
+            async startKvsPlayback(record, siblingRecs) {
                 if (!record || !record.RecordIndexInformationPath) return;
                 try {
                     await this.initDeviceGeneralInformation();
                     try { if (typeof this.initMediaServerInformation === 'function') await this.initMediaServerInformation(); } catch (e) { console.debug('[AHS][KVS] getWebrtc soft-skip', e && e.message); }
+                    try { if (typeof this.initVedioSettings === 'function') await this.initVedioSettings(); } catch (e) { console.debug('[AHS][KVS] videoInfo soft-skip', e && e.message); }
+                    this.syncRecords = []; // 外网勿叠本地 <video>，避免布局错乱
                     const deviceUuid = this.deviceGeneralInformation.deviceUuid;
-                    const paths = this.siblingPaths(record);                 // 同段各路 MP4
+                    let paths;
+                    if (siblingRecs && siblingRecs.length) {
+                        const camOf = r => {
+                            if (r.RecordIndexInformationCameraIndex != null) return r.RecordIndexInformationCameraIndex;
+                            return this.tlCamOf(r.RecordIndexInformationPath);
+                        };
+                        paths = siblingRecs.map(r => ({ cameraIndex: camOf(r), path: r.RecordIndexInformationPath }));
+                    } else {
+                        paths = this.siblingPaths(record);                 // 同段各路 MP4
+                    }
                     // 逐路建回放 viewer：-playback/-playback2/-playback3 → remotePlaybackView/2/3
                     this.kvsPlaybackViewers = [];
-                    const pb = [];
+                    const nSlots = Math.max(this.playbackCamCount(), ...paths.map(e => e.cameraIndex + 1), 1);
+                    const pb = new Array(nSlots).fill(null);
                     for (const ent of paths) {
                         const i = ent.cameraIndex;
                         const suffix = (i === 0) ? '-playback' : (i === 1) ? '-playback2' : ('-playback' + (i + 1));
@@ -13256,9 +13269,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.pbCamUids = a;
             },
             pbElId(i) { return i === 0 ? 'remotePlaybackView' : 'remotePlaybackView' + (i + 1); },
+            isWanPlayback() {
+                return (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())
+                    || !!(window.DeviceTransport && DeviceTransport.active && DeviceTransport.active !== 'http');
+            },
+            // 回放路数：video.cameraCounts 常默认 1（未拉设置），须回退时间轴/已连通道
+            playbackCamCount() {
+                const v = (this.videoInformation && Number(this.videoInformation.cameraCounts)) || 0;
+                const tl = (typeof this.timelineCamCount === 'function') ? this.timelineCamCount() : 0;
+                const pb = (this.pbCamUids || []).filter(Boolean).length;
+                const sy = (this.syncRecords || []).length;
+                return Math.max(v, tl, pb, sy, 1);
+            },
+            remotePbCount() {
+                const pb = (this.pbCamUids || []).filter(Boolean).length;
+                return pb > 0 ? Math.max(pb, (this.pbCamUids || []).length) : this.playbackCamCount();
+            },
             // 给定一条录像，按时间戳在已加载列表里凑齐同一时刻各摄像头的 MP4，组成 paths[]（设备多路同步回放）
             siblingPaths(record) {
-                const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
+                const n = this.playbackCamCount();
                 const list = (this.records && this.records.length) ? this.records : (this.syncRecords || []);
                 const camOf = r => {
                     if (r.RecordIndexInformationCameraIndex != null) return r.RecordIndexInformationCameraIndex;
@@ -13716,8 +13745,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             const playable = this.records.find(
                                 r => (r.RecordIndexInformationVideoSize || 0) >= PLAYABLE_MIN_BYTES);
                             this.selectedRecord = playable || this.records[0];
-                            // 仅在尚无播放内容时自动播放最新一条（避免覆盖时间轴点击的多路同步选择）
-                            if (this.syncRecords.length === 0) {
+                            // 仅局域网且尚无播放内容时自动播最新一条；外网/远程回放中勿塞 syncRecords（会叠乱布局）
+                            if (this.syncRecords.length === 0 && !this.remotePlaybackActive && !this.isWanPlayback()) {
                                 this.syncRecords = [this.selectedRecord];
                             }
                         }
@@ -13904,20 +13933,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // 播放选中的录像：自动判定连通性——
             //   局域网(transport=http) → 本地 <video :src> 原生拉 MP4 播放
             //   非局域网(rtm/awsIot)   → 设备 demux 本地 MP4 经独立 Agora 回放通道(uid 1226)当「直播」播
-            playRecord(record) {
+            playRecord(record, siblingRecs) {
                 if (!record) return;
                 this.selectedRecord = record;
-                const active = (typeof window !== 'undefined' && window.DeviceTransport) ? window.DeviceTransport.active : 'http';
-                const cloud = active && active !== 'http';
+                const cloud = this.isWanPlayback();
                 if (cloud) {
                     this.syncRecords = [];            // 隐藏本地 <video>（外网不能直拉设备 /mnt MP4）
-                    // 外网：按门户所选传输。门户默认 KVS（previewTransport=kvs）；Agora 项目常无 active → 勿硬走 RTC
+                    // 外网：按门户所选传输。门户默认 KVS（previewTransport=kvs）；Agora 项目常 inactive → 勿硬走 RTC
                     try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
-                    if (this.previewTransport === 'kvs') this.startKvsPlayback(record);
+                    if (this.previewTransport === 'kvs') this.startKvsPlayback(record, siblingRecs);
                     else this.startRemotePlayback(record);
                 } else {
                     if (this.remotePlaybackActive) { this.stopRemotePlayback(); }
-                    this.syncRecords = [record];      // 局域网：原生本地播放
+                    this.syncRecords = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
                 }
             },
 
@@ -14102,8 +14130,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.selectedRecord = recs[0];
                     this.playbackFocusIdx = 0;
                     if (wan) {
-                        // 外网：远程 demux 推流，不要给 <video> 塞 /mnt 路径
-                        this.playRecord(recs[0]);
+                        // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
+                        this.syncRecords = [];
+                        this.playRecord(recs[0], recs);
                     } else {
                         this.syncRecords = recs;
                     }
