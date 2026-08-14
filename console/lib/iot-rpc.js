@@ -2,10 +2,9 @@
 // 依赖全局 window.mqtt(vendor/mqtt.min.js)+ window.CryptoJS(vendor/crypto.js)。
 // 主题:发布 v1/devices/{deviceUuid}/rpc/request/{webUserId};订阅 v1/devices/{webUserId}/rpc/response/+。
 // 信封 {method, params, requestId},按 requestId 配对。凭证走 Identity Pool 临时凭证。
-import { COGNITO } from '../config.js';
+import { COGNITO, IOT_ENDPOINT } from '../config.js';
 import { resolvedCreds } from './auth.js';
-
-const IOT_ENDPOINT = 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com'; // Tokyo ATS
+// IOT_ENDPOINT 来自 config.js live binding（随区域切换）
 const REPLY_TIMEOUT = 12000;
 
 let _client = null;

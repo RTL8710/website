@@ -64,3 +64,53 @@ export async function sigv4PostJson(creds, { host, path, service, region, body, 
   if (!r.ok) throw new Error(`${r.status}: ${text.slice(0, 200)}`);
   return JSON.parse(text);
 }
+
+
+// S3 PUT（Identity 临时凭证 + SigV4 header）。body 为 Blob/ArrayBuffer/File。
+// 大文件用 UNSIGNED-PAYLOAD，避免浏览器整包哈希。
+export function putS3Object(creds, { bucket, region, key, body, contentType, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const C = window.CryptoJS;
+    if (!C || !creds || !creds.accessKeyId) return reject(new Error('缺少凭证或 CryptoJS'));
+    const host = `${bucket}.s3.${region}.amazonaws.com`;
+    const path = '/' + String(key).split('/').map(encodeURIComponent).join('/');
+    const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const date = amz.slice(0, 8);
+    const scope = `${date}/${region}/s3/aws4_request`;
+    const hmac = (key, data) => C.HmacSHA256(data, key);
+    const headers = {
+      host,
+      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+      'x-amz-date': amz,
+    };
+    if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
+    if (contentType) headers['content-type'] = contentType;
+    const signed = Object.keys(headers).sort();
+    const signedHeaders = signed.join(';');
+    const canonHeaders = signed.map((k) => k + ':' + headers[k] + '\n').join('');
+    const canon = `PUT\n${path}\n\n${canonHeaders}\n${signedHeaders}\nUNSIGNED-PAYLOAD`;
+    const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${C.SHA256(canon).toString(C.enc.Hex)}`;
+    const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), 's3'), 'aws4_request');
+    const sig = hmac(kSigning, sts).toString(C.enc.Hex);
+    const auth = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', `https://${host}${path}`);
+    xhr.setRequestHeader('Authorization', auth);
+    xhr.setRequestHeader('x-amz-content-sha256', 'UNSIGNED-PAYLOAD');
+    xhr.setRequestHeader('x-amz-date', amz);
+    if (creds.sessionToken) xhr.setRequestHeader('x-amz-security-token', creds.sessionToken);
+    if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+    if (typeof onProgress === 'function') {
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) onProgress(Math.round((ev.loaded / ev.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve({ status: xhr.status, key });
+      else reject(new Error(`S3 PUT ${xhr.status}: ${(xhr.responseText || '').slice(0, 240)}`));
+    };
+    xhr.onerror = () => reject(new Error('S3 PUT network error'));
+    xhr.send(body);
+  });
+}

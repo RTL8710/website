@@ -69,3 +69,24 @@ export function resolveKvsRegion(regionCode) {
 export const DEPS = {
   cognitoIdentityJs: 'https://esm.sh/amazon-cognito-identity-js@6.3.12',
 };
+
+// 云端管理后台入口白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
+// 非名单账号看不到「管理后台」入口；直链 admin/ 也会被拦回设备列表。
+export const ADMIN_ALLOWLIST = [
+  'admin',
+  'jinhuilv',
+  'ahaishi',
+  '493148469@qq.com',
+];
+export function isAdminAccount(session) {
+  if (!session) return false;
+  const cands = [
+    session.account,
+    session.email,
+    session.userRow && session.userRow.awsUserName,
+    session.userRow && session.userRow.email,
+  ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+  const allow = ADMIN_ALLOWLIST.map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+  if (!allow.length) return false;
+  return cands.some((c) => allow.includes(c) || allow.includes(c.split('@')[0]));
+}

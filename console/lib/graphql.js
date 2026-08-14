@@ -118,3 +118,103 @@ export async function fetchCloudRecords(deviceId, startIso, endIso) {
     .filter((r) => !r.expireAt || new Date(r.expireAt).getTime() > now) // 过滤已到期
     .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
 }
+
+
+// ── Admin: 全表数据（API Key public）──────────────────────────────────────────
+const Q_LIST_USERS_FULL = /* GraphQL */ `
+  query ListUsers($filter: ModelUserFilterInput, $limit: Int, $nextToken: String) {
+    listUsers(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items { id awsUserID awsUserName phoneNumber email picture region createdAt updatedAt }
+      nextToken
+    }
+  }`;
+
+export async function listAllUsers(filter) {
+  return pageAll(Q_LIST_USERS_FULL, { filter: filter || null }, (d) => d.listUsers);
+}
+
+const Q_LIST_DEVICES = /* GraphQL */ `
+  query ListDevices($filter: ModelDeviceFilterInput, $limit: Int, $nextToken: String) {
+    listDevices(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation
+        createdAt updatedAt
+      }
+      nextToken
+    }
+  }`;
+
+export async function listAllDevices(filter) {
+  const rows = await pageAll(Q_LIST_DEVICES, { filter: filter || null }, (d) => d.listDevices);
+  return rows.map(normalizeDevice).sort((a, b) => (b.online - a.online) || String(a.name).localeCompare(String(b.name)));
+}
+
+const Q_LIST_DEVICEUSERS_FULL = /* GraphQL */ `
+  query ListDeviceUsers($filter: ModelDeviceUserFilterInput, $limit: Int, $nextToken: String) {
+    listDeviceUsers(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id userId deviceId createdAt
+        user { id awsUserName email }
+        device { id ownerUserId deviceConnectStatus deviceGeneralInformation }
+      }
+      nextToken
+    }
+  }`;
+
+export async function listAllDeviceUsers(filter) {
+  return pageAll(Q_LIST_DEVICEUSERS_FULL, { filter: filter || null }, (d) => d.listDeviceUsers);
+}
+
+const Q_LIST_UPGRADES = /* GraphQL */ `
+  query ListDeviceUpgrades($filter: ModelDeviceUpgradeFilterInput, $limit: Int, $nextToken: String) {
+    listDeviceUpgrades(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id upgradeMode upgradeFileUrl upgradeDeviceType upgradeDeviceVersion
+        upgradeDevicePartion upgradeType upgradeDescribe upgradeOtaTime createdAt updatedAt
+      }
+      nextToken
+    }
+  }`;
+
+export async function listDeviceUpgrades(filter) {
+  const items = await pageAll(Q_LIST_UPGRADES, { filter: filter || null }, (d) => d.listDeviceUpgrades);
+  items.sort((a, b) => {
+    const ta = Date.parse(a.upgradeOtaTime || a.createdAt || 0) || 0;
+    const tb = Date.parse(b.upgradeOtaTime || b.createdAt || 0) || 0;
+    return tb - ta;
+  });
+  return items;
+}
+
+const M_CREATE_UPGRADE = /* GraphQL */ `
+  mutation CreateDeviceUpgrade($input: CreateDeviceUpgradeInput!) {
+    createDeviceUpgrade(input: $input) {
+      id upgradeMode upgradeFileUrl upgradeDeviceType upgradeDeviceVersion
+      upgradeDevicePartion upgradeType upgradeDescribe upgradeOtaTime createdAt
+    }
+  }`;
+
+export async function createDeviceUpgrade(input) {
+  const data = await gql(M_CREATE_UPGRADE, { input });
+  return data.createDeviceUpgrade;
+}
+
+// 云录像：支持 filter + 可选 maxPages 防止全表扫描卡死（默认最多 20 页 × limit）
+export async function listCloudRecordsAdmin({ filter = null, limit = 200, maxPages = 20 } = {}) {
+  let token = null, out = [], pages = 0;
+  do {
+    const data = await gql(Q_LIST_CLOUDRECORDS, { filter, limit, nextToken: token });
+    const conn = data.listCloudRecords || {};
+    out = out.concat(conn.items || []);
+    token = conn.nextToken || null;
+    pages += 1;
+  } while (token && pages < maxPages);
+  const now = Date.now();
+  return {
+    items: out
+      .filter((r) => !r.expireAt || new Date(r.expireAt).getTime() > now)
+      .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime)),
+    nextToken: token,
+    truncated: !!token,
+  };
+}
