@@ -9321,8 +9321,9 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackCodec: '',            // h264/h265（start 响应回传）
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            startTime: (() => { const d = new Date(Date.now() - 864e5); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
-            endTime: (() => { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            // startTime / endTime 占位；进回放页 fetchRecords(false) 会设为「昨天此刻~现在」(懒加载前原逻辑)
+            startTime: new Date("2000-01-09T00:00").toISOString().slice(0, 16),
+            endTime: new Date("2000-01-10T00:00").toISOString().slice(0, 16),
 
             statusMessage: '',
 
@@ -9866,25 +9867,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.initRecordSettings();
                 this.initStorageInformation();
             },
-            initPlaybackPage() {
+            async initPlaybackPage() {
                 if (window.__pendingPlaybackTab) {
                     this.playbackTab = window.__pendingPlaybackTab;
                     delete window.__pendingPlaybackTab;
                 }
+                // 回放页是独立 Alpine 实例：懒加载后不会吃到仪表盘的 UUID，须先灌入，否则列表/时间轴查询全空或错
+                try {
+                    if (typeof this.initTransport === 'function') this.initTransport();
+                    const cur = this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid;
+                    if (!cur || cur === 'default') {
+                        const u = (window.DeviceTransport && DeviceTransport.remoteUuid) || '';
+                        if (u) this.deviceGeneralInformation.deviceUuid = u;
+                        else if (typeof this.initDeviceGeneralInformation === 'function')
+                            await this.initDeviceGeneralInformation();
+                    }
+                } catch (e) { console.debug('[playback] uuid hydrate', e); }
+                // 时间窗口逻辑恢复懒加载前：fetchRecords(false)=近24h；initTimeline()=当天轴。勿改成「整天 00:00-23:59」或 isSearch=true
                 if (this.playbackTab === 'image') {
-                    this.initTimeline();
                     this.fetchImages(false);
+                    this.initTimeline();
                 } else if (this.playbackTab === 'cloud') {
                     this.getCloudRecordService();
                     this.initCloudPlayback();
                 } else {
-                    // 先定今天时间轴，再把列表窗口对齐到当天（避免默认 2000 年 / 与轴日期错位）
+                    this.fetchRecords(false);
                     this.initTimeline();
-                    if (this.timelineDate) {
-                        this.startTime = this.timelineDate + 'T00:00';
-                        this.endTime = this.timelineDate + 'T23:59';
-                    }
-                    this.fetchRecords(true);
                     this.initVedioSettings(0);
                     this.initPlaybackIdleThumbs();
                 }
@@ -14081,7 +14089,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         body: JSON.stringify({
                             method: 'queryLocalRecordIndexInformationCommand',
                             params: {
-                                deviceID: this.deviceGeneralInformation.deviceUuid,
+                                deviceID: this.deviceGeneralInformation.deviceUuid
+                                    || (window.DeviceTransport && DeviceTransport.remoteUuid)
+                                    || '',
                                 startTime: this.startTime,
                                 endTime: this.endTime,
                                 pageSize: this.pageSize,
