@@ -165,6 +165,47 @@ window.__fetchLatestDeviceUpgrade = async function (deviceType) {
   });
   return items[0] || null;
 };
+
+window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso) {
+  var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
+  if (!creds.appsyncEndpoint || !creds.appsyncApiKey || !deviceId) return [];
+  var q = 'query ListCloudRecords($filter: ModelCloudRecordFilterInput, $limit: Int, $nextToken: String) {\n'
+    + '  listCloudRecords(filter: $filter, limit: $limit, nextToken: $nextToken) {\n'
+    + '    items { id dateTime duration deviceID type channel resolution thumbnailUrl expireAt }\n'
+    + '    nextToken\n  }\n}';
+  var items = [], token = null;
+  var filter = { and: [
+    { deviceID: { eq: String(deviceId) } },
+    { dateTime: { between: [startIso, endIso] } }
+  ]};
+  do {
+    var res = await fetch(creds.appsyncEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': creds.appsyncApiKey },
+      body: JSON.stringify({ query: q, variables: { filter: filter, limit: 200, nextToken: token } })
+    });
+    var json = await res.json();
+    if (json.errors && json.errors.length) throw new Error(json.errors.map(function (e) { return e.message; }).join('; '));
+    var conn = (json.data && json.data.listCloudRecords) || {};
+    items = items.concat(conn.items || []);
+    token = conn.nextToken || null;
+  } while (token);
+  var now = Date.now();
+  return items
+    .filter(function (r) { return !r.expireAt || new Date(r.expireAt).getTime() > now; })
+    .sort(function (a, b) { return new Date(b.dateTime) - new Date(a.dateTime); });
+};
+window.__presignThumbUrl = function (raw) {
+  if (!raw) return '';
+  var s = String(raw).trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s) && (s.indexOf('X-Amz-') >= 0 || s.indexOf('Signature=') >= 0)) return s;
+  if (typeof window.__presignOtaS3Get === 'function') {
+    var signed = window.__presignOtaS3Get(s, 3600);
+    if (signed) return signed;
+  }
+  return /^https?:\/\//i.test(s) ? s : '';
+};
 </script>
 
     <!-- 云端回放：AWS SDK(KinesisVideo + KinesisVideoArchivedMedia) + dash.js(MPEG-DASH 播放器)
@@ -3783,7 +3824,7 @@ window.__fetchLatestDeviceUpgrade = async function (deviceType) {
                                     <div class="dash-thumbs">
                                         <template x-for="t in dashThumbs" :key="t.cam">
                                             <div class="dash-thumb-wrap" onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0">
-                                                <img class="dash-thumb" :src="'/download?filePath=' + t.img" onerror="this.style.opacity=0" alt="camera snapshot">
+                                                <img class="dash-thumb" :src="dashThumbSrc(t)" onerror="this.style.opacity=0" alt="camera snapshot">
                                                 <span class="dash-thumb-tag" x-text="'CAM' + (t.cam + 1)"></span>
                                                 <span class="dash-thumb-play"><i class="fa-solid fa-play"></i></span>
                                             </div>
@@ -9614,7 +9655,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // ci 为 1-based(remoteView/remoteViewSetting/remoteViewAi 用),对应 dashThumbs 的 cam=ci-1。
             camPoster(ci) {
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
-                return (t && t.img) ? ('/download?filePath=' + t.img) : '';
+                return this.dashThumbSrc(t);
+            },
+            dashThumbSrc(t) {
+                if (!t || !t.img) return '';
+                const img = String(t.img);
+                if (/^https?:\/\//i.test(img)) return img;
+                // 外网禁止走设备 /download（主机是门户域名，必然 404）
+                if (this.isCloudOtaMode && this.isCloudOtaMode()) return '';
+                return '/download?filePath=' + img;
+            },
+            tIdx(key) {
+                return (typeof window.tIdx === 'function') ? window.tIdx(key) : key;
+            },
+            _injectedCreds() {
+                return !!(this.isCloudOtaMode && this.isCloudOtaMode());
+            },
+            _s3PresignUrl(url) {
+                return (typeof window.__presignThumbUrl === 'function') ? (window.__presignThumbUrl(url) || url) : url;
+            },
+            dlSrc(path) {
+                if (!path) return '';
+                if (this._injectedCreds()) return ''; // WAN: 无本地 /download
+                return '/download?filePath=' + path;
             },
             // Dashboard 存储环形百分比(已用/总)
             storagePct() {
@@ -9625,28 +9688,79 @@ document.addEventListener('DOMContentLoaded', function() {
             // Dashboard/直播占位:拿「录像文件数 + 每路缩略图」。缩略图【优先 snapshot 类型(recordType=3)】,
             // 无快照再回退到最近录像。后端无总数字段,靠数组长度近似(超上限显示 N+)。
             async initDashboardExtras() {
-                // 1) 先用上次缓存的缩略图即时渲染(纯图片加载,不发命令、不弹提示;启动即有画面)
+                const wan = (typeof this.isCloudOtaMode === 'function') && this.isCloudOtaMode();
+                // 1) 缓存：外网忽略本地 /mnt/sd 路径缓存，避免门户域名 /download 404 刷屏
                 try {
-                    const c = JSON.parse(localStorage.getItem('dv_dash_thumbs') || 'null');
+                    const c = JSON.parse(localStorage.getItem(wan ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs') || 'null');
                     if (c && Array.isArray(c.thumbs)) {
-                        this.dashThumbs = c.thumbs;
+                        const thumbs = wan
+                            ? c.thumbs.filter(x => x && x.img && /^https?:\/\//i.test(String(x.img)))
+                            : c.thumbs;
+                        this.dashThumbs = thumbs;
                         if (typeof c.count === 'number') { this.dashRecordCount = c.count; this.dashRecordCapped = !!c.capped; }
                         if (typeof c.dur === 'number') this.dashLatestDuration = c.dur;
+                    } else if (wan) {
+                        this.dashThumbs = [];
                     }
                 } catch (e) {}
-                // 2) 后台刷新查询。缩略图/录像数是后台便利,拿不到就静默用缓存——
-                //    抑制 transport 的"请填 UUID"提示(外网 IoT 回退+UUID 未就绪时会误弹),真正用户操作仍会提示。
                 window.__suppressUuidNotice = true;
                 try {
                     if (!this.deviceGeneralInformation.deviceUuid || this.deviceGeneralInformation.deviceUuid === 'default') {
                         await this.initDeviceGeneralInformation();
                     }
-                    const uuid = this.deviceGeneralInformation.deviceUuid;
+                    const uuid = this.deviceGeneralInformation.deviceUuid
+                        || (window.DeviceTransport && DeviceTransport.remoteUuid)
+                        || '';
+
+                    // ── 外网：与 App 一致，AppSync CloudRecord.thumbnailUrl（预签名），不查本地索引 ──
+                    if (wan) {
+                        if (!uuid || !window.__fetchAppSyncCloudRecords) return;
+                        const endIso = new Date(Date.now() + 864e5).toISOString();
+                        const startIso = new Date(Date.now() - 7 * 864e5).toISOString();
+                        let recs = [];
+                        try {
+                            recs = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                        } catch (e1) {
+                            console.debug('[dashboard] AppSync cloud records:', e1 && e1.message);
+                            recs = [];
+                        }
+                        this.dashRecordCount = recs.length;
+                        this.dashRecordCapped = false;
+                        if (recs.length) {
+                            const d0 = Number(recs[0].duration);
+                            this.dashLatestDuration = isFinite(d0) ? d0 : (parseInt(recs[0].duration, 10) || 0);
+                        }
+                        const byCam = {};
+                        for (const r of recs) {
+                            if (!r.thumbnailUrl) continue;
+                            const ci = (r.channel != null) ? Number(r.channel) : 0;
+                            if (!byCam[ci]) byCam[ci] = r;
+                        }
+                        const thumbs = [];
+                        for (const ci of Object.keys(byCam).sort()) {
+                            const r = byCam[ci];
+                            const signed = window.__presignThumbUrl(r.thumbnailUrl);
+                            if (!signed) continue;
+                            const dur = Number(r.duration);
+                            thumbs.push({
+                                img: signed,
+                                cam: Number(ci),
+                                dur: isFinite(dur) ? dur : (parseInt(r.duration, 10) || 0)
+                            });
+                        }
+                        this.dashThumbs = thumbs.slice(0, 4);
+                        try {
+                            localStorage.setItem('dv_dash_thumbs_cloud', JSON.stringify({
+                                thumbs: this.dashThumbs, count: this.dashRecordCount,
+                                capped: this.dashRecordCapped, dur: this.dashLatestDuration
+                            }));
+                        } catch (e) {}
+                        return;
+                    }
+
+                    // ── 局域网：本地索引封面 + /download ──
                     const end = new Date(Date.now() + 864e5).toISOString().slice(0, 16);
-                    const CAP = 12;   // 缩略图只需覆盖每路最新几条;总数改用 totalRecords 真实字段,无需大 pageSize
-                    // 通用查询(recordType: 0=全部 / 3=快照)。
-                    // 自带 signal(15s):传输层 _httpTry 见 signal 就不叠加 3s 探测超时 → 重查询不被误 abort 回退 RTM。
-                    // 失败静默返回空,交由 localStorage 缓存兜底,不吵 console(缩略图是后台便利)。
+                    const CAP = 12;
                     const query = async (recordType, pageSize) => {
                         const ctrl = new AbortController();
                         const to = setTimeout(() => ctrl.abort(), 15000);
@@ -9657,11 +9771,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     params: { deviceID: uuid, startTime: '2000-01-01T00:00', endTime: end, pageSize, pageNumber: 1, recordType } })
                             });
                             const d = await resp.json();
-                            return (d && d.params) ? d.params : {};   // 返回整个 params(含 records + totalRecords 真实总数)
+                            return (d && d.params) ? d.params : {};
                         } catch (e) { return {}; }
                         finally { clearTimeout(to); }
                     };
-                    // 每路取最新一条(有缩略图的)
                     const newestByCam = (rs) => {
                         const m = {};
                         for (const r of rs) {
@@ -9671,11 +9784,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         return m;
                     };
-                    // 一次查询搞定:录像总数 + 每路缩略图。设备无独立 snapshot 类型(recordType=3 返回 0),
-                    // 直接用【每路最新录像的封面】当快照/占位图——省掉一次多余查询,更快。
                     const p = await query(0, CAP);
                     const recs = p.records || [];
-                    // 真实总数用后端 totalRecords 字段(不再靠数组长度近似显示 N+)
                     this.dashRecordCount = (typeof p.totalRecords === 'number') ? p.totalRecords : recs.length;
                     this.dashRecordCapped = false;
                     if (recs.length) this.dashLatestDuration = recs[0].RecordIndexInformationDuration || 0;
@@ -9685,7 +9795,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const r = byCam[ci];
                         return { img: r.RecordIndexInformationImage, cam: Number(ci), dur: r.RecordIndexInformationDuration || 0 };
                     });
-                    // 写回缓存,供下次启动即时显示(刷新页面即更新)
                     try { localStorage.setItem('dv_dash_thumbs', JSON.stringify({ thumbs: this.dashThumbs, count: this.dashRecordCount, capped: this.dashRecordCapped, dur: this.dashLatestDuration })); } catch (e) {}
                 } catch (e) { console.debug('[dashboard] extras skipped:', e && e.message); }
                 finally { setTimeout(() => { window.__suppressUuidNotice = false; }, 1500); }
@@ -11555,6 +11664,39 @@ document.addEventListener('DOMContentLoaded', function() {
             // 与播放器 poster：按云段起止查本地索引(+60s 余量),取窗口内首张有封面的记录;本地文件已轮删的旧段回退云图标。
             // 仅网页端,不改设备/命令。各记录并行查询,结果写回 r._thumb 后 slice 数组触发重渲染(保留对象引用→selected 高亮不丢)。
             async attachCloudThumbs() {
+                // 外网：用 AppSync CloudRecord.thumbnailUrl（与 App 一致），禁止再查本地索引拼 /download
+                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
+                    const list = this.cloudPlayback.records || [];
+                    if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
+                    const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                    let cloud = [];
+                    try {
+                        const endIso = new Date(Date.now() + 864e5).toISOString();
+                        const startIso = new Date(Date.now() - 14 * 864e5).toISOString();
+                        cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                    } catch (e) { cloud = []; }
+                    const msOf = (dt) => {
+                        const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+                        return m ? Date.parse(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00') : NaN;
+                    };
+                    for (const r of list) {
+                        if (r._thumb) continue;
+                        const t0 = msOf(r.RecordIndexInformationDateTime);
+                        let best = null, bestDist = Infinity;
+                        for (const c of cloud) {
+                            if (!c.thumbnailUrl) continue;
+                            const dist = Math.abs(msOf(c.dateTime) - t0);
+                            if (dist < bestDist) { bestDist = dist; best = c; }
+                        }
+                        r._thumb = best ? (window.__presignThumbUrl(best.thumbnailUrl) || '') : '';
+                    }
+                    this.cloudPlayback.records = this.cloudPlayback.records.slice();
+                    const withThumb = list.filter(r => r._thumb).sort((a, b) =>
+                        String(b.RecordIndexInformationDateTime || '').localeCompare(String(a.RecordIndexInformationDateTime || '')));
+                    this.cloudPlayback.posterThumb = withThumb.length ? withThumb[0]._thumb : this.cloudPlayback.posterThumb;
+                    return;
+                }
+
                 const list = this.cloudPlayback.records || [];
                 if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
                 const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
@@ -13383,6 +13525,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 获取录像列表
             async fetchRecords(isSearch = false) {
+                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
+                    console.info('[playback] WAN: skip LAN fetchRecords — use Cloud Playback tab');
+                    this.records = [];
+                    return;
+                }
+
                 // 创建日期格式化器
                 const formatter = new Intl.DateTimeFormat("en-GB", {
                     timeZone: "Asia/Shanghai", // 设置时区
@@ -14202,6 +14350,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 获取抓拍列表
             async fetchImages(isSearch = false, opts = {}) {
+                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
+                    console.info('[playback] WAN: skip LAN fetchImages — use Cloud Playback / AppSync thumbs');
+                    this.images = [];
+                    return;
+                }
+
                 this._snapPreserveSync = !!(opts && opts.preserveSync);
                 // 创建日期格式化器
                 const formatter = new Intl.DateTimeFormat("en-GB", {
