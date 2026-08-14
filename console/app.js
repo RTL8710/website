@@ -1,5 +1,5 @@
 // 控制台入口:路由 + 登录门禁 + 视图
-import { COGNITO, IOT_ENDPOINT, REGIONS, REGION_ORDER, getRegion, setRegion } from './config.js';
+import { COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, REGIONS, REGION_ORDER, getRegion, setRegion } from './config.js';
 import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
@@ -216,12 +216,16 @@ async function enterDevice(dev) {
   try {
     const c = await resolvedCreds();
     // 契约:device-transport.js iotCreds() + index.html resolveKvsCredentials() 都读 sessionStorage['iot_creds']
+    // 设备控制页云端 OTA：S3 预签名 + AppSync 查 DeviceUpgrade（对齐 App CLOUD_ONLY）
     sessionStorage.setItem('iot_creds', JSON.stringify({
       accessKeyId: c.accessKeyId,
       secretAccessKey: c.secretAccessKey,
       sessionToken: c.sessionToken,
       region: COGNITO.region,
       endpoint: IOT_ENDPOINT,
+      s3Bucket: S3_BUCKET,
+      appsyncEndpoint: APPSYNC.endpoint,
+      appsyncApiKey: APPSYNC.apiKey,
     }));
     sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
     sessionStorage.setItem('dv_user', (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || 'user');

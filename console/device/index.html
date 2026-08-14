@@ -47,6 +47,126 @@
     </script>
     <!-- 控制命令/登录/用户管理传输单例（HTTP 优先，远程走 AWS IoT MQTT，回退 Agora RTM）；与 login.html 共用 -->
     <script src="device-transport.js"></script>
+
+<script>
+/* 云端 OTA（对齐 App CLOUD_ONLY v3）：AppSync 取最新包 → S3 预签名 → setRemoteOta；外网禁止 /upgrade 推包 */
+window.__OTA_REGION_FALLBACK = {
+  ap: { region:'ap-northeast-1', s3Bucket:'anhaivisionwebsite-storage-77a56c21232245-tokyo',
+        appsyncEndpoint:'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql',
+        appsyncApiKey:'da2-rmzpjwx7lva7zbfviuy2nwzbcy' },
+  us: { region:'us-east-2', s3Bucket:'anhaivisionwebsite-storage-77a56c21111855-ohio',
+        appsyncEndpoint:'https://hyyc4pqt5zhftaxg7su3mirkxm.appsync-api.us-east-2.amazonaws.com/graphql',
+        appsyncApiKey:'da2-f6g7opuzyfazlihpyv6nzejn2e' },
+  eu: { region:'eu-west-3', s3Bucket:'anhaivisionwebsite-storage-77a56c2193636-paris',
+        appsyncEndpoint:'https://ehyxqkbrzzan7o2fz5mhhstzqq.appsync-api.eu-west-3.amazonaws.com/graphql',
+        appsyncApiKey:'da2-cep3asdgp5gopnr4qizhnxon4i' }
+};
+window.isCloudOtaMode = function () {
+  try {
+    if (window.DeviceTransport) {
+      if (DeviceTransport.mode === 'awsIot' || DeviceTransport.active === 'awsIot') return true;
+      if (typeof DeviceTransport.iotAvailable === 'function' && DeviceTransport.iotAvailable()) return true;
+    }
+  } catch (e) {}
+  try {
+    var c = JSON.parse(sessionStorage.getItem('iot_creds') || 'null');
+    return !!(c && c.accessKeyId);
+  } catch (e) { return false; }
+};
+window.__otaCredsBundle = function () {
+  var c = {};
+  try { c = JSON.parse(sessionStorage.getItem('iot_creds') || '{}') || {}; } catch (e) {}
+  if (!c.accessKeyId && window.__IOT_CREDS) c = Object.assign({}, window.__IOT_CREDS, c);
+  var code = 'ap';
+  try { code = localStorage.getItem('dv_region') || 'ap'; } catch (e) {}
+  var fb = (window.__OTA_REGION_FALLBACK && window.__OTA_REGION_FALLBACK[code]) || window.__OTA_REGION_FALLBACK.ap;
+  return {
+    accessKeyId: c.accessKeyId || '',
+    secretAccessKey: c.secretAccessKey || '',
+    sessionToken: c.sessionToken || '',
+    region: c.region || fb.region,
+    s3Bucket: c.s3Bucket || fb.s3Bucket,
+    appsyncEndpoint: c.appsyncEndpoint || fb.appsyncEndpoint,
+    appsyncApiKey: c.appsyncApiKey || fb.appsyncApiKey
+  };
+};
+window.__presignOtaS3Get = function (rawKeyOrUrl, expiresSec) {
+  var C = window.CryptoJS;
+  var creds = window.__otaCredsBundle();
+  if (!C || !creds.accessKeyId || !creds.secretAccessKey) return null;
+  var raw = (rawKeyOrUrl || '').trim();
+  if (!raw) return null;
+  var httpsUrl = raw;
+  if (!/^https?:\/\//i.test(raw)) {
+    var key = raw.replace(/^\/+/, '');
+    if (key.indexOf('public/') !== 0) key = 'public/' + key;
+    var path = key.split('/').map(encodeURIComponent).join('/');
+    httpsUrl = 'https://' + creds.s3Bucket + '.s3.' + creds.region + '.amazonaws.com/' + path;
+  } else if (raw.indexOf('X-Amz-') >= 0 || raw.indexOf('Signature=') >= 0) {
+    return raw; // already signed
+  }
+  try {
+    var u = new URL(httpsUrl);
+    var m = u.host.match(/s3[.-]([a-z0-9-]+)\.amazonaws/);
+    var region = (m && m[1]) || creds.region || 'ap-northeast-1';
+    var hmac = function (key, data) { return C.HmacSHA256(data, key); };
+    var amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    var date = amz.slice(0, 8);
+    var scope = date + '/' + region + '/s3/aws4_request';
+    var enc = function (v) { return encodeURIComponent(v).replace(/[!'()*]/g, function (ch) { return '%' + ch.charCodeAt(0).toString(16).toUpperCase(); }); };
+    var exp = String(Math.max(60, Math.min(Number(expiresSec) || 7200, 43200)));
+    var q = [
+      ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
+      ['X-Amz-Credential', creds.accessKeyId + '/' + scope],
+      ['X-Amz-Date', amz],
+      ['X-Amz-Expires', exp],
+      ['X-Amz-Security-Token', creds.sessionToken],
+      ['X-Amz-SignedHeaders', 'host']
+    ].filter(function (kv) { return kv[1]; });
+    var qs = q.map(function (kv) { return kv[0] + '=' + enc(kv[1]); }).sort().join('&');
+    var canon = 'GET\n' + u.pathname + '\n' + qs + '\nhost:' + u.host + '\n\nhost\nUNSIGNED-PAYLOAD';
+    var sts = 'AWS4-HMAC-SHA256\n' + amz + '\n' + scope + '\n' + C.SHA256(canon).toString(C.enc.Hex);
+    var kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), 's3'), 'aws4_request');
+    var sig = hmac(kSigning, sts).toString(C.enc.Hex);
+    return u.origin + u.pathname + '?' + qs + '&X-Amz-Signature=' + sig;
+  } catch (e) {
+    console.error('[OTA] presign failed', e);
+    return null;
+  }
+};
+window.__fetchLatestDeviceUpgrade = async function (deviceType) {
+  var creds = window.__otaCredsBundle();
+  if (!creds.appsyncEndpoint || !creds.appsyncApiKey) throw new Error('AppSync config missing');
+  var type = (deviceType || 'smartRobot').trim() || 'smartRobot';
+  var q = 'query ListDeviceUpgrades($filter: ModelDeviceUpgradeFilterInput, $limit: Int, $nextToken: String) {\n'
+    + '  listDeviceUpgrades(filter: $filter, limit: $limit, nextToken: $nextToken) {\n'
+    + '    items { id upgradeMode upgradeFileUrl upgradeDeviceType upgradeDeviceVersion upgradeDevicePartion upgradeType upgradeDescribe upgradeOtaTime createdAt }\n'
+    + '    nextToken\n  }\n}';
+  var items = [], token = null;
+  do {
+    var res = await fetch(creds.appsyncEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': creds.appsyncApiKey },
+      body: JSON.stringify({
+        query: q,
+        variables: { filter: { upgradeDeviceType: { eq: type } }, limit: 100, nextToken: token }
+      })
+    });
+    var json = await res.json();
+    if (json.errors && json.errors.length) throw new Error(json.errors.map(function (e) { return e.message; }).join('; '));
+    var conn = (json.data && json.data.listDeviceUpgrades) || {};
+    items = items.concat(conn.items || []);
+    token = conn.nextToken || null;
+  } while (token);
+  items.sort(function (a, b) {
+    var ta = Date.parse(a.upgradeOtaTime || a.createdAt || 0) || 0;
+    var tb = Date.parse(b.upgradeOtaTime || b.createdAt || 0) || 0;
+    return tb - ta;
+  });
+  return items[0] || null;
+};
+</script>
+
     <!-- 云端回放：AWS SDK(KinesisVideo + KinesisVideoArchivedMedia) + dash.js(MPEG-DASH 播放器)
          注意:KVS WebRTC sdk.min.js 也设过 window.AWS(精简版,无 ArchivedMedia)。
          这里把完整 aws-sdk 捕获到 window.AWSFull,并把 window.AWS 还原给直播 viewer,互不干扰。 -->
@@ -4567,7 +4687,7 @@
 
 
                                 <!-- Device Info：Info / OTA / About 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -4579,7 +4699,7 @@
                                     role="tab"
                                     :class="deviceInfoParamTab==='ota' ? 'btn-primary' : 'btn-outline-primary'"
                                     :aria-selected="deviceInfoParamTab==='ota'"
-                                    @click="deviceInfoParamTab='ota'"
+                                    @click="deviceInfoParamTab='ota'; initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage();"
                                     data-i18n="nav_ota_upgrade">OTA Upgrade</button>
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -4871,63 +4991,106 @@
 <!--                        </div>-->
 <!--                    </div>-->
                         </div>
-                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='ota'" x-cloak>
+                                                <div class="vs-param-pane" x-show="deviceInfoParamTab==='ota'" x-cloak>
 <div class="row row-deck ">
 <div class="card shadow">
                                         <div class="card-header">
                                             <h3 class="card-title" data-i18n="ot_title"> Upgrade </h3>
                                         </div>
                                         <div class="card-body">
-                                            <!-- Dropzone upload area -->
-                                            <!--                                        <form id="dropzone-custom" class="dropzone"></form>-->
+                                            <!-- 外网云端：对齐 App — 查云端包 + 预签名 + setRemoteOta（不可 /upgrade 推文件） -->
+                                            <div x-show="cloudOtaMode" x-cloak>
+                                                <p class="text-muted mb-2" data-i18n="ot_cloud_hint">WAN: device pulls the package from S3 (same as App). Upload packages in App admin first.</p>
+                                                <div class="mb-3" x-show="cloudOtaLoading">
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    <span data-i18n="ot_cloud_loading">Loading cloud package…</span>
+                                                </div>
+                                                <div class="mb-3" x-show="!cloudOtaLoading && cloudOtaPackage">
+                                                    <div class="mb-1"><strong data-i18n="ot_cloud_version">Cloud version</strong>:
+                                                        <span x-text="cloudOtaPackage.upgradeDeviceVersion || '-'"></span>
+                                                        <span class="text-muted ms-2" x-text="(cloudOtaPackage.upgradeDevicePartion || '')"></span>
+                                                    </div>
+                                                    <div class="mb-1 text-muted small" x-text="cloudOtaPackage.upgradeDescribe || ''"></div>
+                                                    <div class="mb-2 text-muted small text-break" x-text="cloudOtaPackage.upgradeFileUrl || ''"></div>
+                                                </div>
+                                                <div class="mb-3 text-warning" x-show="!cloudOtaLoading && !cloudOtaPackage" data-i18n="ot_cloud_none">No cloud OTA package found for this device type.</div>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                    <select class="form-select me-2" style="max-width:220px" x-model="selectedPartition" x-show="cloudOtaPackage">
+                                                        <option value="" data-i18n="ot_select_partition">Please select upgrade type</option>
+                                                        <option value="all" data-i18n="ot_all">All (system + website + model)</option>
+                                                        <option value="system" data-i18n="ot_system">Main program (system)</option>
+                                                        <option value="website" data-i18n="ot_website">Website</option>
+                                                        <option value="model" data-i18n="ot_model">AI model</option>
+                                                        <option value="config" data-i18n="ot_config">Config</option>
+                                                        <option value="other" data-i18n="ot_other">Other</option>
+                                                    </select>
+                                                    <button type="button" class="btn btn-outline-primary" @click="refreshCloudOtaPackage()" :disabled="cloudOtaLoading || isUpgrading">
+                                                        <span data-i18n="ot_cloud_check">Check</span>
+                                                    </button>
+                                                    <button id="start-upgrade-button-cloud" type="button" class="btn btn-primary"
+                                                            @click="startUpgrade()" :disabled="cloudOtaLoading || isUpgrading || !cloudOtaPackage">
+                                                        <span data-i18n="ot_start_upgrade">Start upgrade</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- 局域网：上传到设备再写盘 -->
+                                            <div x-show="!cloudOtaMode">
                                             <form id="dropzone-custom" class="dropzone"></form>
-
-                                            <!--                                    <select class="form-select mt-3" x-model="selectedPartition">-->
-                                            <!--                                        <option value="">Please select a partition</option>-->
-                                            <!--                                        <option value="boot">Boot partition</option>-->
-                                            <!--                                        <option value="tag">Tag partition</option>-->
-                                            <!--                                        <option value="kernel">Kernel partition</option>-->
-                                            <!--                                        <option value="rootfs">RootFS partition</option>-->
-                                            <!--                                        <option value="recovery">Recovery partition</option>-->
-                                            <!--                                        <option value="system">System partition</option>-->
-                                            <!--                                        <option value="config">Config partition</option>-->
-                                            <!--&lt;!&ndash;                                         <option value="all">All partition</option>&ndash;&gt;-->
-                                            <!--                                    </select>-->
-                                            <!--                                    <button class="btn btn-primary mt-3 mb-3" @click="startUpgrade">Start upgrade-->
-                                            <!--                                    </button>-->
-
-
                                             <div class="d-flex align-items-center mt-3">
                                                 <select class="form-select me-2 w-100" x-model="selectedPartition">
-                                                    <option value="" data-i18n="ot_select_partition">Please select a partition</option>
-                                                    <option value="boot" data-i18n="ot_boot">Boot partition</option>
-                                                    <option value="tag" data-i18n="ot_tag">Tag partition</option>
-                                                    <option value="kernel" data-i18n="ot_kernel">Kernel partition</option>
-                                                    <option value="rootfs" data-i18n="ot_rootfs">RootFS partition</option>
-                                                    <option value="recovery" data-i18n="ot_recovery_partition">Recovery partition</option>
-                                                    <option value="system" data-i18n="ot_system">System partition</option>
-                                                    <option value="config" data-i18n="ot_config">Config partition</option>
+                                                    <option value="" data-i18n="ot_select_partition">Please select upgrade type</option>
+                                                    <option value="all" data-i18n="ot_all">All (system + website + model)</option>
+                                                    <option value="system" data-i18n="ot_system">Main program (system)</option>
+                                                    <option value="website" data-i18n="ot_website">Website</option>
+                                                    <option value="model" data-i18n="ot_model">AI model</option>
+                                                    <option value="config" data-i18n="ot_config">Config</option>
+                                                    <option value="other" data-i18n="ot_other">Other</option>
                                                 </select>
                                                 <button id="start-upgrade-button" class="btn btn-primary flex-shrink-0"
                                                         @click="startUpgrade"><span data-i18n="ot_start_upgrade">Start upgrade</span>
                                                 </button>
                                             </div>
+                                            <div class="form-hint mt-1" x-show="uploadedFileName">
+                                                <span x-text="'File: ' + uploadedFileName + (selectedPartition ? (' → ' + selectedPartition) : ' → (cannot detect type)')"></span>
+                                                <span class="text-muted ms-1" data-i18n="ot_type_from_name">（类型已按包名自动选择，可手动改）</span>
+                                            </div>
+                                            <div class="progress mt-3 progress-hidden" id="upload-progress">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     role="progressbar"
+                                                     style="width: 0%;" id="progress-bar">
+                                                    0%
+                                                </div>
+                                            </div>
+                                            </div>
 
-
-                                            <div class="progress mt-3 progress-hidden" x-show="isUpgrading">
+                                            <div class="progress mt-3" x-show="isUpgrading" style="height: 18px;">
                                                 <div class="progress-bar progress-bar-striped progress-bar-animated"
                                                      role="progressbar" style="width: 0%;" id="update-bar">
                                                     <span x-text="progress + '%'"></span>
                                                 </div>
                                             </div>
-                                            <!--                                    <p class="mt-3 text-center fs-3 text-danger  fw-bold" x-text="statusMessage"-->
-                                            <!--                                       x-show="isUpgrading"></p>-->
+                                            <div class="mt-3" x-show="isOtaRebooting" x-cloak>
+                                                <div class="mb-1">
+                                                    <span class="fw-bold" data-i18n="ot_reboot_title">System restart</span>
+                                                </div>
+                                                <div class="progress" style="height: 18px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                         role="progressbar"
+                                                         id="reboot-bar"
+                                                         :style="'width:' + rebootProgress + '%'">
+                                                        <span x-text="rebootProgress + '%'"></span>
+                                                    </div>
+                                                </div>
+                                                <p class="mt-2 text-center text-warning fw-bold mb-0">
+                                                    <i class="fa-solid fa-rotate me-2"></i>
+                                                    <span data-i18n="ot_reboot_hint">Restarting service — please wait (~60s), do not power off</span>
+                                                </p>
+                                            </div>
 
-                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading">
+                                            <p class="mt-3 text-center fs-3 text-danger fw-bold" x-show="isUpgrading && !isOtaRebooting">
                                                 <i class="fa-solid fa-1x fa-triangle-exclamation me-2"></i>
                                                 <span x-text="statusMessage"></span>
                                             </p>
-
 
                                             <div class="toast show position-absolute top-0 end-0 p-3" role="alert"
                                                  aria-live="assertive"
@@ -4944,22 +5107,10 @@
                                                 <div class="toast-body" x-text="message"></div>
                                             </div>
 
-
-                                            <!--                                        <form class="dropzone" id="dropzone-custom" action="." autocomplete="off" novalidate>-->
-
-                                            <!-- Progress bar -->
-                                            <div class="progress mt-3 progress-hidden" id="upload-progress">
-                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                                     role="progressbar"
-                                                     style="width: 0%;" id="progress-bar">
-                                                    0%
-                                                </div>
-                                            </div>
-
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row row-deck">
+<div class="row row-deck" x-show="!cloudOtaMode">
                                     <div class="card shadow">
                                         <div class="card-header d-flex justify-content-between align-items-center"  @click="recoveryServiceResultShow = !recoveryServiceResultShow">
                                             <h3 class="card-title" data-i18n="ot_recovery"> Recovery </h3>
@@ -7223,6 +7374,7 @@ const I18N_INDEX = {
     di_device_datetime:'Date Time', di_device_uptime:'Uptime',
     di_update_info:'Update Information', di_refresh_info:'Refresh Information',
     di_reboot:'Reboot Device', di_factory_reset:'Factory Reset',
+    ot_cloud_hint:'WAN: device pulls the package from S3 (same as App). Upload packages in App admin first.', ot_cloud_loading:'Loading cloud package…', ot_cloud_version:'Cloud version', ot_cloud_none:'No cloud OTA package found for this device type.', ot_cloud_check:'Check', ot_all:'All (system + website + model)', ot_website:'Website', ot_model:'AI model', ot_other:'Other', ot_type_from_name:'(type auto-detected from filename)', ot_reboot_title:'System restart', ot_reboot_hint:'Restarting service — please wait (~60s), do not power off',
     ot_title:'Upgrade', ot_select_partition:'Please select a partition',
     ot_boot:'Boot partition', ot_tag:'Tag partition', ot_kernel:'Kernel partition',
     ot_rootfs:'RootFS partition', ot_recovery_partition:'Recovery partition',
@@ -7375,6 +7527,7 @@ const I18N_INDEX = {
     di_device_datetime:'日期时间', di_device_uptime:'运行时长',
     di_update_info:'更新信息', di_refresh_info:'刷新信息',
     di_reboot:'重启设备', di_factory_reset:'恢复出厂',
+    ot_cloud_hint:'外网：设备从 S3 直拉升级包（与 App 一致）。请先在 App 管理端上传包。', ot_cloud_loading:'正在加载云端升级包…', ot_cloud_version:'云端版本', ot_cloud_none:'未找到该机型的云端升级包。', ot_cloud_check:'检查更新', ot_all:'全部（系统+网页+模型）', ot_website:'网页', ot_model:'AI 模型', ot_other:'其他', ot_type_from_name:'（类型已按包名自动选择，可手动改）', ot_reboot_title:'系统重启', ot_reboot_hint:'正在重启服务，约 60 秒，请勿断电',
     ot_title:'升级', ot_select_partition:'请选择分区',
     ot_boot:'Boot 分区', ot_tag:'Tag 分区', ot_kernel:'Kernel 分区',
     ot_rootfs:'RootFS 分区', ot_recovery_partition:'Recovery 分区',
@@ -7527,6 +7680,7 @@ const I18N_INDEX = {
     di_device_datetime:'日時', di_device_uptime:'稼働時間',
     di_update_info:'情報更新', di_refresh_info:'情報リフレッシュ',
     di_reboot:'デバイス再起動', di_factory_reset:'工場出荷時リセット',
+    ot_cloud_hint:'WAN: device pulls the package from S3 (same as App). Upload packages in App admin first.', ot_cloud_loading:'Loading cloud package…', ot_cloud_version:'Cloud version', ot_cloud_none:'No cloud OTA package found for this device type.', ot_cloud_check:'Check', ot_all:'All (system + website + model)', ot_website:'Website', ot_model:'AI model', ot_other:'Other', ot_type_from_name:'(type auto-detected from filename)', ot_reboot_title:'System restart', ot_reboot_hint:'Restarting service — please wait (~60s), do not power off',
     ot_title:'アップグレード', ot_select_partition:'パーティションを選択',
     ot_boot:'Boot パーティション', ot_tag:'Tag パーティション', ot_kernel:'Kernel パーティション',
     ot_rootfs:'RootFS パーティション', ot_recovery_partition:'Recovery パーティション',
@@ -7829,6 +7983,7 @@ const I18N_INDEX = {
     di_device_datetime:'Date/Heure', di_device_uptime:'Disponibilité',
     di_update_info:'Mettre à jour', di_refresh_info:'Rafraîchir',
     di_reboot:'Redémarrer', di_factory_reset:'Réinitialisation usine',
+    ot_cloud_hint:'WAN: device pulls the package from S3 (same as App). Upload packages in App admin first.', ot_cloud_loading:'Loading cloud package…', ot_cloud_version:'Cloud version', ot_cloud_none:'No cloud OTA package found for this device type.', ot_cloud_check:'Check', ot_all:'All (system + website + model)', ot_website:'Website', ot_model:'AI model', ot_other:'Other', ot_type_from_name:'(type auto-detected from filename)', ot_reboot_title:'System restart', ot_reboot_hint:'Restarting service — please wait (~60s), do not power off',
     ot_title:'Mise à jour', ot_select_partition:'Sélectionner une partition',
     ot_boot:'Partition Boot', ot_tag:'Partition Tag', ot_kernel:'Partition Kernel',
     ot_rootfs:'Partition RootFS', ot_recovery_partition:'Partition Recovery',
@@ -7980,6 +8135,7 @@ const I18N_INDEX = {
     di_device_datetime:'Fecha/Hora', di_device_uptime:'Tiempo activo',
     di_update_info:'Actualizar info', di_refresh_info:'Refrescar info',
     di_reboot:'Reiniciar dispositivo', di_factory_reset:'Restablecer fábrica',
+    ot_cloud_hint:'WAN: device pulls the package from S3 (same as App). Upload packages in App admin first.', ot_cloud_loading:'Loading cloud package…', ot_cloud_version:'Cloud version', ot_cloud_none:'No cloud OTA package found for this device type.', ot_cloud_check:'Check', ot_all:'All (system + website + model)', ot_website:'Website', ot_model:'AI model', ot_other:'Other', ot_type_from_name:'(type auto-detected from filename)', ot_reboot_title:'System restart', ot_reboot_hint:'Restarting service — please wait (~60s), do not power off',
     ot_title:'Actualización', ot_select_partition:'Seleccione una partición',
     ot_boot:'Partición Boot', ot_tag:'Partición Tag', ot_kernel:'Partición Kernel',
     ot_rootfs:'Partición RootFS', ot_recovery_partition:'Partición Recovery',
@@ -9097,6 +9253,11 @@ document.addEventListener('DOMContentLoaded', function() {
             updateStatus: "none",
             statusMessage: "",
             uploadedFileName: "",
+            cloudOtaPackage: null,
+            cloudOtaLoading: false,
+            cloudOtaMode: (typeof window.isCloudOtaMode === 'function' && window.isCloudOtaMode()),
+            isOtaRebooting: false,
+            rebootProgress: 0,
             // 云端 OTA（AWS IoT Jobs）状态/表单
             otaCloudStatus: "",
             otaCloudProgress: 0,
@@ -10223,21 +10384,199 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
 
+
+            isCloudOtaMode() {
+                return typeof window.isCloudOtaMode === 'function' ? window.isCloudOtaMode() : false;
+            },
+            resolveOtaDeviceType() {
+                var m = (this.deviceGeneralInformation && (this.deviceGeneralInformation.deviceModelName || this.deviceGeneralInformation.deviceName)) || '';
+                m = String(m);
+                if (/smartRobot|robot/i.test(m)) return 'smartRobot';
+                if (/smartIpcamera|ipc/i.test(m)) return 'smartIpcamera';
+                return 'smartRobot';
+            },
+            async refreshCloudOtaPackage() {
+                this.cloudOtaMode = this.isCloudOtaMode();
+                if (!this.cloudOtaMode) return;
+                this.cloudOtaLoading = true;
+                try {
+                    if (!this.deviceGeneralInformation || !this.deviceGeneralInformation.deviceUuid) {
+                        try { await this.initDeviceGeneralInformation(); } catch (e) {}
+                    }
+                    var pkg = await window.__fetchLatestDeviceUpgrade(this.resolveOtaDeviceType());
+                    this.cloudOtaPackage = pkg;
+                    if (pkg) {
+                        var part = (pkg.upgradeDevicePartion || '').trim();
+                        if (!part && pkg.upgradeFileUrl && typeof window.inferOtaTypeFromName === 'function') {
+                            part = window.inferOtaTypeFromName(String(pkg.upgradeFileUrl).split('/').pop() || '') || '';
+                        }
+                        if (part) this.selectedPartition = part;
+                        else if (!this.selectedPartition) this.selectedPartition = 'system';
+                    }
+                    this.initCloudOta();
+                } catch (e) {
+                    console.error('[OTA] refreshCloudOtaPackage', e);
+                    this.cloudOtaPackage = null;
+                    this.showAlert('danger', 'OTA', 'Failed to load cloud package: ' + e, 5000);
+                } finally {
+                    this.cloudOtaLoading = false;
+                }
+            },
+            async startCloudRemoteOta() {
+                var self = this;
+                var pkg = this.cloudOtaPackage;
+                if (!pkg || !pkg.upgradeFileUrl) {
+                    this.showAlert('warning', 'OTA', 'Please Check cloud package first');
+                    return;
+                }
+                if (this.isUpgrading) return;
+                var part = (this.selectedPartition || pkg.upgradeDevicePartion || 'system').trim() || 'system';
+                this.selectedPartition = part;
+                var raw = String(pkg.upgradeFileUrl || '').trim();
+                var signed = window.__presignOtaS3Get(raw, 7200);
+                if (!signed || (!signed.startsWith('http://') && !signed.startsWith('https://'))) {
+                    this.showAlert('danger', 'OTA', 'Failed to create pre-signed download URL');
+                    return;
+                }
+                var looksSigned = signed.indexOf('X-Amz-') >= 0 || signed.indexOf('Signature=') >= 0;
+                var wasRelative = !(raw.startsWith('http://') || raw.startsWith('https://'));
+                if (wasRelative && !looksSigned) {
+                    this.showAlert('danger', 'OTA', 'Cloud URL is not pre-signed');
+                    return;
+                }
+                console.info('[OTA] CLOUD_ONLY setRemoteOta signedLen=' + signed.length + ' part=' + part);
+                this.initCloudOta();
+                this.isUpgrading = true;
+                this.isOtaRebooting = false;
+                this.rebootProgress = 0;
+                this.progress = 0;
+                this.statusMessage = 'Cloud OTA downloading — do not power off...';
+                var progressBar = document.getElementById('update-bar');
+                if (progressBar) { progressBar.style.width = '0%'; progressBar.style.backgroundColor = '#206bc4'; }
+
+                var payload = {
+                    method: 'setRemoteOtaServiceCommand',
+                    params: {
+                        remoteOtaService: {
+                            upgradeMode: pkg.upgradeMode || 'normal',
+                            upgradeType: pkg.upgradeType || 'AHS',
+                            upgradeFileUrl: signed,
+                            upgradeDeviceType: pkg.upgradeDeviceType || this.resolveOtaDeviceType(),
+                            upgradeDeviceVersion: pkg.upgradeDeviceVersion || '',
+                            upgradeDevicePartion: part,
+                            upgradeDescribe: pkg.upgradeDescribe || ''
+                        }
+                    },
+                    requestId: 'web_ota_' + Date.now()
+                };
+                try {
+                    var resp = await fetch('/setDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    var responseData = await resp.json();
+                    console.log('[OTA] setRemoteOta response', responseData);
+                    if (responseData.status !== STATUS.SET_REMOTE_OTA_PARAMS && responseData.status !== 1055) {
+                        this.isUpgrading = false;
+                        this.showAlert('danger', 'OTA', 'Device rejected remote OTA status=' + responseData.status, 8000);
+                        return;
+                    }
+                    this.showAlert('success', 'OTA', 'Remote OTA started — device pulling from S3', 3000);
+                } catch (e) {
+                    this.isUpgrading = false;
+                    console.error('[OTA] setRemoteOta failed', e);
+                    this.showAlert('danger', 'OTA', 'setRemoteOta failed: ' + e, 8000);
+                }
+            },
+
             // 云端 OTA：监听设备经 updateRemoteOtaStatusCommand 推来的进度（device-transport 'iot-push' 事件）
             initCloudOta() {
                 if (this._otaInited) return; this._otaInited = true;
                 var self = this;
                 window.addEventListener('iot-push', function (ev) {
                     var d = (ev && ev.detail) || {};
-                    if (d.method === 'updateRemoteOtaStatusCommand' && d.params) {
-                        self.otaCloudStatus = d.params.status || '';
-                        self.otaCloudProgress = d.params.progress || 0;
-                        self.otaCloudJobId = d.params.jobId || '';
+                    if (d.method !== 'updateRemoteOtaStatusCommand') return;
+                    var p = d.params || {};
+                    // DeviceUpgradeService: params.remoteOtaStatus.{progress,status,...}
+                    if (p.remoteOtaStatus && typeof p.remoteOtaStatus === 'object') p = p.remoteOtaStatus;
+                    self.otaCloudStatus = p.status || '';
+                    self.otaCloudProgress = p.progress || 0;
+                    self.otaCloudJobId = p.jobId || '';
+                    if (!self.isUpgrading && !self.isOtaRebooting) return;
+                    var progressBar = document.getElementById('update-bar');
+                    var st = String(p.status);
+                    var pr = Number(p.progress) || 0;
+                    self.progress = pr;
+                    if (progressBar) progressBar.style.width = Math.round(pr) + '%';
+                    if (st === '1' || st === '4') {
+                        if (progressBar) progressBar.style.backgroundColor = '#206bc4';
+                        self.statusMessage = 'Cloud download / prepare — do not power off...';
+                    } else if (st === '2') {
+                        if (progressBar) progressBar.style.backgroundColor = '#f76707';
+                        self.statusMessage = 'Writing — do not power off...';
+                    } else if (st === '3') {
+                        if (progressBar) progressBar.style.backgroundColor = '#2fb344';
+                        self.statusMessage = 'Restarting service — please wait...';
+                    } else if (st === '5') {
+                        self.isUpgrading = false;
+                        if (progressBar) progressBar.style.backgroundColor = '#d63939';
+                        self.statusMessage = 'Upgrade failed';
+                        self.showAlert('danger', 'Upgrade', 'Upgrade failed: ' + (p.error || p.detail || 'failed'), 8000);
+                    } else if (st === '6') {
+                        self.progress = 100;
+                        if (progressBar) { progressBar.style.width = '100%'; progressBar.style.backgroundColor = '#2fb344'; }
+                        var typ = String(p.type || self.selectedPartition || '');
+                        var where = p.installDir ? (' Installed: ' + p.installDir) : '';
+                        if (typ === 'system' || typ === 'all') {
+                            if (typeof self.startOtaRebootProgress === 'function') self.startOtaRebootProgress(where);
+                            else { self.isUpgrading = false; self.showAlert('success', 'upgrade', 'upgrade success！' + where, 3000); }
+                        } else {
+                            self.isUpgrading = false;
+                            self.showAlert('success', 'upgrade', 'upgrade success！' + where, 3000);
+                        }
                     }
                 });
             },
             // 下发云端 OTA：组 job 文档；若宿主页提供 window.__createOtaJob(uuid,doc) 则用其建 IoT Job，
             // 否则提示在云端门户触发（设备本地静态页无 AWS SDK）。
+
+            startOtaRebootProgress(where) {
+                this.isOtaRebooting = true;
+                this.rebootProgress = 0;
+                this.statusMessage = 'Restarting service — please wait (~60s), do not power off';
+                if (this._otaRebootTimer) { clearInterval(this._otaRebootTimer); this._otaRebootTimer = null; }
+                const totalMs = 60000;
+                const started = Date.now();
+                const self = this;
+                this._otaRebootTimer = setInterval(() => {
+                    const elapsed = Date.now() - started;
+                    self.rebootProgress = Math.min(100, Math.round(elapsed / totalMs * 100));
+                    if (self.rebootProgress >= 100) {
+                        clearInterval(self._otaRebootTimer);
+                        self._otaRebootTimer = null;
+                        self.isOtaRebooting = false;
+                        self.isUpgrading = false;
+                        self.statusMessage = 'update success！' + (where || '');
+                        self.showAlert('success', 'upgrade', 'upgrade success！' + (where || ''), 2500);
+                        setTimeout(() => {
+                            try {
+                                const nav = document.querySelector('.dv-nav-item[onclick*="dashboard"]')
+                                    || document.querySelector('a.dv-nav-item');
+                                if (typeof showPage === 'function') {
+                                    showPage('dashboard', nav || null);
+                                } else {
+                                    location.hash = '#dashboard';
+                                    location.reload();
+                                }
+                            } catch (e) {
+                                try { location.reload(); } catch (_) {}
+                            }
+                        }, 600);
+                    }
+                }, 200);
+            },
+
             async dispatchCloudOta() {
                 if (!this.otaPkgUrl) { this.showAlert("warning", "OTA", "packageUrl required"); return; }
                 var uuid = (window.DeviceTransport && DeviceTransport.remoteUuid) || this.deviceGeneralInformation.deviceUuid;
@@ -10253,6 +10592,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             startUpgrade() {
+                if (this.isCloudOtaMode()) {
+                    return this.startCloudRemoteOta();
+                }
+
                 const progressBar = document.getElementById('update-bar');
 
                 this.uploadedFileName = window.uploadedFileName;
@@ -14160,6 +14503,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('DOMContentLoaded', function () {
         // Disable auto-discover
         Dropzone.autoDiscover = false;
+        if (window.isCloudOtaMode && window.isCloudOtaMode()) {
+            console.info('[OTA] cloud/WAN mode: skip LAN Dropzone (/upgrade)');
+            return;
+        }
         // Initialize Dropzone
         const myDropzone = new Dropzone("#dropzone-custom", {
             url: "/upgrade",       // 上传文件的服务器端接口

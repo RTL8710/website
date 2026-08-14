@@ -1,7 +1,8 @@
 // S3 对象 GET 的 SigV4 query 预签名(桶禁匿名读时,给 <img src> 用)。
 // creds 需含 accessKeyId/secretAccessKey/sessionToken;rawUrl 为完整 amazonaws S3 https URL。
 // 非 S3/无凭证时原样返回。region 从 host 解析,失败回退 creds.region。
-export function presignS3Get(creds, rawUrl) {
+// expiresSec：默认 3600；OTA 包下载建议 7200（与 App Amplify getUrl 2h 对齐）
+export function presignS3Get(creds, rawUrl, expiresSec) {
   const C = window.CryptoJS;
   if (!C || !creds || !rawUrl || !/^https:\/\//.test(rawUrl)) return rawUrl || '';
   try {
@@ -14,11 +15,12 @@ export function presignS3Get(creds, rawUrl) {
     const date = amz.slice(0, 8);
     const scope = `${date}/${region}/s3/aws4_request`;
     const enc = (v) => encodeURIComponent(v).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+    const exp = String(Math.max(60, Math.min(Number(expiresSec) || 3600, 43200)));
     const q = [
       ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
       ['X-Amz-Credential', creds.accessKeyId + '/' + scope],
       ['X-Amz-Date', amz],
-      ['X-Amz-Expires', '3600'],
+      ['X-Amz-Expires', exp],
       ['X-Amz-Security-Token', creds.sessionToken],
       ['X-Amz-SignedHeaders', 'host'],
     ].filter(([, v]) => v);
