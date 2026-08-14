@@ -3776,8 +3776,6 @@ window.__presignThumbUrl = function (raw) {
                 <style>
                     #dashboard .dash-hero{display:flex;gap:22px;align-items:center;background:linear-gradient(135deg,var(--bg-card),var(--bg-panel));border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:20px;position:relative;overflow:hidden}
                     #dashboard .dash-hero::after{content:'';position:absolute;right:-60px;top:-60px;width:220px;height:220px;background:radial-gradient(circle,var(--ring),transparent 70%);pointer-events:none}
-                    #dashboard .dash-thumb{width:190px;height:114px;border-radius:12px;object-fit:cover;background:var(--video-bg,#0f172a);border:1px solid var(--border);flex-shrink:0}
-                    #dashboard .dash-thumb-ph{width:190px;height:114px;border-radius:12px;background:var(--video-bg,#0f172a);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:30px}
                     #dashboard .dash-hero-name{font-size:23px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em;line-height:1.15}
                     #dashboard .dash-hero-sub{color:var(--text-secondary);font-size:13px;margin-top:4px}
                     #dashboard .dash-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -3803,14 +3801,22 @@ window.__presignThumbUrl = function (raw) {
                     #dashboard .dash-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
                     #dashboard .dash-badge.on{background:rgba(52,211,153,0.16);color:var(--success)}
                     #dashboard .dash-badge.off{background:rgba(128,128,128,0.12);color:var(--text-muted)}
-                    #dashboard .dash-thumbs{display:flex;gap:10px;flex-shrink:0;flex-wrap:wrap}
-                    #dashboard .dash-thumb-wrap{position:relative;width:150px;height:90px;border-radius:12px;overflow:hidden;background:var(--video-bg,#0f172a);border:1px solid var(--border);cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
-                    #dashboard .dash-thumb-wrap:hover,#dashboard .dash-thumb-wrap:focus-visible{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 6px 18px rgba(0,0,0,.28);outline:none}
+                    /* 主图缩略图：对齐 App buildMultiCamEqualLayout 宫格(1铺满/2左右/3主+侧叠/4=2×2) */
+                    #dashboard .dash-thumbs-grid{width:228px;height:136px;flex-shrink:0;display:grid;gap:2px;border-radius:12px;overflow:hidden;background:var(--video-bg,#0f172a);border:1px solid var(--border);cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+                    #dashboard .dash-thumbs-grid:hover,#dashboard .dash-thumbs-grid:focus-visible{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 6px 18px rgba(0,0,0,.28);outline:none}
+                    #dashboard .dash-thumbs-grid.cams-1{grid-template:1fr / 1fr}
+                    #dashboard .dash-thumbs-grid.cams-2{grid-template:1fr / 1fr 1fr}
+                    #dashboard .dash-thumbs-grid.cams-3{grid-template:1fr 1fr / 2fr 1fr}
+                    #dashboard .dash-thumbs-grid.cams-3 .dash-thumb-cell:first-child{grid-row:1 / span 2}
+                    #dashboard .dash-thumbs-grid.cams-4{grid-template:1fr 1fr / 1fr 1fr}
+                    #dashboard .dash-thumb-cell{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--video-bg,#0f172a)}
                     #dashboard .dash-thumb{width:100%;height:100%;object-fit:cover;display:block}
-                    #dashboard .dash-thumb-tag{position:absolute;left:6px;bottom:6px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;letter-spacing:.02em}
-                    #dashboard .dash-thumb-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);color:#fff;font-size:20px;opacity:0;transition:opacity .15s}
-                    #dashboard .dash-thumb-play i{width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);padding-left:3px}
-                    #dashboard .dash-thumb-wrap:hover .dash-thumb-play,#dashboard .dash-thumb-wrap:focus-visible .dash-thumb-play{opacity:1}
+                    #dashboard .dash-thumb-ph-cell{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px;opacity:.45}
+                    #dashboard .dash-thumb-tag{position:absolute;left:4px;bottom:4px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.55);color:#fff;letter-spacing:.02em;z-index:2}
+                    #dashboard .dash-thumb-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28);color:#fff;font-size:16px;opacity:0;transition:opacity .15s;z-index:2}
+                    #dashboard .dash-thumb-play i{width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);padding-left:2px}
+                    #dashboard .dash-thumbs-grid:hover .dash-thumb-play,#dashboard .dash-thumbs-grid:focus-visible .dash-thumb-play{opacity:1}
+                    #dashboard .dash-thumb-ph{width:228px;height:136px;border-radius:12px;background:var(--video-bg,#0f172a);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:30px;cursor:pointer}
                     #dashboard .dash-hero-uuid{font-size:11px;color:var(--text-muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:3px;word-break:break-all}
                     #dashboard .dash-kpi,#dashboard .dash-grid .card{cursor:pointer}
                     #dashboard .dash-grid .card{transition:transform .15s,border-color .15s}
@@ -3834,16 +3840,19 @@ window.__presignThumbUrl = function (raw) {
 
                                 <!-- ===== Hero 设备身份条(缩略图 + 名称/型号/版本/在线 + 状态灯)===== -->
                                 <div class="dash-hero">
-                                    <div class="dash-thumbs">
-                                        <template x-for="t in dashThumbs" :key="t.cam">
-                                            <div class="dash-thumb-wrap" onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0">
-                                                <img class="dash-thumb" :src="dashThumbSrc(t)" onerror="this.style.opacity=0" alt="camera snapshot">
-                                                <span class="dash-thumb-tag" x-text="'CAM' + (t.cam + 1)"></span>
-                                                <span class="dash-thumb-play"><i class="fa-solid fa-play"></i></span>
+                                    <div class="dash-thumbs-grid" :class="'cams-'+dashThumbSlotCount()"
+                                         x-show="dashThumbSlotCount()>0"
+                                         onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0">
+                                        <template x-for="slot in dashThumbSlots()" :key="'dt'+slot.cam">
+                                            <div class="dash-thumb-cell">
+                                                <img class="dash-thumb" x-show="slot.src" :src="slot.src" onerror="this.style.display='none'" alt="">
+                                                <div class="dash-thumb-ph-cell" x-show="!slot.src"><i class="fa-solid fa-video"></i></div>
+                                                <span class="dash-thumb-tag" x-text="'CAM'+(slot.cam+1)"></span>
                                             </div>
                                         </template>
-                                        <div class="dash-thumb-ph" x-show="!dashThumbs.length" onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0" style="cursor:pointer"><i class="fa-solid fa-camera"></i></div>
+                                        <span class="dash-thumb-play"><i class="fa-solid fa-play"></i></span>
                                     </div>
+                                    <div class="dash-thumb-ph" x-show="!dashThumbSlotCount()" onclick="dashGo('home')" :title="tIdx('dash_open_live')" role="button" tabindex="0"><i class="fa-solid fa-camera"></i></div>
                                     <div style="flex:1;min-width:0">
                                         <div class="dash-hero-name" x-text="deviceGeneralInformation.deviceName || '-'"></div>
                                         <div class="dash-hero-uuid" x-text="deviceGeneralInformation.deviceUuid || '-'"></div>
