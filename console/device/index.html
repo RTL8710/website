@@ -9750,6 +9750,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (p.startsWith('/mnt/') || p.startsWith('/')) return '/download?filePath=' + encodeURIComponent(p);
                 return p;
             },
+            // 仪表盘主图宫格路数：对齐 App(最多 4；优先 cameraCounts，其次已有封面)
+            dashThumbSlotCount() {
+                const n = Number((this.videoInformation && this.videoInformation.cameraCounts) || 0);
+                const d = (this.dashThumbs && this.dashThumbs.length) || 0;
+                return Math.min(4, Math.max(n, d, 0));
+            },
+            dashThumbSlots() {
+                const n = this.dashThumbSlotCount();
+                const out = [];
+                for (let i = 0; i < n; i++) {
+                    const t = (this.dashThumbs || []).find(x => Number(x.cam) === i);
+                    const src = t ? this.dashThumbSrc(t) : '';
+                    out.push({ cam: i, src: src || '' });
+                }
+                return out;
+            },
             dashThumbSrc(t) {
                 if (!t || !t.img) return '';
                 const img = String(t.img);
