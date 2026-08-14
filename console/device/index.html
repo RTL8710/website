@@ -1591,7 +1591,7 @@ window.__presignThumbUrl = function (raw) {
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="lazyInitPage('home', 'boot', () => this.initHomePage())"
+                     x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras()"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
                         <div class="row row-deck">
@@ -1840,7 +1840,7 @@ window.__presignThumbUrl = function (raw) {
                                             <!-- 视频设置页面 -->
                 
                 <div class="page-section " id="video-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="lazyInitPage('video-settings', 'boot', () => this.initVideoSettingsPage())" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="Video/Audio settings groups" style="margin-bottom:14px;">
@@ -2747,7 +2747,7 @@ window.__presignThumbUrl = function (raw) {
 
 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="lazyInitPage('ai-detection', 'boot', () => this.initAiDetectionPage())" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="AI settings groups" style="margin-bottom:14px;">
@@ -3448,7 +3448,7 @@ window.__presignThumbUrl = function (raw) {
                 <!-- 录像设置页面 -->
                 
                 <div class="page-section " id="record-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="lazyInitPage('record-settings', 'boot', () => this.initRecordSettingsPage())">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initRecordSettings();initStorageInformation()">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="Record settings groups" style="margin-bottom:14px;">
@@ -3827,7 +3827,7 @@ window.__presignThumbUrl = function (raw) {
                     @media (max-width: 991px){#dashboard .dash-hero-viz{display:none}}
                 </style>
                 <div class="page-section active" id="dashboard" x-data="deviceSettings()"
-                     x-init="initDashboardPage()">
+                     x-init="initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras()">
                     <div class="page-wrapper">
                         <div class="page-body">
                             <div class="container-xl">
@@ -3983,7 +3983,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="lazyInitPage('playback', 'boot', () => this.initPlaybackPage())">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })()">
                     <div class="playback-inner">
                         <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
@@ -4761,7 +4761,7 @@ window.__presignThumbUrl = function (raw) {
 
 
                                 <!-- Device Info：Info / OTA / About 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="lazyInitPage('device-information', 'boot', () => this.initDeviceInfoPage())">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -5291,7 +5291,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="chatgpt-information"></div>
 
 <div class="page-section " id="chatdevice-information">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="lazyInitPage('chatdevice-information', 'boot', () => this.loadAskHistory())">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="loadAskHistory()">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -5462,7 +5462,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
                                 <!-- Production：Provisioning / Factory Test 分段 Tab -->
-                <div class="page-section" id="production" x-data="deviceSettings()" x-init="lazyInitPage('production', 'boot', () => this.initProductionPage())">
+                <div class="page-section" id="production" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingProductionTab) { productionParamTab = window.__pendingProductionTab; delete window.__pendingProductionTab; } if (productionParamTab==='factory') { initFactoryTestServiceInformation(); } else { initProvisioningServiceInformation(); } })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Production groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -6149,7 +6149,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="factoryTest-information"></div>
 
                 <!-- 设备网络页面 -->
-                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="lazyInitPage('network-information', 'boot', () => this.initNetworkPage())">
+                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="initNetworkInformation();initRtspServerInformation();initWebserverService()">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
                     <!-- Network Settings：分段 Tab（仿 Cloud Settings / 视频 ISP/OSD），内容用原表单布局 -->
 
@@ -6450,7 +6450,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 <div class="page-section" id="cloud-information" x-data="deviceSettings()"
-                     x-init="lazyInitPage('cloud-information', 'boot', () => this.initCloudPage())">
+                     x-init="initTransport();initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService()">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
@@ -6821,7 +6821,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!--日志页面-->
                 <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="initLogInformation()" >-->
-                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="lazyInitPage('debug', 'boot', () => this.initDebugPage())" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
+                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
                         <div class="vs-param-tabs" role="tablist" aria-label="Log settings groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -7261,7 +7261,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="about"></div>
 
 
-                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="lazyInitPage('user-management', 'boot', () => this.loadUsers())">
+                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="loadUsers()">
                     <div class="card shadow">
                         <div class="card-header">
                             <h3 class="card-title" data-i18n="ab_user_mgmt">User Management</h3>
@@ -8608,28 +8608,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // })();
 
 
-    // 非当前页的 x-init 会在 Alpine 启动时全部跑一遍，堵死外网 IoT。进入页才加载。
-    window.__pageInitOnce = window.__pageInitOnce || Object.create(null);
-    window.runWhenPageActive = function(pageId, key, fn) {
-        const onceKey = String(pageId) + '::' + String(key || 'default');
-        const run = function() {
-            if (window.__pageInitOnce[onceKey]) return;
-            window.__pageInitOnce[onceKey] = true;
-            try { fn(); } catch (e) { console.warn('[pageInit]', pageId, e); }
-        };
-        const el = document.getElementById(pageId);
-        if (el && el.classList.contains('active')) {
-            setTimeout(run, 0);
-            return;
-        }
-        const handler = function(e) {
-            if (!e.detail || e.detail.pageId !== pageId) return;
-            window.removeEventListener('pagechange', handler);
-            run();
-        };
-        window.addEventListener('pagechange', handler);
-    };
-
     // 通过 ID 显示相应页面
     function showPage(pageId, el) {
         // LLM Settings 已并入 AI Settings 的 LLM Tab
@@ -9782,169 +9760,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const u = this.storageInformation.storageUsed || 0;
                 const a = this.storageInformation.storageAvailable || 0;
                 return Math.round(u * 100 / ((u + a) || 1));
-            },
-
-            // 进入对应 page-section 才跑 boot（Alpine 会对隐藏页也执行 x-init）
-            lazyInitPage(pageId, key, fn) {
-                const self = this;
-                window.runWhenPageActive(pageId, key || 'boot', function() {
-                    try { fn.call(self); } catch (e) { console.warn('[lazyInitPage]', pageId, e); }
-                });
-            },
-            // 仅本地缓存灌仪表盘封面/计数，零网络
-            hydrateDashCache() {
-                try {
-                    const wan = (typeof this.isCloudOtaMode === 'function') && this.isCloudOtaMode();
-                    const c = JSON.parse(localStorage.getItem(wan ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs') || 'null');
-                    if (!c || !Array.isArray(c.thumbs)) return;
-                    const thumbs = wan
-                        ? c.thumbs.filter(x => x && x.img && /^https?:\/\//i.test(String(x.img)))
-                        : c.thumbs;
-                    this.dashThumbs = thumbs;
-                    if (typeof c.count === 'number') { this.dashRecordCount = c.count; this.dashRecordCapped = !!c.capped; }
-                    if (typeof c.dur === 'number') this.dashLatestDuration = c.dur;
-                } catch (e) {}
-            },
-            // 仪表盘分阶：先身份/存储/视频 KPI，其余卡片与 extras 错峰，避免 IoT 并发风暴
-            async initDashboardPage() {
-                this.hydrateDashCache();
-                const dashAlive = () => {
-                    const el = document.getElementById('dashboard');
-                    return !!(el && el.classList.contains('active'));
-                };
-                if (!dashAlive()) return;
-                try { await this.initDeviceGeneralInformation(); } catch (e) {}
-                if (!dashAlive()) return;
-                // 轻量：只要容量 KPI，勿跟 fetchRecordDiskUsage 抢 IoT（录像占用进存储页再拉）
-                try {
-                    await Promise.all([
-                        this.initStorageInformation({ light: true }).catch(() => {}),
-                        this.initVedioSettings(0).catch(() => {})
-                    ]);
-                } catch (e) {}
-                const self = this;
-                const later = (ms, fn) => setTimeout(() => {
-                    if (!dashAlive()) return;
-                    try { fn.call(self); } catch (e) { console.debug('[dash defer]', e); }
-                }, ms);
-                later(280, function() { this.initRecordSettings(); this.initAlgorithmInformation(); });
-                later(600, function() { this.initAudioSettings(); this.getCloudRecordService(); });
-                later(900, function() { this.initRtspServerInformation(); this.initChatGptInformation(); });
-                later(1200, function() { this.initDashboardExtras(); });
-            },
-            initHomePage() {
-                this.initTransport();
-                this.initDeviceGeneralInformation();
-                this.initVedioSettings();
-                this.initAlgorithmInformation();
-            },
-            initVideoSettingsPage() {
-                this.initTransport();
-                this.initDeviceGeneralInformation();
-                this.initVedioSettings();
-                this.initOsdInformation();
-                this.initAlgorithmInformation();
-                this.initAudioSettings();
-            },
-            initAiDetectionPage() {
-                if (window.__pendingAiParamTab) {
-                    this.aiParamTab = window.__pendingAiParamTab;
-                    delete window.__pendingAiParamTab;
-                }
-                this.initTransport();
-                this.initDeviceGeneralInformation();
-                this.initVedioSettings();
-                this.initAlgorithmInformation();
-                this.initHullMapInformation();
-                this.initChatGptInformation();
-                if (this.aiParamTab === 'vis') this.initVisualizationService();
-            },
-            initRecordSettingsPage() {
-                if (window.__pendingRecordParamTab) {
-                    this.recordParamTab = window.__pendingRecordParamTab;
-                    delete window.__pendingRecordParamTab;
-                }
-                this.initRecordSettings();
-                this.initStorageInformation();
-            },
-            async initPlaybackPage() {
-                if (window.__pendingPlaybackTab) {
-                    this.playbackTab = window.__pendingPlaybackTab;
-                    delete window.__pendingPlaybackTab;
-                }
-                // 回放页是独立 Alpine 实例：懒加载后不会吃到仪表盘的 UUID，须先灌入，否则列表/时间轴查询全空或错
-                try {
-                    if (typeof this.initTransport === 'function') this.initTransport();
-                    const cur = this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid;
-                    if (!cur || cur === 'default') {
-                        const u = (window.DeviceTransport && DeviceTransport.remoteUuid) || '';
-                        if (u) this.deviceGeneralInformation.deviceUuid = u;
-                        else if (typeof this.initDeviceGeneralInformation === 'function')
-                            await this.initDeviceGeneralInformation();
-                    }
-                } catch (e) { console.debug('[playback] uuid hydrate', e); }
-                // 时间窗口逻辑恢复懒加载前：fetchRecords(false)=近24h；initTimeline()=当天轴。勿改成「整天 00:00-23:59」或 isSearch=true
-                if (this.playbackTab === 'image') {
-                    this.fetchImages(false);
-                    this.initTimeline();
-                } else if (this.playbackTab === 'cloud') {
-                    this.getCloudRecordService();
-                    this.initCloudPlayback();
-                } else {
-                    this.fetchRecords(false);
-                    this.initTimeline();
-                    this.initVedioSettings(0);
-                    this.initPlaybackIdleThumbs();
-                }
-            },
-            initDeviceInfoPage() {
-                if (window.__pendingDeviceInfoTab) {
-                    this.deviceInfoParamTab = window.__pendingDeviceInfoTab;
-                    delete window.__pendingDeviceInfoTab;
-                }
-                if (this.deviceInfoParamTab === 'about') {
-                    this.QrGeneratorDeviceUuid();
-                } else if (this.deviceInfoParamTab === 'ota') {
-                    this.initCloudOta();
-                    if (this.isCloudOtaMode()) this.refreshCloudOtaPackage();
-                    try { this._bindOtaFileUploadListener && this._bindOtaFileUploadListener(); } catch (e) {}
-                    if (window.uploadedFileName && typeof window.applyOtaFileMeta === 'function')
-                        window.applyOtaFileMeta(window.uploadedFileName);
-                } else {
-                    this.initDeviceGeneralInformation();
-                    this.initNtpInformation();
-                    this.initScanServiceInformation();
-                    this.initWatchdogInformation();
-                }
-            },
-            initProductionPage() {
-                if (window.__pendingProductionTab) {
-                    this.productionParamTab = window.__pendingProductionTab;
-                    delete window.__pendingProductionTab;
-                }
-                if (this.productionParamTab === 'factory') this.initFactoryTestServiceInformation();
-                else this.initProvisioningServiceInformation();
-            },
-            initNetworkPage() {
-                this.initNetworkInformation();
-                this.initRtspServerInformation();
-                this.initWebserverService();
-            },
-            initCloudPage() {
-                this.initTransport();
-                this.initMediaServerInformation();
-                this.initAgoraRtcService();
-                this.getCloudRecordService();
-                this.getCloudDataService();
-                this.getS3UploadService();
-            },
-            initDebugPage() {
-                if (window.__pendingLogParamTab) {
-                    this.logParamTab = window.__pendingLogParamTab;
-                    delete window.__pendingLogParamTab;
-                }
-                if (this.logParamTab === 'viewer') this.fetchLogs();
-                else this.initLogInformation();
             },
 
             // Dashboard/直播占位:拿「录像文件数 + 每路缩略图」。缩略图【优先 snapshot 类型(recordType=3)】,
