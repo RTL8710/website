@@ -9117,7 +9117,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 WEBRTCSolutionType: "lzy",
                 awsAccessKeyId: "",          // 已移除静态根密钥；KVS viewer 改用临时凭证(Cognito iot_creds / 设备 /api/kvsCreds)
                 awsSecretAccessKey: "",      // 同上，禁止再硬编码 AK/SK
-                awsDefaultRegion: "ap-east-1",
+                awsDefaultRegion: "ap-northeast-1",  // 与设备/App/Cognito 东京对齐（勿再用香港）
                 awsKvsCacertPath: "/config/cloud/cert.pem",
                 awsKvsLogLevel: 4,
                 debugLogSdp: "true",
@@ -9617,6 +9617,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 this._kvsCredsCache = { creds, exp: now + 60000 };
                 return creds;
             },
+            // KVS 数据区：须与信令通道 + Cognito IAM 同区。外网优先 iot_creds.region（东京）。
+            // 页面未拉 webrtc 时旧默认 ap-east-1 会 DescribeSignalingChannel 到香港 → authRole 403。
+            resolveKvsRegion() {
+                try {
+                    const raw = sessionStorage.getItem('iot_creds');
+                    if (raw) {
+                        const c = JSON.parse(raw);
+                        if (c && c.region) return c.region;
+                    }
+                } catch (e) { /* ignore */ }
+                const fromDevice = this.webrtcInformation && this.webrtcInformation.awsDefaultRegion;
+                if (fromDevice && fromDevice !== 'ap-east-1') return fromDevice;
+                if (fromDevice === 'ap-east-1') {
+                    console.warn('[AHS][KVS] device region ap-east-1 deprecated; using ap-northeast-1');
+                }
+                return 'ap-northeast-1';
+            },
             // —— 大 SDK 懒加载（aws-sdk 3.3MB / dash 775KB 仅云回放用，避免进首屏拖慢加载）——
             _loadScriptOnce(src) {
                 if (!this._lazyScripts) this._lazyScripts = {};
@@ -9821,7 +9838,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             async kvsBuildViewer(channelName, targetElId, localElId = null, camIndex = 0, retryCount = 0) {
                 const clientId = this.generateClientId();
-                const region = this.webrtcInformation.awsDefaultRegion;
+                const region = this.resolveKvsRegion();
                 const { accessKeyId, secretAccessKey, sessionToken } = await this.resolveKvsCredentials();
                 // camIndex/_retry 记录在 viewer 上，供信令失败时定位该路并有限次重连
                 const viewer = { channelName, targetElId, localElId, camIndex, _retry: retryCount, signalingClient: null, peerConnection: null, remoteStream: null, localStream: null };
@@ -10078,6 +10095,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!record || !record.RecordIndexInformationPath) return;
                 try {
                     await this.initDeviceGeneralInformation();
+                    try { if (typeof this.initMediaServerInformation === 'function') await this.initMediaServerInformation(); } catch (e) { console.debug('[AHS][KVS] getWebrtc soft-skip', e && e.message); }
                     const deviceUuid = this.deviceGeneralInformation.deviceUuid;
                     const paths = this.siblingPaths(record);                 // 同段各路 MP4
                     // 逐路建回放 viewer：-playback/-playback2/-playback3 → remotePlaybackView/2/3
