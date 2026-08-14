@@ -9788,27 +9788,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // ── 外网：缩略图走 AppSync CloudRecord；录像数走本地索引 totalRecords（勿用云列表条数）──
                     if (wan) {
-                        // 1) 本地录像总数（pageSize=1 只减响应体；totalRecords 仍是区间内全量）
+                        // 1) 本地录像数：先今日时间轴（快），再近 30 天 totalRecords；禁止从 2000 扫全库堵 IoT
+                        try {
+                            const today = new Date().toISOString().slice(0, 10);
+                            const tr = await fetch('/getDeviceCommand', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ method: 'getRecordTimelineCommand', params: { date: today } })
+                            });
+                            const td = await tr.json();
+                            const tl = (td && td.params && td.params.timeline) || [];
+                            if (tl.length) {
+                                this.dashRecordCount = tl.length;
+                                this.dashRecordCapped = true; // 今日段数，标 +
+                            }
+                        } catch (e2) { console.debug('[dashboard] timeline count failed', e2 && e2.message); }
                         try {
                             const end = new Date(Date.now() + 864e5).toISOString().slice(0, 16);
+                            const start30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 16);
                             const ctrl = new AbortController();
-                            const to = setTimeout(() => ctrl.abort(), 45000);
+                            const to = setTimeout(() => ctrl.abort(), 20000);
                             try {
                                 const resp = await fetch('/getDeviceCommand', {
                                     method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
                                     body: JSON.stringify({
                                         method: 'queryLocalRecordIndexInformationCommand',
                                         params: {
-                                            deviceID: uuid, startTime: '2000-01-01T00:00', endTime: end,
+                                            deviceID: uuid, startTime: start30, endTime: end,
                                             pageSize: 1, pageNumber: 1, recordType: 0
                                         }
                                     })
                                 });
                                 const d = await resp.json();
                                 const p = (d && d.params) ? d.params : {};
-                                if (typeof p.totalRecords === 'number') {
+                                if (typeof p.totalRecords === 'number' && p.totalRecords >= (this.dashRecordCount || 0)) {
                                     this.dashRecordCount = p.totalRecords;
-                                    this.dashRecordCapped = false;
+                                    this.dashRecordCapped = true; // 近 30 天
                                 }
                                 const one = (p.records && p.records[0]) || null;
                                 if (one && one.RecordIndexInformationDuration)
@@ -9816,22 +9830,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             } finally { clearTimeout(to); }
                         } catch (eCnt) {
                             console.debug('[dashboard] local count via IoT failed:', eCnt && eCnt.message);
-                            // 兜底：今日时间轴段数（合并块，偏少，标 +）
-                            try {
-                                const tr = await fetch('/getDeviceCommand', {
-                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        method: 'getRecordTimelineCommand',
-                                        params: { date: new Date().toISOString().slice(0, 10) }
-                                    })
-                                });
-                                const td = await tr.json();
-                                const tl = (td && td.params && td.params.timeline) || [];
-                                if (tl.length) {
-                                    this.dashRecordCount = tl.length;
-                                    this.dashRecordCapped = true;
-                                }
-                            } catch (e2) { console.debug('[dashboard] timeline fallback failed', e2 && e2.message); }
                         }
                         // 2) 封面仍用云缩略图（外网不能 /download 本地路径）
                         if (uuid && window.__fetchAppSyncCloudRecords) {
@@ -14332,7 +14330,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (wan) {
                         // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
                         this.syncRecords = [];
-                        await this.playRecord(recs[0], recs);
                     } else {
                         this.syncRecords = recs;
                     }
@@ -14342,7 +14339,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
                 this.startTime = this.timelineDate + 'T00:00';
                 this.endTime = this.timelineDate + 'T' + hh + ':' + mm;
-                this.fetchRecords(true);
+                // 列表与起播并行：切勿 await playRecord 后再 fetch（KVS 建连数秒～数十秒会拖死列表）
+                const listP = this.fetchRecords(true);
+                if (recs.length && wan) this.playRecord(recs[0], recs);
+                await listP;
             },
             // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」的问题。
             // 各路 60s 分段边界常错开：先找覆盖路数最多的同步墙钟，再逐路取包含该时刻的真实段并 seek。
@@ -14350,25 +14350,41 @@ document.addEventListener('DOMContentLoaded', function() {
             // 故：先用已加载 records → 窄窗口小页查询 → 失败再用时间轴段兜底（可播，合并块路径可能偏段首）。
             async resolveSegmentsAt(secs) {
                 const secOf = dt => { const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/); return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : -1; };
+                const needCams = Math.max(
+                    (typeof this.playbackCamCount === 'function') ? this.playbackCamCount() : 1,
+                    (typeof this.timelineCamCount === 'function') ? this.timelineCamCount() : 1,
+                    1
+                );
+                // records 常只是分页一小页，缺路时不能当完整同刻结果提前返回
+                let cached = [];
                 if ((this.records || []).length) {
-                    const cached = this._buildSyncedSegments(this.records, secs, secOf);
-                    if (cached.length) return cached;
+                    cached = this._buildSyncedSegments(this.records, secs, secOf);
+                    if (cached.length >= needCams) return cached;
                 }
                 const wan = (typeof this.isWanPlayback === 'function') ? this.isWanPlayback() : false;
                 // [回溯秒, 前瞻秒, pageSize]；WAN 先窄后宽，避免一次拉爆 IoT
                 const attempts = wan
-                    ? [[120, 90, 48], [300, 120, 64]]
+                    ? [[180, 120, 80], [420, 180, 120]]
                     : [[900, 120, 200]];
+                let best = cached;
                 for (const [back, fwd, psz] of attempts) {
                     try {
                         const all = await this._queryLocalRecordsAround(secs, back, fwd, psz);
                         const built = this._buildSyncedSegments(all, secs, secOf);
-                        if (built.length) return built;
+                        if (built.length >= needCams) return built;
+                        if (built.length > best.length) best = built;
                     } catch (e) {
                         console.warn('[AHS] resolveSegmentsAt query fail', { back, fwd, psz }, e && e.message);
                     }
                 }
+                cached = best;
                 const fb = this._resolveSegmentsFromTimeline(secs);
+                if (fb.length >= needCams) return fb;
+                if (fb.length > cached.length) return fb;
+                if (cached.length) {
+                    console.warn('[AHS] resolveSegmentsAt using partial list cache, cams=', cached.length, '/', needCams);
+                    return cached;
+                }
                 if (!fb.length) console.error('resolveSegmentsAt: query+timeline both empty @', secs);
                 else console.warn('[AHS] resolveSegmentsAt using timeline fallback, cams=', fb.length);
                 return fb;
@@ -14865,9 +14881,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (best) this.playRecord(best);
             },
             async initPlaybackIdleThumbs() {
+                // 轻量：只补封面，禁止走 initDashboardExtras（其外网会扫全库 totalRecords，堵死列表/时间轴 IoT）
                 try {
-                    if (!(this.dashThumbs && this.dashThumbs.length) && typeof this.initDashboardExtras === 'function') {
-                        await this.initDashboardExtras();
+                    if (this.dashThumbs && this.dashThumbs.length) return;
+                    try {
+                        const raw = localStorage.getItem(this.isCloudOtaMode && this.isCloudOtaMode() ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs');
+                        const c = JSON.parse(raw || 'null');
+                        if (c && Array.isArray(c.thumbs) && c.thumbs.length) {
+                            this.dashThumbs = c.thumbs;
+                            return;
+                        }
+                    } catch (e0) {}
+                    // AppSync 云缩略图（不经设备 IoT）
+                    if (this.isCloudOtaMode && this.isCloudOtaMode() && window.__fetchAppSyncCloudRecords) {
+                        const uuid = this.deviceGeneralInformation.deviceUuid
+                            || (window.DeviceTransport && DeviceTransport.remoteUuid) || '';
+                        if (!uuid) return;
+                        const endIso = new Date(Date.now() + 864e5).toISOString();
+                        const startIso = new Date(Date.now() - 7 * 864e5).toISOString();
+                        const recs = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                        const byCam = {};
+                        for (const r of recs) {
+                            if (!r.thumbnailUrl) continue;
+                            const ci = (r.channel != null) ? Number(r.channel) : 0;
+                            if (!byCam[ci]) byCam[ci] = r;
+                        }
+                        const thumbs = [];
+                        for (const ci of Object.keys(byCam).sort()) {
+                            const r = byCam[ci];
+                            const signed = window.__presignThumbUrl(r.thumbnailUrl);
+                            if (!signed) continue;
+                            thumbs.push({ img: signed, cam: Number(ci), dur: Number(r.duration) || 0 });
+                        }
+                        this.dashThumbs = thumbs.slice(0, 4);
                     }
                 } catch (e) { console.debug('[playback] idle thumbs', e && e.message); }
             },
