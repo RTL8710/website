@@ -10108,12 +10108,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
-                    // Cognito 常无 DescribeSignalingChannel(*-playback) → 回退 Agora 远程回放
-                    try {
-                        await this.startRemotePlayback(record);
-                    } catch (e2) {
-                        this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
-                    }
+                    const msg = (e && (e.message || e.code)) ? String(e.message || e.code) : String(e);
+                    this.showAlert('error', tIdx('rp_failed'), 'KVS playback: ' + msg, 8000);
                 }
             },
 
@@ -13897,8 +13893,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cloud = active && active !== 'http';
                 if (cloud) {
                     this.syncRecords = [];            // 隐藏本地 <video>（外网不能直拉设备 /mnt MP4）
-                    // 本地 SD 远程回放：设备 demux → Agora uid 1226+（Cognito 对 KVS *-playback 常 403，不用 KVS）
-                    this.startRemotePlayback(record);
+                    // 外网：按门户所选传输。门户默认 KVS（previewTransport=kvs）；Agora 项目常无 active → 勿硬走 RTC
+                    try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
+                    if (this.previewTransport === 'kvs') this.startKvsPlayback(record);
+                    else this.startRemotePlayback(record);
                 } else {
                     if (this.remotePlaybackActive) { this.stopRemotePlayback(); }
                     this.syncRecords = [record];      // 局域网：原生本地播放
