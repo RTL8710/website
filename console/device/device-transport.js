@@ -308,53 +308,66 @@ window.DeviceTransport = {
         if (creds.sessionToken) url += '&X-Amz-Security-Token=' + encodeURIComponent(creds.sessionToken);
         return url;
     },
+    // 进行中的建连 Promise：全页 x-init 会并发 ensureIot，必须单飞，否则等待方 10s 放弃后
+    // 再开第二条 WSS（连接超时 12s），造成「IoT 连接超时」刷屏、回放时间轴 0 segments。
+    _iotConnectPromise: null,
     ensureIot: async function () {
         if (this.iotReady && this.iot) return;
-        if (this.iotLoggingIn) {
-            for (var i = 0; i < 100 && !this.iotReady; i++) await new Promise(function (r) { setTimeout(r, 100); });
-            if (this.iotReady) return;
-        }
-        if (!this.iotAvailable()) throw new Error('AWS IoT 不可用（缺 window.__IOT_CREDS）');
-        // 等 defer 的 mqtt.min.js / crypto.js 执行完(页面最初几百 ms 内 x-init 可能先到,最多等 8s)
-        for (var j = 0; j < 80 && (!window.mqtt || typeof CryptoJS === 'undefined'); j++) {
-            await new Promise(function (r) { setTimeout(r, 100); });
-        }
-        if (!window.mqtt || typeof CryptoJS === 'undefined') throw new Error('AWS IoT 不可用（mqtt.js/CryptoJS 加载失败）');
-        this.iotLoggingIn = true;
+        if (this._iotConnectPromise) return this._iotConnectPromise;
         var self = this;
+        this._iotConnectPromise = (async function () {
+            if (self.iotReady && self.iot) return;
+            if (!self.iotAvailable()) throw new Error('AWS IoT 不可用（缺 window.__IOT_CREDS）');
+            // 等 defer 的 mqtt.min.js / crypto.js 执行完(页面最初几百 ms 内 x-init 可能先到,最多等 8s)
+            for (var j = 0; j < 80 && (!window.mqtt || typeof CryptoJS === 'undefined'); j++) {
+                await new Promise(function (r) { setTimeout(r, 100); });
+            }
+            if (!window.mqtt || typeof CryptoJS === 'undefined') throw new Error('AWS IoT 不可用（mqtt.js/CryptoJS 加载失败）');
+            self.iotLoggingIn = true;
+            var client = null;
+            try {
+                var creds = self.iotCreds();
+                var url = self._iotSignedUrl(creds);
+                var clientId = 'web_' + self.rtmUserId + '_' + Math.random().toString(36).slice(2, 6);
+                client = window.mqtt.connect(url, { clientId: clientId, keepalive: 60, reconnectPeriod: 0, protocolVersion: 4 });
+                await new Promise(function (resolve, reject) {
+                    var to = setTimeout(function () { reject(new Error('IoT 连接超时')); }, 20000);
+                    client.on('connect', function () { clearTimeout(to); resolve(); });
+                    client.on('error', function (e) { clearTimeout(to); reject(e); });
+                });
+                // 订阅自身 response 主题（按 webUserId）
+                var respTopic = 'v1/devices/' + self.rtmUserId + '/rpc/response/+';
+                await new Promise(function (resolve, reject) {
+                    client.subscribe(respTopic, { qos: 1 }, function (e) { e ? reject(e) : resolve(); });
+                });
+                client.on('message', function (topic, payload) {
+                    try {
+                        var data = JSON.parse(payload.toString());
+                        var pend = data.requestId && self.pending[data.requestId];
+                        if (pend) { clearTimeout(pend.timer); delete self.pending[data.requestId]; pend.resolve(data); }
+                        else { try { window.dispatchEvent(new CustomEvent('iot-push', { detail: data })); } catch (x) {} }
+                    } catch (x) { console.warn('[transport] 异常 IoT 消息:', x); }
+                });
+                self.iot = client;
+                self.iotReady = true;
+                self._setActive('awsIot');
+                console.info('[transport] AWS IoT ready, sub ' + respTopic);
+            } catch (e) {
+                self.iotReady = false;
+                try { if (client) client.end(true); } catch (x) {}
+                self.iot = null;
+                // 只打一次 warn，避免全页并发命令各自 console.error 刷「IoT 异常」
+                console.warn('[transport] AWS IoT 连接失败:', e && e.message ? e.message : e);
+                throw e;
+            } finally {
+                self.iotLoggingIn = false;
+            }
+        })();
         try {
-            var creds = this.iotCreds();
-            var url = this._iotSignedUrl(creds);
-            var clientId = 'web_' + this.rtmUserId + '_' + Math.random().toString(36).slice(2, 6);
-            var client = window.mqtt.connect(url, { clientId: clientId, keepalive: 60, reconnectPeriod: 0, protocolVersion: 4 });
-            await new Promise(function (resolve, reject) {
-                var to = setTimeout(function () { reject(new Error('IoT 连接超时')); }, 12000);
-                client.on('connect', function () { clearTimeout(to); resolve(); });
-                client.on('error', function (e) { clearTimeout(to); reject(e); });
-            });
-            // 订阅自身 response 主题（按 webUserId）
-            var respTopic = 'v1/devices/' + this.rtmUserId + '/rpc/response/+';
-            await new Promise(function (resolve, reject) {
-                client.subscribe(respTopic, { qos: 1 }, function (e) { e ? reject(e) : resolve(); });
-            });
-            client.on('message', function (topic, payload) {
-                try {
-                    var data = JSON.parse(payload.toString());
-                    var pend = data.requestId && self.pending[data.requestId];
-                    if (pend) { clearTimeout(pend.timer); delete self.pending[data.requestId]; pend.resolve(data); }
-                    else { try { window.dispatchEvent(new CustomEvent('iot-push', { detail: data })); } catch (x) {} }
-                } catch (x) { console.warn('[transport] 异常 IoT 消息:', x); }
-            });
-            this.iot = client;
-            this.iotReady = true;
-            this._setActive('awsIot');
-            console.info('[transport] AWS IoT ready, sub ' + respTopic);
-        } catch (e) {
-            this.iotReady = false;
-            console.error('[transport] AWS IoT 连接失败:', e);
-            throw e;
+            return await this._iotConnectPromise;
         } finally {
-            this.iotLoggingIn = false;
+            // 成功后保留 iotReady；失败则清 promise 以便稍后重试（成功也清，下次直接走 ready 短路）
+            this._iotConnectPromise = null;
         }
     },
     awsIotSend: async function (method, params) {
