@@ -5046,17 +5046,19 @@ window.__presignThumbUrl = function (raw) {
                                                     <span class="spinner-border spinner-border-sm me-2"></span>
                                                     <span data-i18n="ot_cloud_loading">Loading cloud package…</span>
                                                 </div>
-                                                <div class="mb-3" x-show="!cloudOtaLoading && cloudOtaPackage">
+                                                <template x-if="!cloudOtaLoading && cloudOtaPackage">
+                                                <div class="mb-3">
                                                     <div class="mb-1"><strong data-i18n="ot_cloud_version">Cloud version</strong>:
-                                                        <span x-text="cloudOtaPackage.upgradeDeviceVersion || '-'"></span>
-                                                        <span class="text-muted ms-2" x-text="(cloudOtaPackage.upgradeDevicePartion || '')"></span>
+                                                        <span x-text="(cloudOtaPackage && cloudOtaPackage.upgradeDeviceVersion) || '-'"></span>
+                                                        <span class="text-muted ms-2" x-text="(cloudOtaPackage && cloudOtaPackage.upgradeDevicePartion) || ''"></span>
                                                     </div>
-                                                    <div class="mb-1 text-muted small" x-text="cloudOtaPackage.upgradeDescribe || ''"></div>
-                                                    <div class="mb-2 text-muted small text-break" x-text="cloudOtaPackage.upgradeFileUrl || ''"></div>
+                                                    <div class="mb-1 text-muted small" x-text="(cloudOtaPackage && cloudOtaPackage.upgradeDescribe) || ''"></div>
+                                                    <div class="mb-2 text-muted small text-break" x-text="(cloudOtaPackage && cloudOtaPackage.upgradeFileUrl) || ''"></div>
                                                 </div>
+                                                </template>
                                                 <div class="mb-3 text-warning" x-show="!cloudOtaLoading && !cloudOtaPackage" data-i18n="ot_cloud_none">No cloud OTA package found for this device type.</div>
                                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                    <select class="form-select me-2" style="max-width:220px" x-model="selectedPartition" x-show="cloudOtaPackage">
+                                                    <select class="form-select me-2" style="max-width:220px" x-model="selectedPartition" x-show="!!cloudOtaPackage">
                                                         <option value="" data-i18n="ot_select_partition">Please select upgrade type</option>
                                                         <option value="all" data-i18n="ot_all">All (system + website + model)</option>
                                                         <option value="system" data-i18n="ot_system">Main program (system)</option>
@@ -5069,7 +5071,7 @@ window.__presignThumbUrl = function (raw) {
                                                         <span data-i18n="ot_cloud_check">Check</span>
                                                     </button>
                                                     <button id="start-upgrade-button-cloud" type="button" class="btn btn-primary"
-                                                            @click="startCloudRemoteOta()" :disabled="cloudOtaLoading || !cloudOtaPackage">
+                                                            @click="startCloudRemoteOta()" :disabled="cloudOtaLoading || !cloudOtaPackage || isUpgrading">
                                                         <span data-i18n="ot_start_upgrade">Start upgrade</span>
                                                     </button>
                                                 </div>
@@ -5377,7 +5379,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div class="card shadow" style="max-width:80%;border-radius:16px;background:var(--accent);">
                                                                     <div class="card-body p-2">
                                                                         <template x-if="h.image">
-                                                                            <img :src="'/download?filePath=' + h.image" alt="snap"
+                                                                            <img :src="askHistoryThumbSrc(h)" alt="snap"
                                                                                  class="img-fluid mb-1"
                                                                                  style="border-radius:10px;cursor:pointer;max-height:180px;"
                                                                                  @load="if (h.pending) scrollAskToBottom()"
@@ -9657,6 +9659,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
                 return this.dashThumbSrc(t);
             },
+            askHistoryThumbSrc(h) {
+                if (!h || !h.image) return '';
+                const img = String(h.image);
+                if (/^https?:\/\//i.test(img)) return img;
+                if (this.isCloudOtaMode && this.isCloudOtaMode()) return ''; // WAN 无本地 /download
+                return '/download?filePath=' + img;
+            },
             dashThumbSrc(t) {
                 if (!t || !t.img) return '';
                 const img = String(t.img);
@@ -13578,11 +13587,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 获取录像列表
             async fetchRecords(isSearch = false) {
-                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
-                    console.info('[playback] WAN: skip LAN fetchRecords — use Cloud Playback tab');
-                    this.records = [];
-                    return;
-                }
 
                 // 创建日期格式化器
                 const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -14403,11 +14407,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 获取抓拍列表
             async fetchImages(isSearch = false, opts = {}) {
-                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
-                    console.info('[playback] WAN: skip LAN fetchImages — use Cloud Playback / AppSync thumbs');
-                    this.images = [];
-                    return;
-                }
 
                 this._snapPreserveSync = !!(opts && opts.preserveSync);
                 // 创建日期格式化器
