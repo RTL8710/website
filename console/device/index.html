@@ -13832,7 +13832,11 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             // 获取录像列表
-            async fetchRecords(isSearch = false) {
+            // opts.soft: 时间轴点选刷新——不清空现有列表、不亮「加载中」，成功后再整体替换；失败保留旧列表
+            // opts.keepSelection: 不改写 selectedRecord / syncRecords（点轴已锁定播放目标）
+            async fetchRecords(isSearch = false, opts = {}) {
+                const soft = !!(opts && opts.soft);
+                const keepSelection = soft || !!(opts && opts.keepSelection);
 
                 // 创建日期格式化器
                 const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -13884,9 +13888,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 如果是搜索，重置分页信息
                 if (isSearch) {
-                    // this.pageNumber = 1;
-                    this.records = [];
+                    this.pageNumber = 1;
                     this.hasMore = true;
+                    // 硬搜索才清空；soft 等新数据到了再替换，避免点时间轴列表瞬间变空 + cm_loading
+                    if (!soft) this.records = [];
                 }
 
                 if (!this.startTime || !this.endTime) {
@@ -13894,7 +13899,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                this.loading = true;
+                if (!soft) this.loading = true;
                 try {
                     const response = await fetch('/getDeviceCommand', {
                         method: 'POST',
@@ -13919,17 +13924,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // 根据接口响应结构解析数据
                     if (result && result.params && result.params.records) {
-                        // 后端已按类型 + duration!=0 过滤，直接追加（每页满 pageSize）
-                        this.records.push(...result.params.records);
+                        const page = result.params.records || [];
+                        if (soft || isSearch) this.records = page.slice();
+                        else this.records.push(...page);
 
                         // 检查是否还有更多数据
-                        if (result.params.records.length < this.pageSize) {
+                        if (page.length < this.pageSize) {
                             this.hasMore = false;
                         }
 
-                        // 默认选最新一条「能播放」的录像：跳过 VideoSize 为 0 或过小
-                        // （正在录制中/损坏，无法播放）的段，找不到则退回第一条
-                        if (this.records.length > 0) {
+                        // 默认选最新一条「能播放」的录像（时间轴点选已锁定目标时跳过，勿抢播）
+                        if (!keepSelection && this.records.length > 0) {
                             const PLAYABLE_MIN_BYTES = 51200; // 50KB，小于此基本是空文件/仅头无帧
                             const playable = this.records.find(
                                 r => (r.RecordIndexInformationVideoSize || 0) >= PLAYABLE_MIN_BYTES);
@@ -13945,7 +13950,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (error) {
                     console.error('Error fetching records:', error);
                 } finally {
-                    this.loading = false;
+                    if (!soft) this.loading = false;
                 }
             },
 
@@ -14135,7 +14140,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const cloud = this.isWanPlayback();
                     if (cloud) {
-                        this.syncRecords = [];            // 隐藏本地 <video>（外网不能直拉设备 /mnt MP4）
+                        // 外网不能直拉 /mnt：清本地 sync，但切段时先起新流再建连间隙尽量短；
+                        // 停旧流后立刻 start，空态宫格顶住黑屏（勿再 await 无关的列表刷新）
+                        this.syncRecords = [];
                         try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
                         if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
                         else await this.startRemotePlayback(record, gen);
@@ -14365,10 +14372,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
                 this.startTime = this.timelineDate + 'T00:00';
                 this.endTime = this.timelineDate + 'T' + hh + ':' + mm;
-                // 列表与起播并行：切勿 await playRecord 后再 fetch（KVS 建连数秒～数十秒会拖死列表）
-                const listP = this.fetchRecords(true);
+                // 先起播，列表后台 soft 刷新：不清空、不亮 Loading，避免点轴后列表全无/窗口黑闪
                 if (recs.length && wan) this.playRecord(recs[0], recs);
-                await listP;
+                this.fetchRecords(true, { soft: true, keepSelection: true }).catch(() => {});
             },
             // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」的问题。
             // 各路 60s 分段边界常错开：先找覆盖路数最多的同步墙钟，再逐路取包含该时刻的真实段并 seek。
