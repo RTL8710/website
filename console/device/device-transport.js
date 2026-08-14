@@ -382,9 +382,11 @@ window.DeviceTransport = {
     // 远程链路选择：优先 AWS IoT（有凭证时），否则回退 Agora RTM。
     // 云控制台构建不含 agora-rtm.js:一旦 RTM 懒加载失败即短路,后续 IoT 失败直接抛错,不再反复回退刷屏。
     remoteResponse: async function (init) {
-        if (this.iotAvailable()) {
+        // 门户 awsIot：只走 IoT，不回退 RTM（云端构建常无 agora-rtm.js，回退只会 404 刷屏）
+        if (this.mode === 'awsIot' || this.iotAvailable()) {
             try { return await this.awsIotResponse(init); }
             catch (e) {
+                if (this.mode === 'awsIot') throw e;
                 if (this._rtmUnavailable) throw e;
                 console.warn('[transport] IoT 失败，回退 RTM:', e);
             }

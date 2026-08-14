@@ -4175,7 +4175,7 @@ window.__presignThumbUrl = function (raw) {
                                                         <template x-for="(rec, idx) in syncRecords" :key="rec.RecordIndexInformationPath">
                                                             <div :style="syncItemStyle(idx)" @click="setPlaybackFocus(idx)">
                                                                 <video
-                                                                        :src="rec.RecordIndexInformationPath"
+                                                                        :src="localPlaybackVideoSrc(rec)"
                                                                         @loadedmetadata="syncSeekVideo($event, rec)"
                                                                         style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;"
                                                                         :controls="isPlaybackFocused(idx)" autoplay muted playsinline
@@ -9666,6 +9666,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.isCloudOtaMode && this.isCloudOtaMode()) return ''; // WAN 无本地 /download
                 return '/download?filePath=' + img;
             },
+            // 局域网：设备同源可直接 /mnt 或 /download；外网禁止把 SD 路径当地址（会变成门户 404）
+            localPlaybackVideoSrc(rec) {
+                if (!rec || !rec.RecordIndexInformationPath) return '';
+                const wan = (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())
+                    || (window.DeviceTransport && DeviceTransport.active && DeviceTransport.active !== 'http');
+                if (wan) return '';
+                const p = String(rec.RecordIndexInformationPath);
+                if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('/download')) return p;
+                if (p.startsWith('/mnt/') || p.startsWith('/')) return '/download?filePath=' + encodeURIComponent(p);
+                return p;
+            },
             dashThumbSrc(t) {
                 if (!t || !t.img) return '';
                 const img = String(t.img);
@@ -10097,7 +10108,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) {
                     console.error('[AHS][KVS] startKvsPlayback error', e);
-                    this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                    // Cognito 常无 DescribeSignalingChannel(*-playback) → 回退 Agora 远程回放
+                    try {
+                        await this.startRemotePlayback(record);
+                    } catch (e2) {
+                        this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                    }
                 }
             },
 
@@ -13880,10 +13896,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const active = (typeof window !== 'undefined' && window.DeviceTransport) ? window.DeviceTransport.active : 'http';
                 const cloud = active && active !== 'http';
                 if (cloud) {
-                    this.syncRecords = [];            // 隐藏本地 <video>（云端无法 HTTP 直拉 MP4）
-                    // 按所选 P2P 传输分发：KVS → <uuid>-playback 通道；否则 Agora 回放连接(uid 1226)
-                    if (this.previewTransport === 'kvs') this.startKvsPlayback(record);
-                    else this.startRemotePlayback(record);
+                    this.syncRecords = [];            // 隐藏本地 <video>（外网不能直拉设备 /mnt MP4）
+                    // 本地 SD 远程回放：设备 demux → Agora uid 1226+（Cognito 对 KVS *-playback 常 403，不用 KVS）
+                    this.startRemotePlayback(record);
                 } else {
                     if (this.remotePlaybackActive) { this.stopRemotePlayback(); }
                     this.syncRecords = [record];      // 局域网：原生本地播放
@@ -14065,7 +14080,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 // queryLocalRecordIndexInformationCommand（返回未合并的逐条真实段），定位包含该时刻的真实文件。
                 // 先解析并锁定 syncRecords，再 fetchRecords —— 避免 fetchRecords 的 auto-play 覆盖本次选择。
                 const recs = await this.resolveSegmentsAt(secs);
-                if (recs.length) { this.syncRecords = recs; this.selectedRecord = recs[0]; this.playbackFocusIdx = 0; }
+                const active = (window.DeviceTransport && DeviceTransport.active) || 'http';
+                const wan = active !== 'http' || (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode());
+                if (recs.length) {
+                    this.selectedRecord = recs[0];
+                    this.playbackFocusIdx = 0;
+                    if (wan) {
+                        // 外网：远程 demux 推流，不要给 <video> 塞 /mnt 路径
+                        this.playRecord(recs[0]);
+                    } else {
+                        this.syncRecords = recs;
+                    }
+                }
                 // 搜索截止时间 = 点击时间；起始为当天 00:00（列表按"到点击时刻为止"显示，最新在前）
                 const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
                 const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
