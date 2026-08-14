@@ -75,6 +75,11 @@ export const DEPS = {
 export const ADMIN_ALLOWLIST = [
   'admin',
   'jinhuilv',
+  'lvjinhui',
+  'lvjinhui1990',
+  'lvjinhui990',
+  'robot',
+  'ah3457',
   'ahaishi',
   '493148469@qq.com',
 ];

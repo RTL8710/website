@@ -546,8 +546,13 @@ function render() {
     return;
   }
   if (!isAdminAccount(session)) {
-    alert('当前账号无管理后台权限');
-    location.href = '../index.html#/devices';
+    mount(app, h('div', { class: 'center', style: { padding: '80px', textAlign: 'center' } },
+      h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '420px', margin: '0 auto' } },
+        h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, '无管理后台权限'),
+        h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
+          '当前账号不在 ADMIN_ALLOWLIST。如需开通，请在 console/config.js 加入用户名或邮箱。'),
+        h('a', { class: 'gbtn primary', href: '../index.html#/devices', style: { textDecoration: 'none' } }, '返回设备控制台'),
+      )));
     return;
   }
   state.session = session;

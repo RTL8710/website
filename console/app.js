@@ -122,7 +122,7 @@ function topbar() {
       ...switcherBar(true).reverse(),
       (state.session && isAdminAccount(state.session))
         ? h('a', { class: 'gbtn', href: 'admin/', style: { textDecoration: 'none', height: '36px', fontSize: '12.5px' }, title: '云端管理后台' },
-            fa('fas fa-shield-halved'), ' 管理后台')
+            fa('fas fa-shield-alt'), ' 管理后台')
         : null,
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
@@ -269,7 +269,7 @@ function renderDeviceGrid(list) {
     h('span', { class: 'spacer', style: { flex: 1 } }),
     (state.session && isAdminAccount(state.session))
       ? h('a', { class: 'gbtn primary', href: 'admin/', id: 'admin-entry-devices', style: { textDecoration: 'none' } },
-          fa('fas fa-shield-halved'), ' 管理后台')
+          fa('fas fa-shield-alt'), ' 管理后台')
       : null,
   );
   shell(head, list.length
