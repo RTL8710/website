@@ -24,6 +24,7 @@ window.DeviceTransport = {
     rtmLoggingIn: false,
     rtmUserId: 'web_' + Math.random().toString(36).slice(2, 10),
     pending: {},             // requestId -> {resolve, reject, timer}
+    _iotSendChain: Promise.resolve(), // 外网 IoT 串行，防并发抢答超时
     remoteUuid: (function () { try { return localStorage.getItem('lastDeviceUuid') || ''; } catch (e) { return ''; } })(),
     httpProbeTimeoutMs: 3000,
     rtmReplyTimeoutMs: 20000,   // 云控制台:慢命令(扫SD卡的录像列表/磁盘用量)可能 >8s,放宽到 20s
@@ -358,22 +359,28 @@ window.DeviceTransport = {
         }
     },
     awsIotSend: async function (method, params) {
-        var uuid = (this.remoteUuid || '').trim();
-        if (!uuid) { try { window.dispatchEvent(new CustomEvent('transport-need-uuid')); } catch (e) {} throw new Error('缺少设备 UUID'); }
-        await this.ensureIot();
-        var requestId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
-            : ('r' + Date.now() + Math.random().toString(36).slice(2, 8));
-        var payload = JSON.stringify({ method: method, params: params, requestId: requestId });
-        var self = this, reqTopic = 'v1/devices/' + uuid + '/rpc/request/' + this.rtmUserId;
-        // 列表类应答可能很大/很慢；仍可能因 MQTT 128KB 上限丢包——调用方须缩小 pageSize
-        var heavy = /queryLocalRecordIndexInformationCommand|getRecordTimelineCommand|queryCloudRecord|getCloudRecordListCommand/.test(method);
-        var timeoutMs = heavy ? Math.max(self.rtmReplyTimeoutMs, 45000) : self.rtmReplyTimeoutMs;
-        var p = new Promise(function (resolve, reject) {
-            var timer = setTimeout(function () { delete self.pending[requestId]; reject(new Error('IoT 应答超时: ' + method)); }, timeoutMs);
-            self.pending[requestId] = { resolve: resolve, reject: reject, timer: timer };
-        });
-        this.iot.publish(reqTopic, payload, { qos: 1 });
-        return await p;
+        var self = this;
+        // 串行：上一笔完成(成功/失败)再发下一笔，避免外网并发占满导致「应答超时」刷屏
+        var run = async function () {
+            var uuid = (self.remoteUuid || '').trim();
+            if (!uuid) { try { window.dispatchEvent(new CustomEvent('transport-need-uuid')); } catch (e) {} throw new Error('缺少设备 UUID'); }
+            await self.ensureIot();
+            var requestId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                : ('r' + Date.now() + Math.random().toString(36).slice(2, 8));
+            var payload = JSON.stringify({ method: method, params: params, requestId: requestId });
+            var reqTopic = 'v1/devices/' + uuid + '/rpc/request/' + self.rtmUserId;
+            var heavy = /queryLocalRecordIndexInformationCommand|getRecordTimelineCommand|queryCloudRecord|getCloudRecordListCommand|getRecordDiskUsageCommand/.test(method);
+            var timeoutMs = heavy ? Math.max(self.rtmReplyTimeoutMs, 45000) : self.rtmReplyTimeoutMs;
+            var p = new Promise(function (resolve, reject) {
+                var timer = setTimeout(function () { delete self.pending[requestId]; reject(new Error('IoT 应答超时: ' + method)); }, timeoutMs);
+                self.pending[requestId] = { resolve: resolve, reject: reject, timer: timer };
+            });
+            self.iot.publish(reqTopic, payload, { qos: 1 });
+            return await p;
+        };
+        var p = self._iotSendChain.then(run, run);
+        self._iotSendChain = p.then(function () {}, function () {});
+        return p;
     },
     awsIotResponse: async function (init) {
         var method = '', params = {};

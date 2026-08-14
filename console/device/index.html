@@ -9321,8 +9321,8 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackCodec: '',            // h264/h265（start 响应回传）
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            startTime: new Date("2000-01-09T00:00").toISOString().slice(0, 16),
-            endTime: new Date("2000-01-10T00:00").toISOString().slice(0, 16),
+            startTime: (() => { const d = new Date(Date.now() - 864e5); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            endTime: (() => { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
 
             statusMessage: '',
 
@@ -9807,19 +9807,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // 仪表盘分阶：先身份/存储/视频 KPI，其余卡片与 extras 错峰，避免 IoT 并发风暴
             async initDashboardPage() {
                 this.hydrateDashCache();
+                const dashAlive = () => {
+                    const el = document.getElementById('dashboard');
+                    return !!(el && el.classList.contains('active'));
+                };
+                if (!dashAlive()) return;
                 try { await this.initDeviceGeneralInformation(); } catch (e) {}
+                if (!dashAlive()) return;
+                // 轻量：只要容量 KPI，勿跟 fetchRecordDiskUsage 抢 IoT（录像占用进存储页再拉）
                 try {
                     await Promise.all([
-                        this.initStorageInformation().catch(() => {}),
+                        this.initStorageInformation({ light: true }).catch(() => {}),
                         this.initVedioSettings(0).catch(() => {})
                     ]);
                 } catch (e) {}
                 const self = this;
-                const later = (ms, fn) => setTimeout(() => { try { fn.call(self); } catch (e) { console.debug('[dash defer]', e); } }, ms);
-                later(180, function() { this.initRecordSettings(); this.initAlgorithmInformation(); });
-                later(420, function() { this.initAudioSettings(); this.getCloudRecordService(); });
-                later(680, function() { this.initRtspServerInformation(); this.initChatGptInformation(); });
-                later(920, function() { this.initDashboardExtras(); });
+                const later = (ms, fn) => setTimeout(() => {
+                    if (!dashAlive()) return;
+                    try { fn.call(self); } catch (e) { console.debug('[dash defer]', e); }
+                }, ms);
+                later(280, function() { this.initRecordSettings(); this.initAlgorithmInformation(); });
+                later(600, function() { this.initAudioSettings(); this.getCloudRecordService(); });
+                later(900, function() { this.initRtspServerInformation(); this.initChatGptInformation(); });
+                later(1200, function() { this.initDashboardExtras(); });
             },
             initHomePage() {
                 this.initTransport();
@@ -9862,14 +9872,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     delete window.__pendingPlaybackTab;
                 }
                 if (this.playbackTab === 'image') {
-                    this.fetchImages(false);
                     this.initTimeline();
+                    this.fetchImages(false);
                 } else if (this.playbackTab === 'cloud') {
                     this.getCloudRecordService();
                     this.initCloudPlayback();
                 } else {
-                    this.fetchRecords(false);
+                    // 先定今天时间轴，再把列表窗口对齐到当天（避免默认 2000 年 / 与轴日期错位）
                     this.initTimeline();
+                    if (this.timelineDate) {
+                        this.startTime = this.timelineDate + 'T00:00';
+                        this.endTime = this.timelineDate + 'T23:59';
+                    }
+                    this.fetchRecords(true);
                     this.initVedioSettings(0);
                     this.initPlaybackIdleThumbs();
                 }
@@ -12961,7 +12976,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             //tf卡信息
-            async initStorageInformation() {
+            async initStorageInformation(opts) {
+                const light = !!(opts && opts.light);
                 const url = '/getDeviceCommand';
                 const data = {
                     method: "getStorageInformationCommand",
@@ -12986,11 +13002,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log(this.storageInformation);
                     }
                 } catch (error) {
-                    console.error('Error fetching deviceGeneralInformation settings: ', error);
+                    // 外网后台拉取超时常见：降级为 debug，避免控制台红字「提示错误」
+                    const msg = String((error && error.message) || error || '');
+                    if (/应答超时|timeout/i.test(msg)) console.debug('[storage]', msg);
+                    else console.error('Error fetching storageInformation settings: ', error);
 
                 }
-                // 异步拉取录像目录占用（du 可能稍慢，单独请求，不阻塞容量加载）
-                this.fetchRecordDiskUsage();
+                // 异步拉取录像目录占用（du 可能稍慢）；仪表盘 light 模式跳过，少占 IoT
+                if (!light) this.fetchRecordDiskUsage();
             },
             // 录像磁盘占用：loop/timelapse/emergency 各目录实际占用(MB)，用于标尺 + 清理大小计算
             async fetchRecordDiskUsage() {
@@ -13176,7 +13195,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log(this.videoInformation);
                     }
                 } catch (error) {
-                    console.error('Error fetching video settings: ', error);
+                    {
+                        const msg = String((error && error.message) || error || '');
+                        if (/应答超时|timeout/i.test(msg)) console.debug('[video]', msg);
+                        else console.error('Error fetching video settings: ', error);
+                    }
                     this.statusMessage = 'Failed to load settings.';
                 }
             },
@@ -13689,7 +13712,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log(this.audioInformation);
                     }
                 } catch (error) {
-                    console.error('Error fetching video settings: ', error);
+                    {
+                        const msg = String((error && error.message) || error || '');
+                        if (/应答超时|timeout/i.test(msg)) console.debug('[video]', msg);
+                        else console.error('Error fetching video settings: ', error);
+                    }
                     this.statusMessage = 'Failed to load settings.';
                 }
             },
@@ -13751,7 +13778,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log(this.motionDetectionInformation);
                     }
                 } catch (error) {
-                    console.error('Error fetching video settings: ', error);
+                    {
+                        const msg = String((error && error.message) || error || '');
+                        if (/应答超时|timeout/i.test(msg)) console.debug('[video]', msg);
+                        else console.error('Error fetching video settings: ', error);
+                    }
                     this.statusMessage = 'Failed to load settings.';
                 }
                 // 加载当前录像运行模式（循环/缩时）
@@ -14423,7 +14454,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.timelineView = { start: 0, end: 86400 };  // 切换日期复位缩放
                     }
                 } catch (e) {
-                    console.error('fetchTimeline error', e);
+                    {
+                        const msg = String((e && e.message) || e || '');
+                        if (/应答超时|timeout/i.test(msg)) console.debug('[timeline]', msg);
+                        else console.error('fetchTimeline error', e);
+                    }
                 } finally {
                     this.timelineLoading = false;
                 }
