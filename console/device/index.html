@@ -4133,6 +4133,19 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-bod yd-flex flex-fill">
                                                 <!-- 视频播放区域，视频大小根据父容器自动调整 -->
                                                 <div class="text-center" style="position:relative;">
+                                                    <!-- 显示样式切换（多路时可选：网格 / 单画面聚焦 / 画中画）——放在视频控件上方 -->
+                                                    <div x-show="(remotePlaybackActive && remotePbCount()>1) || syncRecords.length>1 || playbackBusy" class="d-flex align-items-center gap-2 mb-2">
+                                                        <div class="btn-group btn-group-sm" role="group">
+                                                            <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
+                                                            <button type="button" class="btn" :class="playbackLayout==='single'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')"><i class="fa-regular fa-square"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_single')"></span></button>
+                                                            <button type="button" class="btn" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'"
+                                                                    @click="playbackLayout='pip'; _ensurePipDefaults(remotePlaybackActive ? remotePbCount() : syncRecords.length)" :title="tIdx('pl_pip')"><i class="fa-solid fa-clone"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_pip')"></span></button>
+                                                        </div>
+                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout==='pip'" x-text="tIdx('pl_pip_drag')"></span>
+                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout==='single'" x-text="tIdx('pl_switch_hint')"></span>
+                                                    </div>
                                                     <!-- 云端远程回放：非局域网时设备把本地 MP4 demux 帧经独立 Agora 回放通道(uid 1226)推来，这里渲染该独立远端流 -->
                                                     <div x-show="remotePlaybackActive" class="mb-3 p-2 rounded" style="background:rgba(16,185,129,0.10);">
                                                         <div class="d-flex align-items-center mb-1" style="font-size:12px;font-weight:600;">
@@ -4143,12 +4156,14 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
-                                                        <!-- 云端多路同步回放：路数用 remotePbCount（勿仅依赖默认 cameraCounts=1）-->
-                                                        <div :style="layoutContainerStyle(remotePbCount())">
+                                                        <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
+                                                        <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
-                                                                <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1]" @click="setPlaybackFocus(pi-1)">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;" autoplay muted playsinline :controls="isLayoutFocused(pi-1, remotePbCount())"></video>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;" x-text="'CAM'+pi"></div>
+                                                                <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1]"
+                                                                     @pointerdown="onPipPointerDown($event, pi-1, remotePbCount())"
+                                                                     @click="onPipTileClick($event, pi-1)">
+                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="'width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;pointer-events:'+(isLayoutFocused(pi-1, remotePbCount())?'auto':'none')+';'" autoplay muted playsinline :controls="isLayoutFocused(pi-1, remotePbCount())"></video>
+                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:1;pointer-events:none;" x-text="'CAM'+pi"></div>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -4159,26 +4174,16 @@ window.__presignThumbUrl = function (raw) {
                                                                   x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
                                                         </div>
                                                     </div>
-                                                    <!-- 显示样式切换（多路时可选：网格 / 单画面聚焦 / 画中画）-->
-                                                    <div x-show="(remotePlaybackActive && remotePbCount()>1) || syncRecords.length>1" class="d-flex align-items-center gap-2 mb-2">
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='single'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')"><i class="fa-regular fa-square"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_single')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='pip'" :title="tIdx('pl_pip')"><i class="fa-solid fa-clone"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_pip')"></span></button>
-                                                        </div>
-                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout!=='grid'" x-text="tIdx('pl_switch_hint')"></span>
-                                                    </div>
                                                     <!-- 多路同步播放：点击时间轴时收集同一时刻所有摄像头，按所选样式同步播放 -->
-                                                    <div x-show="syncRecords.length && !remotePlaybackActive" :style="syncContainerStyle()">
+                                                    <div x-show="syncRecords.length && !remotePlaybackActive" data-pb-stage="1" :style="syncContainerStyle()">
                                                         <template x-for="(rec, idx) in syncRecords" :key="rec.RecordIndexInformationPath">
-                                                            <div :style="syncItemStyle(idx)" @click="setPlaybackFocus(idx)">
+                                                            <div :style="syncItemStyle(idx)"
+                                                                 @pointerdown="onPipPointerDown($event, idx, syncRecords.length)"
+                                                                 @click="onPipTileClick($event, idx)">
                                                                 <video
                                                                         :src="localPlaybackVideoSrc(rec)"
                                                                         @loadedmetadata="syncSeekVideo($event, rec)"
-                                                                        style="width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;"
+                                                                        :style="'width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;pointer-events:'+(isPlaybackFocused(idx)?'auto':'none')+';'"
                                                                         :controls="isPlaybackFocused(idx)" autoplay muted playsinline
                                                                 ></video>
                                                                 <!-- 下载按钮叠加（仅网格/聚焦路显示）-->
@@ -7470,7 +7475,7 @@ const I18N_INDEX = {
     cd_title:'Cloud Data', cd_endpoint:'AppSync Endpoint', cd_api_key:'API Key', cd_region:'Region', cd_auth_mode:'Auth Mode', cd_direct_enable:'Direct Write Enable', cd_save:'Save',
     s3_title:'File Storage', s3_enable:'Auto upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Key Prefix', s3_role_alias:'Role Alias', s3_url:'Last uploaded URL', s3_save:'Save', s3_upload_now:'Upload current snapshot', s3_uploading:'Uploading...', opt_on:'On', opt_off:'Off',
     nav_cloud_playback:'Cloud Playback', cp_title:'Cloud Playback', cp_stream_name:'Stream Name', cp_region:'Region', cp_start:'Start Time', cp_end:'End Time', cp_play:'Play', cp_list:'Cloud Recordings', cp_no_records:'No cloud recordings', cp_refresh:'Refresh',
-    pl_grid:'Grid', pl_single:'Single', pl_pip:'PiP', pl_switch_hint:'Click a sub view to focus it', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', cp_trig:'Trigger Cloud Rec', cp_trig_ok:'Cloud recording triggered (needs cloud + EMR trigger on)', cp_trig_hint:'Manually mark the current segment as an event to upload to the cloud (requires cloud recording enabled and EMR trigger on)',
+    pl_grid:'Grid', pl_single:'Single', pl_pip:'PiP', pl_switch_hint:'Click a sub view to focus it', pl_pip_drag:'Drag PiP windows to move', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', cp_trig:'Trigger Cloud Rec', cp_trig_ok:'Cloud recording triggered (needs cloud + EMR trigger on)', cp_trig_hint:'Manually mark the current segment as an event to upload to the cloud (requires cloud recording enabled and EMR trigger on)',
     nw_rtsp_title:'RTSP Information', nw_rtsp_enable:'RTSP Enable',
     nw_rtsp_video_type:'Video Type', nw_rtsp_main:'Main', nw_rtsp_sub:'Sub',
     nw_rtsp_auth:'RTSP Auth', nw_rtsp_port:'RTSP Port', nw_rtsp_clients:'RTSP Clients',
@@ -7623,7 +7628,7 @@ const I18N_INDEX = {
     cd_title:'云数据', cd_endpoint:'AppSync 端点', cd_api_key:'API 密钥', cd_region:'区域', cd_auth_mode:'鉴权模式', cd_direct_enable:'直连写入启用', cd_save:'保存',
     s3_title:'文件存储', s3_enable:'抓拍即上传', s3_bucket:'存储桶', s3_region:'区域', s3_prefix:'路径前缀', s3_role_alias:'角色别名', s3_url:'最近上传 URL', s3_save:'保存', s3_upload_now:'上传当前抓拍', s3_uploading:'上传中...', opt_on:'开', opt_off:'关',
     nav_cloud_playback:'云回放', cp_title:'云端回放', cp_stream_name:'流名称', cp_region:'区域', cp_start:'开始时间', cp_end:'结束时间', cp_play:'播放', cp_list:'云录像列表', cp_no_records:'暂无云录像', cp_refresh:'刷新',
-    pl_grid:'网格', pl_single:'单画面', pl_pip:'画中画', pl_switch_hint:'点击小窗切换聚焦画面', ll_pip:'画中画', ll_grid:'宫格', ll_cycle_hint:'点击切换布局', cp_trig:'触发云录像', cp_trig_ok:'云录像已触发（需云录像启用 + 紧急事件触发=开）', cp_trig_hint:'手动将当前录像段标记为事件并上传云端（需云录像启用且紧急事件触发=开）',
+    pl_grid:'网格', pl_single:'单画面', pl_pip:'画中画', pl_switch_hint:'点击小窗切换聚焦画面', pl_pip_drag:'拖动小窗可移动位置', ll_pip:'画中画', ll_grid:'宫格', ll_cycle_hint:'点击切换布局', cp_trig:'触发云录像', cp_trig_ok:'云录像已触发（需云录像启用 + 紧急事件触发=开）', cp_trig_hint:'手动将当前录像段标记为事件并上传云端（需云录像启用且紧急事件触发=开）',
     nw_rtsp_title:'RTSP 信息', nw_rtsp_enable:'RTSP 启用',
     nw_rtsp_video_type:'视频类型', nw_rtsp_main:'主码流', nw_rtsp_sub:'子码流',
     nw_rtsp_auth:'RTSP 认证', nw_rtsp_port:'RTSP 端口', nw_rtsp_clients:'RTSP 客户端',
@@ -7775,7 +7780,7 @@ const I18N_INDEX = {
     cd_title:'クラウドデータ', cd_endpoint:'AppSync エンドポイント', cd_api_key:'API キー', cd_region:'リージョン', cd_auth_mode:'認証モード', cd_direct_enable:'直接書き込み有効', cd_save:'保存',
     s3_title:'ファイルストレージ', s3_enable:'自動アップロード', s3_bucket:'バケット', s3_region:'リージョン', s3_prefix:'キープレフィックス', s3_role_alias:'ロールエイリアス', s3_url:'最終アップロードURL', s3_save:'保存', s3_upload_now:'現在のスナップショットをアップロード', s3_uploading:'アップロード中...', opt_on:'オン', opt_off:'オフ',
     nav_cloud_playback:'クラウド再生', cp_title:'クラウド再生', cp_stream_name:'ストリーム名', cp_region:'リージョン', cp_start:'開始時間', cp_end:'終了時間', cp_play:'再生', cp_list:'クラウド録画一覧', cp_no_records:'クラウド録画がありません', cp_refresh:'更新',
-    pl_grid:'グリッド', pl_single:'単画面', pl_pip:'ワイプ', pl_switch_hint:'子画面をクリックしてフォーカス', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', cp_trig:'クラウド録画を起動', cp_trig_ok:'クラウド録画を起動しました（クラウド録画有効 + 緊急トリガー=オンが必要）', cp_trig_hint:'現在のセグメントをイベントとして手動でマークしクラウドへアップロード（クラウド録画有効かつ緊急トリガー=オンが必要）',
+    pl_grid:'グリッド', pl_single:'単画面', pl_pip:'ワイプ', pl_switch_hint:'子画面をクリックしてフォーカス', pl_pip_drag:'小窓をドラッグして移動', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', cp_trig:'クラウド録画を起動', cp_trig_ok:'クラウド録画を起動しました（クラウド録画有効 + 緊急トリガー=オンが必要）', cp_trig_hint:'現在のセグメントをイベントとして手動でマークしクラウドへアップロード（クラウド録画有効かつ緊急トリガー=オンが必要）',
     nw_rtsp_title:'RTSP 情報', nw_rtsp_enable:'RTSP 有効',
     nw_rtsp_video_type:'映像タイプ', nw_rtsp_main:'メイン', nw_rtsp_sub:'サブ',
     nw_rtsp_auth:'RTSP 認証', nw_rtsp_port:'RTSP ポート', nw_rtsp_clients:'RTSP クライアント',
@@ -7926,7 +7931,7 @@ const I18N_INDEX = {
     cd_title:'Cloud-Daten', cd_endpoint:'AppSync-Endpunkt', cd_api_key:'API-Schlüssel', cd_region:'Region', cd_auth_mode:'Auth-Modus', cd_direct_enable:'Direktes Schreiben aktiv', cd_save:'Speichern',
     s3_title:'Dateispeicher', s3_enable:'Auto-Upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Schlüsselpräfix', s3_role_alias:'Rollen-Alias', s3_url:'Zuletzt hochgeladene URL', s3_save:'Speichern', s3_upload_now:'Aktuellen Schnappschuss hochladen', s3_uploading:'Wird hochgeladen...', opt_on:'Ein', opt_off:'Aus',
     nav_cloud_playback:'Cloud-Wiedergabe', cp_title:'Cloud-Wiedergabe', cp_stream_name:'Stream-Name', cp_region:'Region', cp_start:'Startzeit', cp_end:'Endzeit', cp_play:'Abspielen', cp_list:'Cloud-Aufnahmen', cp_no_records:'Keine Cloud-Aufnahmen', cp_refresh:'Aktualisieren',
-    pl_grid:'Raster', pl_single:'Einzeln', pl_pip:'BiB', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', cp_trig:'Cloud-Aufnahme auslösen', cp_trig_ok:'Cloud-Aufnahme ausgelöst (Cloud + Notfall-Trigger müssen aktiv sein)', cp_trig_hint:'Aktuelles Segment manuell als Ereignis markieren und in die Cloud hochladen (Cloud-Aufnahme aktiv und Notfall-Trigger an erforderlich)',
+    pl_grid:'Raster', pl_single:'Einzeln', pl_pip:'BiB', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', pl_pip_drag:'Kleine Fenster ziehen zum Verschieben', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', cp_trig:'Cloud-Aufnahme auslösen', cp_trig_ok:'Cloud-Aufnahme ausgelöst (Cloud + Notfall-Trigger müssen aktiv sein)', cp_trig_hint:'Aktuelles Segment manuell als Ereignis markieren und in die Cloud hochladen (Cloud-Aufnahme aktiv und Notfall-Trigger an erforderlich)',
     nw_rtsp_title:'RTSP-Informationen', nw_rtsp_enable:'RTSP aktiv',
     nw_rtsp_video_type:'Videotyp', nw_rtsp_main:'Haupt', nw_rtsp_sub:'Sub',
     nw_rtsp_auth:'RTSP-Auth', nw_rtsp_port:'RTSP-Port', nw_rtsp_clients:'RTSP-Clients',
@@ -8078,7 +8083,7 @@ const I18N_INDEX = {
     cd_title:'Données cloud', cd_endpoint:'Point de terminaison AppSync', cd_api_key:'Clé API', cd_region:'Région', cd_auth_mode:'Mode d\'authentification', cd_direct_enable:'Écriture directe activée', cd_save:'Enregistrer',
     s3_title:'Stockage de fichiers', s3_enable:'Téléversement auto', s3_bucket:'Bucket', s3_region:'Région', s3_prefix:'Préfixe de clé', s3_role_alias:'Alias de rôle', s3_url:'Dernière URL téléversée', s3_save:'Enregistrer', s3_upload_now:'Téléverser l\'instantané actuel', s3_uploading:'Téléversement...', opt_on:'Activé', opt_off:'Désactivé',
     nav_cloud_playback:'Lecture cloud', cp_title:'Lecture cloud', cp_stream_name:'Nom du flux', cp_region:'Région', cp_start:'Heure de début', cp_end:'Heure de fin', cp_play:'Lire', cp_list:'Enregistrements cloud', cp_no_records:'Aucun enregistrement cloud', cp_refresh:'Actualiser',
-    pl_grid:'Grille', pl_single:'Unique', pl_pip:'PiP', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', cp_trig:'Déclencher enreg. cloud', cp_trig_ok:'Enregistrement cloud déclenché (cloud + déclencheur urgence requis)', cp_trig_hint:'Marquer manuellement le segment actuel comme événement et l envoyer au cloud (enregistrement cloud activé et déclencheur urgence requis)',
+    pl_grid:'Grille', pl_single:'Unique', pl_pip:'PiP', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', pl_pip_drag:'Glisser les petites vues', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', cp_trig:'Déclencher enreg. cloud', cp_trig_ok:'Enregistrement cloud déclenché (cloud + déclencheur urgence requis)', cp_trig_hint:'Marquer manuellement le segment actuel comme événement et l envoyer au cloud (enregistrement cloud activé et déclencheur urgence requis)',
     nw_rtsp_title:'Infos RTSP', nw_rtsp_enable:'RTSP activé',
     nw_rtsp_video_type:'Type vidéo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secondaire',
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Port RTSP', nw_rtsp_clients:'Clients RTSP',
@@ -8230,7 +8235,7 @@ const I18N_INDEX = {
     cd_title:'Datos en la nube', cd_endpoint:'Endpoint de AppSync', cd_api_key:'Clave API', cd_region:'Región', cd_auth_mode:'Modo de autenticación', cd_direct_enable:'Escritura directa activada', cd_save:'Guardar',
     s3_title:'Almacenamiento de archivos', s3_enable:'Subida automática', s3_bucket:'Bucket', s3_region:'Región', s3_prefix:'Prefijo de clave', s3_role_alias:'Alias de rol', s3_url:'Última URL subida', s3_save:'Guardar', s3_upload_now:'Subir captura actual', s3_uploading:'Subiendo...', opt_on:'Activado', opt_off:'Desactivado',
     nav_cloud_playback:'Reproducción en la nube', cp_title:'Reproducción en la nube', cp_stream_name:'Nombre del flujo', cp_region:'Región', cp_start:'Hora de inicio', cp_end:'Hora de fin', cp_play:'Reproducir', cp_list:'Grabaciones en la nube', cp_no_records:'Sin grabaciones en la nube', cp_refresh:'Actualizar',
-    pl_grid:'Cuadrícula', pl_single:'Único', pl_pip:'PiP', pl_switch_hint:'Haga clic en una subvista para enfocarla', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', cp_trig:'Activar grab. nube', cp_trig_ok:'Grabación en la nube activada (requiere nube + disparador de emergencia)', cp_trig_hint:'Marcar manualmente el segmento actual como evento y subirlo a la nube (requiere grabación en la nube activa y disparador de emergencia)',
+    pl_grid:'Cuadrícula', pl_single:'Único', pl_pip:'PiP', pl_switch_hint:'Haga clic en una subvista para enfocarla', pl_pip_drag:'Arrastre las ventanas PiP', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', cp_trig:'Activar grab. nube', cp_trig_ok:'Grabación en la nube activada (requiere nube + disparador de emergencia)', cp_trig_hint:'Marcar manualmente el segmento actual como evento y subirlo a la nube (requiere grabación en la nube activa y disparador de emergencia)',
     nw_rtsp_title:'Info RTSP', nw_rtsp_enable:'RTSP activo',
     nw_rtsp_video_type:'Tipo vídeo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secundario',
     nw_rtsp_auth:'Auth RTSP', nw_rtsp_port:'Puerto RTSP', nw_rtsp_clients:'Clientes RTSP',
@@ -9256,6 +9261,9 @@ document.addEventListener('DOMContentLoaded', function() {
             syncRecords: [],      // 多路同步播放列表（同一时刻各摄像头各一段）
             playbackLayout: 'grid', // 回放显示样式：grid 网格 / single 单画面聚焦 / pip 画中画
             playbackFocusIdx: 0,    // single/pip 模式下聚焦的摄像头下标（在 syncRecords 中）
+            playbackPipPos: {},     // PiP 小窗位置 {idx:{left,top}} 百分比，可拖动
+            _pipDrag: null,
+            _pipJustDragged: false,
             // 云端远程回放：设备解封装本地 MP4 灌实时通道，App/网页复用实时预览视图当「直播」看
             remotePlaybackActive: false,  // 远程回放进行中
             _playbackGen: 0,              // 连点切段世代号：作废未完成的 startKvsPlayback
@@ -13614,7 +13622,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return 'display:grid;gap:8px;grid-template-columns:repeat(' + (n > 1 ? 2 : 1) + ',minmax(0,1fr));';
                 if (this.playbackLayout === 'single')
                     return 'display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;';
-                return 'display:block;position:relative;';
+                // pip：相对定位舞台，给绝对小窗可拖动空间
+                return 'display:block;position:relative;min-height:220px;';
             },
             layoutItemStyle(idx, n) {
                 if (n <= 1 || this.playbackLayout === 'grid')
@@ -13624,11 +13633,79 @@ document.addEventListener('DOMContentLoaded', function() {
                     return idx === focus
                         ? 'position:relative;min-width:0;flex:0 0 100%;order:0;'
                         : 'position:relative;min-width:0;flex:0 0 calc(33.333% - 6px);order:1;cursor:pointer;';
+                // pip：大图 + 可拖动小窗
                 if (idx === focus)
                     return 'position:relative;min-width:0;width:100%;';
-                const k = idx < focus ? idx : idx - 1;
-                return 'position:absolute;z-index:5;right:8px;width:22%;top:calc(44px + ' + k + ' * 24%);cursor:pointer;'
+                const pos = this._pipPos(idx, n);
+                return 'position:absolute;z-index:5;left:' + pos.left + '%;top:' + pos.top + '%;width:22%;'
+                     + 'cursor:grab;touch-action:none;user-select:none;'
                      + 'border:2px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);';
+            },
+            _pipPos(idx, n) {
+                const key = String(idx);
+                if (this.playbackPipPos && this.playbackPipPos[key]) return this.playbackPipPos[key];
+                const focus = this._layoutFocus(n || 1);
+                let k = 0;
+                for (let i = 0; i < idx; i++) if (i !== focus) k++;
+                // 默认靠右自上而下排列
+                return { left: 76, top: Math.min(70, 6 + k * 26) };
+            },
+            _ensurePipDefaults(n) {
+                n = n || 1;
+                const next = Object.assign({}, this.playbackPipPos || {});
+                let changed = false;
+                for (let i = 0; i < n; i++) {
+                    const key = String(i);
+                    if (!next[key]) { next[key] = this._pipPos(i, n); changed = true; }
+                }
+                if (changed) this.playbackPipPos = next;
+            },
+            onPipPointerDown(ev, idx, n) {
+                if (this.playbackLayout !== 'pip') return;
+                if (this.isLayoutFocused(idx, n)) return; // 大图不拖
+                if (ev.button != null && ev.button !== 0) return;
+                const stage = ev.currentTarget.closest('[data-pb-stage]') || ev.currentTarget.parentElement;
+                if (!stage) return;
+                const rect = stage.getBoundingClientRect();
+                const pos = this._pipPos(idx, n);
+                this._pipDrag = {
+                    idx, n,
+                    startX: ev.clientX, startY: ev.clientY,
+                    origLeft: pos.left, origTop: pos.top,
+                    cw: Math.max(rect.width, 1), ch: Math.max(rect.height, 1),
+                    moved: false
+                };
+                try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                const move = (e) => this.onPipPointerMove(e);
+                const up = (e) => {
+                    this.onPipPointerUp(e);
+                    window.removeEventListener('pointermove', move);
+                    window.removeEventListener('pointerup', up);
+                    window.removeEventListener('pointercancel', up);
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+                window.addEventListener('pointercancel', up);
+            },
+            onPipPointerMove(e) {
+                const d = this._pipDrag;
+                if (!d) return;
+                const dx = (e.clientX - d.startX) / d.cw * 100;
+                const dy = (e.clientY - d.startY) / d.ch * 100;
+                if (Math.abs(dx) + Math.abs(dy) > 0.8) d.moved = true;
+                let left = Math.min(78, Math.max(0, d.origLeft + dx));
+                let top = Math.min(78, Math.max(0, d.origTop + dy));
+                const key = String(d.idx);
+                this.playbackPipPos = Object.assign({}, this.playbackPipPos, { [key]: { left, top } });
+            },
+            onPipPointerUp(e) {
+                const d = this._pipDrag;
+                if (d && d.moved) this._pipJustDragged = true;
+                this._pipDrag = null;
+            },
+            onPipTileClick(ev, idx) {
+                if (this._pipJustDragged) { this._pipJustDragged = false; return; }
+                this.setPlaybackFocus(idx);
             },
             isLayoutFocused(idx, n) {
                 return n <= 1 || this.playbackLayout === 'grid' || idx === this._layoutFocus(n);
