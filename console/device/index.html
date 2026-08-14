@@ -5069,7 +5069,7 @@ window.__presignThumbUrl = function (raw) {
                                                         <span data-i18n="ot_cloud_check">Check</span>
                                                     </button>
                                                     <button id="start-upgrade-button-cloud" type="button" class="btn btn-primary"
-                                                            @click="startUpgrade()" :disabled="cloudOtaLoading || isUpgrading || !cloudOtaPackage">
+                                                            @click="startCloudRemoteOta()" :disabled="cloudOtaLoading || !cloudOtaPackage">
                                                         <span data-i18n="ot_start_upgrade">Start upgrade</span>
                                                     </button>
                                                 </div>
@@ -10446,7 +10446,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 添加到页面中的 alerts-container
                 const container = document.getElementById("alerts-container");
                 if (!container) {
-                    console.error("alerts-container not found!");
+                    console.error("alerts-container not found!", title, message);
+                    try { window.alert((title || 'OTA') + ': ' + (message || '')); } catch (e) {}
                     return;
                 }
                 container.appendChild(alertDiv);
@@ -10532,28 +10533,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             async startCloudRemoteOta() {
-                var self = this;
+                console.info('[OTA] startCloudRemoteOta click');
                 var pkg = this.cloudOtaPackage;
                 if (!pkg || !pkg.upgradeFileUrl) {
+                    console.warn('[OTA] no package');
                     this.showAlert('warning', 'OTA', 'Please Check cloud package first');
                     return;
                 }
-                if (this.isUpgrading) return;
+                if (this.isUpgrading) {
+                    console.warn('[OTA] already upgrading, reset and retry');
+                    this.isUpgrading = false;
+                }
                 var part = (this.selectedPartition || pkg.upgradeDevicePartion || 'system').trim() || 'system';
                 this.selectedPartition = part;
                 var raw = String(pkg.upgradeFileUrl || '').trim();
-                var signed = window.__presignOtaS3Get(raw, 7200);
-                if (!signed || (!signed.startsWith('http://') && !signed.startsWith('https://'))) {
-                    this.showAlert('danger', 'OTA', 'Failed to create pre-signed download URL');
+
+                // CryptoJS 为 defer 加载；等最多 3s
+                var waits = 0;
+                while ((!window.CryptoJS || !window.CryptoJS.HmacSHA256) && waits < 30) {
+                    await new Promise(function (r) { setTimeout(r, 100); });
+                    waits++;
+                }
+                if (!window.CryptoJS || !window.CryptoJS.HmacSHA256) {
+                    console.error('[OTA] CryptoJS missing');
+                    this.showAlert('danger', 'OTA', 'CryptoJS not loaded — hard refresh and retry', 8000);
+                    return;
+                }
+                var creds = (typeof window.__otaCredsBundle === 'function') ? window.__otaCredsBundle() : {};
+                if (!creds.accessKeyId || !creds.secretAccessKey) {
+                    console.error('[OTA] missing Cognito iot_creds', { hasCreds: !!creds.accessKeyId, region: creds.region });
+                    this.showAlert('danger', 'OTA', 'No cloud credentials (iot_creds). Re-enter device from portal.', 8000);
+                    return;
+                }
+                if (!creds.sessionToken) {
+                    console.warn('[OTA] iot_creds has no sessionToken — S3 presign may fail');
+                }
+
+                var signed = null;
+                try {
+                    signed = window.__presignOtaS3Get(raw, 7200);
+                } catch (e) {
+                    console.error('[OTA] presign threw', e);
+                    this.showAlert('danger', 'OTA', 'Presign error: ' + e, 8000);
+                    return;
+                }
+                if (!signed || (typeof signed !== 'string') || (!signed.startsWith('http://') && !signed.startsWith('https://'))) {
+                    console.error('[OTA] presign returned empty', signed);
+                    this.showAlert('danger', 'OTA', 'Failed to create pre-signed download URL', 8000);
                     return;
                 }
                 var looksSigned = signed.indexOf('X-Amz-') >= 0 || signed.indexOf('Signature=') >= 0;
                 var wasRelative = !(raw.startsWith('http://') || raw.startsWith('https://'));
                 if (wasRelative && !looksSigned) {
-                    this.showAlert('danger', 'OTA', 'Cloud URL is not pre-signed');
+                    console.error('[OTA] unsigned url refused', signed.slice(0, 80));
+                    this.showAlert('danger', 'OTA', 'Cloud URL is not pre-signed', 8000);
                     return;
                 }
-                console.info('[OTA] CLOUD_ONLY setRemoteOta signedLen=' + signed.length + ' part=' + part);
+                console.info('[OTA] CLOUD_ONLY setRemoteOta signedLen=' + signed.length + ' part=' + part + ' head=' + signed.slice(0, 72));
+
                 this.initCloudOta();
                 this.isUpgrading = true;
                 this.isOtaRebooting = false;
@@ -10579,6 +10616,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     requestId: 'web_ota_' + Date.now()
                 };
                 try {
+                    console.info('[OTA] sending setDeviceCommand via transport active=' +
+                        ((window.DeviceTransport && DeviceTransport.active) || '?') +
+                        ' mode=' + ((window.DeviceTransport && DeviceTransport.mode) || '?'));
                     var resp = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -10586,9 +10626,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     var responseData = await resp.json();
                     console.log('[OTA] setRemoteOta response', responseData);
-                    if (responseData.status !== STATUS.SET_REMOTE_OTA_PARAMS && responseData.status !== 1055) {
+                    var st = responseData && responseData.status;
+                    if (st !== STATUS.SET_REMOTE_OTA_PARAMS && st !== 1055) {
                         this.isUpgrading = false;
-                        this.showAlert('danger', 'OTA', 'Device rejected remote OTA status=' + responseData.status, 8000);
+                        this.showAlert('danger', 'OTA', 'Device rejected remote OTA status=' + st, 8000);
                         return;
                     }
                     this.showAlert('success', 'OTA', 'Remote OTA started — device pulling from S3', 3000);
@@ -10700,9 +10741,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log("OTA job doc:", JSON.stringify(doc));
                 }
             },
-            startUpgrade() {
-                if (this.isCloudOtaMode()) {
-                    return this.startCloudRemoteOta();
+            async startUpgrade() {
+                console.info('[OTA] startUpgrade cloudOtaMode=' + !!this.cloudOtaMode +
+                    ' isCloud=' + (this.isCloudOtaMode && this.isCloudOtaMode()) +
+                    ' hasPkg=' + !!(this.cloudOtaPackage && this.cloudOtaPackage.upgradeFileUrl));
+                // 云端 UI 已展示包信息时，一律走 setRemoteOta（勿再依赖瞬时 isCloudOtaMode）
+                if (this.cloudOtaMode || (this.cloudOtaPackage && this.cloudOtaPackage.upgradeFileUrl) ||
+                    (this.isCloudOtaMode && this.isCloudOtaMode())) {
+                    try {
+                        await this.startCloudRemoteOta();
+                    } catch (e) {
+                        console.error('[OTA] startCloudRemoteOta uncaught', e);
+                        this.isUpgrading = false;
+                        this.showAlert('danger', 'OTA', 'Upgrade error: ' + e, 8000);
+                    }
+                    return;
                 }
 
                 const progressBar = document.getElementById('update-bar');
