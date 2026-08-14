@@ -454,7 +454,8 @@ function viewUpgrade() {
         h('div', { class: 'admin-field' }, h('label', {}, '分区覆盖'), partSel),
       ),
       selectedDev || selectedPkg ? h('div', { class: 'faint', style: { marginTop: '10px', fontSize: '12px', lineHeight: '1.6' } },
-        selectedDev ? `设备 UUID: ${selectedDev.uuid || selectedDev.id} · 状态: ${selectedDev.online ? '在线' : '离线'}` : '',
+        selectedDev ? `设备 UUID: ${selectedDev.uuid || '(缺失 deviceUuid)'} · Amplify id: ${shortId(selectedDev.id)} · 状态: ${selectedDev.online ? '在线' : '离线'}` : '',
+        selectedDev && !selectedDev.uuid ? h('div', { class: 'admin-msg err', style: { marginTop: '8px' } }, '该设备 deviceGeneralInformation 无 deviceUuid，IoT 升级可能失败') : null,
         selectedDev && selectedPkg ? h('br') : null,
         selectedPkg ? `包: ${selectedPkg.upgradeFileUrl}` : '',
       ) : null,
@@ -480,8 +481,11 @@ async function doRemoteUpgrade() {
   const pkg = (state.packages || []).find((p) => p.id === ug.packageId);
   if (!dev) { ug.err = '请选择设备'; render(); return; }
   if (!pkg || !pkg.upgradeFileUrl) { ug.err = '请选择升级包'; render(); return; }
-  const uuid = dev.uuid || dev.id;
-  if (!/^[0-9a-fA-F-]{36}$/.test(uuid)) { ug.err = '设备 UUID 无效'; render(); return; }
+  const uuid = dev.uuid;
+  if (!uuid || !/^[0-9a-fA-F-]{36}$/.test(uuid)) {
+    ug.err = '设备缺少 deviceUuid（deviceGeneralInformation），无法走 IoT 远程升级';
+    render(); return;
+  }
   ug.busy = true; render();
   try {
     const creds = await resolvedCreds();
