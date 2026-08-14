@@ -9253,6 +9253,7 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackFocusIdx: 0,    // single/pip 模式下聚焦的摄像头下标（在 syncRecords 中）
             // 云端远程回放：设备解封装本地 MP4 灌实时通道，App/网页复用实时预览视图当「直播」看
             remotePlaybackActive: false,  // 远程回放进行中
+            _playbackGen: 0,              // 连点切段世代号：作废未完成的 startKvsPlayback
             remotePlaybackPath: '',       // 当前远程回放的录像路径
             playbackUid: null,            // 设备回放专用 Agora 远端 uid（前缀 1226，=回放 cam0）
             pbCamUids: [],                // 各路云端回放发布者标记(index=摄像头序号)：Agora=uid / KVS='kvs'
@@ -10092,13 +10093,21 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             // KVS 云端回放：连 <uuid>-playback 通道渲染回放流，并发 transport-agnostic 的回放命令（与 Agora 回放命令同一套）。
-            async startKvsPlayback(record, siblingRecs) {
+            async startKvsPlayback(record, siblingRecs, gen) {
                 if (!record || !record.RecordIndexInformationPath) return;
+                if (gen == null) gen = this._playbackGen;
                 try {
                     await this.initDeviceGeneralInformation();
+                    if (gen !== this._playbackGen) return;
                     try { if (typeof this.initMediaServerInformation === 'function') await this.initMediaServerInformation(); } catch (e) { console.debug('[AHS][KVS] getWebrtc soft-skip', e && e.message); }
                     try { if (typeof this.initVedioSettings === 'function') await this.initVedioSettings(); } catch (e) { console.debug('[AHS][KVS] videoInfo soft-skip', e && e.message); }
+                    if (gen !== this._playbackGen) return;
                     this.syncRecords = []; // 外网勿叠本地 <video>，避免布局错乱
+                    // 防御：勿在未 close 时清空数组（会泄漏信令/PeerConnection）
+                    if (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) {
+                        this.kvsPlaybackViewers.forEach(v => { try { this.kvsCloseViewer(v); } catch (e) {} });
+                        this.kvsPlaybackViewers = []; this.kvsPlaybackViewer = null;
+                    }
                     const deviceUuid = this.deviceGeneralInformation.deviceUuid;
                     let paths;
                     if (siblingRecs && siblingRecs.length) {
@@ -10115,10 +10124,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     const nSlots = Math.max(this.playbackCamCount(), ...paths.map(e => e.cameraIndex + 1), 1);
                     const pb = new Array(nSlots).fill(null);
                     for (const ent of paths) {
+                        if (gen !== this._playbackGen) {
+                            this.kvsPlaybackViewers.forEach(v => { try { this.kvsCloseViewer(v); } catch (e) {} });
+                            this.kvsPlaybackViewers = []; this.kvsPlaybackViewer = null; this.pbCamUids = [];
+                            return;
+                        }
                         const i = ent.cameraIndex;
                         const suffix = (i === 0) ? '-playback' : (i === 1) ? '-playback2' : ('-playback' + (i + 1));
                         const v = await this.kvsBuildViewer(deviceUuid + suffix, this.pbElId(i));
                         this.kvsPlaybackViewers.push(v); pb[i] = 'kvs';
+                    }
+                    if (gen !== this._playbackGen) {
+                        this.kvsPlaybackViewers.forEach(v => { try { this.kvsCloseViewer(v); } catch (e) {} });
+                        this.kvsPlaybackViewers = []; this.kvsPlaybackViewer = null; this.pbCamUids = [];
+                        return;
                     }
                     this.kvsPlaybackViewer = this.kvsPlaybackViewers[0] || null;  // 兼容旧停止逻辑
                     this.pbCamUids = pb;
@@ -10127,6 +10146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         body: JSON.stringify({ method: 'startPlaybackLocalRecordInformationCommand', params: { paths, RecordIndexInformationPath: record.RecordIndexInformationPath } }),
                     });
                     const result = await response.json();
+                    if (gen !== this._playbackGen) { await this.stopRemotePlayback(); return; }
                     if (result && result.params && result.params.success) {
                         this.remotePlaybackActive = true;
                         this.remotePlaybackPath = record.RecordIndexInformationPath;
@@ -10138,6 +10158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
                 } catch (e) {
+                    if (gen !== this._playbackGen) return; // 被取代的请求，忽略报错
                     console.error('[AHS][KVS] startKvsPlayback error', e);
                     const msg = (e && (e.message || e.code)) ? String(e.message || e.code) : String(e);
                     this.showAlert('error', tIdx('rp_failed'), 'KVS playback: ' + msg, 8000);
@@ -13933,30 +13954,45 @@ document.addEventListener('DOMContentLoaded', function() {
             // 播放选中的录像：自动判定连通性——
             //   局域网(transport=http) → 本地 <video :src> 原生拉 MP4 播放
             //   非局域网(rtm/awsIot)   → 设备 demux 本地 MP4 经独立 Agora 回放通道(uid 1226)当「直播」播
-            playRecord(record, siblingRecs) {
+            // 切段/连点：先停当前再起新（对齐 App device_storage_playback「切段前先停旧段」）。
+            // 外网若不停就 startKvsPlayback，会泄漏旧 viewer 并占满 -playback 通道，后续点击无画面。
+            async playRecord(record, siblingRecs) {
                 if (!record) return;
                 this.selectedRecord = record;
+                const gen = ++this._playbackGen;
+                await this._stopCurrentPlaybackForSwitch();
+                if (gen !== this._playbackGen) return; // 被更新的点击取代
+
                 const cloud = this.isWanPlayback();
                 if (cloud) {
                     this.syncRecords = [];            // 隐藏本地 <video>（外网不能直拉设备 /mnt MP4）
-                    // 外网：按门户所选传输。门户默认 KVS（previewTransport=kvs）；Agora 项目常 inactive → 勿硬走 RTC
                     try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
-                    if (this.previewTransport === 'kvs') this.startKvsPlayback(record, siblingRecs);
-                    else this.startRemotePlayback(record);
+                    if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
+                    else await this.startRemotePlayback(record, gen);
                 } else {
-                    if (this.remotePlaybackActive) { this.stopRemotePlayback(); }
                     this.syncRecords = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
                 }
+            },
+            async _stopCurrentPlaybackForSwitch() {
+                const hasKvs = (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer;
+                if (this.remotePlaybackActive || hasKvs) {
+                    await this.stopRemotePlayback();
+                    return;
+                }
+                if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
             },
 
             // ===== 云端远程回放（设备 demux 本地 MP4 → 独立 Agora 回放通道 uid 1226）=====
             // 由 playRecord 在非局域网时自动调用（无单独按钮）。回放流独立于实时直播：
             // 回放期间看实时直播的人不被打断。
-            async startRemotePlayback(record) {
+            async startRemotePlayback(record, gen) {
                 if (!record || !record.RecordIndexInformationPath) return;
+                if (gen == null) gen = this._playbackGen;
                 try {
+                    if (gen !== this._playbackGen) return;
                     // 建立实时预览订阅（设备的回放连接 uid 1226 会作为独立远端流被订阅 → remotePlaybackView）
                     if (!this.isStreaming) { await this.startPreview('replay'); }
+                    if (gen !== this._playbackGen) return;
                     const paths = this.siblingPaths(record);   // 同段各路 MP4 → 设备多路同步回放(Agora 1226/1227/1228)
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -13967,6 +14003,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }),
                     });
                     const result = await response.json();
+                    if (gen !== this._playbackGen) { await this.stopRemotePlayback(); return; }
                     if (result && result.params && result.params.success) {
                         this.remotePlaybackActive = true;
                         this.remotePlaybackPath = record.RecordIndexInformationPath;
@@ -13979,6 +14016,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
                 } catch (error) {
+                    if (gen !== this._playbackGen) return;
                     console.error('startRemotePlayback error:', error);
                     this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                 }
@@ -14017,6 +14055,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (this.isStreaming) {
                     await this.stopPreview();
                 }
+                // 清掉 video 上残留的 MediaStream，避免停播后仍显示上一帧/占槽
+                try {
+                    for (let i = 0; i < 8; i++) {
+                        const el = document.getElementById(this.pbElId(i));
+                        if (!el) continue;
+                        try { el.srcObject = null; } catch (e) {}
+                        try { el.removeAttribute('src'); el.load(); } catch (e) {}
+                    }
+                } catch (e) {}
             },
             async seekRemotePlayback(ev) {
                 let positionMs = parseInt((ev && ev.target) ? ev.target.value : this.playbackPositionMs, 10);
