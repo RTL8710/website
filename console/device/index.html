@@ -594,25 +594,35 @@ window.__presignThumbUrl = function (raw) {
                     border-radius:6px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.25);
                     left:auto !important; top:auto !important; }
         .rtc-tile.rtc-focus { outline:2px solid var(--accent, #22d3ee); outline-offset:-2px; }
-        /* 四宫格：严格 2×2，禁止沿用 PiP 的 left% 偏移（否则第二排错位） */
+        /* 四宫格：严格 2×2；高度跟画面走(勿 height:100%)，避免 Stop 沉到整页底 */
         .live-layout-grid {
             display:grid !important; gap:4px;
             grid-template-columns:repeat(2, minmax(0,1fr));
-            grid-auto-rows:minmax(0,1fr);
-            align-content:stretch; justify-items:stretch;
-            width:100%; height:100%; min-height:0; overflow:hidden;
+            grid-auto-rows:auto;
+            align-content:start; justify-items:stretch;
+            width:100%; height:auto !important; max-height:100%;
+            min-height:0; overflow:hidden;
         }
         .live-layout-grid .rtc-cam,
         .live-layout-grid .rtc-tile {
             position:relative !important;
             left:auto !important; top:auto !important; right:auto !important;
-            width:100% !important; height:100% !important;
-            max-width:none !important; aspect-ratio:auto; min-width:0; min-height:0;
+            width:100% !important; height:auto !important;
+            max-width:none !important; aspect-ratio:16/9; min-width:0; min-height:0;
         }
         .live-layout-grid .rtc-cam video,
         .live-layout-grid .rtc-tile video {
             width:100%; height:100%; object-fit:contain; display:block;
         }
+        /* Play/Stop/Mute：默认贴容器底；宫格贴在下排画面内侧 */
+        .live-action-bar {
+            position:absolute; left:0; right:0; z-index:20;
+            bottom:40px;
+            display:flex; justify-content:center; align-items:center; gap:12px;
+            pointer-events:none;
+        }
+        .live-action-bar > * { pointer-events:auto; }
+        .live-layout-grid .live-action-bar { bottom:14px; }
 
         /* Record Settings 精简布局 */
         .rs-settings-panel { margin-bottom: 0; }
@@ -1748,8 +1758,7 @@ window.__presignThumbUrl = function (raw) {
                                         </div>
 
                                         <!-- ========== 悬浮按钮组（在大图底部中间，毛玻璃效果） ========== -->
-                                        <div class="d-flex justify-content-center align-items-center gap-3"
-                                             style="position: absolute; bottom: 40px; left: 0; right: 0; z-index: 20;">
+                                        <div class="live-action-bar">
 
                                             <button type="button"
                                                     class="btn rounded-pill btn-frosted"
@@ -1997,8 +2006,7 @@ window.__presignThumbUrl = function (raw) {
                                                     </div>
 
                                                     <!-- ========== 悬浮按钮组（在大图底部中间，毛玻璃效果） ========== -->
-                                                    <div class="d-flex justify-content-center gap-3"
-                                                         style="position: absolute; bottom: 40px; left: 0; right: 0; z-index: 20;">
+                                                    <div class="live-action-bar">
 
                                                         <button type="button"
                                                                 class="btn rounded-pill btn-frosted"
