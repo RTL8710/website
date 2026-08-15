@@ -23,7 +23,8 @@ async function pageAll(query, variables, pick) {
   do {
     const data = await gql(query, { ...variables, limit: 1000, nextToken: token });
     const conn = pick(data);
-    out = out.concat(conn.items || []);
+    const items = (conn.items || []).filter((x) => x != null);
+    out = out.concat(items);
     token = conn.nextToken;
   } while (token);
   return out;
@@ -78,7 +79,7 @@ export async function fetchMyDevices(userRowId) {
     { filter: { userId: { eq: userRowId } } },
     (d) => d.listDeviceUsers,
   );
-  const devices = rows.map((r) => r.device).filter(Boolean).map(normalizeDevice);
+  const devices = rows.map((r) => r.device).filter(Boolean).map(normalizeDevice).filter(Boolean);
   // 在线优先排序(移植 device_list_controller)
   devices.sort((a, b) => (b.online - a.online));
   return devices;
@@ -86,8 +87,9 @@ export async function fetchMyDevices(userRowId) {
 
 // deviceGeneralInformation 是 AWSJSON blob,解析出 name/model/firmware/uuid/datetime
 function normalizeDevice(d) {
+  if (!d || d.id == null || d.id === '') return null;
   let info = {};
-  const rawInfo = d && d.deviceGeneralInformation;
+  const rawInfo = d.deviceGeneralInformation;
   try {
     if (typeof rawInfo === 'string' && rawInfo.trim()) info = JSON.parse(rawInfo);
     else if (rawInfo && typeof rawInfo === 'object') info = rawInfo;
@@ -148,7 +150,8 @@ const Q_LIST_USERS_FULL = /* GraphQL */ `
   }`;
 
 export async function listAllUsers(filter) {
-  return pageAll(Q_LIST_USERS_FULL, { filter: filter || null }, (d) => d.listUsers);
+  const rows = await pageAll(Q_LIST_USERS_FULL, { filter: filter || null }, (d) => d.listUsers);
+  return (rows || []).filter((u) => u && u.id);
 }
 
 const Q_LIST_DEVICES = /* GraphQL */ `
@@ -169,8 +172,8 @@ function deviceUpdatedMs(d) {
 
 export async function listAllDevices(filter) {
   const rows = await pageAll(Q_LIST_DEVICES, { filter: filter || null }, (d) => d.listDevices);
-  // 最近更新在上；同秒则在线优先，再按名称
-  return rows.map(normalizeDevice).sort((a, b) => {
+  // AppSync 可能返回 null item（已删/稀疏）；最近更新在上，同秒在线优先
+  return rows.map(normalizeDevice).filter(Boolean).sort((a, b) => {
     const dt = deviceUpdatedMs(b) - deviceUpdatedMs(a);
     if (dt !== 0) return dt;
     if (b.online !== a.online) return b.online - a.online;
