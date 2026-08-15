@@ -2819,7 +2819,9 @@ window.__presignThumbUrl = function (raw) {
                                 <!-- 左：实时视频预览（检测框 + OSD 已烧进画面，调参即时可见）-->
                                 <div class="col-lg-7 d-flex flex-column">
                                   <div class="card shadow flex-fill ai-preview-card">
-                                                <div id="videoAiContainer" class="card-body p-0 position-relative">
+                                                <div id="videoAiContainer" class="card-body p-0 position-relative"
+                                                     :class="'live-layout-'+liveLayout"
+                                                     :style="'--live-cols:'+Math.max(videoInformation.cameraCounts||1,1)">
                                                     <!-- 视频播放区域，视频大小根据父容器自动调整 -->
                                                     <!-- 多路：按 cameraCounts 动态生成 N 个画面框(remoteViewAi/2/…) -->
                                                     <template x-for="ci in (videoInformation.cameraCounts||1)" :key="'aiCam'+ci">
@@ -2954,6 +2956,13 @@ window.__presignThumbUrl = function (raw) {
                                                                 data-bs-toggle="tooltip" :title="tIdx('algo_osd_draw')"
                                                                 @click="algorithmInformation.osdDraw = !algorithmInformation.osdDraw; saveAlgorithmInformation()">
                                                             <i class="fa-solid fa-vector-square"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-lg mt-2"
+                                                                x-show="(videoInformation.cameraCounts||1) > 1"
+                                                                :class="liveLayout==='pip' ? 'btn-outline-primary' : 'btn-primary'"
+                                                                data-bs-toggle="tooltip" :title="liveLayoutTip()"
+                                                                @click="cycleLiveLayout()">
+                                                            <i :class="liveLayoutIcon()"></i>
                                                         </button>
                                                         <button type="button" class="btn btn-lg mt-2"
                                                                 :class="videoInformation.videoStreamMode == 0 ? 'btn-primary' : 'btn-outline-primary'"
