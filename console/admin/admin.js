@@ -32,7 +32,7 @@ const state = {
     file: null, deviceType: 'smartRobot', partition: 'system', version: '',
     describe: '', upgradeType: 'AHS', mode: 'normal', progress: 0, busy: false, msg: '', err: '',
   },
-  upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '' },
+  upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
 };
 
@@ -108,9 +108,85 @@ function ownerName(ownerUserId) {
 function bindUsersForDevice(deviceId) {
   return (state.binds || []).filter((b) => b.deviceId === deviceId || (b.device && b.device.id === deviceId));
 }
-function latestPackageForType(deviceType) {
+function latestPackageForType(deviceType, preferPart) {
   const t = deviceType || 'smartRobot';
-  return (state.packages || []).find((p) => (p.upgradeDeviceType || 'smartRobot') === t) || null;
+  const part = preferPart == null ? 'system' : preferPart;
+  // packages 已按 upgradeOtaTime 新→旧排序
+  const list = (state.packages || []).filter((p) => (p.upgradeDeviceType || 'smartRobot') === t);
+  if (!list.length) return null;
+  if (part) {
+    const hit = list.find((p) => (p.upgradeDevicePartion || 'system') === part);
+    if (hit) return hit;
+  }
+  return list[0];
+}
+/** OTA 页：无包/包失效/机型不匹配时，默认选该机型最新包（优先 system） */
+function ensureDefaultUpgradeSelection() {
+  const packages = state.packages || [];
+  if (!packages.length) return;
+  const ug = state.upgrade;
+  const dev = (state.devices || []).find((d) => d.id === ug.deviceId);
+  const dtype = resolveDeviceType(dev);
+  const latest = latestPackageForType(dtype);
+  const cur = packages.find((p) => p.id === ug.packageId);
+  const typeOk = cur && (cur.upgradeDeviceType || 'smartRobot') === dtype;
+  if (!cur || !typeOk) {
+    if (latest) {
+      ug.packageId = latest.id;
+      ug.partition = latest.upgradeDevicePartion || 'system';
+    }
+  }
+}
+function otaPhaseText(status, progress) {
+  const st = String(status == null ? '' : status);
+  const pr = Math.max(0, Math.min(100, Number(progress) || 0));
+  if (st === '1' || st === '4' || st === 'IN_PROGRESS' || st === 'QUEUED') return `下载/准备中 ${pr}%`;
+  if (st === '2') return `写入中 ${pr}%`;
+  if (st === '3') return `重启服务中 ${pr}%`;
+  if (st === '5' || st === 'FAILED' || st === 'REJECTED' || st === 'TIMED_OUT') return '升级失败';
+  if (st === '6' || st === 'SUCCEEDED') return '升级成功';
+  if (!st) return pr ? `升级中 ${pr}%` : '等待设备上报…';
+  return `状态 ${st} · ${pr}%`;
+}
+function applyOtaPush(detail) {
+  const d = detail || {};
+  if (d.method !== 'updateRemoteOtaStatusCommand') return;
+  const ug = state.upgrade;
+  if (!ug.tracking) return;
+  let p = d.params || {};
+  if (p.remoteOtaStatus && typeof p.remoteOtaStatus === 'object') p = p.remoteOtaStatus;
+  const progress = Number(p.progress);
+  if (!Number.isNaN(progress)) ug.progress = Math.max(0, Math.min(100, progress));
+  if (p.status != null && p.status !== '') ug.status = p.status;
+  if (p.detail) ug.detail = String(p.detail);
+  if (p.installDir) ug.detail = String(p.installDir);
+  ug.statusText = otaPhaseText(ug.status, ug.progress);
+  const st = String(ug.status);
+  if (st === '5' || st === 'FAILED' || st === 'REJECTED' || st === 'TIMED_OUT') {
+    ug.tracking = false;
+    ug.busy = false;
+    ug.err = '升级失败' + (ug.detail ? ('：' + ug.detail) : '');
+    ug.msg = '';
+    toast(ug.err, 'err');
+  } else if (st === '6' || st === 'SUCCEEDED') {
+    ug.tracking = false;
+    ug.busy = false;
+    ug.progress = 100;
+    ug.msg = '升级成功' + (ug.detail ? (' · ' + ug.detail) : '');
+    ug.err = '';
+    ug.statusText = '升级成功';
+    toast(ug.msg);
+  } else {
+    ug.msg = ug.statusText;
+    ug.err = '';
+  }
+  if (state.tab === 'ota' || state.tab === 'devices') render();
+}
+if (!window.__adminOtaPushBound) {
+  window.__adminOtaPushBound = true;
+  window.addEventListener('iot-push', (ev) => {
+    try { applyOtaPush(ev && ev.detail); } catch (e) { console.warn('[admin] ota push', e); }
+  });
 }
 function resolveDeviceType(dev) {
   if (!dev) return 'smartRobot';
@@ -459,6 +535,7 @@ function viewOta() {
   const ug = state.upgrade;
   const devices = state.devices || [];
   const packages = state.packages || [];
+  ensureDefaultUpgradeSelection();
   let list = packages;
   if (state.pkgFilterType) list = list.filter((p) => p.upgradeDeviceType === state.pkgFilterType);
   list = list.filter((p) => matchQ([p.upgradeDeviceVersion, p.upgradeDescribe, p.upgradeFileUrl, p.upgradeDeviceType, p.upgradeDevicePartion]));
@@ -499,10 +576,12 @@ function viewOta() {
     }
     render();
   });
+  const latestIds = new Set();
+  ['smartRobot', 'smartIpcamera'].forEach((t) => { const L = latestPackageForType(t); if (L) latestIds.add(L.id); });
   const pkgSel = h('select', { style: { width: '100%' } },
-    h('option', { value: '' }, '选择升级包…'),
+    h('option', { value: '' }, '选择升级包（默认最新）…'),
     ...packages.slice(0, 80).map((p) => h('option', { value: p.id, selected: ug.packageId === p.id },
-      `${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
+      `${latestIds.has(p.id) ? '★最新 · ' : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
   pkgSel.addEventListener('change', () => {
     ug.packageId = pkgSel.value;
     const p = packages.find((x) => x.id === ug.packageId);
@@ -562,10 +641,18 @@ function viewOta() {
               };
               render();
             },
-          }, ug.busy ? '下发中…' : '一键远程升级')),
-        ug.msg ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
-        ug.err ? h('div', { class: 'admin-msg err' }, ug.err) : null,
-        h('div', { class: 'admin-msg info' }, 'S3 预签名 2h → IoT setRemoteOtaServiceCommand（与 App / 设备页一致）'),
+          }, ug.busy || ug.tracking ? (ug.tracking ? `升级中 ${ug.progress || 0}%` : '下发中…') : '一键远程升级')),
+        (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field span2', style: { marginTop: '10px' } },
+          h('label', {}, '升级状态'),
+          h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
+          h('div', {
+            class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
+            style: { marginTop: '8px' },
+          }, ug.err || ug.statusText || ug.msg || '等待设备上报…'),
+        ) : null,
+        ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
+        ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
+        h('div', { class: 'admin-msg info' }, 'S3 预签名 2h → IoT 下发后监听 updateRemoteOtaStatusCommand 进度（与设备页一致）'),
       ),
     ),
     h('div', { class: 'admin-toolbar', style: { marginTop: '8px' } },
@@ -631,10 +718,15 @@ async function doUpload() {
 
 async function doRemoteUpgrade() {
   const ug = state.upgrade;
-  ug.err = ''; ug.msg = '';
+  ug.err = ''; ug.msg = ''; ug.statusText = ''; ug.detail = ''; ug.progress = 0; ug.status = '';
   const dev = (state.devices || []).find((d) => d.id === ug.deviceId);
-  const pkg = (state.packages || []).find((p) => p.id === ug.packageId);
   if (!dev) { ug.err = '请选择设备'; toast(ug.err, 'err'); render(); return; }
+  ensureDefaultUpgradeSelection();
+  let pkg = (state.packages || []).find((p) => p.id === ug.packageId);
+  if (!pkg) {
+    pkg = latestPackageForType(resolveDeviceType(dev));
+    if (pkg) { ug.packageId = pkg.id; ug.partition = pkg.upgradeDevicePartion || 'system'; }
+  }
   if (!pkg || !pkg.upgradeFileUrl) { ug.err = '请选择升级包'; toast(ug.err, 'err'); render(); return; }
   const uuid = dev.uuid;
   if (!uuid || !/^[0-9a-fA-F-]{36}$/.test(uuid)) {
@@ -666,14 +758,37 @@ async function doRemoteUpgrade() {
         upgradeDescribe: pkg.upgradeDescribe || '',
       },
     });
-    ug.msg = `已下发 · status=${resp && resp.status}`;
-    toast('远程升级命令已下发');
+    const stCode = resp && resp.status;
+    if (stCode !== 1055 && stCode !== '1055') {
+      throw new Error('设备拒绝远程 OTA status=' + stCode);
+    }
+    ug.tracking = true;
+    ug.progress = 0;
+    ug.status = '';
+    ug.detail = '';
+    ug.statusText = '已下发，等待设备上报进度…';
+    ug.msg = ug.statusText;
+    ug.err = '';
+    toast('远程升级已下发，正在跟踪进度');
+    if (ug._trackTimer) clearTimeout(ug._trackTimer);
+    ug._trackTimer = setTimeout(() => {
+      if (!ug.tracking) return;
+      ug.tracking = false;
+      ug.busy = false;
+      if (!ug.err && String(ug.status) !== '6' && String(ug.status) !== 'SUCCEEDED') {
+        ug.statusText = (ug.statusText || '升级中') + '（长时间无终态，请到设备页核对）';
+        ug.msg = ug.statusText;
+      }
+      render();
+    }, 15 * 60 * 1000);
   } catch (e) {
     console.error('[admin] remote ota', e);
+    ug.tracking = false;
     ug.err = (e && e.message) || String(e);
     toast(ug.err, 'err');
   } finally {
-    ug.busy = false; render();
+    if (!ug.tracking) ug.busy = false;
+    render();
   }
 }
 

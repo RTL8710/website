@@ -55,6 +55,8 @@ async function main() {
   ok('tabs merged OTA', js.includes("id: 'ota'") && !js.includes("id: 'packages'"));
   ok('uuid hard require', js.includes('设备缺少 deviceUuid'));
   ok('admin own login', js.includes('登录管理后台') && js.includes('function viewLogin'));
+  ok('ota default latest', js.includes('ensureDefaultUpgradeSelection') && js.includes('★最新'));
+  ok('ota status push', js.includes('updateRemoteOtaStatusCommand') && js.includes('applyOtaPush'));
   ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
 
   const appJs = await (await fetch(BASE + '/app.js')).text();
