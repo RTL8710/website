@@ -148,6 +148,10 @@ function viewLogin() {
     try {
       state.session = await signIn(username.value.trim(), pass.value);
       state.devices = null;
+      state.current = null;
+      try {
+        Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });
+      } catch (_) {}
       go('#/devices');
     } catch (e) {
       errMsg.textContent = mapAuthError(e); err.classList.add('show');
@@ -187,7 +191,7 @@ function viewLogin() {
           h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
             type: 'button', class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
             // 切区域:更新 config(pool/appsync/s3/iot 全换)+ 重渲染登录页(高亮更新,后续登录走该区域)
-            onclick: () => { setRegion(rc); viewLogin(); },
+            onclick: () => { changeRegion(rc); },
           }, regionLabel(rc)))),
         ),
         field(t('labelUser'), 'username', 'fa-user', username),
@@ -205,6 +209,21 @@ function mapAuthError(e) {
   if (/UserNotConfirmed/i.test(m)) return '账号未验证,请先在 App 内完成验证';
   if (/Network|Failed to fetch/i.test(m)) return '网络错误,请重试';
   return m || '登录失败';
+}
+async function changeRegion(rc) {
+  if (!rc || rc === getRegion()) return;
+  try { iotDisconnect(); } catch (_) {}
+  try { await signOut(); } catch (_) {}
+  state.session = null;
+  state.devices = null;
+  state.current = null;
+  try {
+    Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });
+  } catch (_) {}
+  setRegion(rc);
+  warmupAuth();
+  go('#/login');
+  viewLogin();
 }
 async function doSignOut() { iotDisconnect(); await signOut(); state.session = null; state.devices = null; go('#/login'); }
 

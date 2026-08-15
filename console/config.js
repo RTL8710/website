@@ -43,7 +43,20 @@ let _region = 'ap';
 try { const r = localStorage.getItem('dv_region'); if (r && REGIONS[r]) _region = r; } catch (e) {}
 export function getRegion() { return _region; }
 export function activeRegion() { return REGIONS[_region]; }
-export function setRegion(r) { if (REGIONS[r]) { _region = r; try { localStorage.setItem('dv_region', r); } catch (e) {} _refresh(); } }
+const _regionChangeHandlers = [];
+/** 注册切区域回调(清缓存/登出)。fn(newRegionCode) */
+export function onRegionChange(fn) {
+  if (typeof fn === 'function') _regionChangeHandlers.push(fn);
+}
+/** @returns {boolean} 是否真的切换了区域 */
+export function setRegion(r) {
+  if (!REGIONS[r] || r === _region) return false;
+  _region = r;
+  try { localStorage.setItem('dv_region', r); } catch (e) {}
+  _refresh();
+  _regionChangeHandlers.forEach((fn) => { try { fn(r); } catch (e) { console.warn('[region]', e); } });
+  return true;
+}
 
 // live binding:切区域后 setRegion→_refresh 更新这些导出,import 方(每次读 .xxx)自动拿到新区域配置
 export let REGION = REGIONS[_region].region;

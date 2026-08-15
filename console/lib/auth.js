@@ -79,11 +79,18 @@ export async function restoreSession() {
   return { sub, account, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };
 }
 
-export async function signOut() {
-  const p = await pool();
-  const user = p.getCurrentUser();
-  if (user) user.signOut();
+export function invalidateSessionMemory() {
   _idToken = null; _creds = null; _identityId = null;
+  _pool = null; _poolKey = null;
+}
+
+export async function signOut() {
+  try {
+    const p = await pool();
+    const user = p.getCurrentUser();
+    if (user) user.signOut();
+  } catch (_) {}
+  invalidateSessionMemory();
   // 清缓存(换账号/换区域防错乱):identityId(各区域)+ 所有 userRow + 设备列表缓存
   try {
     Object.keys(localStorage).forEach((k) => { if (k.indexOf('dv_identityid') === 0 || k.indexOf('dv_userrow_') === 0 || k.indexOf('dv_devices_') === 0) localStorage.removeItem(k); });

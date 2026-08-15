@@ -41,12 +41,44 @@ const state = {
   upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
   edit: null, // { type:'user'|'device', id, values, busy, err }
+  dataRegion: null, // 当前内存数据所属区域，切区必清
 };
 
 function tabs() {
   return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
 }
 
+
+function clearAdminDataCache() {
+  state.users = state.devices = state.binds = state.packages = state.records = null;
+  state.recordsMeta = null;
+  state.q = '';
+  state.deviceFilter = 'all';
+  state.recDeviceId = '';
+  state.upgrade = {
+    deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '',
+    tracking: false, progress: 0, status: '', statusText: '', detail: '',
+  };
+  state.upload.file = null; state.upload.msg = ''; state.upload.err = '';
+  state.edit = null; state.confirm = null;
+  state.dataRegion = null;
+}
+/** 切区域：先登出旧池，再换配置，清内存，回登录（各区域 Cognito/AppSync/S3 独立） */
+async function changeRegion(rc) {
+  if (!rc || rc === getRegion()) return;
+  try { iotDisconnect(); } catch (_) {}
+  try { await signOut(); } catch (_) {}
+  state.session = null;
+  clearAdminDataCache();
+  setRegion(rc);
+  warmupAuth();
+  viewLogin();
+}
+function ensureDataRegionFresh() {
+  const r = getRegion();
+  if (state.dataRegion != null && state.dataRegion !== r) clearAdminDataCache();
+  state.dataRegion = r;
+}
 function fa(cls) { return h('i', { class: 'fa-solid ' + cls }); }
 function chip(text, cls) { return h('span', { class: 'chip ' + (cls || 'count') }, text); }
 function fmt(iso) {
@@ -238,6 +270,13 @@ function topbar() {
         (u && (u.account || (u.userRow && u.userRow.awsUserName) || u.email)) || '',
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } },
           regionLabel(getRegion()))),
+      h('div', { class: 'region-tabs', style: { display: 'flex', gap: '4px' } },
+        ...REGION_ORDER.map((rc) => h('button', {
+          type: 'button',
+          class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
+          title: '切换区域需重新登录',
+          onclick: () => changeRegion(rc),
+        }, regionLabel(rc)))),
       ...switcherBar(true).reverse(),
       h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' ' + t('consoleLink')),
       h('button', { class: 'gbtn icon', title: t('logout'), onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
@@ -279,8 +318,8 @@ function searchBox(ph) {
 }
 
 async function refreshAll() {
-  state.users = state.devices = state.binds = state.packages = state.records = null;
-  state.recordsMeta = null;
+  clearAdminDataCache();
+  state.dataRegion = getRegion();
   await loadTab(state.tab);
   toast(t('dataRefreshed'));
 }
@@ -319,6 +358,7 @@ async function loadRecords() {
 }
 
 async function loadTab(id) {
+  ensureDataRegionFresh();
   state.loadingTab = true;
   state._err = '';
   render();
@@ -1026,6 +1066,8 @@ async function enterAdmin(session) {
     return;
   }
   state.session = session;
+  clearAdminDataCache(); // 登录后强制拉当前区域，避免上一区残留
+  state.dataRegion = getRegion();
   render();
   await loadTab('overview');
 }
@@ -1097,7 +1139,7 @@ function viewLogin(preErr) {
             h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
               type: 'button',
               class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
-              onclick: () => { setRegion(rc); viewLogin(); },
+              onclick: () => { changeRegion(rc); },
             }, regionLabel(rc)))),
           ),
           h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
