@@ -12,6 +12,9 @@ import {
 import { putS3Object, presignS3Get } from '../lib/sigv4.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
+import {
+  t, applyTheme, applyLang, setLangChangeHandler, switcherBar, tabDefs, regionLabel, getTheme,
+} from './i18n.js';
 
 const app = document.getElementById('app');
 const state = {
@@ -39,13 +42,9 @@ const state = {
   edit: null, // { type:'user'|'device', id, values, busy, err }
 };
 
-const TABS = [
-  { id: 'overview', icon: 'fa-gauge-high', label: '总览' },
-  { id: 'users', icon: 'fa-users', label: '用户' },
-  { id: 'devices', icon: 'fa-robot', label: '设备' },
-  { id: 'records', icon: 'fa-cloud', label: '云录像' },
-  { id: 'ota', icon: 'fa-rocket', label: 'OTA' },
-];
+function tabs() {
+  return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
+}
 
 function fa(cls) { return h('i', { class: 'fa-solid ' + cls }); }
 function chip(text, cls) { return h('span', { class: 'chip ' + (cls || 'count') }, text); }
@@ -76,7 +75,7 @@ function toast(msg, type = 'ok') {
 function copyText(t) {
   const s = String(t || '');
   if (!s) return;
-  navigator.clipboard.writeText(s).then(() => toast('已复制')).catch(() => toast('复制失败', 'err'));
+  navigator.clipboard.writeText(s).then(() => toast(t('copied'))).catch(() => toast(t('copyFail'), 'err'));
 }
 function copyable(text, title) {
   return h('span', {
@@ -149,7 +148,7 @@ function otaPhaseText(status, progress) {
   if (st === '3') return `重启服务中 ${pr}%`;
   if (st === '5' || st === 'FAILED' || st === 'REJECTED' || st === 'TIMED_OUT') return '升级失败';
   if (st === '6' || st === 'SUCCEEDED') return '升级成功';
-  if (!st) return pr ? `升级中 ${pr}%` : '等待设备上报…';
+  if (!st) return pr ? `升级中 ${pr}%` : t('waitingDevice');
   return `状态 ${st} · ${pr}%`;
 }
 function applyOtaPush(detail) {
@@ -207,30 +206,32 @@ function topbar() {
   const u = state.session;
   return h('div', { class: 'topbar' },
     h('div', { class: 'in', style: { maxWidth: 'none' } },
-      h('a', { class: 'brand', href: '../index.html#/devices' }, h('span', { class: 'b' }), '云端管理后台'),
+      h('a', { class: 'brand', href: '../index.html#/devices' }, h('span', { class: 'b' }), t('brand')),
       h('span', { class: 'spacer' }),
       h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
         fa('fa-user-shield'),
         (u && (u.account || (u.userRow && u.userRow.awsUserName) || u.email)) || '',
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } },
-          (REGIONS[getRegion()] && REGIONS[getRegion()].label) || getRegion())),
-      h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' 控制台'),
-      h('button', { class: 'gbtn icon', title: '退出', onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
+          regionLabel(getRegion()))),
+      ...switcherBar(true).reverse(),
+      h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' ' + t('consoleLink')),
+      h('button', { class: 'gbtn icon', title: t('logout'), onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
         fa('fa-right-from-bracket')),
     ),
   );
 }
 
 function shell(body) {
-  const nav = h('div', { class: 'admin-nav' }, ...TABS.map((t) => h('button', {
-    class: state.tab === t.id ? 'active' : '',
-    onclick: () => goTab(t.id),
-  }, fa(t.icon), t.label)));
+  const nav = h('div', { class: 'admin-nav' }, ...tabs().map((tb) => h('button', {
+    class: state.tab === tb.id ? 'active' : '',
+    onclick: () => goTab(tb.id),
+  }, fa(tb.icon), tb.label)));
+  const sideHint = t('sideHint').split('\n');
   const side = h('aside', { class: 'admin-side' },
-    h('div', { class: 'logo' }, h('span', { class: 'b' }), 'Admin'),
+    h('div', { class: 'logo' }, h('span', { class: 'b' }), t('brandShort')),
     nav,
     h('div', { class: 'faint', style: { fontSize: '11px', padding: '18px 10px 0', lineHeight: '1.55' } },
-      '最短路径：设备 → 升级到最新', h('br'), '或 OTA 页上传后一键下发'),
+      sideHint[0] || '', h('br'), sideHint[1] || ''),
   );
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
@@ -256,7 +257,7 @@ async function refreshAll() {
   state.users = state.devices = state.binds = state.packages = state.records = null;
   state.recordsMeta = null;
   await loadTab(state.tab);
-  toast('数据已刷新');
+  toast(t('dataRefreshed'));
 }
 
 async function ensure(kind) {
@@ -337,18 +338,18 @@ function viewOverview() {
   const trunc = state.recordsMeta && state.recordsMeta.truncated;
   const latest = (state.packages || [])[0];
   return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, '总览'), chip(getRegion().toUpperCase())),
-    h('div', { class: 'admin-sub' }, 'Amplify 全库数据 · 远程 OTA 与 App 同协议'),
+    h('div', { class: 'admin-head' }, h('h1', {}, t('overview')), chip(getRegion().toUpperCase())),
+    h('div', { class: 'admin-sub' }, t('overviewSub')),
     state._err ? h('div', { class: 'admin-msg err' }, state._err) : null,
     h('div', { class: 'admin-grid-stats' },
-      stat('用户', u, () => goTab('users')),
-      stat('设备', d, () => goTab('devices')),
-      stat('在线', online, () => { state.deviceFilter = 'online'; goTab('devices'); }),
-      stat('升级包', p, () => goTab('ota')),
-      stat('云录像', r + (trunc ? '+' : ''), () => goTab('records')),
+      stat(t('usersCount'), u, () => goTab('users')),
+      stat(t('devicesCount'), d, () => goTab('devices')),
+      stat(t('onlineCount'), online, () => { state.deviceFilter = 'online'; goTab('devices'); }),
+      stat(t('pkgsCount'), p, () => goTab('ota')),
+      stat(t('recordsCount'), r + (trunc ? '+' : ''), () => goTab('records')),
     ),
     h('div', { class: 'glass admin-panel' },
-      h('div', { style: { fontWeight: 800, marginBottom: '6px' } }, '常用操作'),
+      h('div', { style: { fontWeight: 800, marginBottom: '6px' } }, t('commonOps')),
       h('div', { class: 'faint', style: { fontSize: '12.5px', marginBottom: '12px' } },
         latest
           ? `云端最新包：${latest.upgradeDeviceType} v${latest.upgradeDeviceVersion || '?'} · ${latest.upgradeDevicePartion || ''} · ${latest.upgradeDescribe || ''}`
@@ -369,19 +370,19 @@ function stat(k, v, onClick) {
 function viewUsers() {
   const rows = (state.users || []).filter((u) => u && matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
   return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, '用户'), chip(String(rows.length))),
-    h('div', { class: 'admin-sub' }, 'User 表全量 · 可编辑资料 / 删除（清绑定，不删 Cognito）'),
+    h('div', { class: 'admin-head' }, h('h1', {}, t('users')), chip(String(rows.length))),
+    h('div', { class: 'admin-sub' }, t('usersSub')),
     h('div', { class: 'admin-toolbar' },
-      searchBox('用户名 / 邮箱 / ID…'),
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, '刷新')),
+      searchBox(t('searchUsers')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, t('refresh'))),
     state.loadingTab || !state.users ? loading('加载用户…') : tableWrap(
-      ['用户名', '邮箱', '手机', '区域', 'User.id', 'Cognito', '更新', '操作'],
+      [t('colUser'), t('colEmail'), t('colPhone'), t('colRegion'), 'User.id', 'Cognito', t('colUpdated'), t('colActions')],
       rows.map((u) => [
         u.awsUserName || '—', u.email || '—', u.phoneNumber || '—', u.region || '—',
         copyable(u.id), copyable(u.awsUserID), fmt(u.updatedAt),
         h('div', { class: 'row-actions' },
-          h('button', { class: 'gbtn btn-sm', onclick: () => openEditUser(u) }, '编辑'),
-          h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteUser(u) }, '删除'),
+          h('button', { class: 'gbtn btn-sm', onclick: () => openEditUser(u) }, t('edit')),
+          h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteUser(u) }, t('delete')),
         ),
       ]),
     ),
@@ -395,18 +396,18 @@ function viewDevices() {
   rows = rows.filter((d) => matchQ([d.name, d.model, d.uuid, d.id, d.firmware, d.ownerUserId, ownerName(d.ownerUserId)]));
 
   const seg = h('div', { class: 'seg' },
-    ...[['all', '全部'], ['online', '在线'], ['offline', '离线']].map(([k, lab]) => h('button', {
+    ...[['all', t('all')], ['online', t('online')], ['offline', t('offline')]].map(([k, lab]) => h('button', {
       class: state.deviceFilter === k ? 'on' : '',
       onclick: () => { state.deviceFilter = k; render(); },
     }, lab)));
 
   return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, '设备'), chip(String(rows.length)),
-      chip(`${(state.devices || []).filter((d) => d.online).length} 在线`, 'stat-online')),
-    h('div', { class: 'admin-sub' }, '可编辑设备信息 · 删除会清全部绑定再删 Device · 「升级到最新」自动选最新包'),
+    h('div', { class: 'admin-head' }, h('h1', {}, t('devices')), chip(String(rows.length)),
+      chip(`${(state.devices || []).filter((d) => d.online).length} ${t('online')}`, 'stat-online')),
+    h('div', { class: 'admin-sub' }, t('devicesSub')),
     h('div', { class: 'admin-toolbar' },
-      searchBox('名称 / UUID / 型号 / 所有者…'), seg,
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, '刷新')),
+      searchBox(t('searchDevices')), seg,
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, t('refresh'))),
     (() => {
       if (state.loadingTab && !state.devices) return loading('加载设备…');
       if (state._err && !(state.devices && state.devices.length)) {
@@ -417,12 +418,12 @@ function viewDevices() {
       }
       if (!state.devices) return loading('加载设备…');
       return tableWrap(
-        ['状态', '名称', '型号', '版本', 'UUID', '所有者', '绑定', '操作'],
+        [t('colStatus'), t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colActions')],
         rows.filter((d) => d && d.id).map((d) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
           return [
-            d.online ? chip('在线', 'stat-online') : chip('离线', 'stat-offline'),
+            d.online ? chip(t('online'), 'stat-online') : chip(t('offline'), 'stat-offline'),
             d.name || '—',
             d.model || '—',
             d.firmware ? ('v' + d.firmware) : '—',
@@ -430,15 +431,15 @@ function viewDevices() {
             ownerName(d.ownerUserId),
             String(binds.length),
             h('div', { class: 'row-actions' },
-              h('button', { class: 'gbtn btn-sm', onclick: () => openEditDevice(d) }, '编辑'),
-              h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, '进入'),
+              h('button', { class: 'gbtn btn-sm', onclick: () => openEditDevice(d) }, t('edit')),
+              h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, t('enter')),
               h('button', {
                 class: 'gbtn primary btn-sm',
                 disabled: !d.uuid || !latest,
                 title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
                 onclick: () => askUpgradeLatest(d),
-              }, '升级到最新'),
-              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDevice(d) }, '删除'),
+              }, t('upgradeLatest')),
+              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDevice(d) }, t('delete')),
             ),
           ];
         }),
@@ -467,9 +468,9 @@ function openEditUser(u) {
 function askDeleteUser(u) {
   const name = u.awsUserName || u.email || u.id;
   state.confirm = {
-    title: '确认删除用户',
+    title: t('confirmDelUser'),
     body: `将删除 User 行与其全部设备绑定(DeviceUser)。\n用户：${name}\nUser.id：${u.id}\n\n不会删除 Cognito 账号，也不会删除 Device 行。`,
-    okText: '确认删除',
+    okText: t('confirmDelOk'),
     onOk: async () => {
       state.confirm = null; render();
       try {
@@ -514,9 +515,9 @@ function openEditDevice(d) {
 function askDeleteDevice(d) {
   const binds = bindUsersForDevice(d.id);
   state.confirm = {
-    title: '确认删除设备',
+    title: t('confirmDelDevice'),
     body: `将删除设备及其全部用户绑定。\n设备：${d.name || d.id}\nUUID：${d.uuid || '—'}\n绑定数：${binds.length}\n\n删除后设备可被重新配网/绑定。`,
-    okText: '确认删除',
+    okText: t('confirmDelOk'),
     onOk: async () => {
       state.confirm = null; render();
       try {
@@ -548,7 +549,7 @@ function renderEdit() {
   const e = state.edit;
   if (!e) return null;
   const isUser = e.type === 'user';
-  const title = isUser ? '编辑用户' : '编辑设备';
+  const title = isUser ? t('editUser') : t('editDevice');
   const fields = isUser
     ? [
         fieldInput(e, 'awsUserName', '用户名'),
@@ -616,8 +617,8 @@ function renderEdit() {
       h('div', { class: 'admin-form' }, ...fields),
       e.err ? h('div', { class: 'admin-msg err' }, e.err) : null,
       h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '14px' } },
-        h('button', { class: 'gbtn', disabled: e.busy, onclick: () => { state.edit = null; render(); } }, '取消'),
-        h('button', { class: 'gbtn primary', disabled: e.busy, onclick: () => save() }, e.busy ? '保存中…' : '保存'),
+        h('button', { class: 'gbtn', disabled: e.busy, onclick: () => { state.edit = null; render(); } }, t('cancel')),
+        h('button', { class: 'gbtn primary', disabled: e.busy, onclick: () => save() }, e.busy ? t('saving') : t('save')),
       ),
     ),
   );
@@ -628,9 +629,9 @@ function askUpgradeLatest(dev) {
   if (!pkg) { toast('没有可用升级包', 'err'); return; }
   if (!dev.uuid) { toast('设备缺少 deviceUuid', 'err'); return; }
   state.confirm = {
-    title: '确认远程升级',
+    title: t('confirmUpgrade'),
     body: `设备：${dev.name || dev.id}\n当前版本：${dev.firmware || '?'}\n目标：${pkg.upgradeDeviceType} v${pkg.upgradeDeviceVersion}（${pkg.upgradeDevicePartion || 'system'}）\n说明：${pkg.upgradeDescribe || '—'}\n\n设备需在线。确认后立即经 AWS IoT 下发。`,
-    okText: '确认升级',
+    okText: t('confirmUpgradeOk'),
     onOk: async () => {
       state.confirm = null;
       state.upgrade.deviceId = dev.id;
@@ -650,8 +651,8 @@ function renderConfirm() {
       h('h3', {}, c.title),
       h('div', { class: 'body', style: { whiteSpace: 'pre-wrap' } }, c.body),
       h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } },
-        h('button', { class: 'gbtn', onclick: () => { state.confirm = null; render(); } }, '取消'),
-        h('button', { class: 'gbtn primary', onclick: () => c.onOk && c.onOk() }, c.okText || '确认'),
+        h('button', { class: 'gbtn', onclick: () => { state.confirm = null; render(); } }, t('cancel')),
+        h('button', { class: 'gbtn primary', onclick: () => c.onOk && c.onOk() }, c.okText || t('confirmOk')),
       ),
     ),
   );
@@ -685,7 +686,7 @@ function viewRecords() {
   days.addEventListener('change', () => { state.recDays = Number(days.value); });
 
   return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, '云录像'), chip(String(rows.length)),
+    h('div', { class: 'admin-head' }, h('h1', {}, t('records')), chip(String(rows.length)),
       (state.recordsMeta && state.recordsMeta.truncated) ? chip('结果已截断', 'stat-offline') : null),
     h('div', { class: 'admin-sub' }, '默认近 7 天，避免全表扫描'),
     h('div', { class: 'admin-toolbar' },
@@ -765,9 +766,9 @@ function viewOta() {
   const latestIds = new Set();
   ['smartRobot', 'smartIpcamera'].forEach((t) => { const L = latestPackageForType(t); if (L) latestIds.add(L.id); });
   const pkgSel = h('select', { style: { width: '100%' } },
-    h('option', { value: '' }, '选择升级包（默认最新）…'),
+    h('option', { value: '' }, t('pickPkg')),
     ...packages.slice(0, 80).map((p) => h('option', { value: p.id, selected: ug.packageId === p.id },
-      `${latestIds.has(p.id) ? '★最新 · ' : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
+      `${latestIds.has(p.id) ? t('latestMark') : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
   pkgSel.addEventListener('change', () => {
     ug.packageId = pkgSel.value;
     const p = packages.find((x) => x.id === ug.packageId);
@@ -775,7 +776,7 @@ function viewOta() {
     render();
   });
   const partOver = h('select', {},
-    ...['', 'system', 'website', 'model', 'config', 'all'].map((t) => h('option', { value: t, selected: (ug.partition || '') === t }, t || '跟随升级包')));
+    ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg')));
   partOver.addEventListener('change', () => { ug.partition = partOver.value; });
 
   const filterType = h('select', {},
@@ -784,33 +785,33 @@ function viewOta() {
   filterType.addEventListener('change', () => { state.pkgFilterType = filterType.value; render(); });
 
   return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, 'OTA'), chip(String(packages.length) + ' 包')),
-    h('div', { class: 'admin-sub' }, '上传与远程升级合在一页 · 协议对齐 App CLOUD_ONLY'),
+    h('div', { class: 'admin-head' }, h('h1', {}, t('ota')), chip(String(packages.length) + ' 包')),
+    h('div', { class: 'admin-sub' }, t('otaSub')),
     h('div', { class: 'ota-grid' },
       h('div', { class: 'glass admin-panel' },
-        h('div', { class: 'step' }, h('b', {}, '1'), '上传升级包到云端'),
+        h('div', { class: 'step' }, h('b', {}, '1'), t('stepUpload')),
         h('div', { class: 'admin-form' },
-          h('div', { class: 'admin-field span2' }, h('label', {}, '文件'), fileInput,
+          h('div', { class: 'admin-field span2' }, h('label', {}, t('file')), fileInput,
             h('div', { class: 'faint', style: { marginTop: '4px' } },
               u.file ? `${u.file.name} (${Math.round(u.file.size / 1024)} KB)` : '支持 robot_*.tar.gz / .tgz（选不到时改用「所有文件」）')),
-          h('div', { class: 'admin-field' }, h('label', {}, '机型'), typeSel),
-          h('div', { class: 'admin-field' }, h('label', {}, '分区'), partSel),
-          h('div', { class: 'admin-field' }, h('label', {}, '版本'), verIn),
-          h('div', { class: 'admin-field span2' }, h('label', {}, '说明'), descIn),
+          h('div', { class: 'admin-field' }, h('label', {}, t('deviceType')), typeSel),
+          h('div', { class: 'admin-field' }, h('label', {}, t('partition')), partSel),
+          h('div', { class: 'admin-field' }, h('label', {}, t('version')), verIn),
+          h('div', { class: 'admin-field span2' }, h('label', {}, t('describe')), descIn),
         ),
         h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
         h('div', { class: 'row-actions', style: { marginTop: '12px' } },
           h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
-            u.busy ? `上传中 ${u.progress}%` : '上传并登记')),
+            u.busy ? `${t('uploading')} ${u.progress}%` : t('btnUpload'))),
         u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
         u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
       ),
       h('div', { class: 'glass admin-panel' },
-        h('div', { class: 'step' }, h('b', {}, '2'), '选择设备与包，一键下发'),
+        h('div', { class: 'step' }, h('b', {}, '2'), t('stepPush')),
         h('div', { class: 'admin-form' },
-          h('div', { class: 'admin-field span2' }, h('label', {}, '设备'), devSel),
-          h('div', { class: 'admin-field span2' }, h('label', {}, '升级包'), pkgSel),
-          h('div', { class: 'admin-field' }, h('label', {}, '分区覆盖'), partOver),
+          h('div', { class: 'admin-field span2' }, h('label', {}, t('device')), devSel),
+          h('div', { class: 'admin-field span2' }, h('label', {}, t('package')), pkgSel),
+          h('div', { class: 'admin-field' }, h('label', {}, t('partOverride')), partOver),
         ),
         h('div', { class: 'row-actions', style: { marginTop: '12px' } },
           h('button', {
@@ -818,23 +819,23 @@ function viewOta() {
             onclick: () => {
               const dev = devices.find((d) => d.id === ug.deviceId);
               const pkg = packages.find((p) => p.id === ug.packageId);
-              if (!dev || !pkg) { toast('请先选择设备和升级包', 'err'); return; }
+              if (!dev || !pkg) { toast(t('pickDevicePkg'), 'err'); return; }
               state.confirm = {
-                title: '确认远程升级',
+                title: t('confirmUpgrade'),
                 body: `设备：${dev.name}\n包：v${pkg.upgradeDeviceVersion} ${pkg.upgradeDevicePartion || ''}\n${pkg.upgradeDescribe || ''}`,
-                okText: '确认升级',
+                okText: t('confirmUpgradeOk'),
                 onOk: async () => { state.confirm = null; render(); await doRemoteUpgrade(); },
               };
               render();
             },
-          }, ug.busy || ug.tracking ? (ug.tracking ? `升级中 ${ug.progress || 0}%` : '下发中…') : '一键远程升级')),
+          }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
         (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field span2', style: { marginTop: '10px' } },
-          h('label', {}, '升级状态'),
+          h('label', {}, t('upgradeStatus')),
           h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
           h('div', {
             class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
             style: { marginTop: '8px' },
-          }, ug.err || ug.statusText || ug.msg || '等待设备上报…'),
+          }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
         ) : null,
         ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
         ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
@@ -842,8 +843,8 @@ function viewOta() {
       ),
     ),
     h('div', { class: 'admin-toolbar', style: { marginTop: '8px' } },
-      searchBox('搜包版本 / 说明…'), filterType,
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; await loadTab('ota'); } }, '刷新列表')),
+      searchBox(t('searchPkgs')), filterType,
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; await loadTab('ota'); } }, t('refresh'))),
     !state.packages ? loading('加载升级包…') : tableWrap(
       ['时间', '机型', '版本', '分区', '说明', 'S3', '操作'],
       list.slice(0, 100).map((p) => [
@@ -988,15 +989,12 @@ function render() {
   shell(body);
 }
 
-function regionLabel(rc) {
-  return (REGIONS[rc] && REGIONS[rc].label) || rc;
-}
 function mapAuthError(e) {
   const m = (e && e.message) || '';
-  if (/UserNotFound|does not exist|Incorrect username or password|NotAuthorized/i.test(m)) return '用户名或密码不正确';
-  if (/UserNotConfirmed/i.test(m)) return '账号未验证,请先在 App 内完成验证';
-  if (/Network|Failed to fetch/i.test(m)) return '网络错误,请重试';
-  return m || '登录失败';
+  if (/UserNotFound|does not exist|Incorrect username or password|NotAuthorized/i.test(m)) return t('authBad');
+  if (/UserNotConfirmed/i.test(m)) return t('authUnconfirmed');
+  if (/Network|Failed to fetch/i.test(m)) return t('authNet');
+  return m || t('authFail');
 }
 
 async function enterAdmin(session) {
@@ -1017,42 +1015,42 @@ function viewDenied(session) {
   const account = (session && (session.account || (session.userRow && session.userRow.awsUserName) || session.email)) || '';
   mount(app, h('div', { class: 'center', style: { padding: '80px', textAlign: 'center' } },
     h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '440px', margin: '0 auto' } },
-      h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, '无管理后台权限'),
+      h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, t('noPermTitle')),
       h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
         '当前账号 ', h('strong', {}, account || '—'),
         ' 不是运维白名单。管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请打开本页 ',
         h('code', {}, '/console/admin/'), ' 并用 ADMIN_ALLOWLIST 中的账号登录。'),
       h('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } },
         h('button', { class: 'gbtn primary', onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
-          '退出并重新登录'),
+          t('reLogin')),
         h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none', opacity: '0.75' } },
-          '返回设备控制台'),
+          t('backConsole')),
       ),
     )));
 }
 
 function viewLogin(preErr) {
   const username = h('input', {
-    class: 'form-input', type: 'text', id: 'admin-username', placeholder: '运维账号(如 admin)',
+    class: 'form-input', type: 'text', id: 'admin-username', placeholder: t('phUser'),
     autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true,
   });
   const pass = h('input', {
-    class: 'form-input', type: 'password', id: 'admin-password', placeholder: '密码',
+    class: 'form-input', type: 'password', id: 'admin-password', placeholder: t('phPass'),
     autocomplete: 'current-password', required: true,
   });
   const errMsg = h('span', {}, preErr || '');
   const err = h('div', { class: 'login-error' + (preErr ? ' show' : '') }, fa('fa-circle-exclamation'), errMsg);
-  const btn = h('button', { type: 'submit', class: 'btn-login' }, '登录管理后台');
+  const btn = h('button', { type: 'submit', class: 'btn-login' }, t('loginBtn'));
   async function submit(ev) {
     ev && ev.preventDefault();
     err.classList.remove('show');
     if (!username.value || !pass.value) {
-      errMsg.textContent = '请输入用户名和密码';
+      errMsg.textContent = t('errEmpty');
       err.classList.add('show');
       return;
     }
     btn.disabled = true;
-    btn.textContent = '登录中…';
+    btn.textContent = t('loginLoading');
     try {
       const session = await signIn(username.value.trim(), pass.value);
       await enterAdmin(session);
@@ -1060,22 +1058,23 @@ function viewLogin(preErr) {
       errMsg.textContent = mapAuthError(e);
       err.classList.add('show');
       btn.disabled = false;
-      btn.textContent = '登录管理后台';
+      btn.textContent = t('loginBtn');
     }
   }
   mount(app,
+    ...switcherBar(false),
     h('div', { class: 'center', style: { minHeight: '100vh', padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
       h('div', { class: 'glass', style: { padding: '28px 32px', width: '100%', maxWidth: '420px' } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' } },
           fa('fa-shield-halved'),
-          h('div', { style: { fontWeight: 800, fontSize: '18px' } }, '云端管理后台'),
+          h('div', { style: { fontWeight: 800, fontSize: '18px' } }, t('loginTitle')),
         ),
         h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.55', marginBottom: '18px' } },
-          '独立入口 · 仅运维白名单账号。设备控制台无此入口。'),
+          t('loginSub')),
         h('form', { onsubmit: submit },
           err,
           h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
-            h('label', {}, '区域'),
+            h('label', {}, t('labelRegion')),
             h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
               type: 'button',
               class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
@@ -1083,18 +1082,18 @@ function viewLogin(preErr) {
             }, regionLabel(rc)))),
           ),
           h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
-            h('label', { for: 'admin-username' }, '用户名'),
+            h('label', { for: 'admin-username' }, t('labelUser')),
             username,
           ),
           h('div', { class: 'admin-field', style: { marginBottom: '8px' } },
-            h('label', { for: 'admin-password' }, '密码'),
+            h('label', { for: 'admin-password' }, t('labelPass')),
             pass,
           ),
           btn,
         ),
         h('div', { style: { marginTop: '14px', textAlign: 'center' } },
           h('a', { class: 'faint', href: '../index.html#/devices', style: { fontSize: '12px', textDecoration: 'none' } },
-            '前往设备控制台'),
+            t('goConsole')),
         ),
       ),
     ),
@@ -1103,8 +1102,13 @@ function viewLogin(preErr) {
 }
 
 (async function boot() {
+  applyTheme(getTheme());
+  setLangChangeHandler(() => {
+    if (!state.session) viewLogin();
+    else render();
+  });
   warmupAuth();
-  mount(app, h('div', { class: 'center', style: { padding: '80px' } }, loading('恢复会话…')));
+  mount(app, h('div', { class: 'center', style: { padding: '80px' } }, loading(t('restoring'))));
   let session = null;
   try { session = await restoreSession(); } catch (_) {}
   if (!session || !session.userRow) {

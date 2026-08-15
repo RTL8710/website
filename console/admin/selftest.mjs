@@ -59,6 +59,9 @@ async function main() {
   ok('ota status push', js.includes('updateRemoteOtaStatusCommand') && js.includes('applyOtaPush'));
   ok('bind null-safe', js.includes('b && (b.deviceId === deviceId'));
   ok('user/device CRUD', js.includes('openEditUser') && js.includes('askDeleteDevice') && js.includes('deleteUserCompletely'));
+  ok('admin i18n theme', js.includes("from './i18n.js'") && js.includes('switcherBar'));
+  const i18n = await (await fetch(BASE + '/admin/i18n.js')).text();
+  ok('i18n module', i18n.includes('export function switcherBar') && i18n.includes('dv_theme'));
   ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
 
   const appJs = await (await fetch(BASE + '/app.js')).text();
