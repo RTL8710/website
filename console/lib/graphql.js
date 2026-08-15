@@ -177,7 +177,8 @@ const Q_LIST_DEVICEUSERS_FULL = /* GraphQL */ `
   }`;
 
 export async function listAllDeviceUsers(filter) {
-  return pageAll(Q_LIST_DEVICEUSERS_FULL, { filter: filter || null }, (d) => d.listDeviceUsers);
+  const items = await pageAll(Q_LIST_DEVICEUSERS_FULL, { filter: filter || null }, (d) => d.listDeviceUsers);
+  return (items || []).filter(Boolean);
 }
 
 const Q_LIST_UPGRADES = /* GraphQL */ `

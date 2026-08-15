@@ -106,7 +106,8 @@ function ownerName(ownerUserId) {
   return (u && (u.awsUserName || u.email)) || shortId(ownerUserId);
 }
 function bindUsersForDevice(deviceId) {
-  return (state.binds || []).filter((b) => b.deviceId === deviceId || (b.device && b.device.id === deviceId));
+  // Amplify list 偶发 items 含 null，读 b.deviceId 会把设备页整页打挂
+  return (state.binds || []).filter((b) => b && (b.deviceId === deviceId || (b.device && b.device.id === deviceId)));
 }
 function latestPackageForType(deviceType, preferPart) {
   const t = deviceType || 'smartRobot';
@@ -410,7 +411,7 @@ function viewDevices() {
       if (!state.devices) return loading('加载设备…');
       return tableWrap(
         ['状态', '名称', '型号', '版本', 'UUID', '所有者', '绑定', '操作'],
-        rows.map((d) => {
+        rows.filter((d) => d && d.id).map((d) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
           return [
