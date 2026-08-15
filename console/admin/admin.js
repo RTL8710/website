@@ -10,6 +10,7 @@ import {
   updateDeviceAdmin, deleteDeviceCompletely,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get } from '../lib/sigv4.js';
+import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
 import {
@@ -76,6 +77,30 @@ function copyText(t) {
   const s = String(t || '');
   if (!s) return;
   navigator.clipboard.writeText(s).then(() => toast(t('copied'))).catch(() => toast(t('copyFail'), 'err'));
+}
+function mediaThumb(raw, opts) {
+  const o = opts || {};
+  const box = h('div', {
+    class: 'thumb',
+    style: {
+      width: o.w || '56px', height: o.h || '40px', borderRadius: '8px',
+      background: 'var(--fill-md)', overflow: 'hidden', display: 'inline-flex',
+      alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)',
+    },
+  }, h('span', { class: 'faint', style: { fontSize: '10px' } }, '…'));
+  if (!raw) return h('span', { class: 'faint' }, '—');
+  resolvedCreds().then((c) => {
+    const url = signS3MediaUrl(c, raw, 3600);
+    if (!url) return;
+    const img = h('img', {
+      src: url, alt: '',
+      style: { width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' },
+      onclick: () => window.open(url, '_blank'),
+      onerror: function () { this.style.display = 'none'; },
+    });
+    box.replaceChildren(img);
+  }).catch(() => {});
+  return box;
 }
 function copyable(text, title) {
   return h('span', {
@@ -418,12 +443,13 @@ function viewDevices() {
       }
       if (!state.devices) return loading('加载设备…');
       return tableWrap(
-        [t('colStatus'), t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colActions')],
+        [t('colStatus'), '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colActions')],
         rows.filter((d) => d && d.id).map((d) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
           return [
             d.online ? chip(t('online'), 'stat-online') : chip(t('offline'), 'stat-offline'),
+            mediaThumb(d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || ''),
             d.name || '—',
             d.model || '—',
             d.firmware ? ('v' + d.firmware) : '—',
@@ -704,14 +730,7 @@ function viewRecords() {
         (r.duration || '—') + (r.duration ? 's' : ''),
         r.channel != null ? String(r.channel) : '—',
         r.resolution || '—', r.type || '—',
-        r.thumbnailUrl ? h('button', { class: 'gbtn btn-sm', onclick: async () => {
-          try {
-            const c = await resolvedCreds();
-            let raw = r.thumbnailUrl;
-            if (!/^https?:/.test(raw)) raw = `https://${S3_BUCKET}.s3.${COGNITO.region}.amazonaws.com/${String(raw).replace(/^\/+/, '')}`;
-            window.open(presignS3Get(Object.assign({ region: COGNITO.region }, c), raw), '_blank');
-          } catch (e) { toast(e.message, 'err'); }
-        } }, '打开') : '—',
+        mediaThumb(r.thumbnailUrl, { w: '72px', h: '48px' }),
       ]),
     ),
   );

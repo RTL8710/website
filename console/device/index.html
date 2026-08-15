@@ -96,14 +96,33 @@ window.__presignOtaS3Get = function (rawKeyOrUrl, expiresSec) {
   if (!C || !creds.accessKeyId || !creds.secretAccessKey) return null;
   var raw = (rawKeyOrUrl || '').trim();
   if (!raw) return null;
+  // 已签名且未过期可直用；否则一律抽 key → 当前区域桶重签（对齐 App getUrl）
+  if (/^https?:\/\//i.test(raw) && (raw.indexOf('X-Amz-') >= 0 || raw.indexOf('Signature=') >= 0)) {
+    try {
+      var u0 = new URL(raw);
+      var exp = u0.searchParams.get('X-Amz-Date');
+      // 仍重签更稳：抽 path 作 key
+    } catch (e0) {}
+  }
   var httpsUrl = raw;
-  if (!/^https?:\/\//i.test(raw)) {
-    var key = raw.replace(/^\/+/, '');
-    if (key.indexOf('public/') !== 0) key = 'public/' + key;
+  var key = '';
+  if (/^https?:\/\//i.test(raw) && /amazonaws\.com/i.test(raw)) {
+    try {
+      var u1 = new URL(raw);
+      key = decodeURIComponent((u1.pathname || '').replace(/^\/+/, ''));
+    } catch (e1) { key = ''; }
+  } else if (!/^https?:\/\//i.test(raw)) {
+    key = raw.replace(/^\/+/, '');
+  }
+  if (key) {
+    // Amplify 默认 access level=public；已含 public/protected/private 则不改
+    if (key.indexOf('public/') !== 0 && key.indexOf('protected/') !== 0 && key.indexOf('private/') !== 0) {
+      key = 'public/' + key;
+    }
     var path = key.split('/').map(encodeURIComponent).join('/');
     httpsUrl = 'https://' + creds.s3Bucket + '.s3.' + creds.region + '.amazonaws.com/' + path;
-  } else if (raw.indexOf('X-Amz-') >= 0 || raw.indexOf('Signature=') >= 0) {
-    return raw; // already signed
+  } else if (!/^https?:\/\//i.test(raw)) {
+    return null;
   }
   try {
     var u = new URL(httpsUrl);

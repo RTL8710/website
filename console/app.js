@@ -5,6 +5,7 @@ import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
 import { presignS3Get } from './lib/sigv4.js';
+import { signS3MediaUrl } from './lib/s3-media.js';
 import { h, mount, icon, deviceCard, statusChip, loading, emptyState } from './lib/ui.js';
 
 const app = document.getElementById('app');
@@ -242,9 +243,10 @@ async function enterDevice(dev) {
 // 一律用【预签名 URL 直接给 <img>】——图片加载不受 S3 CORS 限制(不能 fetch→base64,那会被 CORS 拦,
 // 是仪表盘封面踩过的坑)。预签名 1h 有效,每次进列表本地 SigV4 重签(快),浏览器再缓存图片本身。
 async function resolveDeviceCover(d, creds) {
-  let raw = (d.picture && /amazonaws\.com/.test(d.picture)) ? d.picture : '';
+  // 优先原始 devicePicture(缓存可能已是签名 URL，用 _pictureRaw / raw 回退)
+  let raw = d._pictureRaw || (d.raw && d.raw.devicePicture) || '';
+  if (!raw && d.picture && !/X-Amz-/i.test(d.picture)) raw = d.picture;
   if (!raw) {
-    // devicePicture 空 → 拉最新一条云录像封面兜底
     try {
       const end = new Date(Date.now() + 864e5).toISOString();
       const start = new Date(Date.now() - 7 * 864e5).toISOString();
@@ -253,7 +255,9 @@ async function resolveDeviceCover(d, creds) {
       if (withThumb) raw = withThumb.thumbnailUrl;
     } catch (e) { /* 兜底失败保持无封面 */ }
   }
-  return raw ? presignS3Get(creds, raw) : '';
+  if (!raw) return '';
+  d._pictureRaw = raw;
+  return signS3MediaUrl(creds, raw, 3600);
 }
 
 // ── 设备列表 ─────────────────────────────────────────────────────────────────
@@ -271,7 +275,7 @@ function renderDeviceGrid(list) {
 async function viewDevices() {
   // 1) 本地缓存优先:上次的设备列表立即渲染(秒显,不再干等 GraphQL)
   if (!state.devices) {
-    try { const c = JSON.parse(localStorage.getItem(DEVCACHE_KEY()) || 'null'); if (c && c.length) { state.devices = c; c.forEach((d) => { d._picSigned = false; }); } } catch (e) {}
+    try { const c = JSON.parse(localStorage.getItem(DEVCACHE_KEY()) || 'null'); if (c && c.length) { state.devices = c; c.forEach((d) => { d._picSigned = false; d._pictureRaw = d.picture || ''; }); } } catch (e) {}
   }
   if (state.devices && state.devices.length) renderDeviceGrid(state.devices);
   else shell(loading(t('loadingDevices')));
@@ -279,7 +283,7 @@ async function viewDevices() {
     // 2) 后台拉最新列表(只等这一个 GraphQL),到了就渲染;不再等凭证/封面
     const list = await fetchMyDevices(state.session.userRow.id);
     state.devices = list;
-    try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: (d.raw && d.raw.devicePicture) || d.picture || '', ownerUserId: d.ownerUserId })))); } catch (e) {}
+    try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: d._pictureRaw || (d.raw && d.raw.devicePicture) || '', ownerUserId: d.ownerUserId })))); } catch (e) {}
     if (location.hash === '#/devices') renderDeviceGrid(list);
     // 3) 封面后台解析(凭证 + 预签名),到了重渲染;完全不阻塞列表显示
     if (list.some((d) => !d._picSigned)) {
@@ -291,7 +295,7 @@ async function viewDevices() {
           try { const p = await resolveDeviceCover(d, creds); if (p) { d.picture = p; changed = true; } } catch (e) {}
           d._picSigned = true;
         }));
-        if (changed && location.hash === '#/devices') { renderDeviceGrid(list); try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: (d.raw && d.raw.devicePicture) || d.picture || '', ownerUserId: d.ownerUserId })))); } catch (e) {} }
+        if (changed && location.hash === '#/devices') { renderDeviceGrid(list); try { localStorage.setItem(DEVCACHE_KEY(), JSON.stringify(list.map((d) => ({ id: d.id, uuid: d.uuid, name: d.name, model: d.model, firmware: d.firmware, online: d.online, connectStatus: d.connectStatus, picture: d._pictureRaw || (d.raw && d.raw.devicePicture) || '', ownerUserId: d.ownerUserId })))); } catch (e) {} }
       }).catch(() => {});
     }
   } catch (e) {
@@ -406,9 +410,23 @@ function cloudPlayback(dev) {
     if (rec.resolution) chips.push(h('span', { class: 'meta' }, rec.resolution));
     if (rec.channel != null) chips.push(h('span', { class: 'meta' }, 'CH' + rec.channel));
     if (rec.duration) chips.push(h('span', { class: 'meta' }, rec.duration + 's'));
-    const end = h('div', { class: 'end' },
-      h('div', { style: { fontWeight: 700, fontSize: '13px' } }, fmtTime(rec.dateTime)),
-      h('div', { style: { marginTop: '4px' } }, ...chips));
+    const thumb = h('div', {
+      style: { width: '64px', height: '40px', borderRadius: '8px', overflow: 'hidden', background: 'rgba(0,0,0,.25)', flexShrink: '0', marginRight: '10px' },
+    });
+    if (rec.thumbnailUrl) {
+      resolvedCreds().then((c) => {
+        const url = signS3MediaUrl(c, rec.thumbnailUrl, 3600);
+        if (!url) return;
+        const img = h('img', { src: url, alt: '', style: { width: '100%', height: '100%', objectFit: 'cover' },
+          onerror: function () { this.style.display = 'none'; } });
+        thumb.replaceChildren(img);
+      }).catch(() => {});
+    }
+    const end = h('div', { class: 'end', style: { display: 'flex', alignItems: 'center' } },
+      thumb,
+      h('div', {},
+        h('div', { style: { fontWeight: 700, fontSize: '13px' } }, fmtTime(rec.dateTime)),
+        h('div', { style: { marginTop: '4px' } }, ...chips)));
     const row = h('div', { class: 'rec' }, h('div', { class: 'time' }, fmtTime(rec.dateTime)),
       h('div', { class: 'rail' }, h('div', { class: 'node' })), end);
     end.addEventListener('click', async () => {
