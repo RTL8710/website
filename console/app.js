@@ -1,5 +1,5 @@
 // 控制台入口:路由 + 登录门禁 + 视图
-import { COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, REGIONS, REGION_ORDER, getRegion, setRegion, isAdminAccount } from './config.js';
+import { COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, REGIONS, REGION_ORDER, getRegion, setRegion } from './config.js';
 import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
@@ -120,10 +120,6 @@ function topbar() {
         // 当前区域(东南亚/美洲/欧洲)显示在用户名旁,accent 小胶囊
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } }, regionLabel(getRegion()))) : null,
       ...switcherBar(true).reverse(),
-      (state.session && isAdminAccount(state.session))
-        ? h('a', { class: 'gbtn', href: 'admin/', style: { textDecoration: 'none', height: '36px', fontSize: '12.5px' }, title: '云端管理后台' },
-            fa('fas fa-shield-alt'), ' 管理后台')
-        : null,
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
     ),
   );
@@ -267,10 +263,6 @@ function renderDeviceGrid(list) {
     h('h1', { class: 'title' }, t('myDevices')),
     h('span', { class: 'chip count' }, `${list.length}`),
     h('span', { class: 'spacer', style: { flex: 1 } }),
-    (state.session && isAdminAccount(state.session))
-      ? h('a', { class: 'gbtn primary', href: 'admin/', id: 'admin-entry-devices', style: { textDecoration: 'none' } },
-          fa('fas fa-shield-alt'), ' 管理后台')
-      : null,
   );
   shell(head, list.length
     ? h('div', { class: 'grid' }, ...list.map((d) => deviceCard(d, enterDevice)))

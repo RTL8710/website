@@ -54,9 +54,15 @@ async function main() {
   ok('feature confirm modal', js.includes('确认远程升级'));
   ok('tabs merged OTA', js.includes("id: 'ota'") && !js.includes("id: 'packages'"));
   ok('uuid hard require', js.includes('设备缺少 deviceUuid'));
+  ok('admin own login', js.includes('登录管理后台') && js.includes('function viewLogin'));
+  ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
+
+  const appJs = await (await fetch(BASE + '/app.js')).text();
+  ok('console has no admin entry', !appJs.includes('管理后台') && !appJs.includes('isAdminAccount'));
 
   const cfg = await (await fetch(BASE + '/config.js')).text();
   ok('allowlist present', cfg.includes('ADMIN_ALLOWLIST') && cfg.includes('isAdminAccount'));
+  ok('standalone admin entry comment', cfg.includes('/console/admin/'));
 
   // 2) Amplify data completeness
   const users = await pageCount('listUsers', 'id awsUserName');

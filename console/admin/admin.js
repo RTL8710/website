@@ -1,8 +1,8 @@
 // 云端管理后台 — 顶级客户向：功能完整、路径最短
 import {
-  COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, getRegion, REGIONS, isAdminAccount,
+  COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, getRegion, setRegion, REGIONS, REGION_ORDER, isAdminAccount,
 } from '../config.js';
-import { restoreSession, resolvedCreds, signOut, warmupAuth } from '../lib/auth.js';
+import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth } from '../lib/auth.js';
 import {
   listAllUsers, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
   listCloudRecordsAdmin, createDeviceUpgrade,
@@ -135,7 +135,7 @@ function topbar() {
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } },
           (REGIONS[getRegion()] && REGIONS[getRegion()].label) || getRegion())),
       h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' 控制台'),
-      h('button', { class: 'gbtn icon', title: '退出', onclick: async () => { iotDisconnect(); await signOut(); location.href = '../index.html#/login'; } },
+      h('button', { class: 'gbtn icon', title: '退出', onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
         fa('fa-right-from-bracket')),
     ),
   );
@@ -687,26 +687,129 @@ function render() {
   shell(body);
 }
 
+function regionLabel(rc) {
+  return (REGIONS[rc] && REGIONS[rc].label) || rc;
+}
+function mapAuthError(e) {
+  const m = (e && e.message) || '';
+  if (/UserNotFound|does not exist|Incorrect username or password|NotAuthorized/i.test(m)) return '用户名或密码不正确';
+  if (/UserNotConfirmed/i.test(m)) return '账号未验证,请先在 App 内完成验证';
+  if (/Network|Failed to fetch/i.test(m)) return '网络错误,请重试';
+  return m || '登录失败';
+}
+
+async function enterAdmin(session) {
+  if (!session || !session.userRow) {
+    viewLogin();
+    return;
+  }
+  if (!isAdminAccount(session)) {
+    viewDenied(session);
+    return;
+  }
+  state.session = session;
+  render();
+  await loadTab('overview');
+}
+
+function viewDenied(session) {
+  const account = (session && (session.account || (session.userRow && session.userRow.awsUserName) || session.email)) || '';
+  mount(app, h('div', { class: 'center', style: { padding: '80px', textAlign: 'center' } },
+    h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '440px', margin: '0 auto' } },
+      h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, '无管理后台权限'),
+      h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
+        '当前账号 ', h('strong', {}, account || '—'),
+        ' 不是运维白名单。管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请打开本页 ',
+        h('code', {}, '/console/admin/'), ' 并用 ADMIN_ALLOWLIST 中的账号登录。'),
+      h('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } },
+        h('button', { class: 'gbtn primary', onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
+          '退出并重新登录'),
+        h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none', opacity: '0.75' } },
+          '返回设备控制台'),
+      ),
+    )));
+}
+
+function viewLogin(preErr) {
+  const username = h('input', {
+    class: 'form-input', type: 'text', id: 'admin-username', placeholder: '运维账号(如 admin)',
+    autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true,
+  });
+  const pass = h('input', {
+    class: 'form-input', type: 'password', id: 'admin-password', placeholder: '密码',
+    autocomplete: 'current-password', required: true,
+  });
+  const errMsg = h('span', {}, preErr || '');
+  const err = h('div', { class: 'login-error' + (preErr ? ' show' : '') }, fa('fa-circle-exclamation'), errMsg);
+  const btn = h('button', { type: 'submit', class: 'btn-login' }, '登录管理后台');
+  async function submit(ev) {
+    ev && ev.preventDefault();
+    err.classList.remove('show');
+    if (!username.value || !pass.value) {
+      errMsg.textContent = '请输入用户名和密码';
+      err.classList.add('show');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    try {
+      const session = await signIn(username.value.trim(), pass.value);
+      await enterAdmin(session);
+    } catch (e) {
+      errMsg.textContent = mapAuthError(e);
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = '登录管理后台';
+    }
+  }
+  mount(app,
+    h('div', { class: 'center', style: { minHeight: '100vh', padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+      h('div', { class: 'glass', style: { padding: '28px 32px', width: '100%', maxWidth: '420px' } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' } },
+          fa('fa-shield-halved'),
+          h('div', { style: { fontWeight: 800, fontSize: '18px' } }, '云端管理后台'),
+        ),
+        h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.55', marginBottom: '18px' } },
+          '独立入口 · 仅运维白名单账号。设备控制台无此入口。'),
+        h('form', { onsubmit: submit },
+          err,
+          h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
+            h('label', {}, '区域'),
+            h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
+              type: 'button',
+              class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
+              onclick: () => { setRegion(rc); viewLogin(); },
+            }, regionLabel(rc)))),
+          ),
+          h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
+            h('label', { for: 'admin-username' }, '用户名'),
+            username,
+          ),
+          h('div', { class: 'admin-field', style: { marginBottom: '8px' } },
+            h('label', { for: 'admin-password' }, '密码'),
+            pass,
+          ),
+          btn,
+        ),
+        h('div', { style: { marginTop: '14px', textAlign: 'center' } },
+          h('a', { class: 'faint', href: '../index.html#/devices', style: { fontSize: '12px', textDecoration: 'none' } },
+            '前往设备控制台'),
+        ),
+      ),
+    ),
+  );
+  username.focus();
+}
+
 (async function boot() {
   warmupAuth();
   mount(app, h('div', { class: 'center', style: { padding: '80px' } }, loading('恢复会话…')));
   let session = null;
   try { session = await restoreSession(); } catch (_) {}
   if (!session || !session.userRow) {
-    location.href = '../index.html#/login';
+    viewLogin();
     return;
   }
-  if (!isAdminAccount(session)) {
-    mount(app, h('div', { class: 'center', style: { padding: '80px', textAlign: 'center' } },
-      h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '420px', margin: '0 auto' } },
-        h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, '无管理后台权限'),
-        h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
-          '管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请用 ADMIN_ALLOWLIST 中的账号,或在 config.js 加入运维用户名。'),
-        h('a', { class: 'gbtn primary', href: '../index.html#/devices', style: { textDecoration: 'none' } }, '返回控制台'),
-      )));
-    return;
-  }
-  state.session = session;
-  render();
-  await loadTab('overview');
+  await enterAdmin(session);
 })();
+
