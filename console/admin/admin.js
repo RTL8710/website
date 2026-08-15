@@ -29,6 +29,8 @@ const state = {
   recordsMeta: null,
   q: '',
   deviceFilter: 'all', // all | online | offline
+  deviceSort: 'updated', // updated | online
+  deviceSortDir: 'desc', // desc | asc
   recDeviceId: '',
   recDays: 7,
   pkgFilterType: '',
@@ -54,6 +56,8 @@ function clearAdminDataCache() {
   state.recordsMeta = null;
   state.q = '';
   state.deviceFilter = 'all';
+  state.deviceSort = 'updated';
+  state.deviceSortDir = 'desc';
   state.recDeviceId = '';
   state.upgrade = {
     deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '',
@@ -81,6 +85,30 @@ function ensureDataRegionFresh() {
 }
 function fa(cls) { return h('i', { class: 'fa-solid ' + cls }); }
 function chip(text, cls) { return h('span', { class: 'chip ' + (cls || 'count') }, text); }
+function statusTag(online) {
+  return h('span', { class: 'status-tag ' + (online ? 'is-online' : 'is-offline') },
+    h('span', { class: 'dot' }),
+    online ? t('online') : t('offline'));
+}
+function toggleDeviceSort(key) {
+  if (state.deviceSort === key) {
+    state.deviceSortDir = state.deviceSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    state.deviceSort = key;
+    state.deviceSortDir = key === 'online' ? 'desc' : 'desc'; // 默认：在线优先 / 最近更新
+  }
+  render();
+}
+function sortTh(key, label) {
+  const on = state.deviceSort === key;
+  const arrow = on ? (state.deviceSortDir === 'desc' ? ' ↓' : ' ↑') : '';
+  return h('button', {
+    type: 'button',
+    class: 'th-sort' + (on ? ' on' : ''),
+    title: t('sortByCol'),
+    onclick: () => toggleDeviceSort(key),
+  }, label + arrow);
+}
 function fmt(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -465,12 +493,20 @@ function viewDevices() {
   if (state.deviceFilter === 'online') rows = rows.filter((d) => d.online);
   if (state.deviceFilter === 'offline') rows = rows.filter((d) => !d.online);
   rows = rows.filter((d) => matchQ([d.name, d.model, d.uuid, d.id, d.firmware, d.ownerUserId, ownerName(d.ownerUserId)]));
-  // 展示层再按更新时间倒序，保证筛选/搜索后仍「最近在上」
+  const dir = state.deviceSortDir === 'asc' ? 1 : -1;
   rows = rows.slice().sort((a, b) => {
+    if (state.deviceSort === 'online') {
+      const o = (a.online|0) - (b.online|0);
+      if (o !== 0) return o * dir;
+      const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+      const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+      return (tb - ta); // 同状态按最近更新
+    }
+    // updated（默认）
     const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
     const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
-    if (tb !== ta) return tb - ta;
-    if (b.online !== a.online) return b.online - a.online;
+    if (ta !== tb) return (ta - tb) * dir;
+    if ((b.online|0) !== (a.online|0)) return (b.online|0) - (a.online|0);
     return String(a.name || '').localeCompare(String(b.name || ''));
   });
 
@@ -498,13 +534,19 @@ function viewDevices() {
       if (!state.devices) return loading('加载设备…');
       const list = rows.filter((d) => d && d.id);
       return tableWrap(
-        [t('colIndex'), t('colStatus'), '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colUpdated'), t('colActions')],
+        [
+          t('colIndex'),
+          sortTh('online', t('colStatus')),
+          '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'),
+          sortTh('updated', t('colUpdated')),
+          t('colActions'),
+        ],
         list.map((d, i) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
           return [
             h('span', { class: 'num faint' }, String(i + 1)),
-            d.online ? chip(t('online'), 'stat-online') : chip(t('offline'), 'stat-offline'),
+            statusTag(!!d.online),
             mediaThumb(d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || ''),
             d.name || '—',
             d.model || '—',
