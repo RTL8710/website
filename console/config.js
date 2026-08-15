@@ -73,14 +73,11 @@ export const DEPS = {
 // 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
 // 铁律:admin 与终端用户账号解耦——勿把 App 个人账号(如 lvjinhui)放进名单。
 // 入口仅独立页 /console/admin/(本页自带登录);设备控制台 app.js 无「管理后台」按钮。
-// 运维用独立 Cognito 账号登录(建议用户名 admin);User 表只需有档案行,
+// 当前白名单仅 lvjinhui;User 表只需有档案行,
 // 不需要绑定 DeviceUser(管理后台走 listAll* 全库,与「我的设备」无关)。
 // 非名单账号直链 admin/ 也会被拦(本页提示无权限)。
 export const ADMIN_ALLOWLIST = [
-  'admin',
-  'robot',
-  'ah3457',
-  'ahaishi',
+  'lvjinhui',
 ];
 export function isAdminAccount(session) {
   if (!session) return false;
