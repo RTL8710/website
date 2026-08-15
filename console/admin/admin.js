@@ -6,6 +6,8 @@ import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth } from '../l
 import {
   listAllUsers, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
   listCloudRecordsAdmin, createDeviceUpgrade,
+  updateUserAdmin, deleteUserCompletely,
+  updateDeviceAdmin, deleteDeviceCompletely,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get } from '../lib/sigv4.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
@@ -34,6 +36,7 @@ const state = {
   },
   upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
+  edit: null, // { type:'user'|'device', id, values, busy, err }
 };
 
 const TABS = [
@@ -232,7 +235,7 @@ function shell(body) {
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
-  const modal = state.confirm ? renderConfirm() : null;
+  const modal = state.confirm ? renderConfirm() : (state.edit ? renderEdit() : null);
   return mount(app, topbar(), h('div', { class: 'admin-shell' }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
 }
 
@@ -364,18 +367,22 @@ function stat(k, v, onClick) {
 }
 
 function viewUsers() {
-  const rows = (state.users || []).filter((u) => matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
+  const rows = (state.users || []).filter((u) => u && matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
   return h('div', {},
     h('div', { class: 'admin-head' }, h('h1', {}, '用户'), chip(String(rows.length))),
-    h('div', { class: 'admin-sub' }, 'User 表全量 · 点击 ID 可复制'),
+    h('div', { class: 'admin-sub' }, 'User 表全量 · 可编辑资料 / 删除（清绑定，不删 Cognito）'),
     h('div', { class: 'admin-toolbar' },
       searchBox('用户名 / 邮箱 / ID…'),
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, '刷新')),
     state.loadingTab || !state.users ? loading('加载用户…') : tableWrap(
-      ['用户名', '邮箱', '手机', '区域', 'User.id', 'Cognito', '更新'],
+      ['用户名', '邮箱', '手机', '区域', 'User.id', 'Cognito', '更新', '操作'],
       rows.map((u) => [
         u.awsUserName || '—', u.email || '—', u.phoneNumber || '—', u.region || '—',
         copyable(u.id), copyable(u.awsUserID), fmt(u.updatedAt),
+        h('div', { class: 'row-actions' },
+          h('button', { class: 'gbtn btn-sm', onclick: () => openEditUser(u) }, '编辑'),
+          h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteUser(u) }, '删除'),
+        ),
       ]),
     ),
   );
@@ -396,7 +403,7 @@ function viewDevices() {
   return h('div', {},
     h('div', { class: 'admin-head' }, h('h1', {}, '设备'), chip(String(rows.length)),
       chip(`${(state.devices || []).filter((d) => d.online).length} 在线`, 'stat-online')),
-    h('div', { class: 'admin-sub' }, '点「升级到最新」= 自动选对应机型最新包并确认下发'),
+    h('div', { class: 'admin-sub' }, '可编辑设备信息 · 删除会清全部绑定再删 Device · 「升级到最新」自动选最新包'),
     h('div', { class: 'admin-toolbar' },
       searchBox('名称 / UUID / 型号 / 所有者…'), seg,
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, '刷新')),
@@ -423,6 +430,7 @@ function viewDevices() {
             ownerName(d.ownerUserId),
             String(binds.length),
             h('div', { class: 'row-actions' },
+              h('button', { class: 'gbtn btn-sm', onclick: () => openEditDevice(d) }, '编辑'),
               h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, '进入'),
               h('button', {
                 class: 'gbtn primary btn-sm',
@@ -430,11 +438,188 @@ function viewDevices() {
                 title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
                 onclick: () => askUpgradeLatest(d),
               }, '升级到最新'),
+              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDevice(d) }, '删除'),
             ),
           ];
         }),
       );
     })(),
+  );
+}
+
+
+function openEditUser(u) {
+  state.edit = {
+    type: 'user',
+    id: u.id,
+    busy: false,
+    err: '',
+    values: {
+      awsUserName: u.awsUserName || '',
+      email: u.email || '',
+      phoneNumber: u.phoneNumber || '',
+      region: u.region || '',
+      picture: u.picture || '',
+    },
+  };
+  render();
+}
+function askDeleteUser(u) {
+  const name = u.awsUserName || u.email || u.id;
+  state.confirm = {
+    title: '确认删除用户',
+    body: `将删除 User 行与其全部设备绑定(DeviceUser)。\n用户：${name}\nUser.id：${u.id}\n\n不会删除 Cognito 账号，也不会删除 Device 行。`,
+    okText: '确认删除',
+    onOk: async () => {
+      state.confirm = null; render();
+      try {
+        const r = await deleteUserCompletely(u.id);
+        toast(`用户已删除（清绑定 ${r.binds}）`);
+        state.users = null; state.binds = null;
+        await loadTab('users');
+      } catch (e) {
+        console.error('[admin] delete user', e);
+        toast((e && e.message) || String(e), 'err');
+      }
+    },
+  };
+  render();
+}
+function openEditDevice(d) {
+  state.edit = {
+    type: 'device',
+    id: d.id,
+    busy: false,
+    err: '',
+    values: {
+      name: d.name || '',
+      model: d.model || '',
+      firmware: d.firmware || '',
+      uuid: d.uuid || '',
+      ownerUserId: d.ownerUserId || '',
+      connectStatus: d.connectStatus || (d.online ? 'online' : 'offline'),
+      picture: d.picture || '',
+    },
+    _rawInfo: (() => {
+      try {
+        const raw = d.raw && d.raw.deviceGeneralInformation;
+        if (typeof raw === 'string' && raw.trim()) return JSON.parse(raw);
+        if (raw && typeof raw === 'object') return { ...raw };
+      } catch (_) {}
+      return {};
+    })(),
+  };
+  render();
+}
+function askDeleteDevice(d) {
+  const binds = bindUsersForDevice(d.id);
+  state.confirm = {
+    title: '确认删除设备',
+    body: `将删除设备及其全部用户绑定。\n设备：${d.name || d.id}\nUUID：${d.uuid || '—'}\n绑定数：${binds.length}\n\n删除后设备可被重新配网/绑定。`,
+    okText: '确认删除',
+    onOk: async () => {
+      state.confirm = null; render();
+      try {
+        const r = await deleteDeviceCompletely(d.id);
+        toast(`设备已删除（清绑定 ${r.binds}）`);
+        state.devices = null; state.binds = null;
+        await loadTab('devices');
+      } catch (e) {
+        console.error('[admin] delete device', e);
+        toast((e && e.message) || String(e), 'err');
+      }
+    },
+  };
+  render();
+}
+function fieldInput(edit, key, label, opts) {
+  const o = opts || {};
+  const inp = h(o.textarea ? 'textarea' : 'input', {
+    type: o.type || 'text',
+    value: edit.values[key] || '',
+    placeholder: o.ph || '',
+    style: o.textarea ? { minHeight: '64px' } : {},
+  });
+  if (o.textarea) inp.textContent = edit.values[key] || '';
+  inp.addEventListener('input', () => { edit.values[key] = inp.value; });
+  return h('div', { class: 'admin-field' + (o.span2 ? ' span2' : '') }, h('label', {}, label), inp);
+}
+function renderEdit() {
+  const e = state.edit;
+  if (!e) return null;
+  const isUser = e.type === 'user';
+  const title = isUser ? '编辑用户' : '编辑设备';
+  const fields = isUser
+    ? [
+        fieldInput(e, 'awsUserName', '用户名'),
+        fieldInput(e, 'email', '邮箱'),
+        fieldInput(e, 'phoneNumber', '手机'),
+        fieldInput(e, 'region', '区域', { ph: '如 ap-northeast-1 / 东南亚' }),
+        fieldInput(e, 'picture', '头像 URL', { span2: true }),
+      ]
+    : [
+        fieldInput(e, 'name', '设备名称'),
+        fieldInput(e, 'model', '型号'),
+        fieldInput(e, 'firmware', '固件版本'),
+        fieldInput(e, 'uuid', 'deviceUuid'),
+        fieldInput(e, 'ownerUserId', '所有者(Cognito sub / User 标识)'),
+        fieldInput(e, 'connectStatus', '连接状态', { ph: 'online / offline' }),
+        fieldInput(e, 'picture', '图片 URL', { span2: true }),
+      ];
+  async function save() {
+    e.err = ''; e.busy = true; render();
+    try {
+      if (isUser) {
+        await updateUserAdmin({
+          id: e.id,
+          awsUserName: (e.values.awsUserName || '').trim() || null,
+          email: (e.values.email || '').trim() || null,
+          phoneNumber: (e.values.phoneNumber || '').trim() || null,
+          region: (e.values.region || '').trim() || null,
+          picture: (e.values.picture || '').trim() || null,
+        });
+        toast('用户已更新');
+        state.edit = null;
+        state.users = null;
+        await loadTab('users');
+      } else {
+        const info = Object.assign({}, e._rawInfo || {});
+        info.deviceName = (e.values.name || '').trim();
+        info.deviceModelName = (e.values.model || '').trim();
+        info.deviceVersion = (e.values.firmware || '').trim();
+        info.deviceUuid = (e.values.uuid || '').trim();
+        await updateDeviceAdmin({
+          id: e.id,
+          ownerUserId: (e.values.ownerUserId || '').trim() || null,
+          deviceConnectStatus: (e.values.connectStatus || '').trim() || null,
+          devicePicture: (e.values.picture || '').trim() || null,
+          deviceGeneralInformation: JSON.stringify(info),
+        });
+        toast('设备已更新');
+        state.edit = null;
+        state.devices = null;
+        await loadTab('devices');
+      }
+    } catch (err) {
+      console.error('[admin] save edit', err);
+      e.err = (err && err.message) || String(err);
+      toast(e.err, 'err');
+    } finally {
+      e.busy = false;
+      render();
+    }
+  }
+  return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget && !e.busy) { state.edit = null; render(); } } },
+    h('div', { class: 'glass modal wide' },
+      h('h3', {}, title),
+      h('div', { class: 'faint', style: { fontSize: '12px', marginBottom: '8px' } }, 'ID: ' + e.id),
+      h('div', { class: 'admin-form' }, ...fields),
+      e.err ? h('div', { class: 'admin-msg err' }, e.err) : null,
+      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '14px' } },
+        h('button', { class: 'gbtn', disabled: e.busy, onclick: () => { state.edit = null; render(); } }, '取消'),
+        h('button', { class: 'gbtn primary', disabled: e.busy, onclick: () => save() }, e.busy ? '保存中…' : '保存'),
+      ),
+    ),
   );
 }
 

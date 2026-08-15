@@ -58,6 +58,7 @@ async function main() {
   ok('ota default latest', js.includes('ensureDefaultUpgradeSelection') && js.includes('★最新'));
   ok('ota status push', js.includes('updateRemoteOtaStatusCommand') && js.includes('applyOtaPush'));
   ok('bind null-safe', js.includes('b && (b.deviceId === deviceId'));
+  ok('user/device CRUD', js.includes('openEditUser') && js.includes('askDeleteDevice') && js.includes('deleteUserCompletely'));
   ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
 
   const appJs = await (await fetch(BASE + '/app.js')).text();
@@ -65,6 +66,8 @@ async function main() {
 
   const cfg = await (await fetch(BASE + '/config.js')).text();
   ok('allowlist present', cfg.includes('ADMIN_ALLOWLIST') && cfg.includes('isAdminAccount'));
+  const gql = await (await fetch(BASE + '/lib/graphql.js')).text();
+  ok('graphql deleteUserCompletely', gql.includes('deleteUserCompletely') && gql.includes('deleteDeviceCompletely'));
   ok('standalone admin entry comment', cfg.includes('/console/admin/'));
 
   // 2) Amplify data completeness

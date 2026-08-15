@@ -234,3 +234,91 @@ export async function listCloudRecordsAdmin({ filter = null, limit = 200, maxPag
     truncated: !!token,
   };
 }
+
+// ── Admin CRUD: User / Device / DeviceUser（对齐 App repository）──────────────
+const M_UPDATE_USER = /* GraphQL */ `
+  mutation UpdateUser($input: UpdateUserInput!) {
+    updateUser(input: $input) {
+      id awsUserID awsUserName phoneNumber email picture region updatedAt
+    }
+  }`;
+const M_DELETE_USER = /* GraphQL */ `
+  mutation DeleteUser($input: DeleteUserInput!) {
+    deleteUser(input: $input) { id }
+  }`;
+const M_UPDATE_DEVICE = /* GraphQL */ `
+  mutation UpdateDevice($input: UpdateDeviceInput!) {
+    updateDevice(input: $input) {
+      id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation updatedAt
+    }
+  }`;
+const M_DELETE_DEVICE = /* GraphQL */ `
+  mutation DeleteDevice($input: DeleteDeviceInput!) {
+    deleteDevice(input: $input) { id }
+  }`;
+const M_DELETE_DEVICEUSER = /* GraphQL */ `
+  mutation DeleteDeviceUser($input: DeleteDeviceUserInput!) {
+    deleteDeviceUser(input: $input) { id }
+  }`;
+
+export async function updateUserAdmin(input) {
+  if (!input || !input.id) throw new Error('缺少 User.id');
+  const data = await gql(M_UPDATE_USER, { input });
+  if (!data || !data.updateUser) throw new Error('updateUser 无返回');
+  return data.updateUser;
+}
+
+export async function deleteUserRow(userId) {
+  if (!userId) throw new Error('缺少 User.id');
+  const data = await gql(M_DELETE_USER, { input: { id: userId } });
+  return !!(data && data.deleteUser);
+}
+
+export async function updateDeviceAdmin(input) {
+  if (!input || !input.id) throw new Error('缺少 Device.id');
+  const data = await gql(M_UPDATE_DEVICE, { input });
+  if (!data || !data.updateDevice) throw new Error('updateDevice 无返回');
+  return data.updateDevice;
+}
+
+export async function deleteDeviceRow(deviceId) {
+  if (!deviceId) throw new Error('缺少 Device.id');
+  const data = await gql(M_DELETE_DEVICE, { input: { id: deviceId } });
+  return !!(data && data.deleteDevice);
+}
+
+export async function deleteDeviceUserRow(bindId) {
+  if (!bindId) throw new Error('缺少 DeviceUser.id');
+  const data = await gql(M_DELETE_DEVICEUSER, { input: { id: bindId } });
+  return !!(data && data.deleteDeviceUser);
+}
+
+/** 删用户：先清该用户全部 DeviceUser，再删 User 行（不删 Cognito、不删 Device） */
+export async function deleteUserCompletely(userId) {
+  if (!userId) throw new Error('缺少 User.id');
+  const binds = await listAllDeviceUsers({ userId: { eq: userId } });
+  let fail = 0;
+  for (const b of binds) {
+    try { await deleteDeviceUserRow(b.id); }
+    catch (e) { fail += 1; console.warn('[graphql] delete DeviceUser', b && b.id, e); }
+  }
+  await deleteUserRow(userId);
+  return { binds: binds.length, bindFails: fail };
+}
+
+/** 删设备：先清全部绑定，再删 Device 行（对齐 App deleteDeviceCompletely） */
+export async function deleteDeviceCompletely(deviceId) {
+  if (!deviceId) throw new Error('缺少 Device.id');
+  const binds = await listAllDeviceUsers({ deviceId: { eq: deviceId } });
+  let fail = 0;
+  for (const b of binds) {
+    try { await deleteDeviceUserRow(b.id); }
+    catch (e) { fail += 1; console.warn('[graphql] delete DeviceUser', b && b.id, e); }
+  }
+  try { await deleteDeviceRow(deviceId); }
+  catch (e) {
+    console.warn('[graphql] delete Device', deviceId, e);
+    if (binds.length === 0) throw e;
+  }
+  return { binds: binds.length, bindFails: fail };
+}
