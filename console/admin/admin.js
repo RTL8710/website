@@ -382,7 +382,7 @@ function viewUsers() {
 }
 
 function viewDevices() {
-  let rows = state.devices || [];
+  let rows = (state.devices || []).filter(Boolean);
   if (state.deviceFilter === 'online') rows = rows.filter((d) => d.online);
   if (state.deviceFilter === 'offline') rows = rows.filter((d) => !d.online);
   rows = rows.filter((d) => matchQ([d.name, d.model, d.uuid, d.id, d.firmware, d.ownerUserId, ownerName(d.ownerUserId)]));
