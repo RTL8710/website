@@ -9,8 +9,10 @@ async function gql(query, variables) {
     body: JSON.stringify({ query, variables }),
   });
   const json = await res.json();
+  // Amplify 老数据常缺 createdAt/updatedAt：有 data 时降级告警，勿整表抛死
   if (json.errors && json.errors.length) {
-    throw new Error(json.errors.map((e) => e.message).join('; '));
+    if (!json.data) throw new Error(json.errors.map((e) => e.message).join('; '));
+    console.warn('[graphql] partial errors', json.errors.map((e) => e.message).join('; '));
   }
   return json.data;
 }
@@ -78,12 +80,19 @@ export async function fetchMyDevices(userRowId) {
 // deviceGeneralInformation 是 AWSJSON blob,解析出 name/model/firmware/uuid/datetime
 function normalizeDevice(d) {
   let info = {};
-  try { info = d.deviceGeneralInformation ? JSON.parse(d.deviceGeneralInformation) : {}; } catch (_) {}
-  const s = String(d.deviceConnectStatus == null ? '' : d.deviceConnectStatus).toLowerCase();
+  const rawInfo = d && d.deviceGeneralInformation;
+  try {
+    if (typeof rawInfo === 'string' && rawInfo.trim()) info = JSON.parse(rawInfo);
+    else if (rawInfo && typeof rawInfo === 'object') info = rawInfo;
+  } catch (_) {}
+  // 设备侧写入 "true"/"false" 字符串；兼容 online/1/boolean
+  const rawStatus = d && d.deviceConnectStatus;
+  const s = String(rawStatus == null ? '' : rawStatus).trim().toLowerCase();
+  const online = (s === 'online' || s === 'true' || s === '1' || rawStatus === true) ? 1 : 0;
   return {
     id: d.id,
-    online: (s === 'online' || s === 'true' || s === '1') ? 1 : 0,
-    connectStatus: d.deviceConnectStatus || 'offline',
+    online,
+    connectStatus: rawStatus == null || rawStatus === '' ? 'offline' : String(rawStatus),
     picture: d.devicePicture || '',
     ownerUserId: d.ownerUserId || '',
     name: info.deviceName || info.deviceModelName || d.id,
@@ -138,7 +147,6 @@ const Q_LIST_DEVICES = /* GraphQL */ `
     listDevices(filter: $filter, limit: $limit, nextToken: $nextToken) {
       items {
         id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation
-        createdAt updatedAt
       }
       nextToken
     }

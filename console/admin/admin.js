@@ -182,7 +182,14 @@ async function refreshAll() {
 async function ensure(kind) {
   if (kind === 'users' && !state.users) state.users = await listAllUsers();
   if (kind === 'devices') {
-    if (!state.devices) state.devices = await listAllDevices();
+    if (!state.devices) {
+      try {
+        state.devices = await listAllDevices();
+      } catch (e) {
+        state.devices = [];
+        throw e;
+      }
+    }
     if (!state.binds) {
       try { state.binds = await listAllDeviceUsers(); } catch (_) { state.binds = []; }
     }
@@ -316,31 +323,41 @@ function viewDevices() {
     h('div', { class: 'admin-toolbar' },
       searchBox('名称 / UUID / 型号 / 所有者…'), seg,
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, '刷新')),
-    state.loadingTab || !state.devices ? loading('加载设备…') : tableWrap(
-      ['状态', '名称', '型号', '版本', 'UUID', '所有者', '绑定', '操作'],
-      rows.map((d) => {
-        const binds = bindUsersForDevice(d.id);
-        const latest = latestPackageForType(resolveDeviceType(d));
-        return [
-          d.online ? chip('在线', 'stat-online') : chip('离线', 'stat-offline'),
-          d.name || '—',
-          d.model || '—',
-          d.firmware ? ('v' + d.firmware) : '—',
-          d.uuid ? copyable(d.uuid) : h('span', { class: 'faint' }, '无 UUID'),
-          ownerName(d.ownerUserId),
-          String(binds.length),
-          h('div', { class: 'row-actions' },
-            h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, '进入'),
-            h('button', {
-              class: 'gbtn primary btn-sm',
-              disabled: !d.uuid || !latest,
-              title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
-              onclick: () => askUpgradeLatest(d),
-            }, '升级到最新'),
-          ),
-        ];
-      }),
-    ),
+    (() => {
+      if (state.loadingTab && !state.devices) return loading('加载设备…');
+      if (state._err && !(state.devices && state.devices.length)) {
+        return h('div', {},
+          h('div', { class: 'admin-msg err' }, state._err),
+          h('button', { class: 'gbtn', style: { marginTop: '10px' },
+            onclick: async () => { state.devices = null; state._err = ''; await loadTab('devices'); } }, '重试'));
+      }
+      if (!state.devices) return loading('加载设备…');
+      return tableWrap(
+        ['状态', '名称', '型号', '版本', 'UUID', '所有者', '绑定', '操作'],
+        rows.map((d) => {
+          const binds = bindUsersForDevice(d.id);
+          const latest = latestPackageForType(resolveDeviceType(d));
+          return [
+            d.online ? chip('在线', 'stat-online') : chip('离线', 'stat-offline'),
+            d.name || '—',
+            d.model || '—',
+            d.firmware ? ('v' + d.firmware) : '—',
+            d.uuid ? copyable(d.uuid) : h('span', { class: 'faint' }, '无 UUID'),
+            ownerName(d.ownerUserId),
+            String(binds.length),
+            h('div', { class: 'row-actions' },
+              h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, '进入'),
+              h('button', {
+                class: 'gbtn primary btn-sm',
+                disabled: !d.uuid || !latest,
+                title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
+                onclick: () => askUpgradeLatest(d),
+              }, '升级到最新'),
+            ),
+          ];
+        }),
+      );
+    })(),
   );
 }
 
@@ -446,7 +463,7 @@ function viewOta() {
   if (state.pkgFilterType) list = list.filter((p) => p.upgradeDeviceType === state.pkgFilterType);
   list = list.filter((p) => matchQ([p.upgradeDeviceVersion, p.upgradeDescribe, p.upgradeFileUrl, p.upgradeDeviceType, p.upgradeDevicePartion]));
 
-  const fileInput = h('input', { type: 'file', accept: '.tar.gz,.tgz,.zip,.bin,*/*' });
+  const fileInput = h('input', { type: 'file' }); // 不设 accept：Chrome 对 .tar.gz 的 accept 过滤常误伤
   fileInput.addEventListener('change', () => {
     const f = fileInput.files && fileInput.files[0];
     u.file = f || null;
@@ -467,9 +484,10 @@ function viewOta() {
   const descIn = h('textarea', { placeholder: '升级说明' }, u.describe);
   descIn.addEventListener('input', () => { u.describe = descIn.value; });
 
-  const onlineDevs = devices.filter((d) => d.online && d.uuid);
+  const onlineDevs = devices.filter((d) => d.online);
+  const onlineReady = devices.filter((d) => d.online && d.uuid);
   const devSel = h('select', { style: { width: '100%' } },
-    h('option', { value: '' }, `选择设备（在线 ${onlineDevs.length}）…`),
+    h('option', { value: '' }, `选择设备（在线 ${onlineDevs.length}，可升级 ${onlineReady.length}）…`),
     ...devices.map((d) => h('option', { value: d.id, selected: ug.deviceId === d.id },
       `${d.online ? '●' : '○'} ${d.name || shortId(d.id)} · v${d.firmware || '?'} ${d.uuid ? '' : '·缺UUID'}`)));
   devSel.addEventListener('change', () => {
@@ -509,7 +527,7 @@ function viewOta() {
         h('div', { class: 'admin-form' },
           h('div', { class: 'admin-field span2' }, h('label', {}, '文件'), fileInput,
             h('div', { class: 'faint', style: { marginTop: '4px' } },
-              u.file ? `${u.file.name} (${Math.round(u.file.size / 1024)} KB)` : '选择 .tar.gz / .tgz')),
+              u.file ? `${u.file.name} (${Math.round(u.file.size / 1024)} KB)` : '支持 robot_*.tar.gz / .tgz（选不到时改用「所有文件」）')),
           h('div', { class: 'admin-field' }, h('label', {}, '机型'), typeSel),
           h('div', { class: 'admin-field' }, h('label', {}, '分区'), partSel),
           h('div', { class: 'admin-field' }, h('label', {}, '版本'), verIn),
