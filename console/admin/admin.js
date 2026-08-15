@@ -433,7 +433,12 @@ function stat(k, v, onClick) {
 }
 
 function viewUsers() {
-  const rows = (state.users || []).filter((u) => u && matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
+  let rows = (state.users || []).filter((u) => u && matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
+  rows = rows.slice().sort((a, b) => {
+    const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+    const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+    return tb - ta;
+  });
   return h('div', {},
     h('div', { class: 'admin-head' }, h('h1', {}, t('users')), chip(String(rows.length))),
     h('div', { class: 'admin-sub' }, t('usersSub')),
@@ -441,8 +446,9 @@ function viewUsers() {
       searchBox(t('searchUsers')),
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, t('refresh'))),
     state.loadingTab || !state.users ? loading('加载用户…') : tableWrap(
-      [t('colUser'), t('colEmail'), t('colPhone'), t('colRegion'), 'User.id', 'Cognito', t('colUpdated'), t('colActions')],
-      rows.map((u) => [
+      [t('colIndex'), t('colUser'), t('colEmail'), t('colPhone'), t('colRegion'), 'User.id', 'Cognito', t('colUpdated'), t('colActions')],
+      rows.map((u, i) => [
+        h('span', { class: 'num faint' }, String(i + 1)),
         u.awsUserName || '—', u.email || '—', u.phoneNumber || '—', u.region || '—',
         copyable(u.id), copyable(u.awsUserID), fmt(u.updatedAt),
         h('div', { class: 'row-actions' },
@@ -459,6 +465,14 @@ function viewDevices() {
   if (state.deviceFilter === 'online') rows = rows.filter((d) => d.online);
   if (state.deviceFilter === 'offline') rows = rows.filter((d) => !d.online);
   rows = rows.filter((d) => matchQ([d.name, d.model, d.uuid, d.id, d.firmware, d.ownerUserId, ownerName(d.ownerUserId)]));
+  // 展示层再按更新时间倒序，保证筛选/搜索后仍「最近在上」
+  rows = rows.slice().sort((a, b) => {
+    const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+    const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+    if (tb !== ta) return tb - ta;
+    if (b.online !== a.online) return b.online - a.online;
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
 
   const seg = h('div', { class: 'seg' },
     ...[['all', t('all')], ['online', t('online')], ['offline', t('offline')]].map(([k, lab]) => h('button', {
@@ -482,12 +496,14 @@ function viewDevices() {
             onclick: async () => { state.devices = null; state._err = ''; await loadTab('devices'); } }, '重试'));
       }
       if (!state.devices) return loading('加载设备…');
+      const list = rows.filter((d) => d && d.id);
       return tableWrap(
-        [t('colStatus'), '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colActions')],
-        rows.filter((d) => d && d.id).map((d) => {
+        [t('colIndex'), t('colStatus'), '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'), t('colUpdated'), t('colActions')],
+        list.map((d, i) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
           return [
+            h('span', { class: 'num faint' }, String(i + 1)),
             d.online ? chip(t('online'), 'stat-online') : chip(t('offline'), 'stat-offline'),
             mediaThumb(d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || ''),
             d.name || '—',
@@ -496,6 +512,7 @@ function viewDevices() {
             d.uuid ? copyable(d.uuid) : h('span', { class: 'faint' }, '无 UUID'),
             ownerName(d.ownerUserId),
             String(binds.length),
+            fmt(d.updatedAt || d.createdAt),
             h('div', { class: 'row-actions' },
               h('button', { class: 'gbtn btn-sm', onclick: () => openEditDevice(d) }, t('edit')),
               h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, t('enter')),

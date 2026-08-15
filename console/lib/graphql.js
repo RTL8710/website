@@ -107,6 +107,8 @@ function normalizeDevice(d) {
     firmware: info.deviceVersion || '',
     uuid: info.deviceUuid || '',
     deviceType: info.deviceType,
+    createdAt: d.createdAt || '',
+    updatedAt: d.updatedAt || '',
     raw: d,
   };
 }
@@ -154,14 +156,26 @@ const Q_LIST_DEVICES = /* GraphQL */ `
     listDevices(filter: $filter, limit: $limit, nextToken: $nextToken) {
       items {
         id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation
+        createdAt updatedAt
       }
       nextToken
     }
   }`;
 
+function deviceUpdatedMs(d) {
+  const t = Date.parse((d && (d.updatedAt || d.createdAt)) || '') || 0;
+  return t;
+}
+
 export async function listAllDevices(filter) {
   const rows = await pageAll(Q_LIST_DEVICES, { filter: filter || null }, (d) => d.listDevices);
-  return rows.map(normalizeDevice).sort((a, b) => (b.online - a.online) || String(a.name).localeCompare(String(b.name)));
+  // 最近更新在上；同秒则在线优先，再按名称
+  return rows.map(normalizeDevice).sort((a, b) => {
+    const dt = deviceUpdatedMs(b) - deviceUpdatedMs(a);
+    if (dt !== 0) return dt;
+    if (b.online !== a.online) return b.online - a.online;
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
 }
 
 const Q_LIST_DEVICEUSERS_FULL = /* GraphQL */ `
