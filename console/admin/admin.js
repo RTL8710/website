@@ -795,7 +795,7 @@ function viewOta() {
     render();
   });
   const partOver = h('select', {},
-    ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg')));
+    ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg'))));
   partOver.addEventListener('change', () => { ug.partition = partOver.value; });
 
   const filterType = h('select', {},
