@@ -62,14 +62,18 @@ export async function restoreSession() {
   _idToken = session.getIdToken().getJwtToken();
   _creds = null; _identityId = null;
   const sub = session.getIdToken().payload.sub;
-  // userRow(含 User.id,设备查询用)缓存优先:命中则秒回,后台再刷新;省 listUsers ~1.5s
+  // userRow 必须用「最早 User 行」真值。旧缓存可能是 createIfMissing 建的空壳 id → 设备永远 0。
+  // 先秒显缓存,再强制 await 刷新;id 变化则清设备列表缓存。
   let userRow = null;
   try { userRow = JSON.parse(localStorage.getItem('dv_userrow_' + sub) || 'null'); } catch (e) {}
-  if (userRow) {
-    resolveUserRow(sub).then((u) => { if (u) try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(u)); } catch (e) {} }).catch(() => {});
-  } else {
-    userRow = await resolveUserRow(sub).catch(() => null);
-    if (userRow) try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(userRow)); } catch (e) {}
+  const fresh = await resolveUserRow(sub).catch(() => null);
+  if (fresh) {
+    if (userRow && userRow.id && fresh.id && userRow.id !== fresh.id) {
+      try { localStorage.removeItem('dv_devices_' + userRow.id); } catch (e) {}
+      console.warn('[auth] userRow id changed', userRow.id, '→', fresh.id, '(cleared device cache)');
+    }
+    userRow = fresh;
+    try { localStorage.setItem('dv_userrow_' + sub, JSON.stringify(userRow)); } catch (e) {}
   }
   const account = session.getIdToken().payload['cognito:username'] || (userRow && userRow.awsUserName) || '';
   return { sub, account, email: session.getIdToken().payload.email || '', idToken: _idToken, userRow };

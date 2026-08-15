@@ -33,7 +33,7 @@ async function pageAll(query, variables, pick) {
 const Q_LIST_USERS = /* GraphQL */ `
   query ListUsers($filter: ModelUserFilterInput, $limit: Int, $nextToken: String) {
     listUsers(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items { id awsUserID awsUserName email region }
+      items { id awsUserID awsUserName email region createdAt }
       nextToken
     }
   }`;
@@ -44,7 +44,14 @@ export async function resolveUserRow(cognitoSub) {
     { filter: { awsUserID: { eq: cognitoSub } } },
     (d) => d.listUsers,
   );
-  return items[0] || null; // { id, awsUserID, email, ... }
+  if (!items.length) return null;
+  // 同 awsUserID 多行时取最早(与 App 一致);避免命中空壳新行导致「我的设备」为空。
+  // 管理后台本身走 listAll*,不依赖 DeviceUser;此处仅保证登录档案稳定。
+  items.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  if (items.length > 1) {
+    console.warn('[graphql] resolveUserRow: duplicate User rows for sub, using oldest', items[0].id);
+  }
+  return items[0]; // { id, awsUserID, email, ... }
 }
 
 // ── 2. 我的设备(DeviceUser join,filter userId eq User.id)────────────────────

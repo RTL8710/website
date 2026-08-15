@@ -701,7 +701,7 @@ function render() {
       h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '420px', margin: '0 auto' } },
         h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, '无管理后台权限'),
         h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
-          '请在 console/config.js 的 ADMIN_ALLOWLIST 加入用户名或邮箱。'),
+          '管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请用 ADMIN_ALLOWLIST 中的账号,或在 config.js 加入运维用户名。'),
         h('a', { class: 'gbtn primary', href: '../index.html#/devices', style: { textDecoration: 'none' } }, '返回控制台'),
       )));
     return;
