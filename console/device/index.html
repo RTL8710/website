@@ -4511,11 +4511,19 @@ window.__presignThumbUrl = function (raw) {
                                                     <!--                                                capture-->
                                                     <!--                                            </button>-->
 
-                                                    <button class="btn  btn-success justify-content-between gap-1"
-                                                            @click="submitManualCapture()">
-                                                        <!--                                                                        <i class="fa-solid fa-download"></i> Jpeg-->
-                                                        <i class="fa-solid fa-image"></i> <span data-i18n="cm_capture">Capture</span>
-                                                    </button>
+                                                    <div class="d-flex gap-2">
+                                                        <!-- 主码流抓拍(原有行为,不传参=空 params) -->
+                                                        <button class="btn  btn-success justify-content-between gap-1"
+                                                                @click="submitManualCapture(0)">
+                                                            <!--                                                                        <i class="fa-solid fa-download"></i> Jpeg-->
+                                                            <i class="fa-solid fa-image"></i> <span data-i18n="cm_capture">Capture</span>
+                                                        </button>
+                                                        <!-- 次码流抓拍：同一命令带 videoStreamMode:1 -->
+                                                        <button class="btn btn-outline-success justify-content-between gap-1"
+                                                                @click="submitManualCapture(1)">
+                                                            <i class="fa-solid fa-images"></i> <span data-i18n="cm_capture_sub">Capture (Sub)</span>
+                                                        </button>
+                                                    </div>
 
                                                     <button
                                                             class="btn btn-primary"
@@ -7499,7 +7507,7 @@ const I18N_INDEX = {
     cm_page_size:'Page Size', cm_page_number:'Page Number',
     cm_search:'Search', cm_load_more:'Load More', cm_cancel:'Cancel', cm_confirm:'Confirm',
     cm_notice:'Notice', cm_start:'Start', cm_stop:'Stop',
-    cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
+    cm_capture:'Capture', cm_capture_sub:'Capture (Sub)', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
     vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_idle_hint:'Tap a camera tile, timeline, or list to play', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
@@ -7652,7 +7660,7 @@ const I18N_INDEX = {
     cm_page_size:'每页条数', cm_page_number:'页码',
     cm_search:'搜索', cm_load_more:'加载更多', cm_cancel:'取消', cm_confirm:'确定',
     cm_notice:'通知', cm_start:'开始', cm_stop:'停止',
-    cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
+    cm_capture:'抓拍', cm_capture_sub:'次码流抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
     vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_idle_hint:'点击宫格/时间轴/列表开始播放', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
@@ -7805,7 +7813,7 @@ const I18N_INDEX = {
     cm_page_size:'ページサイズ', cm_page_number:'ページ番号',
     cm_search:'検索', cm_load_more:'さらに読み込む', cm_cancel:'キャンセル', cm_confirm:'確認',
     cm_notice:'通知', cm_start:'開始', cm_stop:'停止',
-    cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
+    cm_capture:'キャプチャ', cm_capture_sub:'サブストリーム撮影', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
     cm_enable:'有効', cm_disable:'無効',
     vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_idle_hint:'タイル・タイムライン・リストから再生', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
@@ -7957,7 +7965,7 @@ const I18N_INDEX = {
     cm_page_size:'Seitengröße', cm_page_number:'Seitennummer',
     cm_search:'Suchen', cm_load_more:'Mehr laden', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
     cm_notice:'Hinweis', cm_start:'Start', cm_stop:'Stopp',
-    cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
+    cm_capture:'Aufnehmen', cm_capture_sub:'Aufnehmen (Substream)', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
     cm_enable:'aktiviert', cm_disable:'deaktiviert',
     vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_idle_hint:'Kachel, Zeitleiste oder Liste antippen', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
@@ -8108,7 +8116,7 @@ const I18N_INDEX = {
     cm_page_size:'Taille page', cm_page_number:'N° page',
     cm_search:'Rechercher', cm_load_more:'Charger plus', cm_cancel:'Annuler', cm_confirm:'Confirmer',
     cm_notice:'Notification', cm_start:'Démarrer', cm_stop:'Arrêter',
-    cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
+    cm_capture:'Capturer', cm_capture_sub:'Capturer (flux secondaire)', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
     cm_enable:'activé', cm_disable:'désactivé',
     vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_idle_hint:'Touchez une tuile, la timeline ou la liste', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
@@ -8260,7 +8268,7 @@ const I18N_INDEX = {
     cm_page_size:'Tamaño página', cm_page_number:'N° página',
     cm_search:'Buscar', cm_load_more:'Cargar más', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
     cm_notice:'Aviso', cm_start:'Iniciar', cm_stop:'Detener',
-    cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
+    cm_capture:'Capturar', cm_capture_sub:'Capturar (flujo secundario)', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
     cm_enable:'activar', cm_disable:'desactivar',
     vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_idle_hint:'Toque una cámara, la línea de tiempo o la lista', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
@@ -12797,12 +12805,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error fetching deviceGeneralInformation settings: ', error);
                 }
             },
-            //手动抓拍 录像
-            async submitManualCapture() {
+            // 手动抓拍。streamMode: 0=主码流(默认) / 1=次码流。
+            // 主码流走原来的空 params 一字不改——老固件不认新字段也不会影响已有抓拍;
+            // 只有次码流才带 videoStreamMode(取值与「视频设置」的主/次码流同一套:0 主 1 次)。
+            async submitManualCapture(streamMode = 0) {
                 const url = '/setDeviceCommand';
                 const data = {
                     method: "manualCaptureCommand",
-                    params: {}
+                    params: streamMode === 1 ? { videoStreamMode: 1 } : {}
                 };
 
                 try {
@@ -14395,8 +14405,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.fetchTimeline();
             },
             tlCamOf(p) { p = String(p || ''); return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0; },
-            // 时间轴轨道数：取时间轴数据里实际出现过的最大摄像头序号+1（不依赖 cameraCounts，回放历史更准）
-            timelineCamCount() { let m = 0; for (const e of this.recordTimeline) if (e && e.p) m = Math.max(m, this.tlCamOf(e.p)); return Math.max(1, m + 1); },
+            // 时间轴段 → 摄像头序号(0-based)。与录像列表的 _camOfRecord 保持同一优先级：
+            // 先认段自带的 cameraIndex/cam 字段(设备若下发)，没有再按路径 /second//third//fourth/ 反推。
+            // 只看路径的话，设备换个目录名下发，整路就会挤到 CAM1 或直接消失，标尺与右侧列表对不上。
+            tlCamOfSeg(e) {
+                if (!e) return 0;
+                if (e.cameraIndex != null) return +e.cameraIndex;
+                if (e.cam != null) return +e.cam;
+                return this.tlCamOf(e.p);
+            },
+            // 时间轴轨道数：取「数据里出现过的最大序号+1」与「设备实际路数 cameraCounts」的较大值。
+            // 只按数据反推会漏路——某路当天没录像、或设备没下发该路的段时，timelineBlocksMerged
+            // 就不会遍历到那一路，整路的录像块在合并轨道上直接看不见。用 cameraCounts 兜底。
+            timelineCamCount() {
+                let m = 0;
+                for (const e of this.recordTimeline) if (e && e.p) m = Math.max(m, this.tlCamOfSeg(e));
+                const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
+                return Math.max(1, m + 1, n);
+            },
             // 单条时间轴：把各路 timelineBlocks 拍平成一维数组，合并渲染到同一条轨道（Alpine v2 不支持嵌套 x-for）
             timelineBlocksMerged() {
                 let all = [];
@@ -14411,7 +14437,7 @@ document.addEventListener('DOMContentLoaded', function() {
             timelineBlocks(camera) {
                 const v = this.timelineView, span = (v.end - v.start) || 1;
                 const segs = this.recordTimeline
-                    .filter(e => e.p && this.tlCamOf(e.p) === camera
+                    .filter(e => e.p && this.tlCamOfSeg(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType))
                     .sort((a, b) => a.s - b.s);
                 const merged = [];
@@ -14612,7 +14638,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 找指定摄像头在 secs 时刻所在/最近的段
             findSegmentAt(secs, camera) {
-                const segs = this.recordTimeline.filter(e => e.p && this.tlCamOf(e.p) === camera
+                const segs = this.recordTimeline.filter(e => e.p && this.tlCamOfSeg(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
                 let best = null, bestDist = Infinity;
                 for (const e of segs) {
