@@ -14407,7 +14407,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     || '',
                                 startTime: this.startTime,
                                 endTime: this.endTime,
-                                pageSize: this.pageSize,
+                                pageSize: (opts && opts.pageSize > 0) ? opts.pageSize : this.pageSize,
                                 pageNumber: this.pageNumber,
                                 recordType: this.searchRecordType,
                             },
@@ -14424,7 +14424,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.enrichRecordThumbs(this.records).catch(() => {});
 
                         // 检查是否还有更多数据
-                        if (page.length < this.pageSize) {
+                        const effPs = (opts && opts.pageSize > 0) ? opts.pageSize : this.pageSize;
+                        if (page.length < effPs) {
                             this.hasMore = false;
                         }
 
@@ -14879,14 +14880,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.syncRecords = recs;
                     }
                 }
-                // 搜索截止时间 = 点击时间；起始为当天 00:00（列表按"到点击时刻为止"显示，最新在前）
-                const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-                const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-                this.startTime = this.timelineDate + 'T00:00';
-                this.endTime = this.timelineDate + 'T' + hh + ':' + mm;
-                // 先起播，列表后台 soft 刷新：不清空、不亮 Loading，避免点轴后列表全无/窗口黑闪
+                // 列表只拉点击附近 pageSize（默认 10）条：勿用当天 00:00→点击（会扫整天再分页，缩略图跟着爆）
+                const listN = Math.max(1, Number(this.pageSize) || 10);
+                const cams = Math.max(1, (typeof this.timelineCamCount === 'function') ? this.timelineCamCount() : 1);
+                const backSec = Math.min(3600, Math.max(120, Math.ceil(listN / cams) * 90));
+                const fwdSec = 60;
+                const pad = n => String(n).padStart(2, '0');
+                const fmtLocal = s => this.timelineDate + 'T' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60));
+                this.startTime = fmtLocal(Math.max(0, secs - backSec));
+                this.endTime = fmtLocal(Math.min(86399, secs + fwdSec));
+                // 先起播，列表后台 soft 刷新：不清空、不亮 Loading，避免点轴后列表全空/窗口黑闪
                 if (recs.length && wan) this.playRecord(recs[0], recs);
-                this.fetchRecords(true, { soft: true, keepSelection: true }).catch(() => {});
+                this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: listN }).catch(() => {});
             },
             // 时间轴点击 → 按点击墙钟秒查真实段文件，绕开「合并块只留首文件路径」的问题。
             // 各路 60s 分段边界常错开：先找覆盖路数最多的同步墙钟，再逐路取包含该时刻的真实段并 seek。
@@ -14906,10 +14911,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (cached.length >= needCams) return cached;
                 }
                 const wan = (typeof this.isWanPlayback === 'function') ? this.isWanPlayback() : false;
-                // [回溯秒, 前瞻秒, pageSize]；WAN 先窄后宽，避免一次拉爆 IoT
+                // [回溯秒, 前瞻秒, pageSize]：与列表一致默认 10，多路略放宽；避免一次拉上百条带缩略图
+                const listN = Math.max(1, Number(this.pageSize) || 10);
+                const psz = Math.min(16, Math.max(listN, needCams * 2));
                 const attempts = wan
-                    ? [[180, 120, 80], [420, 180, 120]]
-                    : [[900, 120, 200]];
+                    ? [[120, 90, psz], [300, 120, Math.min(24, psz * 2)]]
+                    : [[180, 90, psz], [420, 120, Math.min(24, psz * 2)]];
                 let best = cached;
                 for (const [back, fwd, psz] of attempts) {
                     try {
