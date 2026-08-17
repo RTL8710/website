@@ -1046,6 +1046,83 @@ window.__presignThumbUrl = function (raw) {
             background: var(--bg-card);
             border: 1px solid var(--border);
         }
+        /* Live 页右下角电机手柄浮层 */
+        .live-motor-pad {
+            position: absolute;
+            right: 16px;
+            bottom: 16px;
+            z-index: 28;
+            padding: 10px;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+            pointer-events: auto;
+        }
+        .live-motor-pad .motor-dpad { width: 168px; height: 168px; }
+        .live-motor-pad .motor-key {
+            color: #fff; border-color: rgba(255,255,255,0.28);
+            background: rgba(255,255,255,0.14);
+        }
+        .live-motor-pad .motor-key.diag { background: rgba(255,255,255,0.08); }
+        .live-motor-pad .motor-key.active {
+            background: var(--tblr-primary); border-color: var(--tblr-primary); color: #fff;
+        }
+        .live-motor-pad .motor-hub {
+            color: #fff; border-color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.1);
+        }
+        .live-motor-pad .motor-dir-label { color: #fff; text-align: center; margin-top: 8px; font-size: 12px; }
+
+        /* Motor D-pad — 游戏手柄十字键（按住发方向，松开 STOP） */
+        .motor-enable-row { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+        .motor-enable-icon {
+            width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center;
+            background: var(--tblr-primary); color:#fff; flex-shrink:0;
+        }
+        .motor-enable-icon.off { background: rgba(128,128,128,0.35); color: inherit; }
+        .motor-speed-row { display:flex; gap:8px; flex-wrap:wrap; margin: 8px 0 16px; }
+        .motor-speed-chip {
+            flex:1; min-width:64px; text-align:center; padding:10px 8px; border-radius:11px; cursor:pointer;
+            border:1px solid rgba(128,128,128,0.35); font-weight:600; font-size:13px; user-select:none;
+            background: transparent;
+        }
+        .motor-speed-chip.active {
+            border-color: var(--tblr-primary); border-width:1.4px;
+            background: color-mix(in srgb, var(--tblr-primary) 14%, transparent);
+            color: var(--tblr-primary);
+        }
+        .motor-pad-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; margin: 8px 0 4px; }
+        .motor-dpad {
+            width: 220px; height: 220px;
+            display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr;
+            gap: 8px; touch-action: none; user-select: none;
+        }
+        .motor-key {
+            border-radius: 16px; border: 1px solid color-mix(in srgb, var(--tblr-primary) 35%, transparent);
+            background: color-mix(in srgb, var(--tblr-primary) 10%, transparent);
+            color: var(--tblr-primary); font-size: 22px; cursor: pointer;
+            display:flex; align-items:center; justify-content:center;
+            transition: background .09s, transform .09s, box-shadow .09s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .motor-key.diag { font-size: 16px; opacity: 0.9;
+            background: color-mix(in srgb, var(--tblr-primary) 6%, transparent); }
+        .motor-key.active {
+            background: var(--tblr-primary); color: #fff; border-color: var(--tblr-primary);
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--tblr-primary) 40%, transparent);
+            transform: scale(0.96);
+        }
+        .motor-hub {
+            border-radius: 50%; border: 1.2px solid color-mix(in srgb, var(--tblr-primary) 45%, transparent);
+            background: color-mix(in srgb, var(--tblr-primary) 8%, transparent);
+            display:flex; align-items:center; justify-content:center;
+            font-weight: 700; font-size: 18px; color: var(--tblr-primary);
+        }
+        .motor-pad-hint { font-size:12px; opacity:0.7; text-align:center; }
+        .motor-dir-label { font-size:13px; font-weight:600; min-height:1.2em; }
+
         .vs-param-tabs {
             display: flex;
             flex-wrap: wrap;
@@ -1636,7 +1713,7 @@ window.__presignThumbUrl = function (raw) {
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras()"
+                     x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation()"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
                         <div class="row row-deck">
@@ -1871,6 +1948,37 @@ window.__presignThumbUrl = function (raw) {
                                                 <i :class="isShowLocalVideo ? 'fa-solid fa-slash' : 'fa-solid fa-desktop'">
                                                 </i>
                                             </button>
+                                            <button type="button" class="btn btn-lg mt-2"
+                                                    :class="motorControlInformation.motorStatus===1 ? 'btn-primary' : 'btn-outline-primary'"
+                                                    data-bs-toggle="tooltip" :title="tIdx('di_motor_enable')"
+                                                    @click="setMotorEnable(motorControlInformation.motorStatus!==1)">
+                                                <i class="fa-solid fa-gamepad"></i>
+                                            </button>
+                                        </div>
+
+                                        <!-- Live 右下角电机手柄：仅 motorStatus===1 显示 -->
+                                        <div class="live-motor-pad" x-show="motorControlInformation.motorStatus===1" x-cloak
+                                             @click.stop @pointerdown.stop>
+                                            <div class="motor-dpad">
+                                                <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===6?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(6,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-up" style="transform:rotate(-45deg)"></i></button>
+                                                <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===1?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(1,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-up"></i></button>
+                                                <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===5?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(5,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-up" style="transform:rotate(45deg)"></i></button>
+                                                <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===3?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(3,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-left"></i></button>
+                                                <div class="motor-hub" x-text="motorDirGlyph()"></div>
+                                                <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===4?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(4,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-right"></i></button>
+                                                <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===8?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(8,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-down" style="transform:rotate(45deg)"></i></button>
+                                                <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===2?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(2,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-down"></i></button>
+                                                <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===7?'active':''"
+                                                        @pointerdown.prevent="motorKeyDown(7,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-down" style="transform:rotate(-45deg)"></i></button>
+                                            </div>
+                                            <div class="motor-dir-label" x-text="motorDirLabel()"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -4838,7 +4946,7 @@ window.__presignThumbUrl = function (raw) {
 
 
                                 <!-- Device Info：Info / OTA / About 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -4858,6 +4966,18 @@ window.__presignThumbUrl = function (raw) {
                                     :aria-selected="deviceInfoParamTab==='about'"
                                     @click="deviceInfoParamTab='about'; QrGeneratorDeviceUuid()"
                                     data-i18n="nav_about">About</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="deviceInfoParamTab==='peripheral' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="deviceInfoParamTab==='peripheral'"
+                                    @click="deviceInfoParamTab='peripheral'; initPeripheralControlInformation()"
+                                    data-i18n="di_tab_peripheral">Peripheral</button>
+                            <button type="button" class="btn btn-sm"
+                                    role="tab"
+                                    :class="deviceInfoParamTab==='motor' ? 'btn-primary' : 'btn-outline-primary'"
+                                    :aria-selected="deviceInfoParamTab==='motor'"
+                                    @click="deviceInfoParamTab='motor'; initMotorControlInformation()"
+                                    data-i18n="di_tab_motor">Motor</button>
                         </div>
                         <div class="vs-param-pane" x-show="deviceInfoParamTab==='info'" x-cloak>
 <div class="card">
@@ -5362,6 +5482,137 @@ window.__presignThumbUrl = function (raw) {
                         </div>
                     </div>
                         </div>
+                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='peripheral'" x-cloak>
+                            <div class="card shadow">
+                                <div class="card-header">
+                                    <h3 class="card-title" data-i18n="di_peripheral_title">Peripheral Control</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3 row align-items-center">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_blue_light">Blue Indicator</label>
+                                        <div class="col-md-8">
+                                            <select class="form-control" x-model="peripheralControlInformation.blueIndicatorLight">
+                                                <option :value="true" data-i18n="vs_enable">Enable</option>
+                                                <option :value="false" data-i18n="vs_disable">Disable</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_green_light">Green Indicator</label>
+                                        <div class="col-md-8">
+                                            <select class="form-control" x-model="peripheralControlInformation.greenIndicatorLight">
+                                                <option :value="true" data-i18n="vs_enable">Enable</option>
+                                                <option :value="false" data-i18n="vs_disable">Disable</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_spot_light">Spot Light</label>
+                                        <div class="col-md-8">
+                                            <select class="form-control" x-model="peripheralControlInformation.spotLight">
+                                                <option :value="true" data-i18n="vs_enable">Enable</option>
+                                                <option :value="false" data-i18n="vs_disable">Disable</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_spot_brightness">Spot Brightness</label>
+                                        <div class="col-md-8">
+                                            <input type="range" class="form-range" min="0" max="100" step="1"
+                                                   x-model.number="peripheralControlInformation.spotLightBrightness" />
+                                            <span x-text="peripheralControlInformation.spotLightBrightness"></span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_indicator_mode">Indicator Mode</label>
+                                        <div class="col-md-8">
+                                            <select class="form-control" x-model.number="peripheralControlInformation.indicatorLightMode">
+                                                <option :value="0" data-i18n="di_mode_normal">Normal</option>
+                                                <option :value="1" data-i18n="di_mode_update">Update / Fast Blink</option>
+                                                <option :value="2" data-i18n="di_mode_error">Error / Slow Blink</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center text-muted small">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_touch_status">Touch</label>
+                                        <div class="col-md-8" x-text="peripheralControlInformation.touchStatus ? 'ON' : 'OFF'"></div>
+                                    </div>
+                                    <div class="mb-3 row align-items-center text-muted small">
+                                        <label class="col-md-4 col-form-label" data-i18n="di_button_status">Button</label>
+                                        <div class="col-md-8" x-text="peripheralControlInformation.buttonStatus ? 'ON' : 'OFF'"></div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-primary" @click="submitPeripheralControlInformation()" data-i18n="btn_apply">Apply</button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @click="initPeripheralControlInformation()" data-i18n="btn_refresh">Refresh</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='motor'" x-cloak>
+                            <div class="card shadow">
+                                <div class="card-header">
+                                    <h3 class="card-title" data-i18n="di_motor_title">Motor Control</h3>
+                                </div>
+                                <div class="card-body">
+                                    <!-- 使能（对齐 App Motor Enable 开关） -->
+                                    <div class="motor-enable-row">
+                                        <div class="motor-enable-icon" :class="motorControlInformation.motorStatus===1 ? '' : 'off'">
+                                            <i class="fa-solid fa-gamepad"></i>
+                                        </div>
+                                        <div class="flex-fill">
+                                            <div class="fw-bold" data-i18n="di_motor_enable">Motor Enable</div>
+                                            <div class="small text-secondary" x-text="motorControlInformation.motorStatus===1 ? tIdx('vs_enable') : tIdx('vs_disable')"></div>
+                                        </div>
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   :checked="motorControlInformation.motorStatus===1"
+                                                   @change="setMotorEnable($event.target.checked)">
+                                        </div>
+                                    </div>
+
+                                    <template x-if="motorControlInformation.motorStatus===1">
+                                        <div>
+                                            <div class="fw-semibold mb-1" data-i18n="di_motor_step">Motor Step / Speed</div>
+                                            <div class="motor-speed-row">
+                                                <template x-for="s in [{v:10,k:'di_speed_low'},{v:40,k:'di_speed_med'},{v:80,k:'di_speed_default'},{v:100,k:'di_speed_high'}]" :key="s.v">
+                                                    <button type="button" class="motor-speed-chip"
+                                                            :class="motorControlInformation.motorControlStep===s.v ? 'active' : ''"
+                                                            @click="setMotorSpeed(s.v)"
+                                                            x-text="tIdx(s.k)"></button>
+                                                </template>
+                                            </div>
+
+                                            <div class="fw-semibold mb-2" data-i18n="di_motor_dir">Direction</div>
+                                            <div class="motor-pad-wrap">
+                                                <div class="motor-dpad">
+                                                    <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===6?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(6,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-up" style="transform:rotate(-45deg)"></i></button>
+                                                    <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===1?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(1,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-up"></i></button>
+                                                    <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===5?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(5,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-up" style="transform:rotate(45deg)"></i></button>
+                                                    <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===3?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(3,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-left"></i></button>
+                                                    <div class="motor-hub" x-text="motorDirGlyph()"></div>
+                                                    <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===4?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(4,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-right"></i></button>
+                                                    <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===8?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(8,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-down" style="transform:rotate(45deg)"></i></button>
+                                                    <button type="button" class="motor-key" :class="Number(motorControlInformation.motroControlDirection)===2?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(2,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-chevron-down"></i></button>
+                                                    <button type="button" class="motor-key diag" :class="Number(motorControlInformation.motroControlDirection)===7?'active':''"
+                                                            @pointerdown.prevent="motorKeyDown(7,$event)" @pointerup.prevent="motorKeyUp($event)" @pointercancel.prevent="motorKeyUp($event)" @lostpointercapture="motorKeyUp($event)"><i class="fa-solid fa-arrow-down" style="transform:rotate(-45deg)"></i></button>
+                                                </div>
+                                                <div class="motor-dir-label" x-text="motorDirLabel()"></div>
+                                                <div class="motor-pad-hint" data-i18n="di_motor_pad_hint">Hold a direction key; release to stop</div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
                 </div>
 
                                 <!-- device gpt：已并入 AI Settings → LLM Tab；保留空 section 以兼容旧链接 -->
@@ -7521,7 +7772,7 @@ const I18N_INDEX = {
     st_storage_available:'Available Space', st_storage_used:'Used Space', st_total:'Total',
     st_query_count_del:'Query Count Del', st_max_size:'Max Available Size (MB)',
     st_emr_quota:'EMR Quota Ratio', st_set_storage:'Set Storage', st_emr_delete_allowed:'EMR Loop-Delete', st_emr_group:'EMR Settings', st_settings_group:'Storage Settings', st_emr_del_allowed:'Allowed', st_emr_del_protected:'Protected', st_emr_delete_hint:'Allowed: EMR can be auto loop-deleted when disk is full. Protected: keep EMR, only manual delete removes it.', st_clear_records:'Clear Recordings', st_record_usage:'Recording Usage', st_clear_free:'Frees', st_clear_all:'Clear All', st_clear_hint:'Deletes oldest recordings first (EMR included).', st_clear_hint_protected:'Deletes oldest recordings first; EMR is protected (kept).', st_clear_confirm:'Clear {n} of recordings? This cannot be undone.', st_clear_done:'Deleted {n} recordings.',
-    di_title:'Device Information', di_device_type:'Device Type',
+    di_title:'Device Information', di_tab_peripheral:'Peripheral', di_tab_motor:'Motor', di_peripheral_title:'Peripheral Control', di_motor_title:'Motor Control', di_blue_light:'Blue Indicator', di_green_light:'Green Indicator', di_spot_light:'Spot Light', di_spot_brightness:'Spot Brightness', di_indicator_mode:'Indicator Mode', di_mode_normal:'Normal', di_mode_update:'Update / Fast Blink', di_mode_error:'Error / Slow Blink', di_touch_status:'Touch', di_button_status:'Button', di_motor_enable:'Motor Enable', di_motor_step:'Motor Step / Speed', di_motor_mode:'Control Mode', di_motor_dir:'Direction', di_motor_pad_hint:'Hold a direction key; release to stop', di_speed_low:'Low', di_speed_med:'Medium', di_speed_default:'Default', di_speed_high:'High', di_dir_stop:'Stop', di_dir_up:'Up', di_dir_down:'Down', di_dir_left:'Left', di_dir_right:'Right', btn_apply:'Apply', btn_refresh:'Refresh', di_device_type:'Device Type',
     di_model_name:'Model Name', di_device_name:'Device Name',
     di_device_version:'Version', di_device_uuid:'Device UUID',
     di_device_datetime:'Date Time', di_device_uptime:'Uptime',
@@ -7674,7 +7925,7 @@ const I18N_INDEX = {
     st_storage_available:'可用空间', st_storage_used:'已用空间', st_total:'总容量',
     st_query_count_del:'查询删除数', st_max_size:'最大可用空间 (MB)',
     st_emr_quota:'EMR 配额比例', st_set_storage:'设置存储', st_emr_delete_allowed:'EMR 循环删除', st_emr_group:'EMR 设置', st_settings_group:'存储设置', st_emr_del_allowed:'允许', st_emr_del_protected:'保护', st_emr_delete_hint:'允许：磁盘满时紧急录像可被自动循环删除。保护：保留紧急录像，仅手动删除可清除。', st_clear_records:'清理录像', st_record_usage:'录像占用', st_clear_free:'约释放', st_clear_all:'清空全部', st_clear_hint:'优先删除最旧的录像（含紧急录像 EMR）。', st_clear_hint_protected:'优先删除最旧的录像；紧急录像 EMR 受保护（不删除）。', st_clear_confirm:'确定清理 {n} 的录像吗？此操作不可恢复。', st_clear_done:'已删除 {n} 条录像。',
-    di_title:'设备信息', di_device_type:'设备类型',
+    di_title:'设备信息', di_tab_peripheral:'外设控制', di_tab_motor:'电机控制', di_peripheral_title:'外设控制', di_motor_title:'电机控制', di_blue_light:'蓝色指示灯', di_green_light:'绿色指示灯', di_spot_light:'照明灯', di_spot_brightness:'照明亮度', di_indicator_mode:'指示灯模式', di_mode_normal:'正常', di_mode_update:'升级中/快闪', di_mode_error:'故障/慢闪', di_touch_status:'触摸', di_button_status:'按键', di_motor_enable:'电机使能', di_motor_step:'步进/速度', di_motor_mode:'控制模式', di_motor_dir:'方向', di_motor_pad_hint:'按住方向键，松开即停', di_speed_low:'低', di_speed_med:'中', di_speed_default:'默认', di_speed_high:'高', di_dir_stop:'停止', di_dir_up:'上', di_dir_down:'下', di_dir_left:'左', di_dir_right:'右', btn_apply:'应用', btn_refresh:'刷新', di_device_type:'设备类型',
     di_model_name:'型号名称', di_device_name:'设备名称',
     di_device_version:'版本', di_device_uuid:'设备 UUID',
     di_device_datetime:'日期时间', di_device_uptime:'运行时长',
@@ -7827,7 +8078,7 @@ const I18N_INDEX = {
     st_storage_available:'空き容量', st_storage_used:'使用容量', st_total:'総容量',
     st_query_count_del:'クエリ削除数', st_max_size:'最大利用可能サイズ (MB)',
     st_emr_quota:'EMR 割当比率', st_set_storage:'ストレージ設定', st_emr_delete_allowed:'EMR 循環削除', st_emr_group:'EMR 設定', st_settings_group:'ストレージ設定', st_emr_del_allowed:'許可', st_emr_del_protected:'保護', st_emr_delete_hint:'許可：ディスク満杯時にEMRを自動循環削除。保護：EMRを保持し手動削除のみ。', st_clear_records:'録画を削除', st_record_usage:'録画使用量', st_clear_free:'解放', st_clear_all:'全て削除', st_clear_hint:'古い録画から削除します（EMR含む）。', st_clear_hint_protected:'古い録画から削除します。EMRは保護され削除されません。', st_clear_confirm:'{n} の録画を削除しますか？元に戻せません。', st_clear_done:'{n} 件の録画を削除しました。',
-    di_title:'デバイス情報', di_device_type:'デバイスタイプ',
+    di_title:'デバイス情報', di_tab_peripheral:'周辺機器', di_tab_motor:'モーター', di_peripheral_title:'周辺機器制御', di_motor_title:'モーター制御', di_blue_light:'青インジケーター', di_green_light:'緑インジケーター', di_spot_light:'スポットライト', di_spot_brightness:'スポット輝度', di_indicator_mode:'インジケーターモード', di_mode_normal:'通常', di_mode_update:'更新中/点滅速', di_mode_error:'障害/点滅遅', di_touch_status:'タッチ', di_button_status:'ボタン', di_motor_enable:'モーター有効', di_motor_step:'ステップ/速度', di_motor_mode:'制御モード', di_motor_dir:'方向', di_motor_pad_hint:'方向キーを押したまま；離すと停止', di_speed_low:'低', di_speed_med:'中', di_speed_default:'標準', di_speed_high:'高', di_dir_stop:'停止', di_dir_up:'上', di_dir_down:'下', di_dir_left:'左', di_dir_right:'右', btn_apply:'適用', btn_refresh:'更新', di_device_type:'デバイスタイプ',
     di_model_name:'モデル名', di_device_name:'デバイス名',
     di_device_version:'バージョン', di_device_uuid:'デバイス UUID',
     di_device_datetime:'日時', di_device_uptime:'稼働時間',
@@ -7979,7 +8230,7 @@ const I18N_INDEX = {
     st_storage_available:'Verfügbarer Speicher', st_storage_used:'Belegter Speicher', st_total:'Gesamt',
     st_query_count_del:'Löschabfragezahl', st_max_size:'Max. verfügbar (MB)',
     st_emr_quota:'EMR-Kontingent', st_set_storage:'Speicher einstellen', st_emr_delete_allowed:'EMR Auto-Löschen', st_emr_group:'EMR-Einstellungen', st_settings_group:'Speichereinstellungen', st_emr_del_allowed:'Erlaubt', st_emr_del_protected:'Geschützt', st_emr_delete_hint:'Erlaubt: EMR kann bei vollem Speicher automatisch gelöscht werden. Geschützt: EMR behalten, nur manuell löschbar.', st_clear_records:'Aufnahmen löschen', st_record_usage:'Aufnahme-Nutzung', st_clear_free:'Gibt frei', st_clear_all:'Alle löschen', st_clear_hint:'Löscht zuerst die ältesten Aufnahmen (inkl. EMR).', st_clear_hint_protected:'Löscht zuerst die ältesten Aufnahmen; EMR bleibt geschützt.', st_clear_confirm:'{n} der Aufnahmen löschen? Nicht widerrufbar.', st_clear_done:'{n} Aufnahmen gelöscht.',
-    di_title:'Geräteinformationen', di_device_type:'Gerätetyp',
+    di_title:'Geräteinformationen', di_tab_peripheral:'Peripherie', di_tab_motor:'Motor', di_peripheral_title:'Peripheriesteuerung', di_motor_title:'Motorsteuerung', di_blue_light:'Blaue Anzeige', di_green_light:'Grüne Anzeige', di_spot_light:'Scheinwerfer', di_spot_brightness:'Scheinwerferhelligkeit', di_indicator_mode:'Anzeigemodus', di_mode_normal:'Normal', di_mode_update:'Update / Schnellblinken', di_mode_error:'Fehler / Langsamblinken', di_touch_status:'Touch', di_button_status:'Taste', di_motor_enable:'Motor aktiv', di_motor_step:'Schritt / Geschwindigkeit', di_motor_mode:'Steuermodus', di_motor_dir:'Richtung', di_motor_pad_hint:'Richtungstaste halten; Loslassen = Stopp', di_speed_low:'Niedrig', di_speed_med:'Mittel', di_speed_default:'Standard', di_speed_high:'Hoch', di_dir_stop:'Stopp', di_dir_up:'Hoch', di_dir_down:'Runter', di_dir_left:'Links', di_dir_right:'Rechts', btn_apply:'Anwenden', btn_refresh:'Aktualisieren', di_device_type:'Gerätetyp',
     di_model_name:'Modellname', di_device_name:'Gerätename',
     di_device_version:'Version', di_device_uuid:'Geräte-UUID',
     di_device_datetime:'Datum/Zeit', di_device_uptime:'Betriebszeit',
@@ -8130,7 +8381,7 @@ const I18N_INDEX = {
     st_storage_available:'Espace disponible', st_storage_used:'Espace utilisé', st_total:'Total',
     st_query_count_del:'Nombre suppression', st_max_size:'Taille max. dispo. (Mo)',
     st_emr_quota:'Quota EMR', st_set_storage:'Configurer stockage', st_emr_delete_allowed:'Suppr. auto EMR', st_emr_group:'Paramètres EMR', st_settings_group:'Paramètres stockage', st_emr_del_allowed:'Autorisé', st_emr_del_protected:'Protégé', st_emr_delete_hint:'Autorisé : EMR supprimable automatiquement si disque plein. Protégé : conserver EMR, suppression manuelle seulement.', st_clear_records:'Effacer enregistrements', st_record_usage:'Utilisation enreg.', st_clear_free:'Libère', st_clear_all:'Tout effacer', st_clear_hint:'Supprime les plus anciens en premier (EMR inclus).', st_clear_hint_protected:'Supprime les plus anciens en premier ; EMR est protégé (conservé).', st_clear_confirm:'Effacer {n} des enregistrements ? Irréversible.', st_clear_done:'{n} enregistrements supprimés.',
-    di_title:'Infos appareil', di_device_type:'Type appareil',
+    di_title:'Infos appareil', di_tab_peripheral:'Périphériques', di_tab_motor:'Moteur', di_peripheral_title:'Contrôle périphérique', di_motor_title:'Contrôle moteur', di_blue_light:'Voyant bleu', di_green_light:'Voyant vert', di_spot_light:'Projecteur', di_spot_brightness:'Luminosité projecteur', di_indicator_mode:'Mode voyant', di_mode_normal:'Normal', di_mode_update:'Mise à jour / Clignotement rapide', di_mode_error:'Erreur / Clignotement lent', di_touch_status:'Tactile', di_button_status:'Bouton', di_motor_enable:'Moteur activé', di_motor_step:'Pas / Vitesse', di_motor_mode:'Mode contrôle', di_motor_dir:'Direction', di_motor_pad_hint:'Maintenir une direction ; relâcher = arrêt', di_speed_low:'Bas', di_speed_med:'Moyen', di_speed_default:'Défaut', di_speed_high:'Haut', di_dir_stop:'Stop', di_dir_up:'Haut', di_dir_down:'Bas', di_dir_left:'Gauche', di_dir_right:'Droite', btn_apply:'Appliquer', btn_refresh:'Actualiser', di_device_type:'Type appareil',
     di_model_name:'Nom modèle', di_device_name:'Nom appareil',
     di_device_version:'Version', di_device_uuid:'UUID appareil',
     di_device_datetime:'Date/Heure', di_device_uptime:'Disponibilité',
@@ -8282,7 +8533,7 @@ const I18N_INDEX = {
     st_storage_available:'Espacio disponible', st_storage_used:'Espacio usado', st_total:'Total',
     st_query_count_del:'N° consulta eliminación', st_max_size:'Tamaño máx. disp. (MB)',
     st_emr_quota:'Cuota EMR', st_set_storage:'Configurar almacenamiento', st_emr_delete_allowed:'Borrado auto EMR', st_emr_group:'Ajustes EMR', st_settings_group:'Ajustes almacenamiento', st_emr_del_allowed:'Permitido', st_emr_del_protected:'Protegido', st_emr_delete_hint:'Permitido: EMR se borra automáticamente si el disco está lleno. Protegido: conservar EMR, solo borrado manual.', st_clear_records:'Borrar grabaciones', st_record_usage:'Uso grabaciones', st_clear_free:'Libera', st_clear_all:'Borrar todo', st_clear_hint:'Elimina primero las más antiguas (EMR incluido).', st_clear_hint_protected:'Elimina primero las más antiguas; EMR está protegido (se conserva).', st_clear_confirm:'¿Borrar {n} de las grabaciones? Irreversible.', st_clear_done:'{n} grabaciones eliminadas.',
-    di_title:'Info dispositivo', di_device_type:'Tipo dispositivo',
+    di_title:'Info dispositivo', di_tab_peripheral:'Periféricos', di_tab_motor:'Motor', di_peripheral_title:'Control periférico', di_motor_title:'Control del motor', di_blue_light:'Indicador azul', di_green_light:'Indicador verde', di_spot_light:'Foco', di_spot_brightness:'Brillo del foco', di_indicator_mode:'Modo indicador', di_mode_normal:'Normal', di_mode_update:'Actualización / Parpadeo rápido', di_mode_error:'Error / Parpadeo lento', di_touch_status:'Táctil', di_button_status:'Botón', di_motor_enable:'Motor activo', di_motor_step:'Paso / Velocidad', di_motor_mode:'Modo de control', di_motor_dir:'Dirección', di_motor_pad_hint:'Mantenga una dirección; soltar = paro', di_speed_low:'Bajo', di_speed_med:'Medio', di_speed_default:'Predeterminado', di_speed_high:'Alto', di_dir_stop:'Parar', di_dir_up:'Arriba', di_dir_down:'Abajo', di_dir_left:'Izquierda', di_dir_right:'Derecha', btn_apply:'Aplicar', btn_refresh:'Actualizar', di_device_type:'Tipo dispositivo',
     di_model_name:'Nombre modelo', di_device_name:'Nombre dispositivo',
     di_device_version:'Versión', di_device_uuid:'UUID dispositivo',
     di_device_datetime:'Fecha/Hora', di_device_uptime:'Tiempo activo',
@@ -9005,7 +9256,25 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
             logParamTab: 'settings', // Log Settings 分段: settings|viewer
             productionParamTab: 'provisioning', // Production 分段: provisioning|factory
-            deviceInfoParamTab: 'info', // Device Info 分段: info|ota|about
+            deviceInfoParamTab: 'info', // Device Info 分段: info|ota|about|peripheral|motor
+            peripheralControlInformation: {
+                blueIndicatorLight: false,
+                greenIndicatorLight: false,
+                spotLight: false,
+                spotLightBrightness: 50,
+                indicatorLightMode: 0,
+                touchStatus: false,
+                buttonStatus: false,
+                factoryRecoveryStatus: false
+            },
+            motorControlInformation: {
+                motroControlMode: 1,
+                motorControlStep: 40,
+                motorStatus: 0,
+                motroControlDirection: 0,
+                xPoint: 0,
+                yPoint: 0
+            },
             videoInformation: {
                 "videoStreamMode":	0,
                 "videoMirrorFlip":	2,
@@ -11472,6 +11741,137 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
             },
+
+            // Peripheral / Motor（协议对齐 C++ ApplicationHandleStatus.h）
+            async initPeripheralControlInformation() {
+                const url = '/getDeviceCommand';
+                const data = { method: 'getPeripheralControlInformationCommand', params: {} };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const responseData = await response.json();
+                    if (responseData.status === STATUS.GET_PERIPHERAL_CONTROL
+                        && responseData.params && responseData.params.peripheralControlInformation) {
+                        this.peripheralControlInformation = Object.assign(
+                            {}, this.peripheralControlInformation,
+                            responseData.params.peripheralControlInformation);
+                    }
+                } catch (error) {
+                    console.error('Error fetching peripheralControlInformation: ', error);
+                }
+            },
+            async submitPeripheralControlInformation() {
+                const url = '/setDeviceCommand';
+                const data = {
+                    method: 'setPeripheralControlInformationCommand',
+                    params: { peripheralControlInformation: this.peripheralControlInformation }
+                };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const responseData = await response.json();
+                    if (response.ok && responseData.status === STATUS.SET_PERIPHERAL_CONTROL) {
+                        this.showAlert('success', 'Notice！', 'set peripheral success！');
+                        await this.initPeripheralControlInformation();
+                    } else {
+                        this.showAlert('warning', 'Notice！', 'set peripheral failed！');
+                    }
+                } catch (error) {
+                    console.error('Error: ', error);
+                    this.showAlert('warning', 'Notice！', 'set peripheral error！');
+                }
+            },
+            async initMotorControlInformation() {
+                const url = '/getDeviceCommand';
+                const data = { method: 'getMotorControlInformationCommand', params: {} };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const responseData = await response.json();
+                    if (responseData.status === STATUS.GET_MOTOR_CONTROL
+                        && responseData.params && responseData.params.motorControlInformation) {
+                        this.motorControlInformation = Object.assign(
+                            {}, this.motorControlInformation,
+                            responseData.params.motorControlInformation);
+                    }
+                } catch (error) {
+                    console.error('Error fetching motorControlInformation: ', error);
+                }
+            },
+            // 对齐 App：方向 STOP=0 UP=1 DOWN=2 LEFT=3 RIGHT=4 + 斜向 5..8
+            motorDirLabel() {
+                const names = ['Stop','Up','Down','Left','Right','Right-Up','Left-Up','Right-Down','Left-Down'];
+                const d = Number(this.motorControlInformation.motroControlDirection) || 0;
+                return names[d] || ('Dir ' + d);
+            },
+            motorDirGlyph() {
+                const g = ['●','↑','↓','←','→','↗','↖','↘','↙'];
+                const d = Number(this.motorControlInformation.motroControlDirection) || 0;
+                return g[d] || '●';
+            },
+            async submitMotorControlInformation(opts) {
+                const silent = !!(opts && opts.silent);
+                const url = '/setDeviceCommand';
+                const data = {
+                    method: 'setMotorControlInformationCommand',
+                    params: { motorControlInformation: this.motorControlInformation }
+                };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const responseData = await response.json();
+                    if (response.ok && responseData.status === STATUS.SET_MOTOR_CONTROL) {
+                        if (!silent) this.showAlert('success', 'Notice！', 'set motor success！');
+                    } else if (!silent) {
+                        this.showAlert('warning', 'Notice！', 'set motor failed！');
+                    }
+                } catch (error) {
+                    console.error('Error: ', error);
+                    if (!silent) this.showAlert('warning', 'Notice！', 'set motor error！');
+                }
+            },
+            async setMotorEnable(on) {
+                this.motorControlInformation.motorStatus = on ? 1 : 0;
+                if (!on) {
+                    this.motorControlInformation.motroControlDirection = 0;
+                    this._motorKeyHeld = false;
+                }
+                await this.submitMotorControlInformation();
+            },
+            async setMotorSpeed(step) {
+                this.motorControlInformation.motorControlStep = step;
+                await this.submitMotorControlInformation();
+            },
+            async _applyMotorDir(dir) {
+                if (Number(this.motorControlInformation.motroControlDirection) === dir) return;
+                this.motorControlInformation.motroControlDirection = dir;
+                await this.submitMotorControlInformation({ silent: true });
+            },
+            motorKeyDown(dir, e) {
+                if (this.motorControlInformation.motorStatus !== 1) return;
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+                this._motorKeyHeld = true;
+                this._applyMotorDir(dir);
+            },
+            async motorKeyUp(e) {
+                if (!this._motorKeyHeld) return;
+                this._motorKeyHeld = false;
+                try { if (e && e.currentTarget) e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+                await this._applyMotorDir(0);
+            },
+
 
             //watchdog 基本信息
             async initWatchdogInformation() {
