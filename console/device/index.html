@@ -5574,8 +5574,7 @@ window.__presignThumbUrl = function (raw) {
                                 </div>
                             </div>
                         </div>
-
-                </div>
+                </div><!-- /#device-information -->
 
                                 <!-- device gpt：已并入 AI Settings → LLM Tab；保留空 section 以兼容旧链接 -->
                 <div class="page-section" id="chatgpt-information"></div>
@@ -11333,14 +11332,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 获取并设置视频信息
                         this.deviceGeneralInformation = responseData.params.deviceGeneralInformation;
                         console.log(this.deviceGeneralInformation);
-                        new QRCode(document.getElementById('uuidQrcode'), {
-                            text: this.deviceGeneralInformation.deviceUuid,
-                            width: 200,
-                            height: 200,
-                            colorDark: "#000000",
-                            colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.H
-                        });
+                        const uuidQr = document.getElementById('uuidQrcode');
+                        if (uuidQr) {
+                            uuidQr.innerHTML = '';
+                            new QRCode(uuidQr, {
+                                text: this.deviceGeneralInformation.deviceUuid,
+                                width: 200,
+                                height: 200,
+                                colorDark: "#000000",
+                                colorLight: "#ffffff",
+                                correctLevel: QRCode.CorrectLevel.H
+                            });
+                        }
 
                     }
                 } catch (error) {
@@ -13067,15 +13070,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.networkInformation = responseData.params.networkInformation;
                         console.log(this.networkInformation);
                         const qrEl = document.getElementById('urlQrcode');
-                        if (qrEl) qrEl.innerHTML = '';   // 清空，避免重复调用叠加二维码
-                        new QRCode(qrEl, {
-                            text: 'http://' + this.networkInformation.NetworkInformationIpAddress,
-                            width: 200,
-                            height: 200,
-                            colorDark: "#000000",
-                            colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.H
-                        });
+                        if (qrEl) {
+                            qrEl.innerHTML = '';
+                            new QRCode(qrEl, {
+                                text: 'http://' + this.networkInformation.NetworkInformationIpAddress,
+                                width: 200,
+                                height: 200,
+                                colorDark: "#000000",
+                                colorLight: "#ffffff",
+                                correctLevel: QRCode.CorrectLevel.H
+                            });
+                        }
                     }
                 } catch (error) {
                     console.error('Error fetching networkInformation settings: ', error);
