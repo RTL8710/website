@@ -4455,23 +4455,26 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div class="d-flex align-items-center w-100" style="height: 80px; padding: 4px 8px;">
                                                                     <!-- 左侧缩略图（含叠加 badge） -->
                                                                     <div style="position:relative;width:100px;height:70px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2);">
-                                                                        <i class="fa-solid fa-camera" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted,#888);opacity:.35;font-size:22px;"></i>
+                                                                        <i class="fa-solid fa-camera" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted,#888);opacity:.35;font-size:22px;z-index:0;"></i>
                                                                         <img :src="thumbSrc(record)"
                                                                              style="position:relative;width:100%;height:100%;object-fit:cover;z-index:1;"
                                                                              onerror="this.style.display='none'">
-                                                                        <i class="fa fa-lock" x-show="record.isLocked" style="position:absolute;top:21px;left:4px;font-size:11px;color:#ef4444;drop-shadow(0 0 2px rgba(0,0,0,0.8));"></i>
-                                                                        <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;"
+                                                                        <i class="fa fa-lock" x-show="record.isLocked" style="position:absolute;top:21px;left:4px;font-size:11px;color:#ef4444;filter:drop-shadow(0 0 2px rgba(0,0,0,0.8));z-index:2;pointer-events:none;"></i>
+                                                                        <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;z-index:2;pointer-events:none;"
                                                                               :class="'bg-'+['primary','success','info','warning'][tlCamOf(record.RecordIndexInformationPath)%4]"
                                                                               x-text="'CAM'+(tlCamOf(record.RecordIndexInformationPath)+1)"></span>
-                                                                        <span class="badge bg-dark" x-show="record.RecordIndexInformationFps" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;opacity:0.85;"
+                                                                        <span class="badge bg-dark" x-show="record.RecordIndexInformationFps" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;opacity:0.85;z-index:2;pointer-events:none;"
                                                                               x-text="record.RecordIndexInformationFps + 'fps'"></span>
-                                                                        <span class="badge bg-dark" x-show="record.RecordIndexInformationWidth" style="position:absolute;bottom:4px;left:4px;font-size:7px;padding:1px 3px;opacity:0.85;"
+                                                                        <span class="badge bg-dark" x-show="record.RecordIndexInformationWidth" style="position:absolute;bottom:4px;left:4px;font-size:7px;padding:1px 3px;opacity:0.85;z-index:2;pointer-events:none;"
                                                                               x-text="record.RecordIndexInformationWidth + 'x' + record.RecordIndexInformationHeight"></span>
-                                                                        <span class="badge bg-info" x-show="record.RecordIndexInformationVideoSize" style="position:absolute;bottom:4px;right:4px;font-size:7px;padding:1px 3px;"
+                                                                        <span class="badge bg-info" x-show="record.RecordIndexInformationVideoSize" style="position:absolute;bottom:4px;right:4px;font-size:7px;padding:1px 3px;z-index:2;pointer-events:none;"
                                                                               x-text="(record.RecordIndexInformationVideoSize/1048576).toFixed(1)+'MB'"></span>
+                                                                        <span class="badge bg-dark" style="position:absolute;top:18px;left:4px;font-size:7px;padding:1px 3px;opacity:0.9;z-index:2;pointer-events:none;"
+                                                                              x-show="(record.RecordIndexInformationPath||'').match(/(\d{6,})\./)"
+                                                                              x-text="'#'+((record.RecordIndexInformationPath||'').match(/(\d{6,})\./)||[])[1]"></span>
                                                                         <!-- 正在播放：缩略图中央播放图标（图标绝对居中，避免 Alpine x-show 移除 display:flex 导致跑到左上角）-->
                                                                         <div x-show="isPlaying(record)"
-                                                                             style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);">
+                                                                             style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:3;pointer-events:none;">
                                                                             <i class="fa-solid fa-circle-play" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:30px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);"></i>
                                                                         </div>
                                                                     </div>
@@ -4741,24 +4744,27 @@ window.__presignThumbUrl = function (raw) {
                                                                     <div style="position:relative;width:100px;height:70px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2);">
                                                                         <img :src="thumbSrc(image)"
                                                                              alt="thumbnail"
-                                                                             style="width:100%;height:100%;object-fit:cover;"
+                                                                             style="position:relative;width:100%;height:100%;object-fit:cover;z-index:1;"
                                                                              onerror="this.style.display='none'">
-                                                                        <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;"
+                                                                        <span class="badge" style="position:absolute;top:4px;left:4px;font-size:8px;padding:1px 4px;z-index:2;pointer-events:none;"
                                                                               :class="'bg-'+['primary','success','info','warning'][tlCamOf(image.RecordIndexInformationImage)%4]"
                                                                               x-text="'CAM'+(tlCamOf(image.RecordIndexInformationImage)+1)"></span>
                                                                         <!-- 选中标识：缩略图中央对勾图标（绝对居中，避免 x-show 移除 display:flex）-->
                                                                         <div x-show="isSnapInSync(image)"
-                                                                             style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);">
+                                                                             style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:3;pointer-events:none;">
                                                                             <i class="fa-solid fa-circle-check" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);"></i>
                                                                         </div>
-                                                                        <span class="badge bg-dark" x-show="image.RecordIndexInformationWidth" style="position:absolute;bottom:4px;left:4px;font-size:7px;padding:1px 3px;opacity:0.85;"
+                                                                        <span class="badge bg-dark" x-show="image.RecordIndexInformationWidth" style="position:absolute;bottom:4px;left:4px;font-size:7px;padding:1px 3px;opacity:0.85;z-index:2;pointer-events:none;"
                                                                               x-text="image.RecordIndexInformationWidth + 'x' + image.RecordIndexInformationHeight"></span>
-                                                                        <span class="badge" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;"
+                                                                        <span class="badge" style="position:absolute;top:4px;right:4px;font-size:7px;padding:1px 3px;z-index:2;pointer-events:none;"
                                                                               :class="image.RecordIndexInformationType==1 ? 'bg-primary' : image.RecordIndexInformationType==2 ? 'bg-danger' : image.RecordIndexInformationType==3 ? 'bg-info' : 'bg-purple'"
                                                                               :style="(image.RecordIndexInformationType!=1 && image.RecordIndexInformationType!=2 && image.RecordIndexInformationType!=3) ? 'background:#7c3aed' : ''"
                                                                               x-text="image.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : image.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : image.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
-                                                                        <span class="badge bg-info" x-show="image.RecordIndexInformationImageSize" style="position:absolute;bottom:4px;right:4px;font-size:7px;padding:1px 3px;"
+                                                                        <span class="badge bg-info" x-show="image.RecordIndexInformationImageSize" style="position:absolute;bottom:4px;right:4px;font-size:7px;padding:1px 3px;z-index:2;pointer-events:none;"
                                                                               x-text="(image.RecordIndexInformationImageSize/1024).toFixed(0)+'KB'"></span>
+                                                                        <span class="badge bg-dark" style="position:absolute;top:18px;left:4px;font-size:7px;padding:1px 3px;opacity:0.9;z-index:2;pointer-events:none;"
+                                                                              x-show="(image.RecordIndexInformationImage||'').match(/(\d{6,})\./)"
+                                                                              x-text="'#'+((image.RecordIndexInformationImage||'').match(/(\d{6,})\./)||[])[1]"></span>
                                                                     </div>
 
                                                                     <!-- 右侧信息 -->
