@@ -4935,8 +4935,8 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="storage"></div>
 
 
-                                <!-- Device Info：Info / OTA / About 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='about') { QrGeneratorDeviceUuid(); } else if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
+                                <!-- Device Info：Info / OTA / Peripheral / Motor 分段 Tab -->
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -4950,12 +4950,6 @@ window.__presignThumbUrl = function (raw) {
                                     :aria-selected="deviceInfoParamTab==='ota'"
                                     @click="deviceInfoParamTab='ota'; initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage();"
                                     data-i18n="nav_ota_upgrade">OTA Upgrade</button>
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="deviceInfoParamTab==='about' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="deviceInfoParamTab==='about'"
-                                    @click="deviceInfoParamTab='about'; QrGeneratorDeviceUuid()"
-                                    data-i18n="nav_about">About</button>
                             <button type="button" class="btn btn-sm"
                                     role="tab"
                                     :class="deviceInfoParamTab==='peripheral' ? 'btn-primary' : 'btn-outline-primary'"
@@ -5451,26 +5445,6 @@ window.__presignThumbUrl = function (raw) {
                                         </div>
                                     </div>
                                 </div>
-                        </div>
-                        <div class="vs-param-pane" x-show="deviceInfoParamTab==='about'" x-cloak>
-<div class="card shadow">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="ab_qrcode">QR Code</h3>
-                        </div>
-                        <div class="card-body d-flex justify-content-around align-items-center">
-                            <!-- 二维码显示区域 -->
-                            <div class="d-flex flex-column justify-content-center  align-items-center">
-                                <div id="uuidQrcode"></div>
-                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_uuid">Device UUID</p>
-                            </div>
-
-                            <div class="d-flex flex-column justify-content-center  align-items-center">
-                                <div id="urlQrcode" style="cursor: pointer;"
-                                     @click="window.open(`http://${networkInformation.NetworkInformationIpAddress}`, '_blank');"></div>
-                                <p class="mt-2" style="font-weight: bold; color: black; font-size: 16px;" data-i18n="ab_device_url">Device URL</p>
-                            </div>
-                        </div>
-                    </div>
                         </div>
                         <div class="vs-param-pane" x-show="deviceInfoParamTab==='peripheral'" x-cloak>
                             <div class="card shadow">
@@ -7567,7 +7541,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 
-                                <!-- about：已并入 Device Info → About Tab -->
+                                <!-- about：已移除；保留空 section 兼容旧链接 → 跳转 Device Info -->
                 <div class="page-section" id="about"></div>
 
 
@@ -8723,7 +8697,6 @@ const HELP_I18N = (function () {
                 { icon: 'fa-solid fa-code', title: 'Debug Settings', desc: 'Debug / diagnostics options. Technical page.', tips: [] },
                 { icon: 'fa-solid fa-spider', title: 'Log', desc: 'View and export device logs.', tips: ['Attach logs when reporting a problem to support.'] },
                 { icon: 'fa-solid fa-users', title: 'User', desc: 'User management — add/delete/modify users, roles and passwords.', tips: ['Use strong passwords; remove unused accounts.'] },
-                { icon: 'fa-solid fa-info-circle', title: 'About', desc: 'Version, copyright and device QR code.', tips: [] },
             ] },
         ],
         faq: [
@@ -8770,7 +8743,6 @@ const HELP_I18N = (function () {
                 { icon: 'fa-solid fa-code', title: '调试设置', desc: '调试 / 诊断选项。技术页。', tips: [] },
                 { icon: 'fa-solid fa-spider', title: '日志', desc: '查看与导出设备日志。', tips: ['向支持反馈问题时附上日志。'] },
                 { icon: 'fa-solid fa-users', title: '用户管理', desc: '增删改用户、角色与密码。', tips: ['使用强密码,删除不再使用的账号。'] },
-                { icon: 'fa-solid fa-info-circle', title: '关于', desc: '版本、版权与设备二维码。', tips: [] },
             ] },
         ],
         faq: [
@@ -8945,9 +8917,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-        // OTA Upgrade / About 已并入 Device Info 分段 Tab
+        // OTA Upgrade 已并入 Device Info 分段 Tab；旧 about 链接落到 Info
         if (pageId === 'upgrade' || pageId === 'about') {
-            window.__pendingDeviceInfoTab = (pageId === 'about') ? 'about' : 'ota';
+            window.__pendingDeviceInfoTab = (pageId === 'about') ? 'info' : 'ota';
             pageId = 'device-information';
             el = document.querySelector('.dv-nav-item[onclick*="device-information"]') || el;
         }
@@ -9238,7 +9210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
             logParamTab: 'settings', // Log Settings 分段: settings|viewer
             productionParamTab: 'provisioning', // Production 分段: provisioning|factory
-            deviceInfoParamTab: 'info', // Device Info 分段: info|ota|about|peripheral|motor
+            deviceInfoParamTab: 'info', // Device Info 分段: info|ota|peripheral|motor
             peripheralControlInformation: {
                 blueIndicatorLight: false,
                 greenIndicatorLight: false,
