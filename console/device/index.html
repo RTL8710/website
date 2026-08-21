@@ -669,7 +669,7 @@ window.__presignThumbUrl = function (raw) {
         }
 
 
-        /* RTSP URL 列表：两路合成一卡，cameraN 展示名 */
+        /* RTSP URL 列表：每路摄像头一张卡，主码流 liveN + 子码流 subN */
         .rtsp-url-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -6614,21 +6614,31 @@ window.__presignThumbUrl = function (raw) {
                             </div>
                             <div class="mb-3">
                                     <label class="col-form-label mb-2" data-i18n="nw_rtsp_urls">RTSP URLs</label>
-                                    <!-- 展示名 camera1/camera2…；两路合成一张卡片；真实路径仍是设备 live{i+1} -->
+                                    <!-- 每路摄像头一张卡：Main=rtsp_urls[i](/liveN) Sub=rtsp_urls_sub[i](/subN) -->
                                     <div class="rtsp-url-grid" x-show="(rtspServerService.rtsp_urls || []).length">
-                                        <template x-for="(pair, pidx) in rtspUrlPairs()" :key="'rp'+pidx">
+                                        <template x-for="cam in rtspUrlCards()" :key="'rc'+cam.n">
                                             <div class="rtsp-url-pair">
-                                                <template x-for="cam in pair" :key="'rc'+cam.n">
-                                                    <div class="rtsp-url-row">
-                                                        <span class="rtsp-cam-badge" x-text="'camera' + cam.n"></span>
-                                                        <code class="rtsp-url-text" x-text="cam.url" :title="cam.url"></code>
-                                                        <button type="button" class="btn btn-sm btn-outline-primary rtsp-copy-btn"
-                                                                @click="copyRtspUrl(cam.url, cam.n)"
-                                                                :title="tIdx('nw_rtsp_copy')">
-                                                            <i class="fa-regular fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </template>
+                                                <div class="rtsp-url-row">
+                                                    <span class="rtsp-cam-badge" x-text="'camera' + cam.n"></span>
+                                                </div>
+                                                <div class="rtsp-url-row" x-show="cam.main">
+                                                    <span class="rtsp-cam-badge" x-text="tIdx('nw_rtsp_url_main')"></span>
+                                                    <code class="rtsp-url-text" x-text="cam.main" :title="cam.main"></code>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary rtsp-copy-btn"
+                                                            @click="copyRtspUrl(cam.main, 'camera' + cam.n + ' main')"
+                                                            :title="tIdx('nw_rtsp_copy')">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="rtsp-url-row" x-show="cam.sub">
+                                                    <span class="rtsp-cam-badge" x-text="tIdx('nw_rtsp_url_sub')"></span>
+                                                    <code class="rtsp-url-text" x-text="cam.sub" :title="cam.sub"></code>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary rtsp-copy-btn"
+                                                            @click="copyRtspUrl(cam.sub, 'camera' + cam.n + ' sub')"
+                                                            :title="tIdx('nw_rtsp_copy')">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </template>
                                     </div>
@@ -9406,7 +9416,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 rtsp_auth_password: "admin123",
                 rtsp_url_main: "",
                 rtsp_url_sub: "",
-                rtsp_urls: []
+                rtsp_urls: [],
+                rtsp_urls_sub: []
             },
 
             cloudRecordService: {
@@ -11944,19 +11955,18 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
 
-            rtspUrlPairs() {
-                const urls = this.rtspServerService && this.rtspServerService.rtsp_urls
-                    ? this.rtspServerService.rtsp_urls : [];
-                const pairs = [];
-                for (let i = 0; i < urls.length; i += 2) {
-                    const chunk = [];
-                    chunk.push({ n: i + 1, url: urls[i] });
-                    if (i + 1 < urls.length) chunk.push({ n: i + 2, url: urls[i + 1] });
-                    pairs.push(chunk);
+            rtspUrlCards() {
+                const svc = this.rtspServerService || {};
+                const mains = svc.rtsp_urls || [];
+                const subs = svc.rtsp_urls_sub || [];
+                const n = Math.max(mains.length, subs.length);
+                const cards = [];
+                for (let i = 0; i < n; i++) {
+                    cards.push({ n: i + 1, main: mains[i] || '', sub: subs[i] || '' });
                 }
-                return pairs;
+                return cards;
             },
-            async copyRtspUrl(url, camN) {
+            async copyRtspUrl(url, label) {
                 if (!url) return;
                 try {
                     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -11966,7 +11976,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ta.value = url; document.body.appendChild(ta);
                         ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
                     }
-                    this.showAlert('success', 'Notice', (tIdx('nw_rtsp_copied') || 'Copied') + ' · camera' + camN);
+                    this.showAlert('success', 'Notice', (tIdx('nw_rtsp_copied') || 'Copied') + ' · ' + label);
                 } catch (e) {
                     console.error('copyRtspUrl', e);
                     this.showAlert('warning', 'Notice', tIdx('nw_rtsp_copy_fail') || 'Copy failed');
