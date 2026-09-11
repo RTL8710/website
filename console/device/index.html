@@ -73,6 +73,23 @@ window.isCloudOtaMode = function () {
     return !!(c && c.accessKeyId);
   } catch (e) { return false; }
 };
+/* 媒体内外网判定（对齐设备网页铁律）：
+ *   - hostname 是 IP（含 localhost）→ 设备本机网页 / 内网 → 永远本地 /download，可用声网
+ *   - hostname 是域名（门户 / GitHub Pages）→ 外网 → 预览/回放只走 KVS，不支持声网
+ */
+window.isLanDeviceOrigin = function () {
+  try {
+    var h = (location.hostname || '').replace(/^\[|\]$/g, '');
+    if (!h || h === 'localhost') return true;
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(h)) return true;
+    if (h.indexOf(':') >= 0) return true;
+    return false;
+  } catch (e) { return false; }
+};
+window.isWanMediaMode = function () {
+  if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
+  return !!(window.isCloudOtaMode && window.isCloudOtaMode());
+};
 window.__otaCredsBundle = function () {
   var c = {};
   try { c = JSON.parse(sessionStorage.getItem('iot_creds') || '{}') || {}; } catch (e) {}
@@ -10111,18 +10128,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!h || !h.image) return '';
                 const img = String(h.image);
                 if (/^https?:\/\//i.test(img)) return img;
-                if (this.isCloudOtaMode && this.isCloudOtaMode()) return ''; // WAN 无本地 /download
+                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) return ''; // WAN 无本地 /download
                 return '/download?filePath=' + img;
             },
             // 局域网：设备同源可直接 /mnt 或 /download；外网禁止把 SD 路径当地址（会变成门户 404）
             localPlaybackVideoSrc(rec) {
                 if (!rec || !rec.RecordIndexInformationPath) return '';
-                const wan = (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())
-                    || (window.DeviceTransport && DeviceTransport.active && DeviceTransport.active !== 'http');
-                if (wan) return '';
+                if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) {
+                    /* fall through to build /download */
+                } else {
+                    const wan = (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode())
+                        || (window.DeviceTransport && DeviceTransport.active && DeviceTransport.active !== 'http');
+                    if (wan) return '';
+                }
                 const p = String(rec.RecordIndexInformationPath);
                 if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('/download')) return p;
-                if (p.startsWith('/mnt/') || p.startsWith('/')) return '/download?filePath=' + encodeURIComponent(p);
+                if (p.startsWith('/mnt/') || p.startsWith('/')) return '/download?filePath=' + p;
                 return p;
             },
             // 仪表盘主图宫格路数：对齐 App(最多 4；优先 cameraCounts，其次已有封面)
@@ -10145,15 +10166,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!t || !t.img) return '';
                 const img = String(t.img);
                 if (/^https?:\/\//i.test(img)) return img;
-                // 外网禁止走设备 /download（主机是门户域名，必然 404）
-                if (this.isCloudOtaMode && this.isCloudOtaMode()) return '';
+                // 外网禁止走设备 /download（主机是门户域名，必然 404）；设备局域网页永远本地
+                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) return '';
                 return '/download?filePath=' + img;
             },
             tIdx(key) {
                 return (typeof window.tIdx === 'function') ? window.tIdx(key) : key;
             },
             _injectedCreds() {
-                return !!(this.isCloudOtaMode && this.isCloudOtaMode());
+                return !!(typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode()));
             },
             _s3PresignUrl(url) {
                 return (typeof window.__presignThumbUrl === 'function') ? (window.__presignThumbUrl(url) || url) : url;
@@ -10173,7 +10194,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Dashboard/直播占位:拿「录像文件数 + 每路缩略图」。缩略图【优先 snapshot 类型(recordType=3)】,
             // 无快照再回退到最近录像。后端无总数字段,靠数组长度近似(超上限显示 N+)。
             async initDashboardExtras() {
-                const wan = (typeof this.isCloudOtaMode === 'function') && this.isCloudOtaMode();
+                const wan = (typeof window.isWanMediaMode === 'function') ? window.isWanMediaMode()
+                    : ((typeof this.isCloudOtaMode === 'function') && this.isCloudOtaMode());
                 // 1) 缓存：外网忽略本地 /mnt/sd 路径缓存，避免门户域名 /download 404 刷屏
                 try {
                     const c = JSON.parse(localStorage.getItem(wan ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs') || 'null');
@@ -12470,7 +12492,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 仅网页端,不改设备/命令。各记录并行查询,结果写回 r._thumb 后 slice 数组触发重渲染(保留对象引用→selected 高亮不丢)。
             async attachCloudThumbs() {
                 // 外网：用 AppSync CloudRecord.thumbnailUrl（与 App 一致），禁止再查本地索引拼 /download
-                if (this.isCloudOtaMode && this.isCloudOtaMode()) {
+                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) {
                     const list = this.cloudPlayback.records || [];
                     if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
                     const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
@@ -14003,7 +14025,9 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             pbElId(i) { return i === 0 ? 'remotePlaybackView' : 'remotePlaybackView' + (i + 1); },
             isWanPlayback() {
-                return (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())
+                if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
+                return (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode()
+                    : (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode()))
                     || !!(window.DeviceTransport && DeviceTransport.active && DeviceTransport.active !== 'http');
             },
             // 回放路数：video.cameraCounts 常默认 1（未拉设置），须回退时间轴/已连通道
@@ -14769,9 +14793,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this._stopCurrentPlaybackForSwitch();
                     if (gen !== this._playbackGen) return; // 被更新的点击取代
 
-                    const cloud = this.isWanPlayback();
+                    // 设备局域网页：永远本地 <video src=/download>；外网按设备方案走 KVS 或声网回放
+                    const cloud = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin()) && this.isWanPlayback();
                     if (cloud) {
-                        // 外网不能直拉 /mnt：清本地 sync；建连间隙靠 idle 宫格 + remote 窗内 poster 缩略图
                         this.syncRecords = [];
                         try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
                         if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
@@ -15002,7 +15026,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 先解析并锁定 syncRecords，再 fetchRecords —— 避免 fetchRecords 的 auto-play 覆盖本次选择。
                 const recs = await this.resolveSegmentsAt(secs);
                 const active = (window.DeviceTransport && DeviceTransport.active) || 'http';
-                const wan = active !== 'http' || (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode());
+                const wan = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin())
+                    && (active !== 'http' || (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode()
+                        : (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())));
                 if (recs.length) {
                     this.selectedRecord = recs[0];
                     this.playbackFocusIdx = 0;
@@ -15569,7 +15595,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     if (this.dashThumbs && this.dashThumbs.length) return;
                     try {
-                        const raw = localStorage.getItem(this.isCloudOtaMode && this.isCloudOtaMode() ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs');
+                        const raw = localStorage.getItem((typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) ? 'dv_dash_thumbs_cloud' : 'dv_dash_thumbs');
                         const c = JSON.parse(raw || 'null');
                         if (c && Array.isArray(c.thumbs) && c.thumbs.length) {
                             this.dashThumbs = c.thumbs;
@@ -15577,7 +15603,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     } catch (e0) {}
                     // AppSync 云缩略图（不经设备 IoT）
-                    if (this.isCloudOtaMode && this.isCloudOtaMode() && window.__fetchAppSyncCloudRecords) {
+                    if ((typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) && window.__fetchAppSyncCloudRecords) {
                         const uuid = this.deviceGeneralInformation.deviceUuid
                             || (window.DeviceTransport && DeviceTransport.remoteUuid) || '';
                         if (!uuid) return;

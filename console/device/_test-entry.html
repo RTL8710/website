@@ -9,7 +9,6 @@ try {
   sessionStorage.setItem('iot_creds', JSON.stringify(payload.creds));
   sessionStorage.setItem('dv_auth', '1');
   sessionStorage.setItem('dv_user', payload.user || 'tester');
-  localStorage.setItem('previewTransport', 'kvs');
   localStorage.setItem('dv_lang', 'zh');
   if (payload.page) sessionStorage.setItem('_test_page', payload.page);
   document.getElementById('log').textContent = 'ok, redirect...';

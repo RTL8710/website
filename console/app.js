@@ -249,7 +249,7 @@ async function enterDevice(dev) {
     }));
     sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
     sessionStorage.setItem('dv_user', (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || 'user');
-    localStorage.setItem('previewTransport', 'kvs'); // 实时预览走 KVS(不用声网)
+    // 不覆盖 previewTransport：设备页 syncPreviewTransportFromDevice 跟 WEBRTCSolutionType（外网也支持声网预览/回放）
     localStorage.setItem('dv_lang', currentLang);   // 语言同步到设备页
     localStorage.setItem('dv_theme', currentTheme); // 主题同步到设备页
     location.href = 'device/index.html?deviceId=' + encodeURIComponent(uuid);
