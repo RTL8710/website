@@ -10776,23 +10776,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
                 console.log("agora channel: ",this.options.channel," appid:",this.options.appid, "token?", !!this.options.token)
-                // start Proxy if needed
-                // const mode = Number(options.proxyMode)
-                // if (mode != 0 && !isNaN(mode)) {
-                //     client.startProxyServer(mode);
-                // }
+                // 外网浏览器常拦 edge.agora.io:47xxx（控制台可见 WebSocket failed）→ Cloud Proxy 走 443
+                const wanAgora = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
+                try {
+                    if (wanAgora && typeof this.client.startProxyServer === 'function') {
+                        this.client.startProxyServer(3);
+                        console.log('[AHS][Agora] Cloud Proxy mode=3 (WAN)');
+                    } else if (typeof this.client.stopProxyServer === 'function') {
+                        this.client.stopProxyServer();
+                    }
+                } catch (e) { console.warn('[AHS][Agora] proxy', e); }
+                // 回放只订不推，外网不必申请摄像头
+                if (m === 'replay') this.options.role = 'audience';
 
                 if (this.options.role === "audience") {
                     this.client.setClientRole(this.options.role, { level: this.options.audienceLatency });
-                    // add event listener to play remote tracks when remote user publishs.
                 } else {
                     this.client.setClientRole(this.options.role);
                 }
 
-                // join the channel
-                // this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, this.options.uid || null);
                 this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
-                if (this.options.role === "host") {
+                if (this.options.role === "audience") {
+                    this.isStreaming = true;
+                } else if (this.options.role === "host") {
                     // create local audio and video tracks
                     this.localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
                         encoderConfig: "music_standard"
