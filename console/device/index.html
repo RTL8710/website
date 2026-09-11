@@ -10680,10 +10680,15 @@ document.addEventListener('DOMContentLoaded', function() {
             async handleUserPublished(user, mediaType) {
                 const id = user.uid;
                 const uidStr = String(id);
-                // 设备发布者：直播 cam0=1224 / cam1=1225 / cam>=2=1230+(i-2)；回放 cam0=1226（独立通道）
+                // 设备发布者：直播 cam0=1224 / cam1=1225 / cam>=2=1230+(i-2)；回放 cam i=1226+i（同频道独立 uid）
                 const camIdx = this.camIndexFromUid(uidStr);
                 const pbIdx  = this.playbackIndexFromUid(uidStr);
                 console.log("handleUserPublished id:", id, "camIdx:", camIdx, "pbIdx:", pbIdx);
+                // 对齐 App：回放页只订 1226+，实时 1224/1225 静音不订（否则会画到 remotePlaybackView）
+                if (this.viewMode === 'replay' && pbIdx < 0) {
+                    console.log('[AHS][Agora] replay ignore live uid', id);
+                    return;
+                }
                 this.remoteUsers[id] = user;
                 if (camIdx < 0 && pbIdx < 0) { console.log("not Valid Uid: nothing do ", id); return; }
 
@@ -10708,6 +10713,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 把两路远程视频按焦点渲染：focusCam 那路 → 大图，另一路 → 画中画
             renderRemoteVideos() {
+                if (this.viewMode === 'replay') return; // 回放窗只给 1226+，避免直播 1224 占坑
                 // 每路固定渲染到自己的元素，不在元素间移动 track（焦点切换由 CSS big/pip 类完成，避免大窗空）
                 // viewIds 由 startPreview 按模式设置（main/setting/ai 三套元素），兼容旧逻辑回退
                 // N 路：每路渲染到 camElId(i)（按 viewMode 拼 id），track 不在元素间移动
@@ -10762,7 +10768,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     try { if (typeof this.client.stopProxyServer === 'function') this.client.stopProxyServer(); } catch (e) {}
                     this.client = null;
                 }
-                this.client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+                // 回放对齐 App：Communication(rtc)+同频道 UUID+uid 1226；直播仍 live
+                this.client = AgoraRTC.createClient({ mode: (m === 'replay') ? 'rtc' : 'live', codec: 'vp8' });
                 // Channel ≡ 设备 UUID；AppId/Token 跟设备 Agora 配置对齐（勿用 default / Certificate）
                 await this.ensureLivePreviewIdentity();
                 const channel = this.resolveAgoraChannelName();
@@ -10791,14 +10798,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log('[AHS][Agora] Cloud Proxy mode=5 TCP (WAN)');
                     }
                 } catch (e) { console.warn('[AHS][Agora] proxy', e); }
-                // 回放只订不推，外网不必申请摄像头；其它模式恢复 host
+                // 回放只订不推（rtc 无 host/audience）；直播 live 才设 role
                 this.options.role = (m === 'replay') ? 'audience' : 'host';
-
-                if (this.options.role === "audience") {
-                    this.client.setClientRole(this.options.role, { level: this.options.audienceLatency });
-                } else {
+                if (m !== 'replay') {
                     this.client.setClientRole(this.options.role);
                 }
+                console.log('[AHS][Agora] join', m, 'channel=', this.options.channel, 'mode=', (m === 'replay') ? 'rtc' : 'live');
 
                 this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
                 if (this.options.role === "audience") {
