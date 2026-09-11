@@ -14131,23 +14131,72 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pb = (this.pbCamUids || []).filter(Boolean).length;
                 return pb > 0 ? Math.max(pb, (this.pbCamUids || []).length) : this.playbackCamCount();
             },
+            recordCamOf(r) {
+                if (!r) return 0;
+                if (r.RecordIndexInformationCameraIndex != null) return r.RecordIndexInformationCameraIndex;
+                const p = String(r.RecordIndexInformationPath || '');
+                return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0;
+            },
+            recordTsOf(r) {
+                const m = String((r && r.RecordIndexInformationPath) || '').match(/(\d{14})/);
+                return m ? Number(m[1]) : 0;
+            },
+            recordStartMs(r) {
+                const dt = String((r && r.RecordIndexInformationDateTime) || '');
+                const m = dt.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+                if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+                const s = String((r && r.RecordIndexInformationPath) || '').match(/(\d{14})/);
+                if (!s) return 0;
+                const t = s[1];
+                return new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +t.slice(8, 10), +t.slice(10, 12), +t.slice(12, 14)).getTime();
+            },
+            // 对齐 App isRecordStillRecording：索引在段开始就写入，MP4 要段结束写完 moov 才可 demux
+            isRecordStillRecording(r) {
+                if (!r) return false;
+                const startMs = this.recordStartMs(r);
+                if (!startMs) return false;
+                const dur = Number(r.RecordIndexInformationDuration) || 0;
+                if (dur > 0) return Date.now() < (startMs + (dur + 2) * 1000);
+                return (Date.now() - startMs) < 90 * 1000;
+            },
+            resolvePlayableRecord(record) {
+                if (!record) return null;
+                if (!this.isRecordStillRecording(record)) return record;
+                const list = (this.records && this.records.length) ? this.records : [];
+                const ci = this.recordCamOf(record);
+                const t0 = this.recordTsOf(record);
+                let best = null, bestT = -1;
+                for (let i = 0; i < list.length; i++) {
+                    const r = list[i];
+                    if (this.recordCamOf(r) !== ci) continue;
+                    if (this.isRecordStillRecording(r)) continue;
+                    const t = this.recordTsOf(r);
+                    if (t > 0 && t < t0 && t > bestT) { bestT = t; best = r; }
+                }
+                return best;
+            },
             // 给定一条录像，按时间戳在已加载列表里凑齐同一时刻各摄像头的 MP4，组成 paths[]（设备多路同步回放）
             siblingPaths(record) {
                 const n = this.playbackCamCount();
                 const list = (this.records && this.records.length) ? this.records : (this.syncRecords || []);
-                const camOf = r => {
-                    if (r.RecordIndexInformationCameraIndex != null) return r.RecordIndexInformationCameraIndex;
-                    const p = String(r.RecordIndexInformationPath || '');
-                    return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0;
-                };
-                const tsOf = r => { const m = String(r.RecordIndexInformationPath || '').match(/(\d{14})/); return m ? Number(m[1]) : 0; };
-                const t0 = tsOf(record), c0 = camOf(record);
+                const t0 = this.recordTsOf(record), c0 = this.recordCamOf(record);
                 const paths = [];
                 for (let ci = 0; ci < n; ci++) {
-                    if (ci === c0) { paths.push({ cameraIndex: ci, path: record.RecordIndexInformationPath }); continue; }
-                    let best = null, bd = Infinity;
-                    for (const r of list) { if (camOf(r) !== ci) continue; const d = Math.abs(tsOf(r) - t0); if (d < bd) { bd = d; best = r; } }
-                    if (best && bd <= 100) paths.push({ cameraIndex: ci, path: best.RecordIndexInformationPath });  // 段边界对齐，timestamp 数值差<=100 视为同段
+                    let pick = null;
+                    if (ci === c0) pick = record;
+                    else {
+                        let best = null, bd = Infinity;
+                        for (const r of list) {
+                            if (this.recordCamOf(r) !== ci) continue;
+                            const d = Math.abs(this.recordTsOf(r) - t0);
+                            if (d < bd) { bd = d; best = r; }
+                        }
+                        if (best && bd <= 100) pick = best;
+                    }
+                    if (!pick) continue;
+                    const playable = this.resolvePlayableRecord(pick) || pick;
+                    if (this.isRecordStillRecording(playable)) continue;
+                    paths.push({ cameraIndex: ci, path: playable.RecordIndexInformationPath });
                 }
                 return paths;
             },
@@ -14873,16 +14922,24 @@ document.addEventListener('DOMContentLoaded', function() {
             // 外网若不停就 startKvsPlayback，会泄漏旧 viewer 并占满 -playback 通道，后续点击无画面。
             async playRecord(record, siblingRecs) {
                 if (!record) return;
+                // 对齐 App：正在录的 loop 文件无 moov，设备会 started=false；改播上一段
+                const playRec = this.resolvePlayableRecord(record);
+                if (!playRec || this.isRecordStillRecording(playRec)) {
+                    this.showAlert('warning', 'Notice', '当前段仍在录制，请选上一段已完成的录像');
+                    return;
+                }
+                if (playRec.RecordIndexInformationPath !== record.RecordIndexInformationPath) {
+                    console.log('[AHS] skip in-progress', record.RecordIndexInformationPath, '→', playRec.RecordIndexInformationPath);
+                    this._agoraLastStart = 'skip in-progress → ' + playRec.RecordIndexInformationPath;
+                }
+                record = playRec;
                 this.selectedRecord = record;
-                // 切段/加载期各路封面：优先同刻 siblings，否则单条
                 this._playbackSiblingRecs = (siblingRecs && siblingRecs.length) ? siblingRecs.slice() : [record];
                 const gen = ++this._playbackGen;
-                // 切段不展示全屏「连接中」：保留空态宫格/上一路直到新流 remotePlaybackActive
                 try {
                     await this._stopCurrentPlaybackForSwitch();
-                    if (gen !== this._playbackGen) return; // 被更新的点击取代
+                    if (gen !== this._playbackGen) return;
 
-                    // 设备局域网页：永远本地 <video src=/download>；外网按设备方案走 KVS 或声网回放
                     const cloud = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin()) && this.isWanPlayback();
                     if (cloud) {
                         this.syncRecords = [];
