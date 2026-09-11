@@ -16,7 +16,7 @@
 // 设备从不订阅 webUserId 频道，故不会自收回包；本端按 requestId 区分并发请求。
 // ════════════════════════════════════════════════════════════════════════
 window.DeviceTransport = {
-    appId: 'ad82add40c9e420c90a17249fed40ccf',   // 与 RTC index.html appid 同（设备 rtc_app_id 配置）；RTM/RTC 必须同一 appId
+    appId: '289f22d97eab4db98e53af72edbef3b7',   // 与 RTC index.html / 设备 rtc_app_id 同；RTM/RTC 必须同一 appId
     mode: 'auto',            // 'auto' | 'http' | 'rtm'
     active: 'http',          // 当前生效链路（状态徽标用）
     rtm: null,
@@ -82,6 +82,12 @@ window.DeviceTransport = {
     },
 
     // 设备参数命令：HTTP 优先，失败回退 RTM；返回「类 Response」对象（含 ok / json() / text()）
+    _isLanHost: function () {
+        try {
+            var host = (location && location.hostname) || '';
+            return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost)/i.test(host);
+        } catch (e) { return false; }
+    },
     transportFetch: async function (url, init, origFetch) {
         if (this.mode === 'rtm' || this.mode === 'awsIot') return await this.remoteResponse(init);
         try {
@@ -92,6 +98,18 @@ window.DeviceTransport = {
             return resp;
         } catch (e) {
             console.warn('[transport] HTTP 失败(' + (e && e.name) + ')，回退远程(IoT/RTM):', e);
+            // 局域网直连设备页：HTTP 失败时不要误走 RTM（常因热切短暂断连 / 缺 UUID），直接抛错让 UI 重试
+            if (this._isLanHost() && this.mode === 'auto') {
+                this._setActive('http');
+                throw e;
+            }
+            // 外网回退前尽量补 UUID（localStorage / 页面已加载的设备信息）
+            if (!(this.remoteUuid || '').trim()) {
+                try {
+                    var cached = localStorage.getItem('lastDeviceUuid') || '';
+                    if (cached) this.rememberUuid(cached);
+                } catch (e2) {}
+            }
             return await this.remoteResponse(init);
         }
     },

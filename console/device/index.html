@@ -1711,7 +1711,7 @@ window.__presignThumbUrl = function (raw) {
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation()"
+                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation()"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
                         <div class="row row-deck">
@@ -1982,7 +1982,7 @@ window.__presignThumbUrl = function (raw) {
                                             <!-- 视频设置页面 -->
                 
                 <div class="page-section " id="video-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="Video/Audio settings groups" style="margin-bottom:14px;">
@@ -2888,7 +2888,7 @@ window.__presignThumbUrl = function (raw) {
 
 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="AI settings groups" style="margin-bottom:14px;">
@@ -6749,7 +6749,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 <div class="page-section" id="cloud-information" x-data="deviceSettings()"
-                     x-init="initTransport();initMediaServerInformation();initAgoraRtcService();getCloudRecordService();getCloudDataService();getS3UploadService()">
+                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();getCloudRecordService();getCloudDataService();getS3UploadService()">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
@@ -6778,16 +6778,10 @@ window.__presignThumbUrl = function (raw) {
                                                         data-i18n="s3_title">File Storage</button>
                                                 <button type="button" class="btn btn-sm"
                                                         role="tab"
-                                                        :class="cloudParamTab==='info' ? 'btn-primary' : 'btn-outline-primary'"
-                                                        :aria-selected="cloudParamTab==='info'"
-                                                        @click="cloudParamTab='info'"
-                                                        data-i18n="cl_title">WebRTC</button>
-                                                <button type="button" class="btn btn-sm"
-                                                        role="tab"
-                                                        :class="cloudParamTab==='agora' ? 'btn-primary' : 'btn-outline-primary'"
-                                                        :aria-selected="cloudParamTab==='agora'"
-                                                        @click="cloudParamTab='agora'"
-                                                        data-i18n="cl_agora_title">Agora RTC Service</button>
+                                                        :class="cloudParamTab==='live' ? 'btn-primary' : 'btn-outline-primary'"
+                                                        :aria-selected="cloudParamTab==='live'"
+                                                        @click="cloudParamTab='live'"
+                                                        data-i18n="cl_live_title">Live Preview</button>
                                             </div>
 
                                                                                                 <div class="vs-param-pane" x-show="cloudParamTab==='record'" x-cloak>
@@ -6935,9 +6929,26 @@ window.__presignThumbUrl = function (raw) {
                             </button>
                                                     </div>
                                                 </div>
-                                                <div class="vs-param-pane" x-show="cloudParamTab==='info'" x-cloak>
+                                                                                                <div class="vs-param-pane" x-show="cloudParamTab==='live'" x-cloak>
                                                     <div class="cloud-tab-form">
-<div class="mb-4 row">
+                            <!-- 传输方案互斥：KVS / Agora，真相源 WEBRTCSolutionType -->
+                            <div class="mb-3">
+                                <label class="form-label" data-i18n="cl_live_transport">Live Preview Transport</label>
+                                <div class="btn-group" role="group" aria-label="Live preview transport">
+                                    <button type="button" class="btn btn-sm"
+                                            :class="isLiveTransportKvs() ? 'btn-primary' : 'btn-outline-primary'"
+                                            @click="setCloudLiveTransport('kvs')">KVS</button>
+                                    <button type="button" class="btn btn-sm"
+                                            :class="!isLiveTransportKvs() ? 'btn-primary' : 'btn-outline-primary'"
+                                            @click="setCloudLiveTransport('agora')">Agora</button>
+                                </div>
+                                <div class="form-text" data-i18n="cl_live_transport_hint">Only one stack runs at a time. Choose KVS or Agora, then click Update to apply.</div>
+                            </div>
+
+                            <!-- KVS 参数 -->
+                            <div x-show="isLiveTransportKvs()" x-cloak>
+                            <div class="hr-text text-primary mb-3" data-i18n="cl_kvs_section">KVS WebRTC</div>
+                            <div class="mb-4 row">
                                 <div class="col-12 col-md-4">
                                     <label for="awsDefaultRegion"
                                            class="col-form-label col-12 col-md-6" data-i18n="cl_region">Default Region</label>
@@ -6950,12 +6961,6 @@ window.__presignThumbUrl = function (raw) {
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label for="awsKvsLogLevel" class="col-form-label col-12 col-md-6" data-i18n="cl_log_level">Log Level</label>
-                                    <!--                            <input-->
-                                    <!--                                    id="awsKvsLogLevel"-->
-                                    <!--                                    class="form-control"-->
-                                    <!--                                    x-model="webrtcInformation.awsKvsLogLevel"-->
-                                    <!--                            />-->
-
                                     <select
                                             id="awsKvsLogLevel"
                                             class="form-control"
@@ -6981,112 +6986,30 @@ window.__presignThumbUrl = function (raw) {
                                         <option value=true>true</option>
                                         <option value=false>false</option>
                                     </select>
-
                                 </div>
                             </div>
+                            </div>
+
+                            <!-- Agora 参数 -->
+                            <div x-show="!isLiveTransportKvs()" x-cloak>
+                            <div class="hr-text text-primary mb-3" data-i18n="cl_agora_section">Agora RTC</div>
                             <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label for="enableFileLogging" class="col-form-label col-12 col-md-6" data-i18n="cl_enable_webrtc">Enable WebRTC</label>
-                                    <select
-                                            id="enableFileLogging"
-                                            class="form-control"
-                                            x-model="webrtcInformation.enableFileLogging"
-                                    >
-                                        <option value=true>true</option>
-                                        <option value=false>false</option>
-                                    </select>
-
-                                </div>
-                            </div>
-                            <!--                    <div class="hr-text text-primary">Iot</div>-->
-                            <!--                    <div class="mb-4 row">-->
-                            <!--                        <div class="col-12 col-md-6">-->
-                            <!--                            <label for="awsIotCoreCert" class="col-form-label col-12 col-md-6">awsIotCoreCert:</label>-->
-                            <!--                            <input-->
-                            <!--                                    id="awsIotCoreCert"-->
-                            <!--                                    class="form-control"-->
-                            <!--                                    x-model="webrtcInformation.awsIotCoreCert"-->
-                            <!--                                    readonly-->
-
-                            <!--                            />-->
-
-                            <!--                        </div>-->
-
-                            <!--                        <div class="col-12 col-md-6">-->
-                            <!--                            <label for="awsIotCorePrivateKey" class="col-form-label col-12 col-md-6">awsIotCorePrivateKey:</label>-->
-                            <!--                            <input-->
-                            <!--                                    id="awsIotCorePrivateKey"-->
-                            <!--                                    class="form-control"-->
-                            <!--                                    x-model="webrtcInformation.awsIotCorePrivateKey"-->
-                            <!--                                    readonly-->
-                            <!--                            />-->
-                            <!--                        </div>-->
-
-
-                            <!--                    </div>-->
-                            <!--                    <div class="mb-4 row">-->
-
-                            <!--                        <div class="col-12 col-md-6">-->
-                            <!--                            <label for="awsIotCoreRoleAlias" class="col-form-label col-12 col-md-6">awsIotCoreRoleAlias:</label>-->
-                            <!--                            <input-->
-                            <!--                                    id="awsIotCoreRoleAlias"-->
-                            <!--                                    class="form-control"-->
-                            <!--                                    x-model="webrtcInformation.awsIotCoreRoleAlias"-->
-
-                            <!--                            />-->
-
-                            <!--                        </div>-->
-
-                            <!--                        <div class="col-12 col-md-6">-->
-                            <!--                            <label for="awsIotCoreThingModel" class="col-form-label col-12 col-md-6">awsIotCoreThingModel:</label>-->
-                            <!--                            <input-->
-                            <!--                                    id="awsIotCoreThingModel"-->
-                            <!--                                    class="form-control"-->
-                            <!--                                    x-model="webrtcInformation.awsIotCoreThingModel"-->
-                            <!--                            />-->
-                            <!--                        </div>-->
-
-                            <!--&lt;!&ndash;                        <div class="col-12 col-md-4">&ndash;&gt;-->
-                            <!--&lt;!&ndash;                            <label for="awsIotCoreThingName" class="col-form-label col-12 col-md-6">awsIotCoreThingName:</label>&ndash;&gt;-->
-                            <!--&lt;!&ndash;                            <input&ndash;&gt;-->
-                            <!--&lt;!&ndash;                                    id="awsIotCoreThingName"&ndash;&gt;-->
-                            <!--&lt;!&ndash;                                    class="form-control"&ndash;&gt;-->
-                            <!--&lt;!&ndash;                                    x-model="webrtcInformation.awsIotCoreThingName"&ndash;&gt;-->
-                            <!--&lt;!&ndash;                            />&ndash;&gt;-->
-                            <!--&lt;!&ndash;                        </div>&ndash;&gt;-->
-
-
-                            <!--                    </div>-->
-                                                    </div>
-                                                    <div class="d-flex flex-wrap gap-2 mt-3">
-<button class="btn btn-primary me-2" @click="submitMediaServerInformation">
-                                <span data-i18n="cl_update">Update WebRTC</span>
-                            </button>
-                                                    </div>
-                                                </div>
-                                                <div class="vs-param-pane" x-show="cloudParamTab==='agora'" x-cloak>
-                                                    <div class="cloud-tab-form">
-<div class="mb-4 row">
-                                <div class="col-12 col-md-4">
+                                <div class="col-12 col-md-6">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_app_id">App ID</label>
                                     <input class="form-control" x-model="agoraRtcService.rtcAppId" />
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_channel">Channel Name</label>
-                                    <input class="form-control" x-model="agoraRtcService.rtcChannelName" readonly />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_enable">RTC Enable</label>
-                                    <select class="form-control" x-model="agoraRtcService.rtcServiceEnable">
-                                        <option :value="true" data-i18n="cm_enable">Enable</option>
-                                        <option :value="false" data-i18n="cm_disable">Disable</option>
-                                    </select>
+                                <div class="col-12 col-md-6">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_app_cert">App Certificate</label>
+                                    <input class="form-control" x-model="options.appCertificate"
+                                           autocomplete="off" />
+                                    <div class="form-text" data-i18n="cl_agora_app_cert_hint">Webpage preview secret (App Certificate). Not stored on device; device uses App ID + optional Token.</div>
                                 </div>
                             </div>
                             <div class="mb-4 row">
-                                <div class="col-12 col-md-8">
-                                    <label class="col-form-label col-12 col-md-3" data-i18n="cl_agora_token">Token</label>
-                                    <input class="form-control" x-model="agoraRtcService.rtcToken" />
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_channel">Channel Name</label>
+                                    <input class="form-control" :value="resolveAgoraChannelName()" readonly />
+                                    <div class="form-text" data-i18n="cl_agora_channel_hint">Always equals device ID (UUID).</div>
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_log_level">Log Level</label>
@@ -7099,17 +7022,25 @@ window.__presignThumbUrl = function (raw) {
                                         <option value="16">DEBUG</option>
                                     </select>
                                 </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_token">Token</label>
+                                    <input class="form-control" x-model="agoraRtcService.rtcToken"
+                                           placeholder="(empty)" autocomplete="off" />
+                                    <div class="form-text" data-i18n="cl_agora_token_hint">Leave empty. Do not paste App Certificate here.</div>
+                                </div>
+                            </div>
                             </div>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-2 mt-3">
-<button class="btn btn-primary me-2" @click="submitAgoraRtcService">
-                                <span data-i18n="cl_agora_update">Update Agora RTC</span>
+<button class="btn btn-primary me-2" @click="submitLivePreviewTransport">
+                                <span data-i18n="cl_live_update">Update Live Preview</span>
                             </button>
-                            <button class="btn btn-success me-2" @click="initAgoraRtcService">
-                                <span data-i18n="cl_agora_refresh">Refresh Agora RTC</span>
+                            <button class="btn btn-success me-2" @click="refreshLivePreviewTransport">
+                                <span data-i18n="cl_live_refresh">Refresh</span>
                             </button>
                                                     </div>
                                                 </div>
+
                         </div>
                     </div>
 
@@ -7803,13 +7734,13 @@ const I18N_INDEX = {
     osd_title:'OSD Display', osd_time_section:'Time Watermark', osd_box_section:'Detection Label', osd_position:'Position', osd_pos_tl:'Top-Left', osd_pos_tr:'Top-Right', osd_pos_bl:'Bottom-Left', osd_pos_br:'Bottom-Right', osd_pos_custom:'Custom (X/Y)', osd_font_size:'Font Size (0=auto)', osd_sub_font_size:'Sub Font Size (0=auto)', osd_color:'Color', osd_c_white:'White', osd_c_black:'Black', osd_c_red:'Red', osd_c_green:'Green', osd_c_blue:'Blue', osd_c_yellow:'Yellow', osd_c_cyan:'Cyan', osd_c_magenta:'Magenta', osd_save:'Save OSD', osd_saved:'OSD saved', osd_subtitle:'Time watermark & detection label overlay', osd_font_path:'Font', osd_font_hint:'Path to a .ttf font file (e.g. /lib/font.ttf). Supports custom / CJK fonts via FreeType.',
     nw_rtsp_sub_port:'Sub Port', nw_rtsp_live_path:'Live Path', nw_rtsp_sub_live:'Sub Live Path', nw_rtsp_auth_user:'Auth User', nw_rtsp_auth_pass:'Auth Password', nw_rtsp_urls:'RTSP URLs', nw_rtsp_urls_empty:'No RTSP URLs', nw_rtsp_copy:'Copy', nw_rtsp_copied:'Copied', nw_rtsp_copy_fail:'Copy failed', nw_rtsp_url_main:'Main URL', nw_rtsp_url_sub:'Sub URL', nw_rtsp_update:'Update RTSP Server',
     vis_title:'Foxglove Visualization', vis_enable:'Enable', vis_port:'Port', vis_host:'Host', vis_host_hint:'0.0.0.0 = all NICs; eth0/tap0/wlan0 = one NIC; or a specific IPv4', vis_urls:'Reachable URLs', vis_frame_id:'Frame ID', vis_mcap_enable:'MCAP Record', vis_mcap_dir:'MCAP Dir', vis_hint:'enable / port / host take effect after service restart', vis_update:'Update Visualization', vis_saved:'Visualization settings saved',
-    cl_title:'WebRTC', cl_thing_name:'Thing Name',
+    cl_title:'WebRTC', cl_live_title:'Live Preview', cl_live_transport:'Live Preview Transport', cl_live_transport_hint:'Only one stack runs at a time. Choose KVS or Agora, then click Update to apply.', cl_kvs_section:'KVS WebRTC', cl_agora_section:'Agora RTC', cl_live_update:'Update Live Preview', cl_live_refresh:'Refresh', cl_thing_name:'Thing Name',
     cl_access_key:'Access Key ID', cl_secret_key:'Secret Access Key',
     cl_region:'Default Region', cl_log_level:'Log Level',
     cl_debug_sdp:'Debug Log SDP', cl_enable_webrtc:'Enable WebRTC',
     cl_update:'Update WebRTC',
-    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_channel:'Channel Name',
-    cl_agora_enable:'RTC Enable', cl_agora_token:'Token', cl_agora_log_level:'Log Level',
+    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
+    cl_agora_enable:'RTC Enable', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'Webpage preview secret (App Certificate). Not stored on device; device uses App ID + optional Token.', cl_agora_token:'Token', cl_agora_token_hint:'Leave empty. Do not paste App Certificate here.', cl_agora_log_level:'Log Level',
     cl_agora_update:'Update Agora RTC', cl_agora_refresh:'Refresh Agora RTC',
     cl_transport_title:'Remote Connection', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'Device UUID', cl_transport_need_uuid:'Please fill in the device UUID first',
@@ -7956,13 +7887,13 @@ const I18N_INDEX = {
     osd_title:'OSD 显示', osd_time_section:'时间水印', osd_box_section:'检测框标签', osd_position:'位置', osd_pos_tl:'左上', osd_pos_tr:'右上', osd_pos_bl:'左下', osd_pos_br:'右下', osd_pos_custom:'自定义(X/Y)', osd_font_size:'字号(0=自动)', osd_sub_font_size:'次码流字号(0=自动)', osd_color:'颜色', osd_c_white:'白', osd_c_black:'黑', osd_c_red:'红', osd_c_green:'绿', osd_c_blue:'蓝', osd_c_yellow:'黄', osd_c_cyan:'青', osd_c_magenta:'品红', osd_save:'保存 OSD', osd_saved:'OSD 已保存', osd_subtitle:'时间水印与检测框标签叠加', osd_font_path:'字体', osd_font_hint:'字库 .ttf 文件路径（如 /lib/font.ttf）。经 FreeType 渲染，支持自定义/中文字库。',
     nw_rtsp_sub_port:'子码流端口', nw_rtsp_live_path:'直播路径', nw_rtsp_sub_live:'子码流路径', nw_rtsp_auth_user:'认证用户', nw_rtsp_auth_pass:'认证密码', nw_rtsp_urls:'RTSP 地址', nw_rtsp_urls_empty:'暂无 RTSP 地址', nw_rtsp_copy:'复制', nw_rtsp_copied:'已复制', nw_rtsp_copy_fail:'复制失败', nw_rtsp_url_main:'主码流 URL', nw_rtsp_url_sub:'子码流 URL', nw_rtsp_update:'更新 RTSP 服务器',
     vis_title:'Foxglove 可视化', vis_enable:'启用', vis_port:'端口', vis_host:'主机', vis_host_hint:'0.0.0.0=全网卡；eth0/tap0/wlan0=单网卡；或填具体 IPv4', vis_urls:'可连接地址', vis_frame_id:'坐标系 Frame ID', vis_mcap_enable:'MCAP 录制', vis_mcap_dir:'MCAP 目录', vis_hint:'启用/端口/主机 重启服务后生效', vis_update:'更新可视化', vis_saved:'可视化配置已保存',
-    cl_title:'WebRTC', cl_thing_name:'设备名称',
+    cl_title:'WebRTC', cl_live_title:'实时预览', cl_live_transport:'实时预览传输', cl_live_transport_hint:'同一时间只跑一路。先选 KVS 或 Agora，再点「更新」写回设备。', cl_kvs_section:'KVS WebRTC', cl_agora_section:'Agora RTC', cl_live_update:'更新实时预览', cl_live_refresh:'刷新', cl_thing_name:'设备名称',
     cl_access_key:'访问密钥 ID', cl_secret_key:'访问密钥',
     cl_region:'默认区域', cl_log_level:'日志级别',
     cl_debug_sdp:'调试 SDP 日志', cl_enable_webrtc:'启用 WebRTC',
     cl_update:'更新 WebRTC',
-    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_channel:'频道名称',
-    cl_agora_enable:'RTC 启用', cl_agora_token:'Token', cl_agora_log_level:'日志级别',
+    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
+    cl_agora_enable:'RTC 启用', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'网页预览用的 Secret（App Certificate）。不写回设备；设备只用 App ID + 可选 Token。', cl_agora_token:'Token', cl_agora_token_hint:'默认留空。勿把 App Certificate 填进 Token。', cl_agora_log_level:'日志级别',
     cl_agora_update:'更新 Agora RTC', cl_agora_refresh:'刷新 Agora RTC',
     cl_transport_title:'远程连接', cl_transport_link_http:'局域网 · HTTP', cl_transport_link_rtm:'外网 · RTM',
     cl_transport_remote_uuid:'设备 UUID', cl_transport_need_uuid:'请先填写设备 UUID',
@@ -9217,7 +9148,7 @@ document.addEventListener('DOMContentLoaded', function() {
             algoAdvOpen: false,
             algoClassesOpen: false,   // “可检测类别”勾选清单默认折叠（80 类太长，收起更清爽）
             vsParamTab: 'enc',        // 视频设置底部参数分区: enc|basic|isp|osd
-            cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|info|agora
+            cloudParamTab: 'record', // Cloud Settings 分段: record|data|s3|live
             networkParamTab: 'net',  // Network Settings 分段: net|rtsp|web
             aiParamTab: 'detect', // AI Settings 分段: detect|llm|vis
             recordParamTab: 'record', // Record Settings 分段: record|storage
@@ -9464,14 +9395,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 WEBRTCServerAddress: "47.242.54.179",
                 WEBRTCTurnServer: "47.242.54.179",
                 WEBRTCDeviceUuid: "00000000-0000-0000-0000-000000000006",
-                WEBRTCSolutionType: "lzy",
+                WEBRTCSolutionType: "agora",
                 awsAccessKeyId: "",          // 已移除静态根密钥；KVS viewer 改用临时凭证(Cognito iot_creds / 设备 /api/kvsCreds)
                 awsSecretAccessKey: "",      // 同上，禁止再硬编码 AK/SK
                 awsDefaultRegion: "ap-northeast-1",  // 与设备/App/Cognito 东京对齐（勿再用香港）
                 awsKvsCacertPath: "/config/cloud/cert.pem",
                 awsKvsLogLevel: 4,
                 debugLogSdp: "true",
-                enableFileLogging: "true",
+                enableFileLogging: "false",
                 awsIotCoreCert: "/config/cloud/00000000-0000-0000-0000-000000000006.pem.crt",
                 awsIotCorePrivateKey: "/config/cloud/00000000-0000-0000-0000-000000000006.pem.key",
                 awsIotCoreThingName: "00000000-0000-0000-0000-000000000006",
@@ -9480,7 +9411,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             agoraRtcService: {
-                rtcAppId: "",
+                rtcAppId: "289f22d97eab4db98e53af72edbef3b7",
                 rtcToken: "",
                 rtcChannelName: "",
                 rtcLogLevel: 0,
@@ -9694,9 +9625,9 @@ document.addEventListener('DOMContentLoaded', function() {
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 多路显示默认画中画(pip)；用户可点左侧按钮切宫格
             options : {
-                // appid:"289f22d97eab4db98e53af72edbef3b7",
-                // appid:"fdf6cd7bf249413eb395907bbe647e5a",
-                appid:"ad82add40c9e420c90a17249fed40ccf",
+                // appid (key) + certificate 默认值
+                appid:"289f22d97eab4db98e53af72edbef3b7",
+                appCertificate:"46e63f9a49b14d649c9a360c96dcbc9b",
                 // role: "audience", // host or audience
                 role: "host", // host or audience
                 audienceLatency: 2,
@@ -9716,7 +9647,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             isStreaming: false,      // 是否正在预览
             viewIds: null,           // 当前预览渲染目标元素集（main/setting/ai 由 startPreview 设置）
-            // 实时预览传输方案: 'agora'(默认,已验证) | 'kvs'。开关默认 Agora,不影响现有验证。
+            // 实时预览传输方案: 先读缓存，进页/开预览后由 WEBRTCSolutionType 覆盖。
             previewTransport: (function(){ try { return localStorage.getItem('previewTransport') || 'agora'; } catch(e){ return 'agora'; } })(),
             activeTransport: null,   // 当前正在预览的方案,用于停止时调用对应 teardown
             isMainShowLocalVideo: true,      // 是否显示本地预览
@@ -9922,22 +9853,167 @@ document.addEventListener('DOMContentLoaded', function() {
                 ).join(''); // 从字符集中随机挑选字符
                 return `${prefix}${randomId}`;
             },
-            // 实时预览传输方案(Agora/KVS)切换。仿主/次码流:同步赋值 + 持久化,高亮立即跟随;
-            // 选择在下次 Play 时生效(togglePreview 启动前会重读 localStorage)。
-            setPreviewTransport(t){
-                this.previewTransport = (t === 'kvs') ? 'kvs' : 'agora';
+            // 跟随设备 WEBRTCSolutionType（真相源，对齐 App / isLiveTransportKvs）。
+            // livePreviewTransport 仅作旧固件/未下发 SolutionType 时的回退。
+            syncPreviewTransportFromDevice(){
+                const w = this.webrtcInformation || {};
+                const st = (w.WEBRTCSolutionType || '').toLowerCase();
+                let t;
+                if (st === 'agora') {
+                    t = 'agora';
+                } else if (st === 'kvs' || st === 'lzy' || st === 'aws') {
+                    t = 'kvs';
+                } else {
+                    const lp = (w.livePreviewTransport || '').toLowerCase();
+                    t = (lp === 'agora') ? 'agora' : 'kvs';
+                }
+                this.previewTransport = t;
                 try { localStorage.setItem('previewTransport', this.previewTransport); } catch(e){}
             },
-            // 预览按钮统一入口:按所选 previewTransport 分发 Agora/KVS,停止时按 activeTransport 调对应 teardown。
+            onSolutionTypeChanged(){
+                const st = (this.webrtcInformation.WEBRTCSolutionType || 'kvs').toLowerCase();
+                const agora = (st === 'agora');
+                this.webrtcInformation.enableFileLogging = agora ? 'false' : 'true';
+                if (this.agoraRtcService) this.agoraRtcService.rtcServiceEnable = agora;
+                this.syncPreviewTransportFromDevice();
+            },
+
+            isLiveTransportKvs(){
+                const st = ((this.webrtcInformation && this.webrtcInformation.WEBRTCSolutionType) || 'kvs').toLowerCase();
+                return st !== 'agora';
+            },
+            setCloudLiveTransport(t){
+                if (!this.webrtcInformation) return;
+                this.webrtcInformation.WEBRTCSolutionType = (t === 'agora') ? 'agora' : 'kvs';
+                this.onSolutionTypeChanged();
+            },
+            resolveAgoraChannelName(){
+                const pick = (v) => {
+                    const s = (v || '').trim();
+                    if (!s || s === 'default') return '';
+                    return s;
+                };
+                return pick(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                    || pick(this.webrtcInformation && this.webrtcInformation.WEBRTCDeviceUuid)
+                    || pick(this.agoraRtcService && this.agoraRtcService.rtcChannelName)
+                    || '';
+            },
+            sanitizeAgoraRtcForm(){
+                if (!this.agoraRtcService) return;
+                const cert = ((this.options && this.options.appCertificate) || '46e63f9a49b14d649c9a360c96dcbc9b').trim();
+                const appId = (this.agoraRtcService.rtcAppId || '').trim();
+                let tok = (this.agoraRtcService.rtcToken || '').trim();
+                // App Certificate / App ID 不是 Token；常见误填 32 位 hex
+                if (!tok || tok === cert || tok === appId || (tok.length === 32 && /^[0-9a-fA-F]+$/.test(tok))) {
+                    this.agoraRtcService.rtcToken = '';
+                } else {
+                    this.agoraRtcService.rtcToken = tok;
+                }
+                if (!appId) this.agoraRtcService.rtcAppId = '289f22d97eab4db98e53af72edbef3b7';
+                const ch = this.resolveAgoraChannelName();
+                if (ch) this.agoraRtcService.rtcChannelName = ch;
+            },
+            async submitLivePreviewTransport(){
+                this.onSolutionTypeChanged();
+                this.sanitizeAgoraRtcForm();
+                const wantAgora = !this.isLiveTransportKvs();
+                const applied = ((this.webrtcInformation && this.webrtcInformation.livePreviewTransport) || '').toLowerCase();
+                const target = wantAgora ? 'agora' : 'kvs';
+                try {
+                    // 方案切换才走 webrtc SET（热切一次）；同方案只改凭证，避免二次热切/停 KVS 崩溃
+                    if (applied !== target || !wantAgora) {
+                        const ok = await this.submitMediaServerInformation({ quiet: true });
+                        if (!ok) throw new Error('webrtc SET failed');
+                    }
+                    if (wantAgora) {
+                        const ok = await this.submitAgoraRtcService({ credentialsOnly: applied === 'agora' });
+                        if (!ok) throw new Error('agora SET failed');
+                    }
+                    await this.refreshLivePreviewTransport();
+                    this.showAlert('success', 'Notice', wantAgora ? 'Live Preview → Agora updated' : 'Live Preview → KVS updated');
+                } catch (e) {
+                    console.error(e);
+                    this.showAlert('warning', 'Notice', 'Live Preview update failed');
+                }
+            },
+            async refreshLivePreviewTransport(){
+                try { await this.initDeviceGeneralInformation(); } catch (e) {}
+                await this.initMediaServerInformation();
+                await this.initAgoraRtcService();
+                this.sanitizeAgoraRtcForm();
+                this.syncPreviewTransportFromDevice();
+            },
+            async ensureLivePreviewIdentity(){
+                try {
+                    if (!this.deviceGeneralInformation || !this.deviceGeneralInformation.deviceUuid
+                        || this.deviceGeneralInformation.deviceUuid === 'default') {
+                        await this.initDeviceGeneralInformation();
+                    }
+                } catch (e) {}
+                try {
+                    if (!this.webrtcInformation || !this.webrtcInformation.livePreviewTransport) {
+                        await this.initMediaServerInformation();
+                    }
+                } catch (e) {}
+                try {
+                    if (!this.agoraRtcService || !this.agoraRtcService.rtcAppId) {
+                        await this.initAgoraRtcService();
+                    } else {
+                        this.sanitizeAgoraRtcForm();
+                    }
+                } catch (e) {}
+                const ch = this.resolveAgoraChannelName();
+                if (ch && window.DeviceTransport) window.DeviceTransport.rememberUuid(ch);
+                // 同步网页 RTC AppId（跟设备 agora 配置）
+                if (this.agoraRtcService && this.agoraRtcService.rtcAppId && this.options) {
+                    this.options.appid = this.agoraRtcService.rtcAppId;
+                    const tok = (this.agoraRtcService.rtcToken || '').trim();
+                    this.options.token = tok || null;
+                }
+                if (window.DeviceTransport && this.options && this.options.appid) {
+                    window.DeviceTransport.appId = this.options.appid;
+                }
+                return ch;
+            },
+            async setPreviewTransport(t){
+                const target = (t === 'kvs') ? 'kvs' : 'agora';
+                this.previewTransport = target;
+                try { localStorage.setItem('previewTransport', this.previewTransport); } catch(e){}
+                try {
+                    await this.ensureLivePreviewIdentity();
+                    if (!this.webrtcInformation) return;
+                    const applied = ((this.webrtcInformation.livePreviewTransport) || '').toLowerCase();
+                    this.webrtcInformation.WEBRTCSolutionType = target;
+                    this.onSolutionTypeChanged();
+                    // 已在目标方案：只刷 UI，避免无意义热切把设备打挂
+                    if (applied === target) {
+                        this.syncPreviewTransportFromDevice();
+                        return;
+                    }
+                    const ok = await this.submitMediaServerInformation({ quiet: true });
+                    if (!ok) {
+                        this.showAlert('warning', 'Notice', 'Switch transport failed (device busy?). Retry.');
+                        try { await this.refreshLivePreviewTransport(); } catch (e2) {}
+                        return;
+                    }
+                    await this.refreshLivePreviewTransport();
+                    this.showAlert('success', 'Notice', 'Switched to ' + target.toUpperCase());
+                } catch (e) {
+                    console.warn('setPreviewTransport SET failed', e);
+                    this.showAlert('warning', 'Notice', 'Switch transport failed');
+                }
+            },
+            // 预览按钮统一入口:按设备 WEBRTCSolutionType 自动选 KVS / Agora。
             async togglePreview(mode){
                 if (this.isStreaming) {
                     if (this.activeTransport === 'kvs') { await this.stopKvsPreview(); }
                     else { await this.stopPreview(); }
                     this.activeTransport = null;
                 } else {
-                    // 启动前重读 localStorage,确保跨 page-section 实例(主页/设置/AI)都用最新的传输方案选择,
-                    // 而不是各自实例创建时的旧值。
-                    try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch(e){}
+                    await this.ensureLivePreviewIdentity();
+                    // 开预览前再拉一次 webrtc，避免本地 localStorage 与设备方案不一致
+                    try { await this.initMediaServerInformation(); } catch (e) {}
+                    this.syncPreviewTransportFromDevice();
                     if (this.previewTransport === 'kvs') { await this.startKvsPreview(mode); }
                     else { this.activeTransport = 'agora'; await this.startPreview(mode); }
                 }
@@ -10662,11 +10738,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.client.leave();
                     console.log("Left the channel");
                 }
-                //设置设备的uuid 为 channelid
-                this.options.channel = this.deviceGeneralInformation.deviceUuid;
+                // Channel ≡ 设备 UUID；AppId/Token 跟设备 Agora 配置对齐（勿用 default / Certificate）
+                await this.ensureLivePreviewIdentity();
+                const channel = this.resolveAgoraChannelName();
+                if (!channel) {
+                    this.showAlert('warning', 'Notice', 'Missing device UUID for Agora channel');
+                    throw new Error('missing agora channel uuid');
+                }
+                this.options.channel = channel;
+                if (this.agoraRtcService && this.agoraRtcService.rtcAppId) {
+                    this.options.appid = this.agoraRtcService.rtcAppId;
+                }
+                const tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                this.options.token = tok || null;
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
-                console.log("agora channel: ",this.options.channel," appid:",this.options.appid)
+                console.log("agora channel: ",this.options.channel," appid:",this.options.appid, "token?", !!this.options.token)
                 // start Proxy if needed
                 // const mode = Number(options.proxyMode)
                 // if (mode != 0 && !isNaN(mode)) {
@@ -11383,6 +11470,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 获取并设置视频信息
                         this.deviceGeneralInformation = responseData.params.deviceGeneralInformation;
                         console.log(this.deviceGeneralInformation);
+                        const uuid = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || '';
+                        if (uuid && uuid !== 'default' && window.DeviceTransport) {
+                            window.DeviceTransport.rememberUuid(uuid);
+                        }
                     }
                 } catch (error) {
                     console.error('Error fetching deviceGeneralInformation settings: ', error);
@@ -12670,6 +12761,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log(responseData);
                     if (responseData.status === STATUS.GET_WEBRTC_INFO) {
                         this.webrtcInformation = responseData.params.webrtcInformation;
+                        this.syncPreviewTransportFromDevice();
                         console.log(this.webrtcInformation);
                     }
                 } catch (error) {
@@ -12703,7 +12795,9 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
 
-            async submitMediaServerInformation() {
+            async submitMediaServerInformation(opts) {
+                opts = opts || {};
+                const quiet = !!opts.quiet;
                 const url = '/setDeviceCommand';
                 const data = {
                     method: "setWebrtcInformationCommand",
@@ -12723,16 +12817,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify(data)
                     });
-                    this.showAlert("success", " Notice！", "update webrtcInformation success！");
                     if (response.ok) {
                         const responseData = await response.json();
                         console.log("Response Data: ", responseData);
-                    } else {
-                        this.showAlert("warning", "Notice！", "update webrtcInformation error！");
+                        if (!quiet) this.showAlert("success", " Notice！", "update webrtcInformation success！");
+                        return true;
                     }
+                    if (!quiet) this.showAlert("warning", "Notice！", "update webrtcInformation error！");
+                    return false;
                 } catch (error) {
                     console.error('Error: ', error);
-                    this.showAlert("warning", "Notice！", "update webrtcInformation error！");
+                    if (!quiet) this.showAlert("warning", "Notice！", "update webrtcInformation error！");
+                    return false;
                 }
 
             },
@@ -12747,26 +12843,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     const responseData = await response.json();
                     if (responseData.status === STATUS.GET_AGORA_RTC) {
                         this.agoraRtcService = responseData.params.agoraRtcService;
+                        this.sanitizeAgoraRtcForm();
                     }
                 } catch (error) {
                     console.error('Error fetching agoraRtcService: ', error);
                 }
             },
-            async submitAgoraRtcService() {
+            async submitAgoraRtcService(opts) {
+                opts = opts || {};
+                const quiet = !!opts.quiet || !!opts.credentialsOnly;
                 try {
+                    this.sanitizeAgoraRtcForm();
+                    const payload = {
+                        rtcAppId: this.agoraRtcService.rtcAppId || '',
+                        rtcToken: this.agoraRtcService.rtcToken || '',
+                        rtcChannelName: this.resolveAgoraChannelName(),
+                        rtcLogLevel: this.agoraRtcService.rtcLogLevel|0
+                    };
+                    // 仅改凭证时不带 rtcServiceEnable，避免触发二次热切
+                    if (!opts.credentialsOnly) {
+                        payload.rtcServiceEnable = !!this.agoraRtcService.rtcServiceEnable;
+                    }
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({method: "setAgoraRtcServiceCommand", params: {agoraRtcService: this.agoraRtcService}})
+                        body: JSON.stringify({method: "setAgoraRtcServiceCommand", params: {agoraRtcService: payload}})
                     });
                     if (response.ok) {
-                        this.showAlert("success", "Notice", "Agora RTC updated");
-                    } else {
-                        this.showAlert("warning", "Notice", "Agora RTC update failed");
+                        if (!quiet) this.showAlert("success", "Notice", "Agora RTC updated");
+                        return true;
                     }
+                    if (!quiet) this.showAlert("warning", "Notice", "Agora RTC update failed");
+                    return false;
                 } catch (error) {
                     console.error('Error: ', error);
-                    this.showAlert("warning", "Notice", "Agora RTC update error");
+                    if (!quiet) this.showAlert("warning", "Notice", "Agora RTC update error");
+                    return false;
                 }
             },
 
