@@ -14,7 +14,7 @@ import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
 import {
-  t, applyTheme, applyLang, setLangChangeHandler, switcherBar, tabDefs, regionLabel, getTheme,
+  t, applyTheme, applyLang, setLangChangeHandler, switcherBar, regionSwitcher, tabDefs, regionLabel, getTheme,
 } from './i18n.js';
 
 const app = document.getElementById('app');
@@ -295,16 +295,8 @@ function topbar() {
       h('span', { class: 'spacer' }),
       h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
         fa('fa-user-shield'),
-        (u && (u.account || (u.userRow && u.userRow.awsUserName) || u.email)) || '',
-        h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } },
-          regionLabel(getRegion()))),
-      h('div', { class: 'region-tabs', style: { display: 'flex', gap: '4px' } },
-        ...REGION_ORDER.map((rc) => h('button', {
-          type: 'button',
-          class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
-          title: '切换区域需重新登录',
-          onclick: () => changeRegion(rc),
-        }, regionLabel(rc)))),
+        (u && (u.account || (u.userRow && u.userRow.awsUserName) || u.email)) || ''),
+      regionSwitcher(true, getRegion(), changeRegion),
       ...switcherBar(true).reverse(),
       h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' ' + t('consoleLink')),
       h('button', { class: 'gbtn icon', title: t('logout'), onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },

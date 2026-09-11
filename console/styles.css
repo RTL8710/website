@@ -254,7 +254,7 @@ h1.title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-s
 .sw-flag{font-size:15px}
 .sw-inline{position:relative !important}
 /* 顶栏 inline 切换器:清掉 fixed 版的 top:18px / right 定位(id 优先级,需 id+class 覆盖),否则被推偏、不与用户名/退出对齐 */
-#swTheme.sw-inline,#swLang.sw-inline{top:auto !important;right:auto !important;left:auto !important}
+#swTheme.sw-inline,#swLang.sw-inline,#swRegion.sw-inline{top:auto !important;right:auto !important;left:auto !important}
 .sw-inline .sw-dropdown{right:0;left:auto}
 .sw-swatch{width:15px;height:15px;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.18);
   background:linear-gradient(135deg,var(--sw1) 0 50%,var(--sw2) 50% 100%)}
