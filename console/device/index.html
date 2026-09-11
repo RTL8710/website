@@ -10800,6 +10800,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.options.token = tok || null;
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
+                this.client.on("user-joined", (function (user) {
+                    console.log('[AHS][Agora] user-joined', user && user.uid);
+                    this.refreshAgoraDebug();
+                }).bind(this));
                 const self = this;
                 this.client.on("connection-state-change", function (cur, prev, reason) {
                     self._agoraConnState = String(cur || '');
@@ -14076,15 +14080,35 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshAgoraDebug() {
                 const users = (this.client && this.client.remoteUsers) || [];
                 const lines = [
-                    'channel=' + ((this.options && this.options.channel) || ''),
+                    'channel=' + ((this.options && this.options.channel) || '') + ' appid=' + ((this.options && this.options.appid) || ''),
                     'mode=' + (this._agoraJoinMode || '') + ' streaming=' + !!this.isStreaming + ' conn=' + (this._agoraConnState || ''),
                     'joinUid=' + ((this.options && this.options.uid) || '') + ' token=' + !!(this.options && this.options.token),
+                    'sol=' + ((this.webrtcInformation && this.webrtcInformation.WEBRTCSolutionType) || '') + ' transport=' + (this.previewTransport || ''),
                     'pbUids=' + JSON.stringify(this.pbCamUids || []),
                     'remote=' + users.map(function (u) { return String(u.uid) + (u.hasVideo ? '+v' : '') + (u.hasAudio ? '+a' : ''); }).join(',') ,
                     'start=' + (this._agoraLastStart || '') + ' err=' + (this._agoraLastErr || 'ok'),
                 ];
                 this.agoraDebugText = lines.join('\n');
                 try { window.__agoraDebug = { text: this.agoraDebugText, users: users.map(function (u) { return { uid: u.uid, hasVideo: u.hasVideo }; }), pb: this.pbCamUids }; } catch (e) {}
+            },
+            deviceAgoraUids() {
+                const users = (this.client && this.client.remoteUsers) || [];
+                return users.filter((u) => {
+                    const s = String(u.uid);
+                    return this.playbackIndexFromUid(s) >= 0 || this.camIndexFromUid(s) >= 0;
+                });
+            },
+            waitForDeviceAgoraRemote(ms) {
+                const self = this;
+                return new Promise(function (resolve) {
+                    const t0 = Date.now();
+                    const tick = function () {
+                        if (self.deviceAgoraUids().length) return resolve(true);
+                        if (Date.now() - t0 >= ms) return resolve(false);
+                        setTimeout(tick, 300);
+                    };
+                    tick();
+                });
             },
             async syncExistingPlaybackUsers() {
                 const users = (this.client && this.client.remoteUsers) || [];
@@ -14943,8 +14967,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const cloud = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin()) && this.isWanPlayback();
                     if (cloud) {
                         this.syncRecords = [];
-                        try { this.previewTransport = localStorage.getItem('previewTransport') || this.previewTransport; } catch (e) {}
-                        if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
+                        this.syncPreviewTransportFromDevice();
+                        // 对齐 App：跟设备 WEBRTCSolutionType，不要信网页本地 Agora 开关
+                        if (this.isLiveTransportKvs()) await this.startKvsPlayback(record, siblingRecs, gen);
                         else await this.startRemotePlayback(record, gen);
                     } else {
                         this.syncRecords = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
@@ -15008,8 +15033,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.playbackCodec = result.params.codec || '';
                         await this.syncExistingPlaybackUsers();
                         this.renderPlaybackVideo();
-                        setTimeout(() => { this.syncExistingPlaybackUsers(); }, 400);
-                        setTimeout(() => { this.syncExistingPlaybackUsers(); }, 1200);
+                        const deviceSeen = await this.waitForDeviceAgoraRemote(4500);
+                        this.refreshAgoraDebug();
+                        if (!deviceSeen) {
+                            this._agoraLastErr = 'device not in agora channel, fallback kvs';
+                            this.refreshAgoraDebug();
+                            console.warn('[AHS][Agora] device not in channel, fallback KVS');
+                            await this.startKvsPlayback(record, null, gen);
+                        }
                     } else {
                         this._agoraLastErr = 'START failed ' + JSON.stringify(result && result.params);
                         this.refreshAgoraDebug();
