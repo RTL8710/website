@@ -10817,39 +10817,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     self.refreshAgoraDebug();
                 });
                 console.log("agora channel: ",this.options.channel," appid:",this.options.appid, "token?", !!this.options.token)
-                // App 不走 Cloud Proxy。先直连（才能看到设备原生 UDP 用户）；join 失败再 mode 5
-                const wanAgora = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
+                // rtc 模式没有 host/audience，禁止 setClientRole（会 CAN_NOT_SET_CLIENT_ROLE 并搞脏 client）
                 this.options.role = 'host';
-                try { this.client.setClientRole('host'); } catch (e) {}
-                console.log('[AHS][Agora] join', m, 'channel=', this.options.channel, 'mode=rtc host no-publish');
-
-                const joinOnce = async (useProxy) => {
-                    if (useProxy && typeof this.client.startProxyServer === 'function') {
-                        const maybe = this.client.startProxyServer(5);
-                        if (maybe && typeof maybe.then === 'function') await maybe;
-                        console.log('[AHS][Agora] Cloud Proxy mode=5 (join fallback)');
-                    }
-                    return await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
-                };
+                const wanAgora = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
+                // 外网必须在 join 之前 startProxyServer；失败后要整客户端重建，不能在同一个 client 上补开
+                if (wanAgora && typeof this.client.startProxyServer === 'function') {
+                    const maybe = this.client.startProxyServer(5);
+                    if (maybe && typeof maybe.then === 'function') await maybe;
+                    this._agoraProxy = true;
+                    console.log('[AHS][Agora] Cloud Proxy mode=5 before join (WAN)');
+                } else {
+                    this._agoraProxy = false;
+                }
+                console.log('[AHS][Agora] join', m, 'channel=', this.options.channel, 'mode=rtc no-publish proxy=', !!this._agoraProxy);
                 try {
-                    this.options.uid = await joinOnce(false);
-                    this._agoraLastErr = '';
+                    this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
+                    this._agoraLastErr = this._agoraProxy ? 'proxy5' : '';
                 } catch (e) {
-                    if (!wanAgora) {
-                        this._agoraLastErr = 'join ' + ((e && e.message) || e);
-                        this.refreshAgoraDebug();
-                        throw e;
-                    }
-                    console.warn('[AHS][Agora] direct join failed, retry proxy', e);
-                    try { await this.client.leave(); } catch (e2) {}
-                    try {
-                        this.options.uid = await joinOnce(true);
-                        this._agoraLastErr = 'proxy5';
-                    } catch (e3) {
-                        this._agoraLastErr = 'join ' + ((e3 && e3.message) || e3);
-                        this.refreshAgoraDebug();
-                        throw e3;
-                    }
+                    this._agoraLastErr = 'join ' + ((e && e.message) || e);
+                    this.refreshAgoraDebug();
+                    throw e;
                 }
                 this.isStreaming = true;
                 if (m === 'replay') await this.syncExistingPlaybackUsers();
@@ -14063,7 +14050,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const lines = [
                     'channel=' + ((this.options && this.options.channel) || '') + ' appid=' + ((this.options && this.options.appid) || ''),
                     'mode=' + (this._agoraJoinMode || '') + ' streaming=' + !!this.isStreaming + ' conn=' + (this._agoraConnState || ''),
-                    'joinUid=' + ((this.options && this.options.uid) || '') + ' token=' + !!(this.options && this.options.token),
+                    'joinUid=' + ((this.options && this.options.uid) || '') + ' token=' + !!(this.options && this.options.token) + ' proxy=' + !!this._agoraProxy,
                     'sol=' + ((this.webrtcInformation && this.webrtcInformation.WEBRTCSolutionType) || '') + ' enable=' + !!(this.agoraRtcService && this.agoraRtcService.rtcServiceEnable) + ' transport=' + (this.previewTransport || ''),
                     'pbUids=' + JSON.stringify(this.pbCamUids || []),
                     'remote=' + users.map(function (u) { return String(u.uid) + (u.hasVideo ? '+v' : '') + (u.hasAudio ? '+a' : ''); }).join(',') ,
@@ -14079,16 +14066,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     return this.playbackIndexFromUid(s) >= 0 || this.camIndexFromUid(s) >= 0;
                 });
             },
-            async ensureDeviceAgoraStack() {
+            async ensureDeviceAgoraStack(forceRestart) {
                 try { await this.initAgoraRtcService(); } catch (e) {}
                 try { await this.initMediaServerInformation(); } catch (e) {}
-                if (this.agoraRtcService) this.agoraRtcService.rtcServiceEnable = true;
+                if (!this.agoraRtcService) this.agoraRtcService = {};
+                // 栈标记 running 但实际没 join 时，enable=true 是空操作；先关再开会 stop+start
+                if (forceRestart) {
+                    this.agoraRtcService.rtcServiceEnable = false;
+                    if (this.webrtcInformation) this.webrtcInformation.WEBRTCSolutionType = 'kvs';
+                    if (typeof this.onSolutionTypeChanged === 'function') this.onSolutionTypeChanged();
+                    await this.submitAgoraRtcService({ quiet: true });
+                }
+                this.agoraRtcService.rtcServiceEnable = true;
                 if (this.webrtcInformation) {
                     this.webrtcInformation.WEBRTCSolutionType = 'agora';
                     if (typeof this.onSolutionTypeChanged === 'function') this.onSolutionTypeChanged();
                 }
                 this.syncPreviewTransportFromDevice();
-                // 带 rtcServiceEnable → 设备 applyHot startAgoraLiveStack（已在跑则幂等）
                 await this.submitAgoraRtcService({ quiet: true });
             },
             waitForDeviceAgoraRemote(ms) {
@@ -15007,8 +15001,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!deviceSeen) {
                         this._agoraLastStart = 'wake-agora-stack';
                         this.refreshAgoraDebug();
-                        try { await this.ensureDeviceAgoraStack(); } catch (e) { console.warn('[AHS][Agora] wake', e); }
-                        deviceSeen = await this.waitForDeviceAgoraRemote(8000);
+                        try { await this.ensureDeviceAgoraStack(false); } catch (e) { console.warn('[AHS][Agora] wake', e); }
+                        deviceSeen = await this.waitForDeviceAgoraRemote(6000);
+                    }
+                    if (!deviceSeen) {
+                        this._agoraLastStart = 'restart-agora-stack';
+                        this.refreshAgoraDebug();
+                        try { await this.ensureDeviceAgoraStack(true); } catch (e) { console.warn('[AHS][Agora] restart', e); }
+                        deviceSeen = await this.waitForDeviceAgoraRemote(12000);
                     }
                     const paths = this.siblingPaths(record);
                     this._agoraLastStart = 'paths=' + JSON.stringify(paths) + ' device=' + deviceSeen;
