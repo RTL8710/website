@@ -4351,7 +4351,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1] || playbackCamPoster(pi-1)"
                                                                      @pointerdown="onPipPointerDown($event, pi-1, remotePbCount())"
                                                                      @click="onPipTileClick($event, pi-1)">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="'width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;pointer-events:'+(isLayoutFocused(pi-1, remotePbCount())?'auto':'none')+';'" autoplay muted playsinline :controls="isLayoutFocused(pi-1, remotePbCount())"></video>
+                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="'width:100%;height:100%;min-height:180px;object-fit:contain;background-color:var(--video-bg, var(--bg-card2));display:block;'" autoplay muted playsinline></video>
                                                                     <!-- 出流前垫封面（列表/同刻段缩略图），避免黑窗转圈 -->
                                                                     <img x-show="!pbCamUids[pi-1] && playbackCamPoster(pi-1)" :src="playbackCamPoster(pi-1)" alt=""
                                                                          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;pointer-events:none;"
@@ -10760,23 +10760,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // agoraRTC.js 懒加载:首屏不背 1.5MB,首次预览时按需注入并创建 client
                 await this.ensureRtcSdk();
-                // 外网 Cloud Proxy 必须换新 client：旧实例 leave() 后再 startProxy
-                // 会把第一条代理 WS 掐掉（wss://webrtc-cloud-proxy.sd-rtn.com closed before established）
-                if (this.client) {
-                    try { this.client.removeAllListeners && this.client.removeAllListeners(); } catch (e) {}
-                    try { await this.client.leave(); } catch (e) {}
-                    try { if (typeof this.client.stopProxyServer === 'function') this.client.stopProxyServer(); } catch (e) {}
-                    this.client = null;
-                }
-                // 回放对齐 App：Communication(rtc)+同频道 UUID+uid 1226；直播仍 live
-                this.client = AgoraRTC.createClient({ mode: (m === 'replay') ? 'rtc' : 'live', codec: 'vp8' });
-                // Channel ≡ 设备 UUID；AppId/Token 跟设备 Agora 配置对齐（勿用 default / Certificate）
                 await this.ensureLivePreviewIdentity();
                 const channel = this.resolveAgoraChannelName();
                 if (!channel) {
                     this.showAlert('warning', 'Notice', 'Missing device UUID for Agora channel');
                     throw new Error('missing agora channel uuid');
                 }
+                // 对齐 App：回放不离房重建。设备 1226 常驻同频道，反复 leave/join 会掐 Cloud Proxy WS
+                const wantMode = (m === 'replay') ? 'rtc' : 'live';
+                const reuse = !!(this.client && this.isStreaming && this._agoraJoinMode === wantMode
+                    && this.options && this.options.channel === channel);
+                if (reuse) {
+                    console.log('[AHS][Agora] reuse client', wantMode, channel);
+                    this.options.role = (m === 'replay') ? 'audience' : 'host';
+                    return;
+                }
+                if (this.client) {
+                    try { this.client.removeAllListeners && this.client.removeAllListeners(); } catch (e) {}
+                    try { await this.client.leave(); } catch (e) {}
+                    try { if (typeof this.client.stopProxyServer === 'function') this.client.stopProxyServer(); } catch (e) {}
+                    this.client = null;
+                    this.isStreaming = false;
+                }
+                // 回放对齐 App：Communication(rtc)+同频道 UUID+uid 1226；直播仍 live
+                this.client = AgoraRTC.createClient({ mode: wantMode, codec: 'vp8' });
+                this._agoraJoinMode = wantMode;
                 this.options.channel = channel;
                 if (this.agoraRtcService && this.agoraRtcService.rtcAppId) {
                     this.options.appid = this.agoraRtcService.rtcAppId;
@@ -14840,28 +14848,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (gen == null) gen = this._playbackGen;
                 try {
                     if (gen !== this._playbackGen) return;
-                    // 建立实时预览订阅（设备的回放连接 uid 1226 会作为独立远端流被订阅 → remotePlaybackView）
+                    // 对齐 App：先挂回放窗再进房。设备 1226 常驻频道，窗不在 DOM 时 play() 会丢帧
+                    this.remotePlaybackActive = true;
+                    this.remotePlaybackPath = record.RecordIndexInformationPath;
+                    if (typeof this.$nextTick === 'function') {
+                        await new Promise(res => this.$nextTick(res));
+                    } else {
+                        await new Promise(res => requestAnimationFrame(res));
+                    }
+                    if (gen !== this._playbackGen) return;
                     if (!this.isStreaming) { await this.startPreview('replay'); }
                     if (gen !== this._playbackGen) return;
-                    const paths = this.siblingPaths(record);   // 同段各路 MP4 → 设备多路同步回放(Agora 1226/1227/1228)
+                    this.renderPlaybackVideo();
+                    const paths = this.siblingPaths(record);
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             method: 'startPlaybackLocalRecordInformationCommand',
-                            params: { paths, RecordIndexInformationPath: record.RecordIndexInformationPath },
+                            params: { paths },
                         }),
                     });
                     const result = await response.json();
                     if (gen !== this._playbackGen) { await this.stopRemotePlayback(); return; }
                     if (result && result.params && result.params.success) {
-                        this.remotePlaybackActive = true;
-                        this.remotePlaybackPath = record.RecordIndexInformationPath;
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
-                        this.renderPlaybackVideo();   // 回放流可能已到达：立即渲染
-                        // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
+                        this.renderPlaybackVideo();
+                        setTimeout(() => this.renderPlaybackVideo(), 200);
+                        setTimeout(() => this.renderPlaybackVideo(), 800);
                     } else {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
@@ -14872,12 +14888,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView
-            renderPlaybackVideo() {                 // N 路回放：各路渲染到 remotePlaybackView{i}
+            renderPlaybackVideo() {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || this.pbCamUids.length || 1;
                 for (let i = 0; i < n; i++) {
                     const el = document.getElementById(this.pbElId(i));
                     const u = this.pbCamUids[i] ? this.remoteUsers[this.pbCamUids[i]] : null;
-                    if (el && u && u.videoTrack) u.videoTrack.play(el, { fit: "contain" });
+                    if (!el || !u || !u.videoTrack) continue;
+                    try { u.videoTrack.play(el, { fit: 'contain' }); } catch (e) { console.warn('[AHS][Agora] play', e); }
+                    try {
+                        const v = (el.tagName === 'VIDEO') ? el : el.querySelector && el.querySelector('video');
+                        if (v && v.paused) v.play().catch(function () {});
+                    } catch (e) {}
                 }
             },
             async stopRemotePlayback() {
