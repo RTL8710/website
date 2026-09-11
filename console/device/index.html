@@ -4345,6 +4345,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
+                                                        <pre class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:180px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
                                                         <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
                                                         <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
@@ -9561,6 +9562,11 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 当前进度（拖动 → seek）
             playbackCodec: '',            // h264/h265（start 响应回传）
+            agoraDebugText: '',
+            _agoraJoinMode: '',
+            _agoraConnState: '',
+            _agoraLastErr: '',
+            _agoraLastStart: '',
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
             // startTime / endTime 占位；进回放页 fetchRecords(false) 会设为「昨天此刻~现在」(懒加载前原逻辑)
@@ -10709,6 +10715,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 仅 cam0 连接推音频（其余仅视频）→ 只播 cam0 音频，避免叠音
                     if (camIdx === 0 && user.audioTrack) user.audioTrack.play();
                 }
+                this.refreshAgoraDebug();
             },
 
             // 把两路远程视频按焦点渲染：focusCam 那路 → 大图，另一路 → 画中画
@@ -10793,8 +10800,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.options.token = tok || null;
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
+                const self = this;
                 this.client.on("connection-state-change", function (cur, prev, reason) {
+                    self._agoraConnState = String(cur || '');
                     console.log('[AHS][Agora] connection', prev, '->', cur, reason || '');
+                    self.refreshAgoraDebug();
+                });
+                this.client.on("exception", function (e) {
+                    self._agoraLastErr = 'ex ' + ((e && (e.msg || e.code)) || e);
+                    console.warn('[AHS][Agora] exception', e);
+                    self.refreshAgoraDebug();
                 });
                 console.log("agora channel: ",this.options.channel," appid:",this.options.appid, "token?", !!this.options.token)
                 // 外网 mode 5 = TCP/TLS 443；mode 3 仍走 UDP，会被防火墙拦，画面卡第一帧
@@ -10813,8 +10828,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 console.log('[AHS][Agora] join', m, 'channel=', this.options.channel, 'mode=', (m === 'replay') ? 'rtc' : 'live');
 
-                this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
-                if (this.options.role === "audience") {
+                try {
+                    this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
+                    this._agoraLastErr = '';
+                } catch (e) {
+                    this._agoraLastErr = 'join ' + ((e && e.message) || e);
+                    this.refreshAgoraDebug();
+                    throw e;
+                }
+                if (m === 'replay') {
+                    this.isStreaming = true;
+                    await this.syncExistingPlaybackUsers();
+                } else if (this.options.role === "audience") {
                     this.isStreaming = true;
                 } else if (this.options.role === "host") {
                     // create local audio and video tracks
@@ -14026,11 +14051,14 @@ document.addEventListener('DOMContentLoaded', function() {
                           : 'remoteView';
                 return i === 0 ? pfx : pfx + (i + 1);
             },
-            camIndexFromUid(uidStr) {             // Agora uid 前缀 → 摄像头序号(0-based)，非直播返回 -1
-                const p = parseInt(String(uidStr).slice(0, 4), 10);
+            camIndexFromUid(uidStr) {             // Agora uid 前缀 / user_account → 摄像头序号
+                const s = String(uidStr);
+                const acc = s.match(/_cam(\d+)$/i);
+                if (acc) return Math.max(0, parseInt(acc[1], 10) - 1);
+                const p = parseInt(s.slice(0, 4), 10);
                 if (p === 1224) return 0;
                 if (p === 1225) return 1;
-                if (p >= 1230 && p <= 1239) return (p - 1230) + 2;  // 直播 cam>=2 前缀 1230+(i-2)
+                if (p >= 1230 && p <= 1239) return (p - 1230) + 2;
                 return -1;
             },
             setCamUid(idx, val) {                 // Alpine v2 数组下标写不触发响应，整体替换数组
@@ -14038,9 +14066,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 a[idx] = val;
                 this.camUids = a;
             },
-            playbackIndexFromUid(uidStr) {        // 回放 uid 前缀 → 摄像头序号(0-based)，非回放返回 -1（pb i = 1226+i）
-                const p = parseInt(String(uidStr).slice(0, 4), 10);
+            playbackIndexFromUid(uidStr) {        // 回放：1226+i 或 user_account *_playback / *_playback2
+                const s = String(uidStr);
+                const acc = s.match(/_playback(\d+)?$/i);
+                if (acc) return acc[1] ? Math.max(0, parseInt(acc[1], 10) - 1) : 0;
+                const p = parseInt(s.slice(0, 4), 10);
                 return (p >= 1226 && p <= 1229) ? (p - 1226) : -1;
+            },
+            refreshAgoraDebug() {
+                const users = (this.client && this.client.remoteUsers) || [];
+                const lines = [
+                    'channel=' + ((this.options && this.options.channel) || ''),
+                    'mode=' + (this._agoraJoinMode || '') + ' streaming=' + !!this.isStreaming + ' conn=' + (this._agoraConnState || ''),
+                    'joinUid=' + ((this.options && this.options.uid) || '') + ' token=' + !!(this.options && this.options.token),
+                    'pbUids=' + JSON.stringify(this.pbCamUids || []),
+                    'remote=' + users.map(function (u) { return String(u.uid) + (u.hasVideo ? '+v' : '') + (u.hasAudio ? '+a' : ''); }).join(',') ,
+                    'start=' + (this._agoraLastStart || '') + ' err=' + (this._agoraLastErr || 'ok'),
+                ];
+                this.agoraDebugText = lines.join('\n');
+                try { window.__agoraDebug = { text: this.agoraDebugText, users: users.map(function (u) { return { uid: u.uid, hasVideo: u.hasVideo }; }), pb: this.pbCamUids }; } catch (e) {}
+            },
+            async syncExistingPlaybackUsers() {
+                const users = (this.client && this.client.remoteUsers) || [];
+                for (let i = 0; i < users.length; i++) {
+                    const user = users[i];
+                    const id = user.uid;
+                    const pbIdx = this.playbackIndexFromUid(String(id));
+                    console.log('[AHS][Agora] existing remote', id, 'pbIdx', pbIdx, 'hasVideo', !!user.hasVideo);
+                    if (pbIdx < 0) continue;
+                    this.remoteUsers[id] = user;
+                    this.setPbCamUid(pbIdx, id);
+                    if (pbIdx === 0) this.playbackUid = id;
+                    if (user.hasVideo || (user.videoTrack == null)) {
+                        try { await this.client.subscribe(user, 'video'); } catch (e) { console.warn('[AHS][Agora] subscribe', id, e); }
+                    }
+                    if (user.hasAudio) {
+                        try { await this.client.subscribe(user, 'audio'); } catch (e) {}
+                    }
+                }
+                this.renderPlaybackVideo();
+                this.refreshAgoraDebug();
             },
             setPbCamUid(idx, val) {
                 const a = this.pbCamUids.slice();
@@ -14833,8 +14898,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             async _stopCurrentPlaybackForSwitch() {
                 const hasKvs = (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer;
-                if (this.remotePlaybackActive || hasKvs) {
-                    await this.stopRemotePlayback();
+                if (hasKvs) { await this.stopRemotePlayback(false); return; }
+                // 对齐 App：切段只停 demux，不离开 Agora 频道（leave 会掐 Cloud Proxy）
+                if (this.remotePlaybackActive || (this.isStreaming && this.viewMode === 'replay')) {
+                    await this.stopRemotePlayback(true);
                     return;
                 }
                 if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
@@ -14859,8 +14926,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (gen !== this._playbackGen) return;
                     if (!this.isStreaming) { await this.startPreview('replay'); }
                     if (gen !== this._playbackGen) return;
+                    await this.syncExistingPlaybackUsers();
                     this.renderPlaybackVideo();
                     const paths = this.siblingPaths(record);
+                    this._agoraLastStart = 'paths=' + JSON.stringify(paths);
+                    this.refreshAgoraDebug();
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -14870,21 +14940,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         }),
                     });
                     const result = await response.json();
-                    if (gen !== this._playbackGen) { await this.stopRemotePlayback(); return; }
+                    if (gen !== this._playbackGen) { await this.stopRemotePlayback(true); return; }
+                    this._agoraLastStart = 'ok=' + !!(result && result.params && result.params.success)
+                        + ' dur=' + ((result && result.params && result.params.durationMs) || 0)
+                        + ' started=' + JSON.stringify(result && result.params && result.params.started);
+                    this.refreshAgoraDebug();
                     if (result && result.params && result.params.success) {
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
+                        await this.syncExistingPlaybackUsers();
                         this.renderPlaybackVideo();
-                        setTimeout(() => this.renderPlaybackVideo(), 200);
-                        setTimeout(() => this.renderPlaybackVideo(), 800);
+                        setTimeout(() => { this.syncExistingPlaybackUsers(); }, 400);
+                        setTimeout(() => { this.syncExistingPlaybackUsers(); }, 1200);
                     } else {
+                        this._agoraLastErr = 'START failed ' + JSON.stringify(result && result.params);
+                        this.refreshAgoraDebug();
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
                 } catch (error) {
                     if (gen !== this._playbackGen) return;
                     console.error('startRemotePlayback error:', error);
-                    this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                    this._agoraLastErr = String((error && error.message) || error);
+                    this.refreshAgoraDebug();
+                    this.showAlert('error', tIdx('rp_failed'), this._agoraLastErr || tIdx('vp_remote_playback'));
                 }
             },
             // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView
@@ -14901,7 +14980,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch (e) {}
                 }
             },
-            async stopRemotePlayback() {
+            async stopRemotePlayback(keepAgora) {
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -14910,6 +14989,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 } catch (error) {
                     console.error('stopRemotePlayback error:', error);
+                }
+                if (keepAgora) {
+                    this.playbackPositionMs = 0;
+                    this.refreshAgoraDebug();
+                    return;
                 }
                 this.remotePlaybackActive = false;
                 this.remotePlaybackPath = '';
