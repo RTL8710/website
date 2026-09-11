@@ -10752,14 +10752,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.viewMode = m;
                 console.log("startPreview mode:", m);
 
-                // agoraRTC.js 懒加载:首屏不背 1.5MB,首次预览时按需注入并创建 client(原在 Alpine init 创建)
+                // agoraRTC.js 懒加载:首屏不背 1.5MB,首次预览时按需注入并创建 client
                 await this.ensureRtcSdk();
-                if (!this.client) this.client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-
+                // 外网 Cloud Proxy 必须换新 client：旧实例 leave() 后再 startProxy
+                // 会把第一条代理 WS 掐掉（wss://webrtc-cloud-proxy.sd-rtn.com closed before established）
                 if (this.client) {
-                    await this.client.leave();
-                    console.log("Left the channel");
+                    try { this.client.removeAllListeners && this.client.removeAllListeners(); } catch (e) {}
+                    try { await this.client.leave(); } catch (e) {}
+                    try { if (typeof this.client.stopProxyServer === 'function') this.client.stopProxyServer(); } catch (e) {}
+                    this.client = null;
                 }
+                this.client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
                 // Channel ≡ 设备 UUID；AppId/Token 跟设备 Agora 配置对齐（勿用 default / Certificate）
                 await this.ensureLivePreviewIdentity();
                 const channel = this.resolveAgoraChannelName();
@@ -10775,19 +10778,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.options.token = tok || null;
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
+                this.client.on("connection-state-change", function (cur, prev, reason) {
+                    console.log('[AHS][Agora] connection', prev, '->', cur, reason || '');
+                });
                 console.log("agora channel: ",this.options.channel," appid:",this.options.appid, "token?", !!this.options.token)
-                // 外网浏览器常拦 edge.agora.io:47xxx（控制台可见 WebSocket failed）→ Cloud Proxy 走 443
+                // 外网 mode 5 = TCP/TLS 443；mode 3 仍走 UDP，会被防火墙拦，画面卡第一帧
                 const wanAgora = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
                 try {
                     if (wanAgora && typeof this.client.startProxyServer === 'function') {
-                        this.client.startProxyServer(3);
-                        console.log('[AHS][Agora] Cloud Proxy mode=3 (WAN)');
-                    } else if (typeof this.client.stopProxyServer === 'function') {
-                        this.client.stopProxyServer();
+                        const maybe = this.client.startProxyServer(5);
+                        if (maybe && typeof maybe.then === 'function') await maybe;
+                        console.log('[AHS][Agora] Cloud Proxy mode=5 TCP (WAN)');
                     }
                 } catch (e) { console.warn('[AHS][Agora] proxy', e); }
-                // 回放只订不推，外网不必申请摄像头
-                if (m === 'replay') this.options.role = 'audience';
+                // 回放只订不推，外网不必申请摄像头；其它模式恢复 host
+                this.options.role = (m === 'replay') ? 'audience' : 'host';
 
                 if (this.options.role === "audience") {
                     this.client.setClientRole(this.options.role, { level: this.options.audienceLatency });
