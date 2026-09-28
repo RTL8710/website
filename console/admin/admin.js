@@ -4,7 +4,7 @@ import {
 } from '../config.js';
 import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth } from '../lib/auth.js';
 import {
-  listAllUsers, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
+  listAllUsers, resolveUserRow, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
   listCloudRecordsAdmin, createDeviceUpgrade, updateDeviceUpgrade, deleteDeviceUpgrade,
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
@@ -194,10 +194,46 @@ function looksRobot(name) {
   return n.startsWith('robot_') || n.includes('smartrobot')
     || ((n.endsWith('.tar.gz') || n.endsWith('.tgz')) && n.includes('robot'));
 }
+function idsMatch(a, b) {
+  const x = String(a || '').trim();
+  const y = String(b || '').trim();
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.toLowerCase() === y.toLowerCase()) return true;
+  const nx = x.toLowerCase().replace(/-/g, '');
+  const ny = y.toLowerCase().replace(/-/g, '');
+  if (nx && ny && nx === ny) return true;
+  const sx = x.split(':').pop();
+  const sy = y.split(':').pop();
+  if (sx && sy && (sx !== x || sy !== y) && sx.toLowerCase().replace(/-/g, '') === sy.toLowerCase().replace(/-/g, '')) return true;
+  return false;
+}
+function findUserRow(id) {
+  if (!id || !state.users) return null;
+  const raw = String(id).trim();
+  if (!raw) return null;
+  return (state.users || []).find((x) => x && (
+    idsMatch(x.awsUserID, raw) || idsMatch(x.id, raw)
+    || String(x.awsUserName || '').toLowerCase() === raw.toLowerCase()
+    || String(x.email || '').toLowerCase() === raw.toLowerCase()
+  )) || null;
+}
+function mergeUsers(rows) {
+  if (!rows || !rows.length) return;
+  const cur = state.users || [];
+  rows.forEach((row) => {
+    if (!row || !row.id) return;
+    if (cur.some((u) => u && u.id === row.id)) return;
+    cur.push(row);
+  });
+  state.users = cur;
+}
+function userLabel(id, fallbackName) {
+  const u = findUserRow(id);
+  return (u && (u.awsUserName || u.email)) || fallbackName || '';
+}
 function ownerName(ownerUserId) {
-  if (!ownerUserId || !state.users) return shortId(ownerUserId);
-  const u = state.users.find((x) => x.awsUserID === ownerUserId || x.id === ownerUserId);
-  return (u && (u.awsUserName || u.email)) || shortId(ownerUserId);
+  return userLabel(ownerUserId) || shortId(ownerUserId);
 }
 function bindUsersForDevice(deviceId) {
   // Amplify list 偶发 items 含 null，读 b.deviceId 会把设备页整页打挂
@@ -405,7 +441,11 @@ async function loadTab(id) {
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
     else if (id === 'ota') { await ensure('devices'); await ensure('packages'); }
-    else if (id === 'logs') { await ensure('diagLogs'); }
+    else if (id === 'logs') {
+      try { await ensure('users'); } catch (_) { if (!state.users) state.users = []; }
+      await ensure('diagLogs');
+      await hydrateLogUsers();
+    }
   } catch (e) {
     console.error('[admin]', id, e);
     state._err = (e && e.message) || String(e);
@@ -1975,6 +2015,12 @@ async function openDiagLogView(item) {
   const cached = DIAG_ZIP_CACHE.get(key);
   const title = item.supportCode || item.code || item.fileName || key;
   if (cached && cached.files && cached.files.length) {
+    const unpackedName = parseDeviceInfoUserName(cached.files);
+    if (unpackedName && item) {
+      item.userName = unpackedName;
+      const hit = (state.diagLogs || []).find((x) => x && x.key === key);
+      if (hit) hit.userName = unpackedName;
+    }
     state.logView = {
       key, title, item, busy: false, err: '',
       files: cached.files,
@@ -2009,6 +2055,12 @@ async function openDiagLogView(item) {
     }
     if (!files.length) throw new Error(t('logEmptyZip'));
     DIAG_ZIP_CACHE.set(key, { files });
+    const unpackedName = parseDeviceInfoUserName(files);
+    if (unpackedName && item) {
+      item.userName = unpackedName;
+      const hit = (state.diagLogs || []).find((x) => x && x.key === key);
+      if (hit) hit.userName = unpackedName;
+    }
     if (!state.logView || state.logView.key !== key) return;
     state.logView.files = files;
     state.logView.fileName = pickDefaultLogFile(files);
@@ -2070,6 +2122,8 @@ function renderLogView() {
         h('div', { class: 'log-head-id' },
           h('h3', {}, v.title || t('viewLog')),
           h('div', { class: 'log-path' },
+            (v.item && userLabel(v.item.userId, v.item.userName))
+              ? (userLabel(v.item.userId, v.item.userName) + '  ·  ') : '',
             v.item && v.item.fileName ? v.item.fileName : '',
             v.item && v.item.key ? '  ·  ' + v.item.key : ''),
         ),
@@ -2253,6 +2307,53 @@ function logsSourceCard(id, count, latestIso) {
   );
 }
 
+function parseDeviceInfoUserName(files) {
+  const f = (files || []).find((x) => /device-info/i.test(x.name || x.path || ''));
+  if (!f || !f.text) return '';
+  const m = String(f.text).match(/^userName=(.*)$/m);
+  return (m && m[1].trim()) || '';
+}
+async function hydrateLogUsers() {
+  const rows = state.diagLogs || [];
+  const ids = [...new Set(rows.map((r) => r && r.userId).filter(Boolean))];
+  const missing = ids.filter((id) => !userLabel(id));
+  if (!missing.length) return;
+  await Promise.all(missing.slice(0, 40).map(async (id) => {
+    try {
+      let row = await resolveUserRow(id);
+      if (!row) {
+        const byPk = await listAllUsers({ id: { eq: id } });
+        row = byPk && byPk[0];
+      }
+      if (!row) {
+        const byName = await listAllUsers({ awsUserName: { eq: id } });
+        row = byName && byName[0];
+      }
+      if (row) mergeUsers([row]);
+    } catch (_) {}
+  }));
+}
+function logsUserChips(r) {
+  const userId = (r && r.userId) || '';
+  const name = userLabel(userId, r && r.userName);
+  const out = [];
+  if (name) {
+    out.push(h('span', {
+      class: 'logs-chip',
+      title: userId ? (name + ' · ' + userId) : name,
+      onclick: (e) => { e.stopPropagation(); copyText(name); },
+    }, fa('fa-user'), h('span', { class: 'clip' }, name)));
+  }
+  if (userId) {
+    out.push(h('span', {
+      class: 'logs-chip mute',
+      title: userId,
+      onclick: (e) => { e.stopPropagation(); copyText(userId); },
+    }, h('span', { class: 'clip' }, shortId(userId))));
+  }
+  return out;
+}
+
 function logsPackCard(r) {
   const isDev = (r.source || 'app') === 'device';
   const code = r.supportCode || r.code || '—';
@@ -2278,7 +2379,7 @@ function logsPackCard(r) {
               onclick: (e) => { e.stopPropagation(); copyText(r.deviceId); },
             }, fa('fa-microchip'), h('span', { class: 'clip' }, shortId(r.deviceId)))
           : null,
-        r.userId ? h('span', { class: 'logs-chip mute' }, fa('fa-user'), h('span', { class: 'clip' }, shortId(r.userId))) : null,
+        ...logsUserChips(r),
         h('span', { class: 'logs-chip mute' }, fmtBytes(r.size)),
       ),
     ),
@@ -2302,7 +2403,7 @@ function viewLogs() {
   const appRows = all.filter((r) => (r.source || 'app') === 'app');
   const devRows = all.filter((r) => (r.source || 'app') === 'device');
   let rows = (src === 'device' ? devRows : appRows).slice();
-  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.deviceId, r.fileName, r.deviceKind, r.key]));
+  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, userLabel(r.userId, r.userName), r.deviceId, r.fileName, r.deviceKind, r.key]));
   rows.sort((a, b) => (Date.parse(b.lastModified || '') || 0) - (Date.parse(a.lastModified || '') || 0));
   const meta = state.diagLogsMeta || {};
   const latestOf = (list) => (list[0] && list[0].lastModified) || '';
@@ -2352,12 +2453,12 @@ function viewLogs() {
       logsSearchBox(),
       h('button', { class: 'gbtn btn-sm', onclick: async () => {
         state.diagLogs = null; state.diagLogsMeta = null; render();
-        try { await loadDiagLogs(); toast(t('dataRefreshed')); }
+        try { await loadDiagLogs(); await hydrateLogUsers(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
       } }, fa('fa-rotate'), ' ' + t('refresh')),
       meta.nextToken ? h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
-        try { await loadDiagLogs({ append: true }); toast(t('dataRefreshed')); }
+        try { await loadDiagLogs({ append: true }); await hydrateLogUsers(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
       } }, t('logsLoadMore')) : null,
