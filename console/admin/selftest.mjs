@@ -61,6 +61,7 @@ async function main() {
   ok('user/device CRUD', js.includes('openEditUser') && js.includes('askDeleteDevice') && js.includes('deleteUserCompletely'));
   ok('admin i18n theme', js.includes("from './i18n.js'") && js.includes('switcherBar'));
   ok('admin mediaThumb', js.includes('mediaThumb') && js.includes('signS3MediaUrl'));
+  ok('view diag logs', js.includes('openDiagLogView') && js.includes('getS3Object'));
   const s3m = await (await fetch(BASE + '/lib/s3-media.js')).text();
   ok('s3-media module', s3m.includes('signS3MediaUrl') && s3m.includes('s3ObjectKeyFromRaw'));
   const i18n = await (await fetch(BASE + '/admin/i18n.js')).text();

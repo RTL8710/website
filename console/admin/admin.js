@@ -9,7 +9,7 @@ import {
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
 } from '../lib/graphql.js';
-import { putS3Object, presignS3Get, listS3Objects, deleteS3Object } from '../lib/sigv4.js';
+import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
@@ -46,6 +46,7 @@ const state = {
   upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
   edit: null, // { type:'user'|'device', id, values, busy, err }
+  logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
   dataRegion: null, // 当前内存数据所属区域，切区必清
 };
 
@@ -68,7 +69,7 @@ function clearAdminDataCache() {
     tracking: false, progress: 0, status: '', statusText: '', detail: '',
   };
   state.upload.file = null; state.upload.msg = ''; state.upload.err = '';
-  state.edit = null; state.confirm = null;
+  state.edit = null; state.confirm = null; state.logView = null;
   state.dataRegion = null;
 }
 /** 切区域：先登出旧池，再换配置，清内存，回登录（各区域 Cognito/AppSync/S3 独立） */
@@ -324,7 +325,7 @@ function shell(body) {
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
-  const modal = state.confirm ? renderConfirm() : (state.edit ? renderEdit() : null);
+  const modal = state.confirm ? renderConfirm() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null));
   return mount(app, topbar(), h('div', { class: 'admin-shell' }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
 }
 
@@ -1353,6 +1354,223 @@ async function loadDiagLogs(opts) {
   state.diagLogsMeta = { nextToken: res.nextToken || '', truncated: !!res.truncated };
 }
 
+
+const DIAG_ZIP_CACHE = new Map(); // s3 key → { files:[{name,size,text,binary}] }
+const LOG_TAIL_LINES = 4000;
+const LOG_MAX_SHOW_LINES = 8000;
+let _fflateUnzip = null;
+
+async function loadFflateUnzip() {
+  if (_fflateUnzip) return _fflateUnzip;
+  const mod = await import('https://esm.sh/fflate@0.8.2');
+  if (typeof mod.unzipSync !== 'function') throw new Error('unzip 库加载失败');
+  _fflateUnzip = mod.unzipSync;
+  return _fflateUnzip;
+}
+
+function decodeLogBytes(u8) {
+  const nuls = u8.length > 256 ? 8 : Math.max(1, Math.floor(u8.length / 32));
+  let hits = 0;
+  const lim = Math.min(u8.length, 4096);
+  for (let i = 0; i < lim; i++) {
+    if (u8[i] === 0) hits++;
+    if (hits >= nuls && u8.length > 8) return { binary: true, text: '' };
+  }
+  try {
+    return { binary: false, text: new TextDecoder('utf-8', { fatal: false }).decode(u8) };
+  } catch (_) {
+    return { binary: true, text: '' };
+  }
+}
+
+function pickDefaultLogFile(files) {
+  if (!files || !files.length) return '';
+  const names = files.map((f) => f.name);
+  const prefer = names.find((n) => /^ahs_app\.log$/i.test(n))
+    || names.find((n) => /\.log$/i.test(n))
+    || names.find((n) => /device-info/i.test(n))
+    || names[0];
+  return prefer || '';
+}
+
+function sortLogFiles(files) {
+  const rank = (n) => {
+    const s = String(n || '').toLowerCase();
+    if (s === 'device-info.txt') return 0;
+    if (s === 'ahs_app.log') return 1;
+    if (s.endsWith('.log')) return 2;
+    return 3;
+  };
+  return files.slice().sort((a, b) => rank(a.name) - rank(b.name) || String(a.name).localeCompare(String(b.name)));
+}
+
+function buildLogViewText(file, q, showAll) {
+  if (!file) return { text: '', meta: '', truncated: false, total: 0, shown: 0 };
+  if (file.binary) return { text: '', meta: t('logBinary'), truncated: false, total: 0, shown: 0 };
+  const lines = String(file.text || '').split(/\r?\n/);
+  const total = lines.length;
+  const needle = (q || '').trim().toLowerCase();
+  let picked;
+  let truncated = false;
+  if (needle) {
+    const hit = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toLowerCase().includes(needle)) hit.push(lines[i]);
+      if (hit.length >= LOG_MAX_SHOW_LINES) break;
+    }
+    picked = hit;
+    truncated = hit.length >= LOG_MAX_SHOW_LINES;
+  } else if (!showAll && total > LOG_TAIL_LINES) {
+    picked = lines.slice(total - LOG_TAIL_LINES);
+    truncated = true;
+  } else if (total > LOG_MAX_SHOW_LINES) {
+    picked = lines.slice(total - LOG_MAX_SHOW_LINES);
+    truncated = true;
+  } else {
+    picked = lines;
+  }
+  const shown = picked.length;
+  let meta;
+  if (needle) meta = t('logMatchHint').replace('{n}', String(shown)).replace('{total}', String(total));
+  else if (truncated) meta = t('logTailHint').replace('{n}', String(shown)).replace('{total}', String(total));
+  else meta = t('logLinesHint').replace('{n}', String(total));
+  return { text: picked.join('\n'), meta, truncated, total, shown };
+}
+
+async function unzipDiagPack(buf) {
+  const unzipSync = await loadFflateUnzip();
+  const entries = unzipSync(new Uint8Array(buf));
+  const files = [];
+  Object.keys(entries || {}).forEach((name) => {
+    if (!name || /\/$/.test(name)) return;
+    const u8 = entries[name];
+    const decoded = decodeLogBytes(u8);
+    files.push({
+      name: name.replace(/^.*\//, '') || name,
+      path: name,
+      size: u8.length,
+      text: decoded.text,
+      binary: decoded.binary,
+    });
+  });
+  return sortLogFiles(files);
+}
+
+async function openDiagLogView(item) {
+  const key = item && item.key;
+  if (!key) return;
+  const cached = DIAG_ZIP_CACHE.get(key);
+  const title = item.supportCode || item.code || item.fileName || key;
+  if (cached && cached.files && cached.files.length) {
+    state.logView = {
+      key, title, item, busy: false, err: '',
+      files: cached.files,
+      fileName: pickDefaultLogFile(cached.files),
+      q: '', wrap: false, showAll: false,
+    };
+    render();
+    return;
+  }
+  state.logView = {
+    key, title, item, busy: true, err: '', files: [], fileName: '', q: '', wrap: false, showAll: false,
+  };
+  render();
+  try {
+    const creds = await resolvedCreds();
+    if (!creds || !creds.accessKeyId) throw new Error('无临时凭证，请重新登录');
+    const buf = await getS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
+    const files = await unzipDiagPack(buf);
+    if (!files.length) throw new Error(t('logEmptyZip'));
+    DIAG_ZIP_CACHE.set(key, { files });
+    if (!state.logView || state.logView.key !== key) return;
+    state.logView.files = files;
+    state.logView.fileName = pickDefaultLogFile(files);
+    state.logView.busy = false;
+    state.logView.err = '';
+  } catch (e) {
+    console.error('[admin] open diag log', e);
+    if (state.logView && state.logView.key === key) {
+      state.logView.busy = false;
+      state.logView.err = (e && e.message) || String(e);
+    }
+    toast((e && e.message) || String(e), 'err');
+  }
+  render();
+}
+
+function renderLogView() {
+  const v = state.logView;
+  if (!v) return null;
+  const files = v.files || [];
+  const cur = files.find((f) => f.name === v.fileName) || files[0] || null;
+  const view = v.busy ? null : buildLogViewText(cur, v.q, v.showAll);
+  const fileBtns = files.map((f) => h('button', {
+    class: 'log-file' + (cur && cur.name === f.name ? ' on' : ''),
+    onclick: () => { v.fileName = f.name; v.q = ''; v.showAll = false; render(); },
+  }, h('span', { class: 'name' }, f.name), h('span', { class: 'sz' }, fmtBytes(f.size))));
+
+  const pre = h('pre', { class: 'log-pre' + (v.wrap ? ' wrap' : '') }, (view && view.text) || '');
+  if (!v.busy && !v.q) requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
+  const metaEl = h('div', { class: 'log-meta faint' },
+    v.busy ? t('logLoading') : (v.err || (view && view.meta) || ''));
+
+  const qInp = h('input', {
+    type: 'search',
+    placeholder: t('searchInLog'),
+    value: v.q || '',
+    style: { flex: '1', minWidth: '160px' },
+  });
+  qInp.addEventListener('input', () => {
+    v.q = qInp.value;
+    const next = buildLogViewText(cur, v.q, v.showAll);
+    pre.textContent = next.text || (v.q.trim() ? t('logNoMatch') : '');
+    metaEl.textContent = next.meta || '';
+  });
+
+  return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget && !v.busy) { state.logView = null; render(); } } },
+    h('div', { class: 'glass modal log-view' },
+      h('div', { class: 'log-head' },
+        h('div', {},
+          h('h3', {}, t('viewLog')),
+          h('div', { class: 'faint', style: { fontSize: '12px' } },
+            v.title || '', v.item && v.item.fileName ? (' · ' + v.item.fileName) : ''),
+        ),
+        h('div', { class: 'row-actions' },
+          h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(v.item) }, t('download')),
+          h('button', { class: 'gbtn btn-sm', onclick: () => { state.logView = null; render(); } }, t('cancel')),
+        ),
+      ),
+      v.err && !v.busy ? h('div', { class: 'admin-msg err' }, v.err) : null,
+      v.busy
+        ? h('div', { class: 'log-loading' }, loading(t('logLoading')))
+        : h('div', { class: 'log-body' },
+            h('div', { class: 'log-files' },
+              h('div', { class: 'log-files-title' }, t('logFiles')),
+              ...fileBtns,
+            ),
+            h('div', { class: 'log-main' },
+              h('div', { class: 'log-toolbar' },
+                qInp,
+                h('button', {
+                  class: 'gbtn btn-sm' + (v.wrap ? ' primary' : ''),
+                  onclick: () => { v.wrap = !v.wrap; render(); },
+                }, t('logWrap')),
+                (!v.q && view && view.truncated)
+                  ? h('button', { class: 'gbtn btn-sm', onclick: () => { v.showAll = true; render(); } }, t('showAllLog'))
+                  : null,
+                h('button', {
+                  class: 'gbtn btn-sm',
+                  onclick: () => copyText(pre.textContent || ''),
+                }, t('copyView')),
+              ),
+              metaEl,
+              pre,
+            ),
+          ),
+    ),
+  );
+}
+
 async function downloadDiagLog(item) {
   try {
     const creds = await resolvedCreds();
@@ -1377,6 +1595,8 @@ function askDeleteDiagLog(item) {
         const creds = await resolvedCreds();
         await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key: item.key });
         state.diagLogs = (state.diagLogs || []).filter((x) => x.key !== item.key);
+        DIAG_ZIP_CACHE.delete(item.key);
+        if (state.logView && state.logView.key === item.key) state.logView = null;
         toast(t('dataRefreshed'));
       } catch (e) {
         toast((e && e.message) || String(e), 'err');
@@ -1433,10 +1653,15 @@ function viewLogs() {
                 }, r.supportCode)
               : '—',
             copyable(r.userId || '—'),
-            h('span', { class: 'faint', title: r.key }, r.fileName || r.key),
+            h('button', {
+              class: 'linkish',
+              title: r.key,
+              onclick: () => openDiagLogView(r),
+            }, r.fileName || r.key),
             fmtBytes(r.size),
             fmt(r.lastModified),
             h('div', { class: 'row-actions' },
+              h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
               h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(r) }, t('download')),
               h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDiagLog(r) }, t('delete')),
             ),

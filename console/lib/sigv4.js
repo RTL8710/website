@@ -207,3 +207,27 @@ export async function deleteS3Object(creds, { bucket, region, key }) {
   const text = await r.text();
   throw new Error(`S3 DELETE ${r.status}: ${text.slice(0, 240)}`);
 }
+
+/** 下载单个对象（ArrayBuffer）。与 list/delete 同一套 header 签名，走已开通的 S3 CORS。 */
+export async function getS3Object(creds, { bucket, region, key }) {
+  const C = window.CryptoJS;
+  if (!C || !creds || !creds.accessKeyId) throw new Error('缺少凭证或 CryptoJS');
+  if (!key) throw new Error('缺少 key');
+  const host = `${bucket}.s3.${region}.amazonaws.com`;
+  const path = '/' + String(key).split('/').map(encodeURIComponent).join('/');
+  const { amz, auth } = _s3SignHeaders(creds, {
+    method: 'GET', host, path, query: '', region, payloadHash: 'UNSIGNED-PAYLOAD',
+  });
+  const h = {
+    Authorization: auth,
+    'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+    'x-amz-date': amz,
+  };
+  if (creds.sessionToken) h['x-amz-security-token'] = creds.sessionToken;
+  const r = await fetch(`https://${host}${path}`, { method: 'GET', headers: h });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`S3 GET ${r.status}: ${text.slice(0, 240)}`);
+  }
+  return r.arrayBuffer();
+}
