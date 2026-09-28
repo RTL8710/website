@@ -49,7 +49,9 @@ const state = {
   edit: null, // { type:'user'|'device', id, values, busy, err }
   logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
   dataRegion: null, // 当前内存数据所属区域，切区必清
+  sideCollapsed: false,
 };
+try { state.sideCollapsed = localStorage.getItem('admin_side_collapsed') === '1'; } catch (_) {}
 
 function tabs() {
   return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
@@ -348,17 +350,36 @@ function topbar() {
   );
 }
 
+function toggleSide() {
+  state.sideCollapsed = !state.sideCollapsed;
+  try { localStorage.setItem('admin_side_collapsed', state.sideCollapsed ? '1' : '0'); } catch (_) {}
+  render();
+}
+
 function shell(body) {
+  const collapsed = !!state.sideCollapsed;
   const nav = h('div', { class: 'admin-nav' }, ...tabs().map((tb) => h('button', {
     class: state.tab === tb.id ? 'active' : '',
+    title: tb.label,
+    'aria-label': tb.label,
     onclick: () => goTab(tb.id),
-  }, fa(tb.icon), tb.label)));
-  const side = h('aside', { class: 'admin-side' }, nav);
+  }, fa(tb.icon), h('span', { class: 'nav-label' }, tb.label))));
+  const side = h('aside', { class: 'admin-side' },
+    nav,
+    h('button', {
+      type: 'button',
+      class: 'admin-side-toggle',
+      title: collapsed ? t('sideExpand') : t('sideCollapse'),
+      'aria-label': collapsed ? t('sideExpand') : t('sideCollapse'),
+      'aria-expanded': collapsed ? 'false' : 'true',
+      onclick: toggleSide,
+    }, fa(collapsed ? 'fa-angles-right' : 'fa-angles-left')),
+  );
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
   const modal = state.confirm ? renderConfirm() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null));
-  return mount(app, topbar(), h('div', { class: 'admin-shell' }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
+  return mount(app, topbar(), h('div', { class: 'admin-shell' + (collapsed ? ' is-collapsed' : '') }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
 }
 
 function goTab(id) {
