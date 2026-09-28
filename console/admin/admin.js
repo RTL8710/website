@@ -1330,9 +1330,15 @@ function inferLegacyDiagSource(fileName) {
   return 'app';
 }
 
+function isDiagSupportCode(s) {
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(String(s || ''));
+}
+
 function parseDiagKey(key) {
   // New:
   //   public/diagnostics/app/{userId}/{code}/{file}
+  //   public/diagnostics/device/{kind}/{deviceId}/{userId}/{code}/{file}
+  // Mid (no deviceId):
   //   public/diagnostics/device/{kind}/{userId}/{code}/{file}
   // Legacy:
   //   public/diagnostics/{userId}/{code}/{file}
@@ -1340,13 +1346,14 @@ function parseDiagKey(key) {
   const i = parts.indexOf('diagnostics');
   if (i < 0 || parts.length < i + 3) {
     return {
-      source: 'app', deviceKind: '', userId: '', code: '',
+      source: 'app', deviceKind: '', deviceId: '', userId: '', code: '',
       fileName: parts[parts.length - 1] || key, supportCode: '',
     };
   }
   const head = parts[i + 1] || '';
   let source = 'app';
   let deviceKind = '';
+  let deviceId = '';
   let userId = '';
   let code = '';
   let fileName = '';
@@ -1358,9 +1365,17 @@ function parseDiagKey(key) {
   } else if (head === 'device') {
     source = 'device';
     deviceKind = parts[i + 2] || '';
-    userId = parts[i + 3] || '';
-    code = parts[i + 4] || '';
-    fileName = parts.slice(i + 5).join('/') || '';
+    // Prefer path with deviceId when the 8-char support code sits at i+5.
+    if (isDiagSupportCode(parts[i + 5])) {
+      deviceId = parts[i + 3] || '';
+      userId = parts[i + 4] || '';
+      code = parts[i + 5] || '';
+      fileName = parts.slice(i + 6).join('/') || '';
+    } else {
+      userId = parts[i + 3] || '';
+      code = parts[i + 4] || '';
+      fileName = parts.slice(i + 5).join('/') || '';
+    }
   } else {
     // legacy flat path
     userId = head;
@@ -1375,7 +1390,7 @@ function parseDiagKey(key) {
     else if (deviceKind === 'legacy') supportCode = 'DIAG-' + code;
     else supportCode = deviceCodePrefix(deviceKind) + '-' + code;
   }
-  return { source, deviceKind, userId, code, fileName, supportCode };
+  return { source, deviceKind, deviceId, userId, code, fileName, supportCode };
 }
 
 function fmtBytes(n) {
@@ -1704,14 +1719,15 @@ function renderLogView() {
   return h('div', { class: 'modal-mask log-mask', onclick: (ev) => { if (ev.target === ev.currentTarget && !v.busy) { state.logView = null; render(); } } },
     h('div', { class: 'glass modal log-view' },
       h('div', { class: 'log-head' },
-        h('div', {},
-          h('h3', {}, t('viewLog')),
-          h('div', { class: 'faint', style: { fontSize: '12px' } },
-            v.title || '', v.item && v.item.fileName ? (' · ' + v.item.fileName) : ''),
+        h('div', { class: 'log-head-id' },
+          h('h3', {}, v.title || t('viewLog')),
+          h('div', { class: 'log-path' },
+            v.item && v.item.fileName ? v.item.fileName : '',
+            v.item && v.item.key ? '  ·  ' + v.item.key : ''),
         ),
         h('div', { class: 'row-actions' },
-          h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(v.item) }, t('download')),
-          h('button', { class: 'gbtn btn-sm', onclick: () => { state.logView = null; render(); } }, t('cancel')),
+          h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(v.item) }, fa('fa-download'), ' ' + t('download')),
+          h('button', { class: 'gbtn icon btn-sm', title: t('cancel'), 'aria-label': t('cancel'), onclick: () => { state.logView = null; render(); } }, fa('fa-xmark')),
         ),
       ),
       v.err && !v.busy ? h('div', { class: 'admin-msg err' }, v.err) : null,
@@ -1785,86 +1801,175 @@ function askDeleteDiagLog(item) {
   render();
 }
 
+function logsRelTime(iso) {
+  const ts = Date.parse(iso || '');
+  if (!ts) return '—';
+  const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (sec < 45) return t('logsJustNow');
+  if (sec < 3600) return t('logsMinsAgo').replace('{n}', String(Math.max(1, Math.floor(sec / 60))));
+  if (sec < 86400) return t('logsHoursAgo').replace('{n}', String(Math.floor(sec / 3600)));
+  if (sec < 86400 * 7) return t('logsDaysAgo').replace('{n}', String(Math.floor(sec / 86400)));
+  return fmt(iso);
+}
+
+function logsDayKey(iso) {
+  const d = new Date(iso || '');
+  if (Number.isNaN(d.getTime())) return 'other';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function logsDayLabel(key) {
+  if (key === 'other') return t('colUpdated');
+  const now = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterday = `${y.getFullYear()}-${p(y.getMonth() + 1)}-${p(y.getDate())}`;
+  if (key === today) return t('logsToday');
+  if (key === yesterday) return t('logsYesterday');
+  return key;
+}
+
+function logsKindIcon(row) {
+  if ((row.source || 'app') === 'app') return 'fa-mobile-alt';
+  const k = String(row.deviceKind || '').toLowerCase();
+  if (k.includes('cam') || k.includes('ipc')) return 'fa-video';
+  if (k.includes('robot')) return 'fa-robot';
+  return 'fa-microchip';
+}
+
+function logsSearchBox() {
+  const wrap = h('div', { class: 'logs-search' }, fa('fa-magnifying-glass'));
+  wrap.appendChild(searchBox(t('searchLogs')));
+  return wrap;
+}
+
+function logsSourceCard(id, count, latestIso) {
+  const on = (state.logsSource === 'device' ? 'device' : 'app') === id;
+  const isDev = id === 'device';
+  return h('button', {
+    type: 'button',
+    class: 'logs-source' + (isDev ? ' is-device' : '') + (on ? ' on' : ''),
+    onclick: () => { state.logsSource = id; state.q = ''; render(); },
+  },
+    h('span', { class: 'logs-source-ico' }, fa(isDev ? 'fa-robot' : 'fa-mobile-alt')),
+    h('span', { class: 'k' }, isDev ? t('logsTabDevice') : t('logsTabApp')),
+    h('span', { class: 'v num' }, String(count)),
+    h('span', { class: 's' }, latestIso ? (t('logsLatest') + ' · ' + logsRelTime(latestIso)) : t(isDev ? 'logsDeviceEmpty' : 'logsAppEmpty')),
+  );
+}
+
+function logsPackCard(r) {
+  const isDev = (r.source || 'app') === 'device';
+  const code = r.supportCode || r.code || '—';
+  return h('article', {
+    class: 'glass logs-card' + (isDev ? ' is-device' : ''),
+    onclick: () => openDiagLogView(r),
+  },
+    h('div', { class: 'logs-card-mark' }, fa(logsKindIcon(r))),
+    h('div', { class: 'logs-card-body' },
+      h('button', {
+        type: 'button',
+        class: 'logs-card-code',
+        title: t('copyCode'),
+        onclick: (e) => { e.stopPropagation(); copyText(code); },
+      }, code, fa('fa-copy')),
+      h('div', { class: 'logs-card-meta' },
+        r.fileName ? h('span', { class: 'logs-chip mute' }, h('span', { class: 'clip' }, r.fileName)) : null,
+        isDev && r.deviceKind ? h('span', { class: 'logs-chip' }, r.deviceKind) : null,
+        isDev && r.deviceId
+          ? h('span', {
+              class: 'logs-chip',
+              title: r.deviceId,
+              onclick: (e) => { e.stopPropagation(); copyText(r.deviceId); },
+            }, fa('fa-microchip'), h('span', { class: 'clip' }, shortId(r.deviceId)))
+          : null,
+        r.userId ? h('span', { class: 'logs-chip mute' }, fa('fa-user'), h('span', { class: 'clip' }, shortId(r.userId))) : null,
+        h('span', { class: 'logs-chip mute' }, fmtBytes(r.size)),
+      ),
+    ),
+    h('div', { class: 'logs-card-side' },
+      h('div', { class: 'logs-card-when' },
+        h('b', {}, logsRelTime(r.lastModified)),
+        fmt(r.lastModified),
+      ),
+      h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+        h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
+        h('button', { class: 'gbtn icon btn-sm', title: t('download'), 'aria-label': t('download'), onclick: () => downloadDiagLog(r) }, fa('fa-download')),
+        h('button', { class: 'gbtn icon btn-sm danger', title: t('delete'), 'aria-label': t('delete'), onclick: () => askDeleteDiagLog(r) }, fa('fa-trash')),
+      ),
+    ),
+  );
+}
+
 function viewLogs() {
   const src = state.logsSource === 'device' ? 'device' : 'app';
-  let rows = (state.diagLogs || []).slice();
-  rows = rows.filter((r) => (r.source || 'app') === src);
-  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.fileName, r.deviceKind, r.key]));
-  rows.sort((a, b) => {
-    const ta = Date.parse(a.lastModified || '') || 0;
-    const tb = Date.parse(b.lastModified || '') || 0;
-    return tb - ta;
-  });
+  const all = state.diagLogs || [];
+  const appRows = all.filter((r) => (r.source || 'app') === 'app');
+  const devRows = all.filter((r) => (r.source || 'app') === 'device');
+  let rows = (src === 'device' ? devRows : appRows).slice();
+  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.deviceId, r.fileName, r.deviceKind, r.key]));
+  rows.sort((a, b) => (Date.parse(b.lastModified || '') || 0) - (Date.parse(a.lastModified || '') || 0));
   const meta = state.diagLogsMeta || {};
-  const sub = src === 'device' ? t('logsDeviceSub') : t('logsAppSub');
-  const cols = src === 'device'
-    ? [t('colIndex'), t('colCode'), t('colDeviceKind'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')]
-    : [t('colIndex'), t('colCode'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')];
-  const subTab = (id, label) => h('button', {
-    class: 'gbtn btn-sm' + (src === id ? ' primary' : ''),
-    onclick: () => { state.logsSource = id; state.q = ''; render(); },
-  }, label);
-  return h('div', {},
-    h('div', { class: 'admin-head' },
-      h('h1', {}, src === 'device' ? t('logsDevice') : t('logsApp')),
-      chip(String(rows.length)),
-      meta.truncated ? chip(t('logsTrunc'), 'stat-offline') : null,
+  const latestOf = (list) => (list[0] && list[0].lastModified) || '';
+  const appSorted = appRows.slice().sort((a, b) => (Date.parse(b.lastModified || '') || 0) - (Date.parse(a.lastModified || '') || 0));
+  const devSorted = devRows.slice().sort((a, b) => (Date.parse(b.lastModified || '') || 0) - (Date.parse(a.lastModified || '') || 0));
+
+  const groups = [];
+  rows.slice(0, 500).forEach((r) => {
+    const key = logsDayKey(r.lastModified);
+    const last = groups[groups.length - 1];
+    if (!last || last.key !== key) groups.push({ key, items: [r] });
+    else last.items.push(r);
+  });
+
+  const stream = state.loadingTab || state.diagLogs == null
+    ? loading('…')
+    : (!rows.length
+      ? h('div', { class: 'glass logs-empty' },
+          fa(src === 'device' ? 'fa-robot' : 'fa-mobile-alt'),
+          h('h2', {}, src === 'device' ? t('logsDeviceEmpty') : t('logsAppEmpty')),
+          h('p', {}, src === 'device' ? t('logsDeviceHint') : t('logsAppHint')),
+        )
+      : h('div', { class: 'logs-stream' },
+          ...groups.map((g) => h('section', { class: 'logs-day' },
+            h('div', { class: 'logs-day-h' }, logsDayLabel(g.key) + ' · ' + g.items.length),
+            ...g.items.map(logsPackCard),
+          )),
+        ));
+
+  return h('div', { class: 'logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('logsEyebrow')),
+        h('h1', {}, src === 'device' ? t('logsDevice') : t('logsApp')),
+        h('div', { class: 'logs-hero-sub' }, src === 'device' ? t('logsDeviceSub') : t('logsAppSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(String(rows.length) + ' ' + t('logsCount')),
+          meta.truncated ? chip(t('logsTrunc'), 'stat-offline') : null,
+        ),
+      ),
+      h('div', { class: 'logs-source-grid' },
+        logsSourceCard('app', appRows.length, latestOf(appSorted)),
+        logsSourceCard('device', devRows.length, latestOf(devSorted)),
+      ),
     ),
-    h('div', { class: 'admin-toolbar', style: { marginBottom: '8px' } },
-      subTab('app', t('logsTabApp')),
-      subTab('device', t('logsTabDevice')),
-    ),
-    h('div', { class: 'admin-sub' }, sub),
-    h('div', { class: 'admin-toolbar' },
-      searchBox(t('searchLogs')),
+    h('div', { class: 'glass logs-dock' },
+      logsSearchBox(),
       h('button', { class: 'gbtn btn-sm', onclick: async () => {
         state.diagLogs = null; state.diagLogsMeta = null; render();
         try { await loadDiagLogs(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
-      } }, t('refresh')),
+      } }, fa('fa-rotate'), ' ' + t('refresh')),
       meta.nextToken ? h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
         try { await loadDiagLogs({ append: true }); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
       } }, t('logsLoadMore')) : null,
     ),
-    state.loadingTab || state.diagLogs == null
-      ? loading('…')
-      : (!rows.length
-        ? emptyState(src === 'device' ? t('logsDeviceEmpty') : t('logsAppEmpty'))
-        : tableWrap(
-          cols,
-          rows.slice(0, 500).map((r, i) => {
-            const base = [
-              h('span', { class: 'num faint' }, String(i + 1)),
-              r.supportCode
-                ? h('button', {
-                    class: 'gbtn btn-sm',
-                    title: t('copyCode'),
-                    onclick: () => copyText(r.supportCode),
-                  }, r.supportCode)
-                : '—',
-            ];
-            if (src === 'device') base.push(r.deviceKind || '—');
-            base.push(
-              copyable(r.userId || '—'),
-              h('button', {
-                class: 'linkish',
-                title: r.key,
-                onclick: () => openDiagLogView(r),
-              }, r.fileName || r.key),
-              fmtBytes(r.size),
-              fmt(r.lastModified),
-              h('div', { class: 'row-actions' },
-                h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
-                h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(r) }, t('download')),
-                h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDiagLog(r) }, t('delete')),
-              ),
-            );
-            return base;
-          }),
-        )),
+    stream,
   );
 }
 
