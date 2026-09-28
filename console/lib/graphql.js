@@ -232,6 +232,31 @@ export async function createDeviceUpgrade(input) {
   return data.createDeviceUpgrade;
 }
 
+const M_UPDATE_UPGRADE = /* GraphQL */ `
+  mutation UpdateDeviceUpgrade($input: UpdateDeviceUpgradeInput!) {
+    updateDeviceUpgrade(input: $input) {
+      id upgradeMode upgradeFileUrl upgradeDeviceType upgradeDeviceVersion
+      upgradeDevicePartion upgradeType upgradeDescribe upgradeOtaTime updatedAt
+    }
+  }`;
+const M_DELETE_UPGRADE = /* GraphQL */ `
+  mutation DeleteDeviceUpgrade($input: DeleteDeviceUpgradeInput!) {
+    deleteDeviceUpgrade(input: $input) { id }
+  }`;
+
+export async function updateDeviceUpgrade(input) {
+  if (!input || !input.id) throw new Error('缺少 DeviceUpgrade.id');
+  const data = await gql(M_UPDATE_UPGRADE, { input });
+  if (!data || !data.updateDeviceUpgrade) throw new Error('updateDeviceUpgrade 无返回');
+  return data.updateDeviceUpgrade;
+}
+
+export async function deleteDeviceUpgrade(id) {
+  if (!id) throw new Error('缺少 DeviceUpgrade.id');
+  const data = await gql(M_DELETE_UPGRADE, { input: { id } });
+  return !!(data && data.deleteDeviceUpgrade);
+}
+
 // 云录像：支持 filter + 可选 maxPages 防止全表扫描卡死（默认最多 20 页 × limit）
 export async function listCloudRecordsAdmin({ filter = null, limit = 200, maxPages = 20 } = {}) {
   let token = null, out = [], pages = 0;

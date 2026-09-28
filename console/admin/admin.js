@@ -5,7 +5,7 @@ import {
 import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth } from '../lib/auth.js';
 import {
   listAllUsers, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
-  listCloudRecordsAdmin, createDeviceUpgrade,
+  listCloudRecordsAdmin, createDeviceUpgrade, updateDeviceUpgrade, deleteDeviceUpgrade,
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
 } from '../lib/graphql.js';
@@ -676,7 +676,8 @@ function renderEdit() {
   const e = state.edit;
   if (!e) return null;
   const isUser = e.type === 'user';
-  const title = isUser ? t('editUser') : t('editDevice');
+  const isPkg = e.type === 'upgrade';
+  const title = isUser ? t('editUser') : (isPkg ? t('editPkg') : t('editDevice'));
   const fields = isUser
     ? [
         fieldInput(e, 'awsUserName', '用户名'),
@@ -684,6 +685,15 @@ function renderEdit() {
         fieldInput(e, 'phoneNumber', '手机'),
         fieldInput(e, 'region', '区域', { ph: '如 ap-northeast-1 / 东南亚' }),
         fieldInput(e, 'picture', '头像 URL', { span2: true }),
+      ]
+    : isPkg
+    ? [
+        fieldInput(e, 'upgradeDeviceType', t('appType')),
+        fieldInput(e, 'upgradeDeviceVersion', t('version')),
+        fieldInput(e, 'upgradeDevicePartion', t('partition')),
+        fieldInput(e, 'upgradeMode', t('upgradeMode'), { ph: 'normal / force / night' }),
+        fieldInput(e, 'upgradeDescribe', t('describe'), { textarea: true, span2: true }),
+        fieldInput(e, 'upgradeFileUrl', 'S3', { span2: true }),
       ]
     : [
         fieldInput(e, 'name', '设备名称'),
@@ -710,6 +720,24 @@ function renderEdit() {
         state.edit = null;
         state.users = null;
         await loadTab('users');
+      } else if (isPkg) {
+        const ver = (e.values.upgradeDeviceVersion || '').trim();
+        const desc = (e.values.upgradeDescribe || '').trim();
+        if (!ver) throw new Error('请填写版本');
+        if (!desc) throw new Error('请填写说明');
+        await updateDeviceUpgrade({
+          id: e.id,
+          upgradeDeviceType: (e.values.upgradeDeviceType || '').trim() || null,
+          upgradeDeviceVersion: ver,
+          upgradeDevicePartion: (e.values.upgradeDevicePartion || '').trim() || null,
+          upgradeMode: (e.values.upgradeMode || '').trim() || 'normal',
+          upgradeDescribe: desc,
+          upgradeFileUrl: (e.values.upgradeFileUrl || '').trim() || null,
+        });
+        toast('升级包已更新');
+        state.edit = null;
+        state.packages = null;
+        await loadTab('ota');
       } else {
         const info = Object.assign({}, e._rawInfo || {});
         info.deviceName = (e.values.name || '').trim();
@@ -857,6 +885,80 @@ function ensureOtaScopeDefaults() {
     u.deviceType = 'smartRobot';
     if (['android', 'ios'].indexOf(u.partition) >= 0) u.partition = 'system';
   }
+}
+
+
+function s3KeyFromUpgradeUrl(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.startsWith('public/')) return s;
+  try {
+    const u = new URL(s);
+    const path = decodeURIComponent(u.pathname || '').replace(/^\/+/, '');
+    return path.split('?')[0];
+  } catch (_) {
+    return '';
+  }
+}
+function openEditPackage(pkg) {
+  state.edit = {
+    type: 'upgrade',
+    id: pkg.id,
+    busy: false,
+    err: '',
+    values: {
+      upgradeDeviceType: pkg.upgradeDeviceType || '',
+      upgradeDeviceVersion: pkg.upgradeDeviceVersion || '',
+      upgradeDevicePartion: pkg.upgradeDevicePartion || '',
+      upgradeMode: pkg.upgradeMode || 'normal',
+      upgradeDescribe: pkg.upgradeDescribe || '',
+      upgradeFileUrl: pkg.upgradeFileUrl || '',
+    },
+  };
+  render();
+}
+function askDeletePackage(pkg) {
+  const label = `${pkg.upgradeDeviceType || ''} v${pkg.upgradeDeviceVersion || '?'} · ${pkg.upgradeDevicePartion || ''} · ${pkg.upgradeMode || 'normal'}`;
+  state.confirm = {
+    title: t('confirmDelPkg'),
+    body: `${label}\n${pkg.upgradeDescribe || ''}\n${pkg.upgradeFileUrl || ''}\n\n将删除云端登记记录，并尝试删除对应 S3 文件。`,
+    okText: t('confirmDelOk'),
+    onOk: async () => {
+      state.confirm = null; render();
+      try {
+        const key = s3KeyFromUpgradeUrl(pkg.upgradeFileUrl);
+        if (key) {
+          try {
+            const creds = await resolvedCreds();
+            await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
+          } catch (e) {
+            console.warn('[admin] delete pkg s3', e);
+          }
+        }
+        await deleteDeviceUpgrade(pkg.id);
+        toast('升级包已删除');
+        state.packages = null;
+        await loadTab('ota');
+      } catch (e) {
+        console.error('[admin] delete pkg', e);
+        toast((e && e.message) || String(e), 'err');
+      }
+    },
+  };
+  render();
+}
+function pkgRowActions(pkg, ug, isApp) {
+  const btns = [];
+  if (!isApp) {
+    btns.push(h('button', { class: 'gbtn primary btn-sm', onclick: () => {
+      ug.packageId = pkg.id; ug.partition = pkg.upgradeDevicePartion || '';
+      toast('已选中升级包，请在上方选设备');
+      render();
+    } }, '选用'));
+  }
+  btns.push(h('button', { class: 'gbtn btn-sm', onclick: () => openEditPackage(pkg) }, t('edit')));
+  btns.push(h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeletePackage(pkg) }, t('delete')));
+  return h('div', { class: 'row-actions' }, ...btns);
 }
 
 function viewOta() {
@@ -1061,8 +1163,8 @@ function viewOta() {
       list.length
         ? tableWrap(
           isApp
-            ? ['时间', t('appType'), t('version'), t('partition'), t('upgradeMode'), t('describe'), 'S3']
-            : ['时间', '机型', '版本', '分区', '说明', 'S3', '操作'],
+            ? ['时间', t('appType'), t('version'), t('partition'), t('upgradeMode'), t('describe'), 'S3', t('colActions')]
+            : ['时间', '机型', '版本', '分区', '说明', 'S3', t('colActions')],
           list.slice(0, 100).map((pkg) => {
             const cells = [
               fmt(pkg.upgradeOtaTime || pkg.createdAt),
@@ -1073,16 +1175,9 @@ function viewOta() {
             if (isApp) {
               cells.push(pkg.upgradeMode || 'normal', pkg.upgradeDescribe || '—', copyable(pkg.upgradeFileUrl, pkg.upgradeFileUrl));
             } else {
-              cells.push(
-                pkg.upgradeDescribe || '—',
-                copyable(pkg.upgradeFileUrl, pkg.upgradeFileUrl),
-                h('button', { class: 'gbtn primary btn-sm', onclick: () => {
-                  ug.packageId = pkg.id; ug.partition = pkg.upgradeDevicePartion || '';
-                  toast('已选中升级包，请在上方选设备');
-                  render();
-                } }, '选用'),
-              );
+              cells.push(pkg.upgradeDescribe || '—', copyable(pkg.upgradeFileUrl, pkg.upgradeFileUrl));
             }
+            cells.push(pkgRowActions(pkg, ug, isApp));
             return cells;
           }),
         )
