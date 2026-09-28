@@ -465,6 +465,33 @@ function stat(k, v, onClick) {
     h('div', { class: 'k' }, k), h('div', { class: 'v num' }, String(v)));
 }
 
+function studioSearch(ph) {
+  const wrap = h('div', { class: 'logs-search' }, fa('fa-magnifying-glass'));
+  wrap.appendChild(searchBox(ph));
+  return wrap;
+}
+function studioGroups(items, timeFn, limit) {
+  const groups = [];
+  (items || []).slice(0, limit || 500).forEach((it) => {
+    const key = logsDayKey(timeFn(it));
+    const last = groups[groups.length - 1];
+    if (!last || last.key !== key) groups.push({ key, items: [it] });
+    else last.items.push(it);
+  });
+  return groups;
+}
+function studioEmpty(icon, title, hint) {
+  return h('div', { class: 'glass logs-empty' },
+    fa(icon), h('h2', {}, title), hint ? h('p', {}, hint) : null);
+}
+function studioStream(groups, renderItem) {
+  return h('div', { class: 'logs-stream' },
+    ...groups.map((g) => h('section', { class: 'logs-day' },
+      h('div', { class: 'logs-day-h' }, logsDayLabel(g.key) + ' · ' + g.items.length),
+      ...g.items.map(renderItem),
+    )));
+}
+
 function viewUsers() {
   let rows = (state.users || []).filter((u) => u && matchQ([u.awsUserName, u.email, u.phoneNumber, u.id, u.awsUserID, u.region]));
   rows = rows.slice().sort((a, b) => {
@@ -472,29 +499,90 @@ function viewUsers() {
     const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
     return tb - ta;
   });
-  return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, t('users')), chip(String(rows.length))),
-    h('div', { class: 'admin-sub' }, t('usersSub')),
-    h('div', { class: 'admin-toolbar' },
-      searchBox(t('searchUsers')),
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, t('refresh'))),
-    state.loadingTab || !state.users ? loading('加载用户…') : tableWrap(
-      [t('colIndex'), t('colUser'), t('colEmail'), t('colPhone'), t('colRegion'), 'User.id', 'Cognito', t('colUpdated'), t('colActions')],
-      rows.map((u, i) => [
-        h('span', { class: 'num faint' }, String(i + 1)),
-        u.awsUserName || '—', u.email || '—', u.phoneNumber || '—', u.region || '—',
-        copyable(u.id), copyable(u.awsUserID), fmt(u.updatedAt),
-        h('div', { class: 'row-actions' },
-          h('button', { class: 'gbtn btn-sm', onclick: () => openEditUser(u) }, t('edit')),
-          h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteUser(u) }, t('delete')),
+  const latest = rows[0];
+  const stream = state.loadingTab || !state.users
+    ? loading('…')
+    : (!rows.length
+      ? studioEmpty('fa-user', t('usersEmpty'), t('usersEmptyHint'))
+      : studioStream(studioGroups(rows, (u) => u.updatedAt || u.createdAt), (u) => {
+          const name = u.awsUserName || u.email || shortId(u.id);
+          return h('article', {
+            class: 'glass logs-card',
+            onclick: () => openEditUser(u),
+          },
+            h('div', { class: 'logs-card-mark' }, fa('fa-user')),
+            h('div', { class: 'logs-card-body' },
+              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, name),
+              h('div', { class: 'logs-card-meta' },
+                u.email ? h('span', { class: 'logs-chip mute' }, h('span', { class: 'clip' }, u.email)) : null,
+                u.phoneNumber ? h('span', { class: 'logs-chip mute' }, u.phoneNumber) : null,
+                u.region ? h('span', { class: 'logs-chip' }, u.region) : null,
+                u.id ? h('span', {
+                  class: 'logs-chip mute', title: u.id,
+                  onclick: (e) => { e.stopPropagation(); copyText(u.id); },
+                }, 'ID', h('span', { class: 'clip' }, shortId(u.id))) : null,
+                u.awsUserID ? h('span', {
+                  class: 'logs-chip mute', title: u.awsUserID,
+                  onclick: (e) => { e.stopPropagation(); copyText(u.awsUserID); },
+                }, 'Cognito', h('span', { class: 'clip' }, shortId(u.awsUserID))) : null,
+              ),
+            ),
+            h('div', { class: 'logs-card-side' },
+              h('div', { class: 'logs-card-when' },
+                h('b', {}, logsRelTime(u.updatedAt || u.createdAt)),
+                fmt(u.updatedAt || u.createdAt),
+              ),
+              h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+                h('button', { class: 'gbtn icon btn-sm', title: t('edit'), 'aria-label': t('edit'), onclick: () => openEditUser(u) }, fa('fa-pen')),
+                h('button', { class: 'gbtn icon btn-sm danger', title: t('delete'), 'aria-label': t('delete'), onclick: () => askDeleteUser(u) }, fa('fa-trash')),
+              ),
+            ),
+          );
+        }));
+  return h('div', { class: 'users-page logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('usersEyebrow')),
+        h('h1', {}, t('users')),
+        h('div', { class: 'logs-hero-sub' }, t('usersSub')),
+        h('div', { class: 'logs-hero-meta' }, chip(String(rows.length) + ' ' + t('usersCount'))),
+      ),
+      h('div', { class: 'logs-source-grid' },
+        h('div', { class: 'logs-source on info' },
+          h('span', { class: 'logs-source-ico' }, fa('fa-user')),
+          h('span', { class: 'k' }, t('usersCount')),
+          h('span', { class: 'v num' }, String((state.users || []).length)),
+          h('span', { class: 's' }, getRegion().toUpperCase()),
         ),
-      ]),
+        h('div', { class: 'logs-source info' },
+          h('span', { class: 'logs-source-ico' }, fa('fa-clock')),
+          h('span', { class: 'k' }, t('logsLatest')),
+          h('span', { class: 'v num' }, latest ? shortId(latest.awsUserName || latest.email || latest.id) : '—'),
+          h('span', { class: 's' }, latest ? logsRelTime(latest.updatedAt || latest.createdAt) : '—'),
+        ),
+      ),
     ),
+    h('div', { class: 'glass logs-dock' },
+      studioSearch(t('searchUsers')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    stream,
   );
 }
 
+function deviceCardMark(d) {
+  const raw = d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || '';
+  const mark = h('div', { class: 'logs-card-mark' + (raw ? ' has-thumb' : '') + (d.online ? '' : ' is-off') });
+  if (raw) mark.appendChild(mediaThumb(raw, { w: '44px', h: '44px' }));
+  else mark.appendChild(fa(otaPkgIcon(resolveDeviceType(d))));
+  return mark;
+}
+
 function viewDevices() {
-  let rows = (state.devices || []).filter(Boolean);
+  const all = (state.devices || []).filter(Boolean);
+  const onlineN = all.filter((d) => d.online).length;
+  const offlineN = all.length - onlineN;
+  let rows = all.slice();
   if (state.deviceFilter === 'online') rows = rows.filter((d) => d.online);
   if (state.deviceFilter === 'offline') rows = rows.filter((d) => !d.online);
   rows = rows.filter((d) => matchQ([d.name, d.model, d.uuid, d.id, d.firmware, d.ownerUserId, ownerName(d.ownerUserId)]));
@@ -505,9 +593,8 @@ function viewDevices() {
       if (o !== 0) return o * dir;
       const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
       const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
-      return (tb - ta); // 同状态按最近更新
+      return (tb - ta);
     }
-    // updated（默认）
     const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
     const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
     if (ta !== tb) return (ta - tb) * dir;
@@ -515,69 +602,195 @@ function viewDevices() {
     return String(a.name || '').localeCompare(String(b.name || ''));
   });
 
-  const seg = h('div', { class: 'seg' },
-    ...[['all', t('all')], ['online', t('online')], ['offline', t('offline')]].map(([k, lab]) => h('button', {
-      class: state.deviceFilter === k ? 'on' : '',
-      onclick: () => { state.deviceFilter = k; render(); },
-    }, lab)));
+  const filterCard = (id, count, icon, extraCls) => h('button', {
+    type: 'button',
+    class: 'logs-source' + (extraCls || '') + ((state.deviceFilter || 'all') === id ? ' on' : ''),
+    onclick: () => { state.deviceFilter = id; render(); },
+  },
+    h('span', { class: 'logs-source-ico' }, fa(icon)),
+    h('span', { class: 'k' }, id === 'all' ? t('all') : (id === 'online' ? t('online') : t('offline'))),
+    h('span', { class: 'v num' }, String(count)),
+    h('span', { class: 's' }, t('devicesCount')),
+  );
 
-  return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, t('devices')), chip(String(rows.length)),
-      chip(`${(state.devices || []).filter((d) => d.online).length} ${t('online')}`, 'stat-online')),
-    h('div', { class: 'admin-sub' }, t('devicesSub')),
-    h('div', { class: 'admin-toolbar' },
-      searchBox(t('searchDevices')), seg,
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, t('refresh'))),
-    (() => {
-      if (state.loadingTab && !state.devices) return loading('加载设备…');
-      if (state._err && !(state.devices && state.devices.length)) {
-        return h('div', {},
-          h('div', { class: 'admin-msg err' }, state._err),
-          h('button', { class: 'gbtn', style: { marginTop: '10px' },
-            onclick: async () => { state.devices = null; state._err = ''; await loadTab('devices'); } }, '重试'));
-      }
-      if (!state.devices) return loading('加载设备…');
-      const list = rows.filter((d) => d && d.id);
-      return tableWrap(
-        [
-          t('colIndex'),
-          sortTh('online', t('colStatus')),
-          '图', t('colName'), t('colModel'), t('colVersion'), 'UUID', t('colOwner'), t('colBinds'),
-          sortTh('updated', t('colUpdated')),
-          t('colActions'),
-        ],
-        list.map((d, i) => {
+  let stream;
+  if (state.loadingTab && !state.devices) stream = loading('…');
+  else if (state._err && !(state.devices && state.devices.length)) {
+    stream = h('div', {},
+      h('div', { class: 'admin-msg err' }, state._err),
+      h('button', { class: 'gbtn', style: { marginTop: '10px' },
+        onclick: async () => { state.devices = null; state._err = ''; await loadTab('devices'); } }, t('refresh')));
+  } else if (!state.devices) stream = loading('…');
+  else {
+    const list = rows.filter((d) => d && d.id);
+    stream = !list.length
+      ? studioEmpty('fa-robot', t('devicesEmpty'), t('devicesEmptyHint'))
+      : studioStream(studioGroups(list, (d) => d.updatedAt || d.createdAt), (d) => {
           const binds = bindUsersForDevice(d.id);
           const latest = latestPackageForType(resolveDeviceType(d));
-          return [
-            h('span', { class: 'num faint' }, String(i + 1)),
-            statusTag(!!d.online),
-            mediaThumb(d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || ''),
-            d.name || '—',
-            d.model || '—',
-            d.firmware ? ('v' + d.firmware) : '—',
-            d.uuid ? copyable(d.uuid) : h('span', { class: 'faint' }, '无 UUID'),
-            ownerName(d.ownerUserId),
-            String(binds.length),
-            fmt(d.updatedAt || d.createdAt),
-            h('div', { class: 'row-actions' },
-              h('button', { class: 'gbtn btn-sm', onclick: () => openEditDevice(d) }, t('edit')),
-              h('button', { class: 'gbtn btn-sm', onclick: () => openDevice(d) }, t('enter')),
-              h('button', {
-                class: 'gbtn primary btn-sm',
-                disabled: !d.uuid || !latest,
-                title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
-                onclick: () => askUpgradeLatest(d),
-              }, t('upgradeLatest')),
-              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDevice(d) }, t('delete')),
+          return h('article', {
+            class: 'glass logs-card' + (d.online ? '' : ' is-device'),
+            onclick: () => openDevice(d),
+          },
+            deviceCardMark(d),
+            h('div', { class: 'logs-card-body' },
+              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, d.name || shortId(d.id)),
+              h('div', { class: 'logs-card-meta' },
+                statusTag(!!d.online),
+                d.model ? h('span', { class: 'logs-chip' }, d.model) : null,
+                d.firmware ? h('span', { class: 'logs-chip mute' }, 'v' + d.firmware) : null,
+                h('span', { class: 'logs-chip mute' }, t('colOwner') + ' ' + ownerName(d.ownerUserId)),
+                h('span', { class: 'logs-chip mute' }, t('colBinds') + ' ' + binds.length),
+                d.uuid
+                  ? h('span', {
+                      class: 'logs-chip mute', title: d.uuid,
+                      onclick: (e) => { e.stopPropagation(); copyText(d.uuid); },
+                    }, 'UUID', h('span', { class: 'clip' }, shortId(d.uuid)))
+                  : h('span', { class: 'logs-chip warn' }, 'UUID —'),
+              ),
             ),
-          ];
-        }),
-      );
-    })(),
+            h('div', { class: 'logs-card-side' },
+              h('div', { class: 'logs-card-when' },
+                h('b', {}, logsRelTime(d.updatedAt || d.createdAt)),
+                fmt(d.updatedAt || d.createdAt),
+              ),
+              h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+                h('button', { class: 'gbtn primary btn-sm', onclick: () => openDevice(d) }, t('enter')),
+                h('button', {
+                  class: 'gbtn btn-sm',
+                  disabled: !d.uuid || !latest,
+                  title: !d.uuid ? '缺少 deviceUuid' : (!latest ? '无可用升级包' : `升级到 ${latest.upgradeDeviceVersion}`),
+                  onclick: () => askUpgradeLatest(d),
+                }, t('upgradeLatest')),
+                h('button', { class: 'gbtn icon btn-sm', title: t('edit'), 'aria-label': t('edit'), onclick: () => openEditDevice(d) }, fa('fa-pen')),
+                h('button', { class: 'gbtn icon btn-sm danger', title: t('delete'), 'aria-label': t('delete'), onclick: () => askDeleteDevice(d) }, fa('fa-trash')),
+              ),
+            ),
+          );
+        });
+  }
+
+  return h('div', { class: 'devices-page logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('devicesEyebrow')),
+        h('h1', {}, t('devices')),
+        h('div', { class: 'logs-hero-sub' }, t('devicesSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(String(rows.length) + ' ' + t('devicesCount')),
+          chip(onlineN + ' ' + t('online'), 'stat-online'),
+        ),
+      ),
+      h('div', { class: 'logs-source-grid trio' },
+        filterCard('all', all.length, 'fa-robot', ''),
+        filterCard('online', onlineN, 'fa-wifi', ''),
+        filterCard('offline', offlineN, 'fa-power-off', ' is-device'),
+      ),
+    ),
+    h('div', { class: 'glass logs-dock' },
+      studioSearch(t('searchDevices')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.devices = state.binds = null; await loadTab('devices'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    stream,
   );
 }
 
+function viewRecords() {
+  const rows = (state.records || []).filter((r) => matchQ([r.deviceID, r.id, r.resolution, r.type, String(r.channel)])).slice()
+    .sort((a, b) => (Date.parse(b.dateTime || '') || 0) - (Date.parse(a.dateTime || '') || 0));
+  const trunc = state.recordsMeta && state.recordsMeta.truncated;
+  const deviceSel = h('select', {},
+    h('option', { value: '' }, t('recordsAllDevices')),
+    ...(state.devices || []).map((d) => h('option', { value: d.id, selected: state.recDeviceId === d.id },
+      `${d.name || d.id}`)));
+  deviceSel.addEventListener('change', () => { state.recDeviceId = deviceSel.value; });
+  const daysSel = h('select', {},
+    ...[1, 3, 7, 14, 30].map((n) => h('option', { value: String(n), selected: Number(state.recDays) === n }, t('recordsDays').replace('{n}', String(n)))));
+  daysSel.addEventListener('change', () => { state.recDays = Number(daysSel.value); });
+
+  const dayCard = (n) => h('button', {
+    type: 'button',
+    class: 'logs-source' + (Number(state.recDays) === n ? ' on' : ''),
+    onclick: async () => {
+      state.recDays = n;
+      state.records = null; render();
+      try { await loadRecords(); toast(t('dataRefreshed')); }
+      catch (e) { toast((e && e.message) || String(e), 'err'); }
+      render();
+    },
+  },
+    h('span', { class: 'logs-source-ico' }, fa('fa-calendar-day')),
+    h('span', { class: 'k' }, t('recordsDays').replace('{n}', String(n))),
+    h('span', { class: 'v num' }, String(n)),
+    h('span', { class: 's' }, Number(state.recDays) === n ? (String(rows.length) + ' ' + t('recordsCount')) : t('recordsDays').replace('{n}', String(n))),
+  );
+
+  const stream = state.records == null
+    ? loading('…')
+    : (!rows.length
+      ? studioEmpty('fa-cloud', t('recordsEmpty'), t('recordsEmptyHint'))
+      : studioStream(studioGroups(rows, (r) => r.dateTime), (r) => {
+          const dur = r.duration ? (r.duration + 's') : '—';
+          const dev = (state.devices || []).find((d) => d.id === r.deviceID || d.uuid === r.deviceID);
+          return h('article', { class: 'glass logs-card static is-device' },
+            h('div', { class: 'logs-card-mark has-thumb rec-thumb' },
+              mediaThumb(r.thumbnailUrl, { w: '72px', h: '44px' })),
+            h('div', { class: 'logs-card-body' },
+              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, fmt(r.dateTime)),
+              h('div', { class: 'logs-card-meta' },
+                h('span', {
+                  class: 'logs-chip', title: r.deviceID,
+                  onclick: () => copyText(r.deviceID),
+                }, fa('fa-microchip'), h('span', { class: 'clip' }, (dev && dev.name) || shortId(r.deviceID))),
+                h('span', { class: 'logs-chip mute' }, dur),
+                r.channel != null ? h('span', { class: 'logs-chip mute' }, 'CH ' + r.channel) : null,
+                r.resolution ? h('span', { class: 'logs-chip mute' }, r.resolution) : null,
+                r.type ? h('span', { class: 'logs-chip' }, r.type) : null,
+              ),
+            ),
+            h('div', { class: 'logs-card-side' },
+              h('div', { class: 'logs-card-when' },
+                h('b', {}, logsRelTime(r.dateTime)),
+                fmt(r.dateTime),
+              ),
+            ),
+          );
+        }));
+
+  return h('div', { class: 'records-page logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('recordsEyebrow')),
+        h('h1', {}, t('records')),
+        h('div', { class: 'logs-hero-sub' }, t('recordsSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(String(rows.length) + ' ' + t('recordsCount')),
+          trunc ? chip(t('recordsTrunc'), 'stat-offline') : null,
+        ),
+      ),
+      h('div', { class: 'logs-source-grid trio' },
+        dayCard(1), dayCard(7), dayCard(30),
+      ),
+    ),
+    h('div', { class: 'glass logs-dock' },
+      studioSearch(t('recordsSearch')),
+      deviceSel, daysSel,
+      h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
+        state.records = null; render();
+        try { await loadRecords(); toast(t('dataRefreshed')); }
+        catch (e) { toast((e && e.message) || String(e), 'err'); }
+        render();
+      } }, t('recordsQuery')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => {
+        state.records = null; render();
+        try { await loadRecords(); toast(t('dataRefreshed')); }
+        catch (e) { toast((e && e.message) || String(e), 'err'); }
+        render();
+      } }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    stream,
+  );
+}
 
 function openEditUser(u) {
   state.edit = {
@@ -831,43 +1044,6 @@ async function openDevice(dev) {
     location.href = '../device/index.html?deviceId=' + encodeURIComponent(uuid);
   } catch (e) { toast('进入失败: ' + ((e && e.message) || e), 'err'); }
 }
-
-function viewRecords() {
-  const rows = (state.records || []).filter((r) => matchQ([r.deviceID, r.id, r.resolution, r.type, String(r.channel)]));
-  const deviceSel = h('select', {},
-    h('option', { value: '' }, '全部设备'),
-    ...(state.devices || []).map((d) => h('option', { value: d.id, selected: state.recDeviceId === d.id },
-      `${d.name || d.id}`)));
-  deviceSel.addEventListener('change', () => { state.recDeviceId = deviceSel.value; });
-  const days = h('select', {},
-    ...[1, 3, 7, 14, 30].map((n) => h('option', { value: String(n), selected: Number(state.recDays) === n }, `近 ${n} 天`)));
-  days.addEventListener('change', () => { state.recDays = Number(days.value); });
-
-  return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, t('records')), chip(String(rows.length)),
-      (state.recordsMeta && state.recordsMeta.truncated) ? chip('结果已截断', 'stat-offline') : null),
-    h('div', { class: 'admin-sub' }, '默认近 7 天，避免全表扫描'),
-    h('div', { class: 'admin-toolbar' },
-      searchBox('deviceID / 分辨率…'), deviceSel, days,
-      h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
-        state.records = null; render();
-        try { await loadRecords(); toast(`查到 ${(state.records || []).length} 条`); }
-        catch (e) { toast(e.message, 'err'); }
-        render();
-      } }, '查询')),
-    state.records == null ? loading('加载云录像…') : tableWrap(
-      ['时间', '设备', '时长', '通道', '分辨率', '类型', '缩略图'],
-      rows.slice(0, 500).map((r) => [
-        fmt(r.dateTime), copyable(r.deviceID),
-        (r.duration || '—') + (r.duration ? 's' : ''),
-        r.channel != null ? String(r.channel) : '—',
-        r.resolution || '—', r.type || '—',
-        mediaThumb(r.thumbnailUrl, { w: '72px', h: '48px' }),
-      ]),
-    ),
-  );
-}
-
 
 const DEVICE_OTA_TYPES = ['smartRobot', 'smartIpcamera'];
 const APP_OTA_TYPES = ['smartCameraApp', 'robotApp', 'cardvApp', 'smartScreenApp', 'iosApp'];
