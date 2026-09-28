@@ -1393,21 +1393,110 @@ function pickDefaultLogFile(files) {
   return prefer || '';
 }
 
-function sortLogFiles(files) {
-  const rank = (n) => {
-    const s = String(n || '').toLowerCase();
-    if (s === 'device-info.txt') return 0;
-    if (s === 'ahs_app.log') return 1;
-    if (s.endsWith('.log')) return 2;
-    return 3;
-  };
-  return files.slice().sort((a, b) => rank(a.name) - rank(b.name) || String(a.name).localeCompare(String(b.name)));
+const LOG_TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)/;
+
+function parseLogTs(line) {
+  const m = LOG_TS_RE.exec(line);
+  if (!m) return NaN;
+  const t = Date.parse(m[1]);
+  return Number.isNaN(t) ? NaN : t;
 }
 
-function buildLogViewText(file, q, showAll) {
+function shortLogTs(iso) {
+  if (!iso) return '';
+  const s = String(iso).replace('T', ' ');
+  return s.length >= 16 ? s.slice(5, 16) : s;
+}
+
+function logFileRange(f) {
+  if (!f || !f.t0) return '';
+  const a = shortLogTs(f.t0);
+  const b = shortLogTs(f.t1 || f.t0);
+  if (!b || a === b) return a;
+  const sameDay = String(f.t0).slice(0, 10) === String(f.t1 || '').slice(0, 10);
+  return a + ' → ' + (sameDay ? b.slice(6) : b);
+}
+
+function logGenRank(name) {
+  const s = String(name || '').toLowerCase();
+  if (s === 'device-info.txt') return -1000;
+  const m = /^ahs_app(?:\.(\d+))?\.log$/.exec(s);
+  if (!m) return 500;
+  return m[1] ? Number(m[1]) : 0; // .2 更旧=2，当前=0
+}
+
+function enrichLogFile(f) {
+  if (!f || f.t0 != null) return f;
+  if (f.binary || !f.text) {
+    f.t0 = '';
+    f.t1 = '';
+    f.ts0 = 0;
+    return f;
+  }
+  const lines = String(f.text).split(/\r?\n/);
+  let t0 = '', t1 = '', ts0 = 0, ts1 = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const ts = parseLogTs(lines[i]);
+    if (!Number.isNaN(ts)) {
+      t0 = LOG_TS_RE.exec(lines[i])[1];
+      ts0 = ts;
+      break;
+    }
+  }
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const ts = parseLogTs(lines[i]);
+    if (!Number.isNaN(ts)) {
+      t1 = LOG_TS_RE.exec(lines[i])[1];
+      ts1 = ts;
+      break;
+    }
+  }
+  f.t0 = t0;
+  f.t1 = t1;
+  f.ts0 = ts0 || ts1 || 0;
+  return f;
+}
+
+function sortLinesByTime(lines, newestFirst) {
+  const groups = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const ts = parseLogTs(line);
+    if (!Number.isNaN(ts) || !groups.length) {
+      groups.push({ ts: Number.isNaN(ts) ? 0 : ts, idx: i, lines: [line] });
+    } else {
+      groups[groups.length - 1].lines.push(line);
+    }
+  }
+  groups.sort((a, b) => {
+    const d = newestFirst ? (b.ts - a.ts) : (a.ts - b.ts);
+    return d !== 0 ? d : (newestFirst ? b.idx - a.idx : a.idx - b.idx);
+  });
+  const out = [];
+  for (let g = 0; g < groups.length; g++) {
+    const ls = groups[g].lines;
+    for (let k = 0; k < ls.length; k++) out.push(ls[k]);
+  }
+  return out;
+}
+
+function sortLogFiles(files) {
+  const list = (files || []).map(enrichLogFile);
+  return list.sort((a, b) => {
+    const ra = logGenRank(a.name);
+    const rb = logGenRank(b.name);
+    if (ra < 0 || rb < 0) return ra - rb; // device-info 置顶
+    if (a.ts0 && b.ts0 && a.ts0 !== b.ts0) return a.ts0 - b.ts0; // 旧 → 新
+    if (ra !== rb) return rb - ra; // 无时间戳时 .2/.1 在当前之前
+    return String(a.name).localeCompare(String(b.name));
+  });
+}
+
+function buildLogViewText(file, q, showAll, newestFirst) {
   if (!file) return { text: '', meta: '', truncated: false, total: 0, shown: 0 };
   if (file.binary) return { text: '', meta: t('logBinary'), truncated: false, total: 0, shown: 0 };
-  const lines = String(file.text || '').split(/\r?\n/);
+  const newest = newestFirst !== false;
+  let lines = String(file.text || '').split(/\r?\n/);
   const total = lines.length;
   const needle = (q || '').trim().toLowerCase();
   let picked;
@@ -1416,24 +1505,30 @@ function buildLogViewText(file, q, showAll) {
     const hit = [];
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(needle)) hit.push(lines[i]);
-      if (hit.length >= LOG_MAX_SHOW_LINES) break;
     }
-    picked = hit;
-    truncated = hit.length >= LOG_MAX_SHOW_LINES;
-  } else if (!showAll && total > LOG_TAIL_LINES) {
-    picked = lines.slice(total - LOG_TAIL_LINES);
-    truncated = true;
-  } else if (total > LOG_MAX_SHOW_LINES) {
-    picked = lines.slice(total - LOG_MAX_SHOW_LINES);
-    truncated = true;
+    picked = sortLinesByTime(hit, newest);
+    if (picked.length > LOG_MAX_SHOW_LINES) {
+      picked = newest ? picked.slice(0, LOG_MAX_SHOW_LINES) : picked.slice(picked.length - LOG_MAX_SHOW_LINES);
+      truncated = true;
+    }
   } else {
-    picked = lines;
+    lines = sortLinesByTime(lines, newest);
+    if (!showAll && lines.length > LOG_TAIL_LINES) {
+      picked = newest ? lines.slice(0, LOG_TAIL_LINES) : lines.slice(lines.length - LOG_TAIL_LINES);
+      truncated = true;
+    } else if (lines.length > LOG_MAX_SHOW_LINES) {
+      picked = newest ? lines.slice(0, LOG_MAX_SHOW_LINES) : lines.slice(lines.length - LOG_MAX_SHOW_LINES);
+      truncated = true;
+    } else {
+      picked = lines;
+    }
   }
   const shown = picked.length;
   let meta;
   if (needle) meta = t('logMatchHint').replace('{n}', String(shown)).replace('{total}', String(total));
   else if (truncated) meta = t('logTailHint').replace('{n}', String(shown)).replace('{total}', String(total));
   else meta = t('logLinesHint').replace('{n}', String(total));
+  if (file.t0) meta += ' · ' + logFileRange(file);
   return { text: picked.join('\n'), meta, truncated, total, shown };
 }
 
@@ -1466,13 +1561,13 @@ async function openDiagLogView(item) {
       key, title, item, busy: false, err: '',
       files: cached.files,
       fileName: pickDefaultLogFile(cached.files),
-      q: '', wrap: false, showAll: false,
+      q: '', wrap: false, showAll: false, newestFirst: true,
     };
     render();
     return;
   }
   state.logView = {
-    key, title, item, busy: true, err: '', files: [], fileName: '', q: '', wrap: false, showAll: false,
+    key, title, item, busy: true, err: '', files: [], fileName: '', q: '', wrap: false, showAll: false, newestFirst: true,
   };
   render();
   try {
@@ -1501,16 +1596,26 @@ async function openDiagLogView(item) {
 function renderLogView() {
   const v = state.logView;
   if (!v) return null;
-  const files = v.files || [];
+  const files = sortLogFiles(v.files || []);
+  const newest = v.newestFirst !== false;
   const cur = files.find((f) => f.name === v.fileName) || files[0] || null;
-  const view = v.busy ? null : buildLogViewText(cur, v.q, v.showAll);
-  const fileBtns = files.map((f) => h('button', {
-    class: 'log-file' + (cur && cur.name === f.name ? ' on' : ''),
-    onclick: () => { v.fileName = f.name; v.q = ''; v.showAll = false; render(); },
-  }, h('span', { class: 'name' }, f.name), h('span', { class: 'sz' }, fmtBytes(f.size))));
+  const view = v.busy ? null : buildLogViewText(cur, v.q, v.showAll, newest);
+  const fileBtns = files.map((f) => {
+    const range = logFileRange(f);
+    const isCurLog = /^ahs_app\.log$/i.test(f.name);
+    return h('button', {
+      class: 'log-file' + (cur && cur.name === f.name ? ' on' : ''),
+      onclick: () => { v.fileName = f.name; v.q = ''; v.showAll = false; render(); },
+    },
+      h('span', { class: 'name' }, f.name, isCurLog ? h('em', { class: 'log-now' }, t('logNow')) : null),
+      h('span', { class: 'sz' }, fmtBytes(f.size) + (range ? ' · ' + range : '')),
+    );
+  });
 
   const pre = h('pre', { class: 'log-pre' + (v.wrap ? ' wrap' : '') }, (view && view.text) || '');
-  if (!v.busy && !v.q) requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
+  if (!v.busy && !v.q) {
+    requestAnimationFrame(() => { pre.scrollTop = newest ? 0 : pre.scrollHeight; });
+  }
   const metaEl = h('div', { class: 'log-meta faint' },
     v.busy ? t('logLoading') : (v.err || (view && view.meta) || ''));
 
@@ -1522,12 +1627,12 @@ function renderLogView() {
   });
   qInp.addEventListener('input', () => {
     v.q = qInp.value;
-    const next = buildLogViewText(cur, v.q, v.showAll);
+    const next = buildLogViewText(cur, v.q, v.showAll, newest);
     pre.textContent = next.text || (v.q.trim() ? t('logNoMatch') : '');
     metaEl.textContent = next.meta || '';
   });
 
-  return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget && !v.busy) { state.logView = null; render(); } } },
+  return h('div', { class: 'modal-mask log-mask', onclick: (ev) => { if (ev.target === ev.currentTarget && !v.busy) { state.logView = null; render(); } } },
     h('div', { class: 'glass modal log-view' },
       h('div', { class: 'log-head' },
         h('div', {},
@@ -1551,6 +1656,10 @@ function renderLogView() {
             h('div', { class: 'log-main' },
               h('div', { class: 'log-toolbar' },
                 qInp,
+                h('button', {
+                  class: 'gbtn btn-sm' + (newest ? ' primary' : ''),
+                  onclick: () => { v.newestFirst = !newest; render(); },
+                }, newest ? t('logNewestFirst') : t('logOldestFirst')),
                 h('button', {
                   class: 'gbtn btn-sm' + (v.wrap ? ' primary' : ''),
                   onclick: () => { v.wrap = !v.wrap; render(); },
