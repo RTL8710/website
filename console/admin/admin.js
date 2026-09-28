@@ -1765,14 +1765,59 @@ function renderLogView() {
   );
 }
 
+function sanitizeFilePart(s) {
+  return String(s || '')
+    .replace(/[<>:"/\\|?*\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 72);
+}
+
+function diagStamp(iso) {
+  const d = new Date(iso || Date.now());
+  const t = Number.isNaN(d.getTime()) ? new Date() : d;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}-${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}`;
+}
+
+function origDiagExt(fileName, key) {
+  const orig = String(fileName || (key && String(key).split('/').pop()) || 'log.bin');
+  if (/\.tar\.gz$/i.test(orig)) return '.tar.gz';
+  if (/\.out\.gz$/i.test(orig)) return '.out.gz';
+  const i = orig.lastIndexOf('.');
+  return i >= 0 ? orig.slice(i) : '';
+}
+
+function diagDownloadName(item) {
+  const it = item || {};
+  const code = sanitizeFilePart(it.supportCode || it.code) || 'log';
+  const isDev = (it.source || 'app') === 'device';
+  const rawId = isDev ? (it.deviceId || it.userId) : it.userId;
+  const id = sanitizeFilePart(rawId);
+  const idSeg = id ? ((isDev ? 'dev-' : 'app-') + id) : (isDev ? 'device' : 'app');
+  return `${code}_${idSeg}_${diagStamp(it.lastModified)}${origDiagExt(it.fileName, it.key)}`;
+}
+
+function saveBlobAs(buf, name) {
+  const blob = new Blob([buf], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
 async function downloadDiagLog(item) {
   try {
     const creds = await resolvedCreds();
-    const path = String(item.key).split('/').map(encodeURIComponent).join('/');
-    const httpsUrl = `https://${S3_BUCKET}.s3.${COGNITO.region}.amazonaws.com/${path}`;
-    const signed = presignS3Get(Object.assign({ region: COGNITO.region }, creds), httpsUrl, 3600);
-    if (!signed || signed.indexOf('X-Amz-') < 0) throw new Error('预签名失败');
-    window.open(signed, '_blank', 'noopener');
+    const buf = await getS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key: item.key });
+    const name = diagDownloadName(item);
+    saveBlobAs(buf, name);
+    toast(name);
   } catch (e) {
     toast((e && e.message) || String(e), 'err');
   }
