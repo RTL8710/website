@@ -433,36 +433,86 @@ function viewOverview() {
   const p = (state.packages || []).length;
   const r = (state.records || []).length;
   const trunc = state.recordsMeta && state.recordsMeta.truncated;
-  const latest = (state.packages || [])[0];
-  return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, t('overview')), chip(getRegion().toUpperCase())),
-    h('div', { class: 'admin-sub' }, t('overviewSub')),
+  const logsN = (state.diagLogs || []).length;
+  const logsTrunc = state.diagLogsMeta && state.diagLogsMeta.truncated;
+  const pkgs = state.packages || [];
+  const latest = pkgs.find((x) => !isAppOtaType(x.upgradeDeviceType)) || pkgs[0];
+  const appN = pkgs.filter((x) => isAppOtaType(x.upgradeDeviceType)).length;
+  const rc = getRegion();
+  const mod = (icon, extraCls, k, v, s, onClick) => h('button', {
+    type: 'button',
+    class: 'logs-source' + (extraCls || ''),
+    onclick: onClick,
+  },
+    h('span', { class: 'logs-source-ico' }, fa(icon)),
+    h('span', { class: 'k' }, k),
+    h('span', { class: 'v num' }, String(v)),
+    h('span', { class: 's' }, s),
+  );
+  return h('div', { class: 'overview-page logs-page' },
     state._err ? h('div', { class: 'admin-msg err' }, state._err) : null,
-    h('div', { class: 'admin-grid-stats' },
-      stat(t('usersCount'), u, () => goTab('users')),
-      stat(t('devicesCount'), d, () => goTab('devices')),
-      stat(t('onlineCount'), online, () => { state.deviceFilter = 'online'; goTab('devices'); }),
-      stat(t('pkgsCount'), p, () => goTab('ota')),
-      stat(t('recordsCount'), r + (trunc ? '+' : ''), () => goTab('records')),
-      stat(t('logsCount'), (state.diagLogs || []).length + ((state.diagLogsMeta && state.diagLogsMeta.truncated) ? '+' : ''), () => goTab('logs')),
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('overviewEyebrow')),
+        h('h1', {}, t('overview')),
+        h('div', { class: 'logs-hero-sub' }, t('overviewSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(regionLabel(rc)),
+          chip(online + ' ' + t('online'), 'stat-online'),
+        ),
+      ),
+      h('div', { class: 'logs-source-grid' },
+        h('button', {
+          type: 'button',
+          class: 'logs-source on',
+          onclick: () => { state.deviceFilter = 'online'; goTab('devices'); },
+        },
+          h('span', { class: 'logs-source-ico' }, fa('fa-wifi')),
+          h('span', { class: 'k' }, t('onlineCount')),
+          h('span', { class: 'v num' }, String(online)),
+          h('span', { class: 's' }, d ? (online + ' / ' + d + ' ' + t('devicesCount')) : t('devicesEmpty')),
+        ),
+        h('button', {
+          type: 'button',
+          class: 'logs-source is-device' + (latest ? ' on' : ''),
+          onclick: () => { state.otaScope = 'device'; goTab('ota'); },
+        },
+          h('span', { class: 'logs-source-ico' }, fa('fa-rocket')),
+          h('span', { class: 'k' }, t('overviewLatestPkg')),
+          h('span', { class: 'v num' }, latest ? ('v' + (latest.upgradeDeviceVersion || '?')) : '—'),
+          h('span', { class: 's' }, latest
+            ? ((latest.upgradeDeviceType || '') + (latest.upgradeOtaTime ? ' · ' + logsRelTime(latest.upgradeOtaTime) : ''))
+            : t('overviewNoPkg')),
+        ),
+      ),
     ),
-    h('div', { class: 'glass admin-panel' },
-      h('div', { style: { fontWeight: 800, marginBottom: '6px' } }, t('commonOps')),
-      h('div', { class: 'faint', style: { fontSize: '12.5px', marginBottom: '12px' } },
-        latest
-          ? `云端最新包：${latest.upgradeDeviceType} v${latest.upgradeDeviceVersion || '?'} · ${latest.upgradeDevicePartion || ''} · ${latest.upgradeDescribe || ''}`
-          : '暂无升级包，请先在 OTA 页上传'),
-      h('div', { class: 'row-actions' },
-        h('button', { class: 'gbtn primary', onclick: () => goTab('devices') }, fa('fa-rocket'), ' 升级设备'),
-        h('button', { class: 'gbtn', onclick: () => goTab('ota') }, fa('fa-upload'), ' 上传升级包'),
-        h('button', { class: 'gbtn', onclick: () => refreshAll() }, fa('fa-rotate'), ' 刷新'),
+    h('div', { class: 'logs-source-grid trio' },
+      mod('fa-user', '', t('tabUsers'), u, t('usersCount'), () => goTab('users')),
+      mod('fa-robot', '', t('tabDevices'), d, t('devicesCount'), () => { state.deviceFilter = 'all'; goTab('devices'); }),
+      mod('fa-file-lines', '', t('tabLogs'), logsN + (logsTrunc ? '+' : ''), t('logsCount'), () => goTab('logs')),
+      mod('fa-cloud', ' is-device', t('tabRecords'), r + (trunc ? '+' : ''), t('recordsCount'), () => goTab('records')),
+      mod('fa-rocket', ' is-device', t('tabOta'), p, t('pkgsCount'), () => { state.otaScope = 'device'; goTab('ota'); }),
+      mod('fa-mobile-alt', '', t('otaScopeApp'),
+        appN,
+        t('pkgsCount'), () => { state.otaScope = 'app'; goTab('ota'); }),
+    ),
+    h('div', { class: 'glass ota-panel' },
+      h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-bolt')), t('commonOps')),
+      latest
+        ? h('div', { class: 'ota-latest' },
+            h('div', { class: 'faint', style: { fontSize: '11px', fontWeight: '800', letterSpacing: '.08em', textTransform: 'uppercase' } }, t('overviewLatestPkg')),
+            h('div', { class: 'v' }, 'v' + (latest.upgradeDeviceVersion || '?')),
+            h('div', { class: 's' },
+              (latest.upgradeDeviceType || '') + ' · ' + (latest.upgradeDevicePartion || '') + ' · ' + (latest.upgradeDescribe || '')),
+          )
+        : h('div', { class: 'ota-latest' }, h('div', { class: 's' }, t('overviewNoPkg'))),
+      h('div', { class: 'row-actions', style: { marginTop: '14px' } },
+        h('button', { class: 'gbtn primary', onclick: () => goTab('devices') }, fa('fa-rocket'), ' ' + t('upgradeDevices')),
+        h('button', { class: 'gbtn', onclick: () => goTab('ota') }, fa('fa-upload'), ' ' + t('uploadPkg')),
+        h('button', { class: 'gbtn', onclick: () => refreshAll() }, fa('fa-rotate'), ' ' + t('refresh')),
       ),
     ),
   );
-}
-function stat(k, v, onClick) {
-  return h('div', { class: 'glass stat-card', onclick: onClick },
-    h('div', { class: 'k' }, k), h('div', { class: 'v num' }, String(v)));
 }
 
 function studioSearch(ph) {

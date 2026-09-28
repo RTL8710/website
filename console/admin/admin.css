@@ -85,7 +85,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .th-sort:hover{color:var(--accent)}
 .th-sort.on{color:var(--accent)}
 
-.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page){max-width:1360px}
+.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page),.admin-main:has(.overview-page){max-width:1360px}
 
 /* ── Logs page: command studio ── */
 .logs-page{display:flex;flex-direction:column;gap:18px}
@@ -121,7 +121,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 }
 .logs-source.is-device .logs-source-ico,.logs-source-ico.is-device{background:rgba(56,189,248,.12);color:var(--accent2)}
 .logs-source .k{font-size:12px;font-weight:700;color:var(--text-md)}
-.logs-source .v{font-family:var(--font-display);font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--text-hi)}
+.logs-source .v{font-family:var(--font-display);font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--text-hi);max-width:100%;overflow-wrap:anywhere}
 .logs-source .s{font-size:11px;color:var(--text-lo);line-height:1.4}
 
 .logs-dock{
