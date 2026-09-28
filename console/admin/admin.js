@@ -839,12 +839,15 @@ function viewRecords() {
 
 
 const DEVICE_OTA_TYPES = ['smartRobot', 'smartIpcamera'];
-const APP_OTA_TYPES = ['robotApp', 'smartCameraApp', 'cardvApp', 'smartScreenApp', 'iosApp'];
+const APP_OTA_TYPES = ['smartCameraApp', 'robotApp', 'cardvApp', 'smartScreenApp', 'iosApp'];
+const DEFAULT_APP_OTA_TYPE = 'smartCameraApp';
+const DEFAULT_APP_OTA_DESC = '细节优化，提升用户体验。';
 function isAppOtaType(type) { return APP_OTA_TYPES.indexOf(String(type || '')) >= 0; }
 function ensureOtaScopeDefaults() {
   const u = state.upload;
   if (state.otaScope === 'app') {
-    if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+    if (!isAppOtaType(u.deviceType)) u.deviceType = DEFAULT_APP_OTA_TYPE;
+    if (!String(u.describe || '').trim()) u.describe = DEFAULT_APP_OTA_DESC;
     if (DEVICE_OTA_TYPES.indexOf(u.partition) >= 0 || ['system', 'website', 'model', 'config', 'all'].indexOf(u.partition) >= 0) {
       // keep android/ios if already set; else default android
       if (['android', 'ios', 'all'].indexOf(u.partition) < 0) u.partition = 'android';
@@ -880,7 +883,8 @@ function viewOta() {
         state.pkgFilterType = '';
         state.q = '';
         if (k === 'app') {
-          if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+          if (!isAppOtaType(u.deviceType)) u.deviceType = DEFAULT_APP_OTA_TYPE;
+          if (!String(u.describe || '').trim()) u.describe = DEFAULT_APP_OTA_DESC;
           if (['android', 'ios', 'all'].indexOf(u.partition) < 0) u.partition = 'android';
         } else if (isAppOtaType(u.deviceType)) {
           u.deviceType = 'smartRobot';
@@ -898,7 +902,7 @@ function viewOta() {
       const name = f.name || '';
       if (isApp) {
         if (/\.apk$/i.test(name)) {
-          if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+          if (!isAppOtaType(u.deviceType)) u.deviceType = DEFAULT_APP_OTA_TYPE;
           u.partition = 'android';
         }
         if (/ios|ipa/i.test(name)) { u.deviceType = 'iosApp'; u.partition = 'ios'; }
@@ -910,7 +914,7 @@ function viewOta() {
         const part = inferPart(name); if (part) u.partition = part;
       }
       const ver = inferVer(name); if (ver) u.version = ver;
-      if (!u.describe) u.describe = name;
+      if (!u.describe) u.describe = isApp ? DEFAULT_APP_OTA_DESC : name;
     }
     render();
   });
