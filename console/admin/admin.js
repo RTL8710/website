@@ -353,13 +353,7 @@ function shell(body) {
     class: state.tab === tb.id ? 'active' : '',
     onclick: () => goTab(tb.id),
   }, fa(tb.icon), tb.label)));
-  const sideHint = t('sideHint').split('\n');
-  const side = h('aside', { class: 'admin-side' },
-    h('div', { class: 'logo' }, h('span', { class: 'b' }), t('brandShort')),
-    nav,
-    h('div', { class: 'faint', style: { fontSize: '11px', padding: '18px 10px 0', lineHeight: '1.55' } },
-      sideHint[0] || '', h('br'), sideHint[1] || ''),
-  );
+  const side = h('aside', { class: 'admin-side' }, nav);
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
