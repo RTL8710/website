@@ -9,7 +9,7 @@ import {
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
 } from '../lib/graphql.js';
-import { putS3Object, presignS3Get } from '../lib/sigv4.js';
+import { putS3Object, presignS3Get, listS3Objects, deleteS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
@@ -27,6 +27,8 @@ const state = {
   packages: null,
   records: null,
   recordsMeta: null,
+  diagLogs: null,
+  diagLogsMeta: null,
   q: '',
   deviceFilter: 'all', // all | online | offline
   deviceSort: 'updated', // updated | online
@@ -34,6 +36,7 @@ const state = {
   recDeviceId: '',
   recDays: 7,
   pkgFilterType: '',
+  otaScope: 'device', // device | app
   toast: null,
   confirm: null,
   upload: {
@@ -54,6 +57,7 @@ function tabs() {
 function clearAdminDataCache() {
   state.users = state.devices = state.binds = state.packages = state.records = null;
   state.recordsMeta = null;
+  state.diagLogs = state.diagLogsMeta = null;
   state.q = '';
   state.deviceFilter = 'all';
   state.deviceSort = 'updated';
@@ -364,6 +368,7 @@ async function ensure(kind) {
   }
   if (kind === 'packages' && !state.packages) state.packages = await listDeviceUpgrades();
   if (kind === 'records' && state.records == null) await loadRecords();
+  if (kind === 'diagLogs' && state.diagLogs == null) await loadDiagLogs();
 }
 
 async function loadRecords() {
@@ -390,10 +395,14 @@ async function loadTab(id) {
       if (state.records == null) {
         try { await loadRecords(); } catch (_) { state.records = []; }
       }
+      if (state.diagLogs == null) {
+        try { await loadDiagLogs(); } catch (_) { state.diagLogs = []; }
+      }
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
     else if (id === 'ota') { await ensure('devices'); await ensure('packages'); }
+    else if (id === 'logs') { await ensure('diagLogs'); }
   } catch (e) {
     console.error('[admin]', id, e);
     state._err = (e && e.message) || String(e);
@@ -432,6 +441,7 @@ function viewOverview() {
       stat(t('onlineCount'), online, () => { state.deviceFilter = 'online'; goTab('devices'); }),
       stat(t('pkgsCount'), p, () => goTab('ota')),
       stat(t('recordsCount'), r + (trunc ? '+' : ''), () => goTab('records')),
+      stat(t('logsCount'), (state.diagLogs || []).length + ((state.diagLogsMeta && state.diagLogsMeta.truncated) ? '+' : ''), () => goTab('logs')),
     ),
     h('div', { class: 'glass admin-panel' },
       h('div', { style: { fontWeight: 800, marginBottom: '6px' } }, t('commonOps')),
@@ -827,147 +837,252 @@ function viewRecords() {
   );
 }
 
+
+const DEVICE_OTA_TYPES = ['smartRobot', 'smartIpcamera'];
+const APP_OTA_TYPES = ['robotApp', 'smartCameraApp', 'cardvApp', 'smartScreenApp', 'iosApp'];
+function isAppOtaType(type) { return APP_OTA_TYPES.indexOf(String(type || '')) >= 0; }
+function ensureOtaScopeDefaults() {
+  const u = state.upload;
+  if (state.otaScope === 'app') {
+    if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+    if (DEVICE_OTA_TYPES.indexOf(u.partition) >= 0 || ['system', 'website', 'model', 'config', 'all'].indexOf(u.partition) >= 0) {
+      // keep android/ios if already set; else default android
+      if (['android', 'ios', 'all'].indexOf(u.partition) < 0) u.partition = 'android';
+    }
+    if (!u.mode) u.mode = 'normal';
+  } else if (isAppOtaType(u.deviceType)) {
+    u.deviceType = 'smartRobot';
+    if (['android', 'ios'].indexOf(u.partition) >= 0) u.partition = 'system';
+  }
+}
+
 function viewOta() {
   const u = state.upload;
   const ug = state.upgrade;
   const devices = state.devices || [];
   const packages = state.packages || [];
-  ensureDefaultUpgradeSelection();
-  let list = packages;
-  if (state.pkgFilterType) list = list.filter((p) => p.upgradeDeviceType === state.pkgFilterType);
-  list = list.filter((p) => matchQ([p.upgradeDeviceVersion, p.upgradeDescribe, p.upgradeFileUrl, p.upgradeDeviceType, p.upgradeDevicePartion]));
+  ensureOtaScopeDefaults();
+  const isApp = state.otaScope === 'app';
+  if (!isApp) ensureDefaultUpgradeSelection();
 
-  const fileInput = h('input', { type: 'file' }); // 不设 accept：Chrome 对 .tar.gz 的 accept 过滤常误伤
+  let list = packages.filter((p) => {
+    const typ = p.upgradeDeviceType || '';
+    return isApp ? isAppOtaType(typ) : !isAppOtaType(typ);
+  });
+  if (state.pkgFilterType) list = list.filter((p) => p.upgradeDeviceType === state.pkgFilterType);
+  list = list.filter((p) => matchQ([p.upgradeDeviceVersion, p.upgradeDescribe, p.upgradeFileUrl, p.upgradeDeviceType, p.upgradeDevicePartion, p.upgradeMode]));
+
+  const scopeSeg = h('div', { class: 'seg' },
+    ...[['device', t('otaScopeDevice')], ['app', t('otaScopeApp')]].map(([k, lab]) => h('button', {
+      class: state.otaScope === k ? 'on' : '',
+      onclick: () => {
+        state.otaScope = k;
+        state.pkgFilterType = '';
+        state.q = '';
+        if (k === 'app') {
+          if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+          if (['android', 'ios', 'all'].indexOf(u.partition) < 0) u.partition = 'android';
+        } else if (isAppOtaType(u.deviceType)) {
+          u.deviceType = 'smartRobot';
+          u.partition = 'system';
+        }
+        render();
+      },
+    }, lab)));
+
+  const fileInput = h('input', { type: 'file', accept: isApp ? '.apk,application/vnd.android.package-archive' : undefined });
   fileInput.addEventListener('change', () => {
     const f = fileInput.files && fileInput.files[0];
     u.file = f || null;
     if (f) {
-      if (looksRobot(f.name)) u.deviceType = 'smartRobot';
-      const part = inferPart(f.name); if (part) u.partition = part;
-      const ver = inferVer(f.name); if (ver) u.version = ver;
-      if (!u.describe) u.describe = f.name;
+      const name = f.name || '';
+      if (isApp) {
+        if (/\.apk$/i.test(name)) {
+          if (!isAppOtaType(u.deviceType)) u.deviceType = 'robotApp';
+          u.partition = 'android';
+        }
+        if (/ios|ipa/i.test(name)) { u.deviceType = 'iosApp'; u.partition = 'ios'; }
+        if (/robot/i.test(name) && isAppOtaType('robotApp')) u.deviceType = 'robotApp';
+        if (/camera|ipc/i.test(name)) u.deviceType = 'smartCameraApp';
+        if (/cardv/i.test(name)) u.deviceType = 'cardvApp';
+      } else {
+        if (looksRobot(name)) u.deviceType = 'smartRobot';
+        const part = inferPart(name); if (part) u.partition = part;
+      }
+      const ver = inferVer(name); if (ver) u.version = ver;
+      if (!u.describe) u.describe = name;
     }
     render();
   });
-  const typeSel = h('select', {}, ...['smartRobot', 'smartIpcamera'].map((t) => h('option', { value: t, selected: u.deviceType === t }, t)));
-  typeSel.addEventListener('change', () => { u.deviceType = typeSel.value; });
-  const partSel = h('select', {}, ...['system', 'website', 'model', 'config', 'all'].map((t) => h('option', { value: t, selected: u.partition === t }, t)));
+
+  const typeOptions = isApp ? APP_OTA_TYPES : DEVICE_OTA_TYPES;
+  const typeSel = h('select', {}, ...typeOptions.map((typ) => h('option', { value: typ, selected: u.deviceType === typ }, typ)));
+  typeSel.addEventListener('change', () => { u.deviceType = typeSel.value; render(); });
+
+  const partOptions = isApp ? ['android', 'ios', 'all'] : ['system', 'website', 'model', 'config', 'all'];
+  const partSel = h('select', {}, ...partOptions.map((part) => h('option', { value: part, selected: u.partition === part }, part)));
   partSel.addEventListener('change', () => { u.partition = partSel.value; });
-  const verIn = h('input', { value: u.version, placeholder: '1.0.27' });
+
+  const modeSel = h('select', {}, ...['normal', 'force', 'night'].map((m) => h('option', { value: m, selected: (u.mode || 'normal') === m }, m)));
+  modeSel.addEventListener('change', () => { u.mode = modeSel.value; });
+
+  const verIn = h('input', { value: u.version, placeholder: isApp ? '1.0.0+1' : '1.0.27' });
   verIn.addEventListener('input', () => { u.version = verIn.value; });
   const descIn = h('textarea', { placeholder: '升级说明' }, u.describe);
   descIn.addEventListener('input', () => { u.describe = descIn.value; });
 
-  const onlineDevs = devices.filter((d) => d.online);
-  const onlineReady = devices.filter((d) => d.online && d.uuid);
-  const devSel = h('select', { style: { width: '100%' } },
-    h('option', { value: '' }, `选择设备（在线 ${onlineDevs.length}，可升级 ${onlineReady.length}）…`),
-    ...devices.map((d) => h('option', { value: d.id, selected: ug.deviceId === d.id },
-      `${d.online ? '●' : '○'} ${d.name || shortId(d.id)} · v${d.firmware || '?'} ${d.uuid ? '' : '·缺UUID'}`)));
-  devSel.addEventListener('change', () => {
-    ug.deviceId = devSel.value;
-    const d = devices.find((x) => x.id === ug.deviceId);
-    if (d) {
-      const latest = latestPackageForType(resolveDeviceType(d));
-      if (latest) { ug.packageId = latest.id; ug.partition = latest.upgradeDevicePartion || ''; }
-    }
-    render();
-  });
-  const latestIds = new Set();
-  ['smartRobot', 'smartIpcamera'].forEach((t) => { const L = latestPackageForType(t); if (L) latestIds.add(L.id); });
-  const pkgSel = h('select', { style: { width: '100%' } },
-    h('option', { value: '' }, t('pickPkg')),
-    ...packages.slice(0, 80).map((p) => h('option', { value: p.id, selected: ug.packageId === p.id },
-      `${latestIds.has(p.id) ? t('latestMark') : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
-  pkgSel.addEventListener('change', () => {
-    ug.packageId = pkgSel.value;
-    const p = packages.find((x) => x.id === ug.packageId);
-    if (p) ug.partition = p.upgradeDevicePartion || '';
-    render();
-  });
-  const partOver = h('select', {},
-    ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg'))));
-  partOver.addEventListener('change', () => { ug.partition = partOver.value; });
-
   const filterType = h('select', {},
-    h('option', { value: '' }, '全部机型'),
-    ...['smartRobot', 'smartIpcamera'].map((t) => h('option', { value: t, selected: state.pkgFilterType === t }, t)));
+    h('option', { value: '' }, isApp ? t('allAppTypes') : '全部机型'),
+    ...typeOptions.map((typ) => h('option', { value: typ, selected: state.pkgFilterType === typ }, typ)));
   filterType.addEventListener('change', () => { state.pkgFilterType = filterType.value; render(); });
 
-  return h('div', {},
-    h('div', { class: 'admin-head' }, h('h1', {}, t('ota')), chip(String(packages.length) + ' 包')),
-    h('div', { class: 'admin-sub' }, t('otaSub')),
-    h('div', { class: 'ota-grid' },
-      h('div', { class: 'glass admin-panel' },
-        h('div', { class: 'step' }, h('b', {}, '1'), t('stepUpload')),
-        h('div', { class: 'admin-form' },
-          h('div', { class: 'admin-field span2' }, h('label', {}, t('file')), fileInput,
-            h('div', { class: 'faint', style: { marginTop: '4px' } },
-              u.file ? `${u.file.name} (${Math.round(u.file.size / 1024)} KB)` : '支持 robot_*.tar.gz / .tgz（选不到时改用「所有文件」）')),
-          h('div', { class: 'admin-field' }, h('label', {}, t('deviceType')), typeSel),
-          h('div', { class: 'admin-field' }, h('label', {}, t('partition')), partSel),
-          h('div', { class: 'admin-field' }, h('label', {}, t('version')), verIn),
-          h('div', { class: 'admin-field span2' }, h('label', {}, t('describe')), descIn),
-        ),
-        h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
-        h('div', { class: 'row-actions', style: { marginTop: '12px' } },
-          h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
-            u.busy ? `${t('uploading')} ${u.progress}%` : t('btnUpload'))),
-        u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
-        u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
-      ),
-      h('div', { class: 'glass admin-panel' },
-        h('div', { class: 'step' }, h('b', {}, '2'), t('stepPush')),
-        h('div', { class: 'admin-form' },
-          h('div', { class: 'admin-field span2' }, h('label', {}, t('device')), devSel),
-          h('div', { class: 'admin-field span2' }, h('label', {}, t('package')), pkgSel),
-          h('div', { class: 'admin-field' }, h('label', {}, t('partOverride')), partOver),
-        ),
-        h('div', { class: 'row-actions', style: { marginTop: '12px' } },
-          h('button', {
-            class: 'gbtn primary', disabled: ug.busy,
-            onclick: () => {
-              const dev = devices.find((d) => d.id === ug.deviceId);
-              const pkg = packages.find((p) => p.id === ug.packageId);
-              if (!dev || !pkg) { toast(t('pickDevicePkg'), 'err'); return; }
-              state.confirm = {
-                title: t('confirmUpgrade'),
-                body: `设备：${dev.name}\n包：v${pkg.upgradeDeviceVersion} ${pkg.upgradeDevicePartion || ''}\n${pkg.upgradeDescribe || ''}`,
-                okText: t('confirmUpgradeOk'),
-                onOk: async () => { state.confirm = null; render(); await doRemoteUpgrade(); },
-              };
-              render();
-            },
-          }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
-        (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field span2', style: { marginTop: '10px' } },
-          h('label', {}, t('upgradeStatus')),
-          h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
-          h('div', {
-            class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
-            style: { marginTop: '8px' },
-          }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
-        ) : null,
-        ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
-        ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
-        h('div', { class: 'admin-msg info' }, 'S3 预签名 2h → IoT 下发后监听 updateRemoteOtaStatusCommand 进度（与设备页一致）'),
-      ),
+  const uploadPanel = h('div', { class: 'glass admin-panel' },
+    h('div', { class: 'step' }, h('b', {}, '1'), isApp ? t('btnUploadApp') : t('stepUpload')),
+    h('div', { class: 'admin-form' },
+      h('div', { class: 'admin-field span2' }, h('label', {}, t('file')), fileInput,
+        h('div', { class: 'faint', style: { marginTop: '4px' } },
+          u.file
+            ? `${u.file.name} (${Math.round(u.file.size / 1024)} KB)`
+            : (isApp ? t('otaAppFileHint') : '支持 robot_*.tar.gz / .tgz（选不到时改用「所有文件」）'))),
+      h('div', { class: 'admin-field' }, h('label', {}, isApp ? t('appType') : t('deviceType')), typeSel),
+      h('div', { class: 'admin-field' }, h('label', {}, t('partition')), partSel),
+      h('div', { class: 'admin-field' }, h('label', {}, t('upgradeMode')), modeSel),
+      h('div', { class: 'admin-field' }, h('label', {}, t('version')), verIn),
+      h('div', { class: 'admin-field span2' }, h('label', {}, t('describe')), descIn),
     ),
+    h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
+    h('div', { class: 'row-actions', style: { marginTop: '12px' } },
+      h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
+        u.busy ? `${t('uploading')} ${u.progress}%` : (isApp ? t('btnUploadApp') : t('btnUpload')))),
+    u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
+    u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
+  );
+
+  let secondPanel;
+  if (isApp) {
+    const latestApp = latestPackageForType(u.deviceType);
+    secondPanel = h('div', { class: 'glass admin-panel' },
+      h('div', { class: 'step' }, h('b', {}, '2'), t('otaScopeApp')),
+      h('div', { class: 'admin-msg info' }, t('otaAppHint')),
+      h('div', { class: 'faint', style: { marginTop: '12px', fontSize: '12.5px', lineHeight: '1.55' } },
+        latestApp
+          ? `当前类型最新：${latestApp.upgradeDeviceType} v${latestApp.upgradeDeviceVersion || '?'} · ${latestApp.upgradeMode || 'normal'} · ${latestApp.upgradeDescribe || ''}`
+          : '该 App 类型暂无云端包，上传后客户端即可 checkCloud'),
+      h('div', { class: 'row-actions', style: { marginTop: '14px' } },
+        h('button', { class: 'gbtn', onclick: async () => { state.packages = null; await loadTab('ota'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+      ),
+    );
+  } else {
+    const onlineDevs = devices.filter((d) => d.online);
+    const onlineReady = devices.filter((d) => d.online && d.uuid);
+    const devSel = h('select', { style: { width: '100%' } },
+      h('option', { value: '' }, `选择设备（在线 ${onlineDevs.length}，可升级 ${onlineReady.length}）…`),
+      ...devices.map((d) => h('option', { value: d.id, selected: ug.deviceId === d.id },
+        `${d.online ? '●' : '○'} ${d.name || shortId(d.id)} · v${d.firmware || '?'} ${d.uuid ? '' : '·缺UUID'}`)));
+    devSel.addEventListener('change', () => {
+      ug.deviceId = devSel.value;
+      const d = devices.find((x) => x.id === ug.deviceId);
+      if (d) {
+        const latest = latestPackageForType(resolveDeviceType(d));
+        if (latest) { ug.packageId = latest.id; ug.partition = latest.upgradeDevicePartion || ''; }
+      }
+      render();
+    });
+    const latestIds = new Set();
+    DEVICE_OTA_TYPES.forEach((typ) => { const L = latestPackageForType(typ); if (L) latestIds.add(L.id); });
+    const devicePkgs = packages.filter((p) => !isAppOtaType(p.upgradeDeviceType));
+    const pkgSel = h('select', { style: { width: '100%' } },
+      h('option', { value: '' }, t('pickPkg')),
+      ...devicePkgs.slice(0, 80).map((p) => h('option', { value: p.id, selected: ug.packageId === p.id },
+        `${latestIds.has(p.id) ? t('latestMark') : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
+    pkgSel.addEventListener('change', () => {
+      ug.packageId = pkgSel.value;
+      const p = packages.find((x) => x.id === ug.packageId);
+      if (p) ug.partition = p.upgradeDevicePartion || '';
+      render();
+    });
+    const partOver = h('select', {},
+      ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg'))));
+    partOver.addEventListener('change', () => { ug.partition = partOver.value; });
+
+    secondPanel = h('div', { class: 'glass admin-panel' },
+      h('div', { class: 'step' }, h('b', {}, '2'), t('stepPush')),
+      h('div', { class: 'admin-form' },
+        h('div', { class: 'admin-field span2' }, h('label', {}, t('device')), devSel),
+        h('div', { class: 'admin-field span2' }, h('label', {}, t('package')), pkgSel),
+        h('div', { class: 'admin-field' }, h('label', {}, t('partOverride')), partOver),
+      ),
+      h('div', { class: 'row-actions', style: { marginTop: '12px' } },
+        h('button', {
+          class: 'gbtn primary', disabled: ug.busy,
+          onclick: () => {
+            const dev = devices.find((d) => d.id === ug.deviceId);
+            const pkg = packages.find((p) => p.id === ug.packageId);
+            if (!dev || !pkg) { toast(t('pickDevicePkg'), 'err'); return; }
+            state.confirm = {
+              title: t('confirmUpgrade'),
+              body: `设备：${dev.name}\n包：v${pkg.upgradeDeviceVersion} ${pkg.upgradeDevicePartion || ''}\n${pkg.upgradeDescribe || ''}`,
+              okText: t('confirmUpgradeOk'),
+              onOk: async () => { state.confirm = null; render(); await doRemoteUpgrade(); },
+            };
+            render();
+          },
+        }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
+      (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field span2', style: { marginTop: '10px' } },
+        h('label', {}, t('upgradeStatus')),
+        h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
+        h('div', {
+          class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
+          style: { marginTop: '8px' },
+        }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
+      ) : null,
+      ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
+      ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
+      h('div', { class: 'admin-msg info' }, 'S3 预签名 2h → IoT 下发后监听 updateRemoteOtaStatusCommand 进度（与设备页一致）'),
+    );
+  }
+
+  return h('div', {},
+    h('div', { class: 'admin-head' },
+      h('h1', {}, t('ota')),
+      chip(String(list.length) + (isApp ? ' App' : ' 包')),
+      scopeSeg,
+    ),
+    h('div', { class: 'admin-sub' }, isApp ? t('otaAppSub') : t('otaSub')),
+    h('div', { class: 'ota-grid' }, uploadPanel, secondPanel),
     h('div', { class: 'admin-toolbar', style: { marginTop: '8px' } },
-      searchBox(t('searchPkgs')), filterType,
+      searchBox(isApp ? t('searchAppPkgs') : t('searchPkgs')), filterType,
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; await loadTab('ota'); } }, t('refresh'))),
-    !state.packages ? loading('加载升级包…') : tableWrap(
-      ['时间', '机型', '版本', '分区', '说明', 'S3', '操作'],
-      list.slice(0, 100).map((p) => [
-        fmt(p.upgradeOtaTime || p.createdAt),
-        p.upgradeDeviceType || '—', p.upgradeDeviceVersion || '—', p.upgradeDevicePartion || '—',
-        p.upgradeDescribe || '—',
-        copyable(p.upgradeFileUrl, p.upgradeFileUrl),
-        h('button', { class: 'gbtn primary btn-sm', onclick: () => {
-          ug.packageId = p.id; ug.partition = p.upgradeDevicePartion || '';
-          toast('已选中升级包，请在上方选设备');
-          render();
-        } }, '选用'),
-      ]),
+    !state.packages ? loading('加载升级包…') : (
+      list.length
+        ? tableWrap(
+          isApp
+            ? ['时间', t('appType'), t('version'), t('partition'), t('upgradeMode'), t('describe'), 'S3']
+            : ['时间', '机型', '版本', '分区', '说明', 'S3', '操作'],
+          list.slice(0, 100).map((pkg) => {
+            const cells = [
+              fmt(pkg.upgradeOtaTime || pkg.createdAt),
+              pkg.upgradeDeviceType || '—',
+              pkg.upgradeDeviceVersion || '—',
+              pkg.upgradeDevicePartion || '—',
+            ];
+            if (isApp) {
+              cells.push(pkg.upgradeMode || 'normal', pkg.upgradeDescribe || '—', copyable(pkg.upgradeFileUrl, pkg.upgradeFileUrl));
+            } else {
+              cells.push(
+                pkg.upgradeDescribe || '—',
+                copyable(pkg.upgradeFileUrl, pkg.upgradeFileUrl),
+                h('button', { class: 'gbtn primary btn-sm', onclick: () => {
+                  ug.packageId = pkg.id; ug.partition = pkg.upgradeDevicePartion || '';
+                  toast('已选中升级包，请在上方选设备');
+                  render();
+                } }, '选用'),
+              );
+            }
+            return cells;
+          }),
+        )
+        : emptyState(isApp ? t('otaAppListEmpty') : '无匹配数据')
     ),
   );
 }
@@ -978,14 +1093,18 @@ async function doUpload() {
   if (!u.file) { u.err = '请选择文件'; render(); return; }
   if (!u.version.trim()) { u.err = '请填写版本'; render(); return; }
   if (!u.describe.trim()) { u.err = '请填写说明'; render(); return; }
+  if (state.otaScope === 'app' && !isAppOtaType(u.deviceType)) {
+    u.err = '请选择 App 类型（如 robotApp）'; render(); return;
+  }
   u.busy = true; u.progress = 0; render();
   try {
     const creds = await resolvedCreds();
     if (!creds.accessKeyId) throw new Error('无临时凭证，请重新登录');
     const key = `public/${u.upgradeType}/${u.deviceType}/${u.file.name}`;
+    const isApk = /\.apk$/i.test(u.file.name || '');
     await putS3Object(creds, {
       bucket: S3_BUCKET, region: COGNITO.region, key, body: u.file,
-      contentType: 'application/octet-stream',
+      contentType: isApk ? 'application/vnd.android.package-archive' : 'application/octet-stream',
       onProgress: (p) => { u.progress = p; render(); },
     });
     const created = await createDeviceUpgrade({
@@ -1089,12 +1208,151 @@ async function doRemoteUpgrade() {
   }
 }
 
+
+const DIAG_PREFIX = 'public/diagnostics/';
+
+function parseDiagKey(key) {
+  // public/diagnostics/{userId}/{code}/{fileName}
+  const parts = String(key || '').split('/').filter(Boolean);
+  const i = parts.indexOf('diagnostics');
+  if (i < 0 || parts.length < i + 3) {
+    return { userId: '', code: '', fileName: parts[parts.length - 1] || key, supportCode: '' };
+  }
+  const userId = parts[i + 1] || '';
+  const code = parts[i + 2] || '';
+  const fileName = parts.slice(i + 3).join('/') || '';
+  return { userId, code, fileName, supportCode: code ? ('DIAG-' + code) : '' };
+}
+
+function fmtBytes(n) {
+  const v = Number(n) || 0;
+  if (v < 1024) return v + ' B';
+  if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+  return (v / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+async function loadDiagLogs(opts) {
+  const o = opts || {};
+  const creds = await resolvedCreds();
+  if (!creds || !creds.accessKeyId) throw new Error('无临时凭证，请重新登录');
+  const append = !!o.append && Array.isArray(state.diagLogs);
+  const token = append && state.diagLogsMeta ? state.diagLogsMeta.nextToken : '';
+  const res = await listS3Objects(creds, {
+    bucket: S3_BUCKET,
+    region: COGNITO.region,
+    prefix: DIAG_PREFIX,
+    continuationToken: token || undefined,
+    maxKeys: 200,
+  });
+  const mapped = (res.items || [])
+    .filter((it) => it.key && !it.key.endsWith('/'))
+    .map((it) => {
+      const meta = parseDiagKey(it.key);
+      return Object.assign({}, it, meta);
+    });
+  state.diagLogs = append ? (state.diagLogs || []).concat(mapped) : mapped;
+  state.diagLogsMeta = { nextToken: res.nextToken || '', truncated: !!res.truncated };
+}
+
+async function downloadDiagLog(item) {
+  try {
+    const creds = await resolvedCreds();
+    const path = String(item.key).split('/').map(encodeURIComponent).join('/');
+    const httpsUrl = `https://${S3_BUCKET}.s3.${COGNITO.region}.amazonaws.com/${path}`;
+    const signed = presignS3Get(Object.assign({ region: COGNITO.region }, creds), httpsUrl, 3600);
+    if (!signed || signed.indexOf('X-Amz-') < 0) throw new Error('预签名失败');
+    window.open(signed, '_blank', 'noopener');
+  } catch (e) {
+    toast((e && e.message) || String(e), 'err');
+  }
+}
+
+function askDeleteDiagLog(item) {
+  state.confirm = {
+    title: t('confirmDelLog'),
+    body: (item.supportCode || item.code || item.key) + '\n' + (item.fileName || item.key),
+    okText: t('confirmDelOk'),
+    onOk: async () => {
+      state.confirm = null; render();
+      try {
+        const creds = await resolvedCreds();
+        await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key: item.key });
+        state.diagLogs = (state.diagLogs || []).filter((x) => x.key !== item.key);
+        toast(t('dataRefreshed'));
+      } catch (e) {
+        toast((e && e.message) || String(e), 'err');
+      }
+      render();
+    },
+  };
+  render();
+}
+
+function viewLogs() {
+  let rows = (state.diagLogs || []).slice();
+  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.fileName, r.key]));
+  rows.sort((a, b) => {
+    const ta = Date.parse(a.lastModified || '') || 0;
+    const tb = Date.parse(b.lastModified || '') || 0;
+    return tb - ta;
+  });
+  const meta = state.diagLogsMeta || {};
+  return h('div', {},
+    h('div', { class: 'admin-head' },
+      h('h1', {}, t('logs')),
+      chip(String(rows.length)),
+      meta.truncated ? chip(t('logsTrunc'), 'stat-offline') : null,
+    ),
+    h('div', { class: 'admin-sub' }, t('logsSub')),
+    h('div', { class: 'admin-toolbar' },
+      searchBox(t('searchLogs')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => {
+        state.diagLogs = null; state.diagLogsMeta = null; render();
+        try { await loadDiagLogs(); toast(t('dataRefreshed')); }
+        catch (e) { toast((e && e.message) || String(e), 'err'); }
+        render();
+      } }, t('refresh')),
+      meta.nextToken ? h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
+        try { await loadDiagLogs({ append: true }); toast(t('dataRefreshed')); }
+        catch (e) { toast((e && e.message) || String(e), 'err'); }
+        render();
+      } }, t('logsLoadMore')) : null,
+    ),
+    state.loadingTab || state.diagLogs == null
+      ? loading('…')
+      : (!rows.length
+        ? emptyState(t('logsEmpty'))
+        : tableWrap(
+          [t('colIndex'), t('colCode'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')],
+          rows.slice(0, 500).map((r, i) => [
+            h('span', { class: 'num faint' }, String(i + 1)),
+            r.supportCode
+              ? h('button', {
+                  class: 'gbtn btn-sm',
+                  title: t('copyCode'),
+                  onclick: () => copyText(r.supportCode),
+                }, r.supportCode)
+              : '—',
+            copyable(r.userId || '—'),
+            h('span', { class: 'faint', title: r.key }, r.fileName || r.key),
+            fmtBytes(r.size),
+            fmt(r.lastModified),
+            h('div', { class: 'row-actions' },
+              h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(r) }, t('download')),
+              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDiagLog(r) }, t('delete')),
+            ),
+          ]),
+        )),
+  );
+}
+
 function render() {
   let body;
   if (state.tab === 'overview') body = viewOverview();
   else if (state.tab === 'users') body = viewUsers();
   else if (state.tab === 'devices') body = viewDevices();
   else if (state.tab === 'records') body = viewRecords();
+  else if (state.tab === 'logs') body = viewLogs();
   else body = viewOta();
   shell(body);
 }

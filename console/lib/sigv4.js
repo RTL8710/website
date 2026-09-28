@@ -114,3 +114,96 @@ export function putS3Object(creds, { bucket, region, key, body, contentType, onP
     xhr.send(body);
   });
 }
+
+function _s3CanonicalQuery(params) {
+  const enc = (v) => encodeURIComponent(String(v)).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  return Object.keys(params)
+    .filter((k) => params[k] != null && params[k] !== '')
+    .sort()
+    .map((k) => enc(k) + '=' + enc(params[k]))
+    .join('&');
+}
+
+function _s3SignHeaders(creds, { method, host, path, query, region, payloadHash }) {
+  const C = window.CryptoJS;
+  const hmac = (key, data) => C.HmacSHA256(data, key);
+  const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amz.slice(0, 8);
+  const scope = `${date}/${region}/s3/aws4_request`;
+  const headers = {
+    host,
+    'x-amz-content-sha256': payloadHash || 'UNSIGNED-PAYLOAD',
+    'x-amz-date': amz,
+  };
+  if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
+  const signed = Object.keys(headers).sort();
+  const signedHeaders = signed.join(';');
+  const canonHeaders = signed.map((k) => k + ':' + headers[k] + '\n').join('');
+  const qs = query || '';
+  const canon = `${method}\n${path}\n${qs}\n${canonHeaders}\n${signedHeaders}\n${headers['x-amz-content-sha256']}`;
+  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${C.SHA256(canon).toString(C.enc.Hex)}`;
+  const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), 's3'), 'aws4_request');
+  const sig = hmac(kSigning, sts).toString(C.enc.Hex);
+  const auth = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
+  return { amz, auth, headers };
+}
+
+/** ListObjectsV2（prefix 翻页）。返回 { items:[{key,size,lastModified,etag}], nextToken, truncated } */
+export async function listS3Objects(creds, { bucket, region, prefix, continuationToken, maxKeys }) {
+  const C = window.CryptoJS;
+  if (!C || !creds || !creds.accessKeyId) throw new Error('缺少凭证或 CryptoJS');
+  const host = `${bucket}.s3.${region}.amazonaws.com`;
+  const params = {
+    'list-type': '2',
+    'max-keys': String(Math.max(1, Math.min(Number(maxKeys) || 200, 1000))),
+  };
+  if (prefix) params.prefix = prefix;
+  if (continuationToken) params['continuation-token'] = continuationToken;
+  const qs = _s3CanonicalQuery(params);
+  const { amz, auth } = _s3SignHeaders(creds, {
+    method: 'GET', host, path: '/', query: qs, region, payloadHash: 'UNSIGNED-PAYLOAD',
+  });
+  const h = {
+    Authorization: auth,
+    'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+    'x-amz-date': amz,
+  };
+  if (creds.sessionToken) h['x-amz-security-token'] = creds.sessionToken;
+  const r = await fetch(`https://${host}/?${qs}`, { method: 'GET', headers: h });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`S3 List ${r.status}: ${text.slice(0, 240)}`);
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  const err = doc.querySelector('Error Code');
+  if (err) throw new Error(`S3 List: ${err.textContent} ${(doc.querySelector('Message') || {}).textContent || ''}`);
+  const items = [...doc.querySelectorAll('Contents')].map((node) => ({
+    key: (node.querySelector('Key') || {}).textContent || '',
+    size: Number((node.querySelector('Size') || {}).textContent || 0),
+    lastModified: (node.querySelector('LastModified') || {}).textContent || '',
+    etag: ((node.querySelector('ETag') || {}).textContent || '').replace(/"/g, ''),
+  })).filter((x) => x.key);
+  const truncated = ((doc.querySelector('IsTruncated') || {}).textContent || '').toLowerCase() === 'true';
+  const nextToken = (doc.querySelector('NextContinuationToken') || {}).textContent || '';
+  return { items, nextToken: truncated ? nextToken : '', truncated };
+}
+
+/** 删除单个对象 */
+export async function deleteS3Object(creds, { bucket, region, key }) {
+  const C = window.CryptoJS;
+  if (!C || !creds || !creds.accessKeyId) throw new Error('缺少凭证或 CryptoJS');
+  if (!key) throw new Error('缺少 key');
+  const host = `${bucket}.s3.${region}.amazonaws.com`;
+  const path = '/' + String(key).split('/').map(encodeURIComponent).join('/');
+  const { amz, auth } = _s3SignHeaders(creds, {
+    method: 'DELETE', host, path, query: '', region, payloadHash: 'UNSIGNED-PAYLOAD',
+  });
+  const h = {
+    Authorization: auth,
+    'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+    'x-amz-date': amz,
+  };
+  if (creds.sessionToken) h['x-amz-security-token'] = creds.sessionToken;
+  const r = await fetch(`https://${host}${path}`, { method: 'DELETE', headers: h });
+  if (r.status === 204 || r.status === 200) return { key };
+  const text = await r.text();
+  throw new Error(`S3 DELETE ${r.status}: ${text.slice(0, 240)}`);
+}
