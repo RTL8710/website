@@ -29,6 +29,7 @@ const state = {
   recordsMeta: null,
   diagLogs: null,
   diagLogsMeta: null,
+  logsSource: 'app', // app | device
   q: '',
   deviceFilter: 'all', // all | online | offline
   deviceSort: 'updated', // updated | online
@@ -59,6 +60,7 @@ function clearAdminDataCache() {
   state.users = state.devices = state.binds = state.packages = state.records = null;
   state.recordsMeta = null;
   state.diagLogs = state.diagLogsMeta = null;
+  // keep logsSource
   state.q = '';
   state.deviceFilter = 'all';
   state.deviceSort = 'updated';
@@ -1196,6 +1198,10 @@ async function doUpload() {
   if (state.otaScope === 'app' && !isAppOtaType(u.deviceType)) {
     u.err = '请选择 App 类型（如 robotApp）'; render(); return;
   }
+  if (state.otaScope === 'app') {
+    if (['android', 'ios', 'all'].indexOf(u.partition) < 0) u.partition = 'android';
+    if (!String(u.describe || '').trim()) u.describe = DEFAULT_APP_OTA_DESC;
+  }
   u.busy = true; u.progress = 0; render();
   try {
     const creds = await resolvedCreds();
@@ -1311,17 +1317,65 @@ async function doRemoteUpgrade() {
 
 const DIAG_PREFIX = 'public/diagnostics/';
 
+function deviceCodePrefix(kind) {
+  const k = String(kind || '').toLowerCase();
+  if (k.includes('robot')) return 'ROBOT';
+  if (k.includes('ipc') || k.includes('camera')) return 'CAM';
+  return 'DEV';
+}
+
+function inferLegacyDiagSource(fileName) {
+  const f = String(fileName || '').toLowerCase();
+  if (f.includes('console_systemd') || f.endsWith('.out.gz') || f.endsWith('.out')) return 'device';
+  return 'app';
+}
+
 function parseDiagKey(key) {
-  // public/diagnostics/{userId}/{code}/{fileName}
+  // New:
+  //   public/diagnostics/app/{userId}/{code}/{file}
+  //   public/diagnostics/device/{kind}/{userId}/{code}/{file}
+  // Legacy:
+  //   public/diagnostics/{userId}/{code}/{file}
   const parts = String(key || '').split('/').filter(Boolean);
   const i = parts.indexOf('diagnostics');
   if (i < 0 || parts.length < i + 3) {
-    return { userId: '', code: '', fileName: parts[parts.length - 1] || key, supportCode: '' };
+    return {
+      source: 'app', deviceKind: '', userId: '', code: '',
+      fileName: parts[parts.length - 1] || key, supportCode: '',
+    };
   }
-  const userId = parts[i + 1] || '';
-  const code = parts[i + 2] || '';
-  const fileName = parts.slice(i + 3).join('/') || '';
-  return { userId, code, fileName, supportCode: code ? ('DIAG-' + code) : '' };
+  const head = parts[i + 1] || '';
+  let source = 'app';
+  let deviceKind = '';
+  let userId = '';
+  let code = '';
+  let fileName = '';
+  if (head === 'app') {
+    source = 'app';
+    userId = parts[i + 2] || '';
+    code = parts[i + 3] || '';
+    fileName = parts.slice(i + 4).join('/') || '';
+  } else if (head === 'device') {
+    source = 'device';
+    deviceKind = parts[i + 2] || '';
+    userId = parts[i + 3] || '';
+    code = parts[i + 4] || '';
+    fileName = parts.slice(i + 5).join('/') || '';
+  } else {
+    // legacy flat path
+    userId = head;
+    code = parts[i + 2] || '';
+    fileName = parts.slice(i + 3).join('/') || '';
+    source = inferLegacyDiagSource(fileName);
+    if (source === 'device') deviceKind = 'legacy';
+  }
+  let supportCode = '';
+  if (code) {
+    if (source === 'app') supportCode = 'APP-' + code;
+    else if (deviceKind === 'legacy') supportCode = 'DIAG-' + code;
+    else supportCode = deviceCodePrefix(deviceKind) + '-' + code;
+  }
+  return { source, deviceKind, userId, code, fileName, supportCode };
 }
 
 function fmtBytes(n) {
@@ -1387,6 +1441,7 @@ function pickDefaultLogFile(files) {
   if (!files || !files.length) return '';
   const names = files.map((f) => f.name);
   const prefer = names.find((n) => /^ahs_app\.log$/i.test(n))
+    || names.find((n) => /console_systemd/i.test(n))
     || names.find((n) => /\.log$/i.test(n))
     || names.find((n) => /device-info/i.test(n))
     || names[0];
@@ -1574,7 +1629,21 @@ async function openDiagLogView(item) {
     const creds = await resolvedCreds();
     if (!creds || !creds.accessKeyId) throw new Error('无临时凭证，请重新登录');
     const buf = await getS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
-    const files = await unzipDiagPack(buf);
+    let files;
+    if (/\.gz$/i.test(key) && !/\.tar\.gz$/i.test(key)) {
+      const gunzipSync = (await import('https://esm.sh/fflate@0.8.2')).gunzipSync;
+      const u8 = gunzipSync(new Uint8Array(buf));
+      const decoded = decodeLogBytes(u8);
+      const name = (item.fileName || key).replace(/\.gz$/i, '') || 'console_systemd.out';
+      files = [{ name, path: name, size: u8.length, text: decoded.text, binary: decoded.binary }];
+    } else if (/\.zip$/i.test(key)) {
+      files = await unzipDiagPack(buf);
+    } else {
+      const u8 = new Uint8Array(buf);
+      const decoded = decodeLogBytes(u8);
+      const name = item.fileName || key.split('/').pop() || 'log.txt';
+      files = [{ name, path: name, size: u8.length, text: decoded.text, binary: decoded.binary }];
+    }
     if (!files.length) throw new Error(t('logEmptyZip'));
     DIAG_ZIP_CACHE.set(key, { files });
     if (!state.logView || state.logView.key !== key) return;
@@ -1717,21 +1786,35 @@ function askDeleteDiagLog(item) {
 }
 
 function viewLogs() {
+  const src = state.logsSource === 'device' ? 'device' : 'app';
   let rows = (state.diagLogs || []).slice();
-  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.fileName, r.key]));
+  rows = rows.filter((r) => (r.source || 'app') === src);
+  rows = rows.filter((r) => matchQ([r.supportCode, r.code, r.userId, r.fileName, r.deviceKind, r.key]));
   rows.sort((a, b) => {
     const ta = Date.parse(a.lastModified || '') || 0;
     const tb = Date.parse(b.lastModified || '') || 0;
     return tb - ta;
   });
   const meta = state.diagLogsMeta || {};
+  const sub = src === 'device' ? t('logsDeviceSub') : t('logsAppSub');
+  const cols = src === 'device'
+    ? [t('colIndex'), t('colCode'), t('colDeviceKind'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')]
+    : [t('colIndex'), t('colCode'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')];
+  const subTab = (id, label) => h('button', {
+    class: 'gbtn btn-sm' + (src === id ? ' primary' : ''),
+    onclick: () => { state.logsSource = id; state.q = ''; render(); },
+  }, label);
   return h('div', {},
     h('div', { class: 'admin-head' },
-      h('h1', {}, t('logs')),
+      h('h1', {}, src === 'device' ? t('logsDevice') : t('logsApp')),
       chip(String(rows.length)),
       meta.truncated ? chip(t('logsTrunc'), 'stat-offline') : null,
     ),
-    h('div', { class: 'admin-sub' }, t('logsSub')),
+    h('div', { class: 'admin-toolbar', style: { marginBottom: '8px' } },
+      subTab('app', t('logsTabApp')),
+      subTab('device', t('logsTabDevice')),
+    ),
+    h('div', { class: 'admin-sub' }, sub),
     h('div', { class: 'admin-toolbar' },
       searchBox(t('searchLogs')),
       h('button', { class: 'gbtn btn-sm', onclick: async () => {
@@ -1749,32 +1832,38 @@ function viewLogs() {
     state.loadingTab || state.diagLogs == null
       ? loading('…')
       : (!rows.length
-        ? emptyState(t('logsEmpty'))
+        ? emptyState(src === 'device' ? t('logsDeviceEmpty') : t('logsAppEmpty'))
         : tableWrap(
-          [t('colIndex'), t('colCode'), t('colUserId'), t('colFile'), t('colSize'), t('colUpdated'), t('colActions')],
-          rows.slice(0, 500).map((r, i) => [
-            h('span', { class: 'num faint' }, String(i + 1)),
-            r.supportCode
-              ? h('button', {
-                  class: 'gbtn btn-sm',
-                  title: t('copyCode'),
-                  onclick: () => copyText(r.supportCode),
-                }, r.supportCode)
-              : '—',
-            copyable(r.userId || '—'),
-            h('button', {
-              class: 'linkish',
-              title: r.key,
-              onclick: () => openDiagLogView(r),
-            }, r.fileName || r.key),
-            fmtBytes(r.size),
-            fmt(r.lastModified),
-            h('div', { class: 'row-actions' },
-              h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
-              h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(r) }, t('download')),
-              h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDiagLog(r) }, t('delete')),
-            ),
-          ]),
+          cols,
+          rows.slice(0, 500).map((r, i) => {
+            const base = [
+              h('span', { class: 'num faint' }, String(i + 1)),
+              r.supportCode
+                ? h('button', {
+                    class: 'gbtn btn-sm',
+                    title: t('copyCode'),
+                    onclick: () => copyText(r.supportCode),
+                  }, r.supportCode)
+                : '—',
+            ];
+            if (src === 'device') base.push(r.deviceKind || '—');
+            base.push(
+              copyable(r.userId || '—'),
+              h('button', {
+                class: 'linkish',
+                title: r.key,
+                onclick: () => openDiagLogView(r),
+              }, r.fileName || r.key),
+              fmtBytes(r.size),
+              fmt(r.lastModified),
+              h('div', { class: 'row-actions' },
+                h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
+                h('button', { class: 'gbtn btn-sm', onclick: () => downloadDiagLog(r) }, t('download')),
+                h('button', { class: 'gbtn btn-sm danger', onclick: () => askDeleteDiagLog(r) }, t('delete')),
+              ),
+            );
+            return base;
+          }),
         )),
   );
 }
