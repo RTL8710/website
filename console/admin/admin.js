@@ -1549,9 +1549,7 @@ function viewOta() {
 
   const verIn = h('input', { value: u.version, placeholder: isApp ? '1.0.0+1' : '1.0.27' });
   verIn.addEventListener('input', () => { u.version = verIn.value; });
-  const descIn = isApp
-    ? h('input', { value: u.describe, placeholder: t('describe') })
-    : h('textarea', { placeholder: t('describe') }, u.describe);
+  const descIn = h('input', { value: u.describe, placeholder: t('describe') });
   descIn.addEventListener('input', () => { u.describe = descIn.value; });
 
   const filterType = h('select', {},
@@ -1574,7 +1572,7 @@ function viewOta() {
     ),
   );
 
-  const uploadPanel = h('div', { class: 'glass ota-panel' + (isApp ? ' is-app' : '') },
+  const uploadPanel = h('div', { class: 'glass ota-panel is-upload' + (isApp ? ' is-app' : '') },
     h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-upload')), isApp ? t('btnUploadApp') : t('stepUpload')),
     fileInput,
     drop,
@@ -1585,12 +1583,14 @@ function viewOta() {
       h('div', { class: 'admin-field' }, h('label', {}, t('version')), verIn),
       h('div', { class: 'admin-field span2' }, h('label', {}, t('describe')), descIn),
     ),
-    h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
-    h('div', { class: 'row-actions', style: { marginTop: '12px' } },
-      h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
-        u.busy ? `${t('uploading')} ${u.progress}%` : (isApp ? t('btnUploadApp') : t('btnUpload')))),
-    u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
-    u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
+    h('div', { class: 'ota-panel-foot' },
+      h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
+          u.busy ? `${t('uploading')} ${u.progress}%` : (isApp ? t('btnUploadApp') : t('btnUpload')))),
+      u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
+      u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
+    ),
   );
 
   let secondPanel = null;
@@ -1655,33 +1655,35 @@ function viewOta() {
         h('div', { class: 'admin-field span2' }, h('label', {}, t('package')), pkgSel),
         h('div', { class: 'admin-field' }, h('label', {}, t('partOverride')), partOver),
       ),
-      h('div', { class: 'row-actions', style: { marginTop: '12px' } },
-        h('button', {
-          class: 'gbtn primary', disabled: ug.busy,
-          onclick: () => {
-            const dev = devices.find((d) => d.id === ug.deviceId);
-            const pkg = packages.find((p) => p.id === ug.packageId);
-            if (!dev || !pkg) { toast(t('pickDevicePkg'), 'err'); return; }
-            state.confirm = {
-              title: t('confirmUpgrade'),
-              body: `设备：${dev.name}\n包：v${pkg.upgradeDeviceVersion} ${pkg.upgradeDevicePartion || ''}\n${pkg.upgradeDescribe || ''}`,
-              okText: t('confirmUpgradeOk'),
-              onOk: async () => { state.confirm = null; render(); await doRemoteUpgrade(); },
-            };
-            render();
-          },
-        }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
-      (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field span2', style: { marginTop: '10px' } },
-        h('label', {}, t('upgradeStatus')),
-        h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
-        h('div', {
-          class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
-          style: { marginTop: '8px' },
-        }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
-      ) : null,
-      ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
-      ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
-      h('div', { class: 'admin-msg info', style: { marginTop: '12px' } }, t('otaIotHint')),
+      h('div', { class: 'ota-panel-foot' },
+        h('div', { class: 'row-actions' },
+          h('button', {
+            class: 'gbtn primary', disabled: ug.busy,
+            onclick: () => {
+              const dev = devices.find((d) => d.id === ug.deviceId);
+              const pkg = packages.find((p) => p.id === ug.packageId);
+              if (!dev || !pkg) { toast(t('pickDevicePkg'), 'err'); return; }
+              state.confirm = {
+                title: t('confirmUpgrade'),
+                body: `设备：${dev.name}\n包：v${pkg.upgradeDeviceVersion} ${pkg.upgradeDevicePartion || ''}\n${pkg.upgradeDescribe || ''}`,
+                okText: t('confirmUpgradeOk'),
+                onOk: async () => { state.confirm = null; render(); await doRemoteUpgrade(); },
+              };
+              render();
+            },
+          }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
+        (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field', style: { marginTop: '10px' } },
+          h('label', {}, t('upgradeStatus')),
+          h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
+          h('div', {
+            class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
+            style: { marginTop: '8px' },
+          }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
+        ) : null,
+        ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
+        ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
+        h('div', { class: 'admin-msg info', style: { marginTop: '12px' } }, t('otaIotHint')),
+      ),
     );
   }
 
