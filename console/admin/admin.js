@@ -398,6 +398,7 @@ function topbar() {
   const collapsed = !!state.sideCollapsed;
   return h('div', { class: 'topbar' },
     h('div', { class: 'in', style: { maxWidth: 'none' } },
+      h('a', { class: 'brand', href: '../index.html#/devices' }, h('span', { class: 'b' }), t('brand')),
       h('button', {
         type: 'button',
         class: 'admin-side-toggle',
@@ -406,7 +407,6 @@ function topbar() {
         'aria-expanded': collapsed ? 'false' : 'true',
         onclick: toggleSide,
       }, fa('fa-grip-lines')),
-      h('a', { class: 'brand', href: '../index.html#/devices' }, h('span', { class: 'b' }), t('brand')),
       h('span', { class: 'spacer' }),
       h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
         fa('fa-user-shield'),
