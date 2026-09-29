@@ -395,8 +395,17 @@ function resolveDeviceType(dev) {
 
 function topbar() {
   const u = state.session;
+  const collapsed = !!state.sideCollapsed;
   return h('div', { class: 'topbar' },
     h('div', { class: 'in', style: { maxWidth: 'none' } },
+      h('button', {
+        type: 'button',
+        class: 'admin-side-toggle',
+        title: collapsed ? t('sideExpand') : t('sideCollapse'),
+        'aria-label': collapsed ? t('sideExpand') : t('sideCollapse'),
+        'aria-expanded': collapsed ? 'false' : 'true',
+        onclick: toggleSide,
+      }, fa('fa-grip-lines')),
       h('a', { class: 'brand', href: '../index.html#/devices' }, h('span', { class: 'b' }), t('brand')),
       h('span', { class: 'spacer' }),
       h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
@@ -425,17 +434,7 @@ function shell(body) {
     'aria-label': tb.label,
     onclick: () => goTab(tb.id),
   }, fa(tb.icon), h('span', { class: 'nav-label' }, tb.label))));
-  const side = h('aside', { class: 'admin-side' },
-    h('button', {
-      type: 'button',
-      class: 'admin-side-toggle',
-      title: collapsed ? t('sideExpand') : t('sideCollapse'),
-      'aria-label': collapsed ? t('sideExpand') : t('sideCollapse'),
-      'aria-expanded': collapsed ? 'false' : 'true',
-      onclick: toggleSide,
-    }, fa('fa-grip-lines')),
-    nav,
-  );
+  const side = h('aside', { class: 'admin-side' }, nav);
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;

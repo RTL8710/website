@@ -1,7 +1,7 @@
 .admin-shell{display:grid;grid-template-columns:124px 1fr;min-height:100vh;transition:grid-template-columns .22s var(--ease)}
 .admin-shell.is-collapsed{grid-template-columns:56px 1fr}
 .admin-side{
-  display:flex;flex-direction:column;align-items:stretch;gap:10px;
+  display:flex;flex-direction:column;align-items:stretch;gap:6px;
   border-right:1px solid var(--border);background:rgba(7,9,13,.62);backdrop-filter:blur(16px);
   padding:10px 6px 12px;position:sticky;top:0;height:100vh;overflow:auto
 }
@@ -21,12 +21,12 @@
 .admin-shell.is-collapsed .nav-label{display:none}
 .admin-side-toggle{
   appearance:none;-webkit-appearance:none;flex:none;
-  display:flex;align-items:center;justify-content:center;
-  width:100%;height:36px;border-radius:12px;cursor:pointer;
-  border:1px solid var(--border);background:rgba(255,255,255,.04);
-  color:var(--text-md);font:inherit;transition:background .15s,color .15s,border-color .15s
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:8px;cursor:pointer;padding:0;
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-md);font-size:12px;line-height:1;
+  transition:background .15s,color .15s,border-color .15s
 }
-.admin-shell.is-collapsed .admin-side-toggle{width:40px;height:40px;border-radius:999px}
 .admin-side-toggle:hover{background:var(--fill-md);color:var(--accent);border-color:var(--acc-soft-bd)}
 .admin-main{padding:18px clamp(14px,2.5vw,26px) 56px;min-width:0;max-width:1280px}
 .admin-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -82,7 +82,6 @@ table.admin-table .mono{font-family:var(--font-display);font-size:11.5px}
   .admin-side{position:relative;height:auto;border-right:none;border-bottom:1px solid var(--border);flex-direction:row;align-items:center;padding:8px}
   .admin-nav{flex-direction:row;flex-wrap:wrap;flex:1}
   .admin-nav button{width:auto}
-  .admin-side-toggle{width:36px;height:36px;flex:none}
   .admin-shell.is-collapsed .admin-nav button{width:40px}
   .ota-grid{grid-template-columns:1fr}
   .admin-form .span2{grid-column:span 1}
