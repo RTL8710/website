@@ -29,7 +29,7 @@ const state = {
   recordsMeta: null,
   diagLogs: null,
   diagLogsMeta: null,
-  logsSource: 'app', // app | device
+  logsSource: 'device', // app | device
   q: '',
   deviceFilter: 'all', // all | online | offline
   deviceSort: 'updated', // updated | online
