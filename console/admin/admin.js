@@ -610,7 +610,7 @@ function viewOverview() {
         h('button', {
           type: 'button',
           class: 'logs-source is-device' + (latest ? ' on' : ''),
-          onclick: () => { state.otaScope = 'device'; goTab('ota'); },
+          onclick: () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'device'; goTab('ota'); },
         },
           h('span', { class: 'logs-source-ico' }, fa('fa-rocket')),
           h('span', { class: 'k' }, t('overviewLatestPkg')),
@@ -626,10 +626,10 @@ function viewOverview() {
       mod('fa-robot', '', t('tabDevices'), d, t('devicesCount'), () => { state.deviceFilter = 'all'; goTab('devices'); }),
       mod('fa-file-lines', '', t('tabLogs'), logsN + (logsTrunc ? '+' : ''), t('logsCount'), () => goTab('logs')),
       mod('fa-cloud', ' is-device', t('tabRecords'), r + (trunc ? '+' : ''), t('recordsCount'), () => goTab('records')),
-      mod('fa-rocket', ' is-device', t('tabOta'), p, t('pkgsCount'), () => { state.otaScope = 'device'; goTab('ota'); }),
+      mod('fa-rocket', ' is-device', t('tabOta'), p, t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'device'; goTab('ota'); }),
       mod('fa-mobile-alt', '', t('otaScopeApp'),
         appN,
-        t('pkgsCount'), () => { state.otaScope = 'app'; goTab('ota'); }),
+        t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'app'; goTab('ota'); }),
     ),
     h('div', { class: 'glass ota-panel' },
       h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-bolt')), t('commonOps')),
@@ -1351,8 +1351,14 @@ function otaModeChip(mode) {
 }
 
 function switchOtaScope(k) {
+  const next = k === 'app' ? 'app' : 'device';
+  if ((state.otaScope === 'app' ? 'app' : 'device') === next) return;
+  if (state.upload && state.upload.busy) {
+    toast(t('otaUploadLock'), 'err');
+    return;
+  }
   const u = state.upload;
-  state.otaScope = k;
+  state.otaScope = next;
   state.pkgFilterType = '';
   state.q = '';
   if (k === 'app') {
@@ -1369,13 +1375,16 @@ function switchOtaScope(k) {
 function otaSourceCard(id, count, latestIso, latestVer) {
   const on = (state.otaScope === 'app' ? 'app' : 'device') === id;
   const isDev = id === 'device';
+  const locked = !!(state.upload && state.upload.busy);
   const empty = isDev ? t('otaEmptyDevice') : t('otaAppListEmpty');
   const sub = latestVer
     ? ('v' + latestVer + (latestIso ? ' · ' + logsRelTime(latestIso) : ''))
     : empty;
   return h('button', {
     type: 'button',
-    class: 'logs-source' + (isDev ? ' is-device' : '') + (on ? ' on' : ''),
+    class: 'logs-source' + (isDev ? ' is-device' : '') + (on ? ' on' : '') + (locked ? ' is-locked' : ''),
+    disabled: locked ? true : false,
+    title: locked ? t('otaUploadLock') : '',
     onclick: () => switchOtaScope(id),
   },
     h('span', { class: 'logs-source-ico' }, fa(isDev ? 'fa-robot' : 'fa-mobile-alt')),

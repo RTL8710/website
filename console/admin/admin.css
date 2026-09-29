@@ -137,6 +137,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
   color:inherit;font:inherit;min-height:0;transition:border-color var(--fast) var(--ease),background var(--fast),box-shadow var(--fast);
 }
 .logs-source:hover{border-color:var(--border-strong);background:rgba(255,255,255,.06)}
+.logs-source.is-locked,.logs-source:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .logs-source.on{border-color:var(--acc-soft-bd);box-shadow:var(--sh-glow);background:linear-gradient(180deg,var(--acc-soft),rgba(255,255,255,.02))}
 .logs-source-ico{
   grid-row:1 / span 2;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
