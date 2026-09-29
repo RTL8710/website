@@ -50,12 +50,20 @@ const state = {
   logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
   dataRegion: null, // 当前内存数据所属区域，切区必清
   sideCollapsed: true,
+  otaPickOpen: '',
+  otaPickQ: '',
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
   if (v === '0') state.sideCollapsed = false;
   else state.sideCollapsed = v !== '0';
 } catch (_) {}
+document.addEventListener('click', () => {
+  if (!state.otaPickOpen) return;
+  state.otaPickOpen = '';
+  state.otaPickQ = '';
+  if (state.tab === 'ota') render();
+});
 
 function tabs() {
   return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
@@ -1419,6 +1427,70 @@ function otaPkgCard(pkg, ug, isApp, latestIds) {
   );
 }
 
+
+function paintUploadProgress(p) {
+  const root = document.querySelector('.ota-studio > .ota-panel:first-child');
+  if (!root) return;
+  const bar = root.querySelector('.progress > i');
+  if (bar) bar.style.width = (p || 0) + '%';
+  const btn = root.querySelector('.row-actions .gbtn.primary');
+  if (btn && state.upload.busy) btn.textContent = t('uploading') + ' ' + (p || 0) + '%';
+}
+
+function otaSelect(id, placeholder, selectedText, options, onPick, searchPh) {
+  const open = state.otaPickOpen === id;
+  const q = open ? String(state.otaPickQ || '').trim().toLowerCase() : '';
+  const shown = !q ? options : options.filter((o) => String(o.search || o.title || '').toLowerCase().indexOf(q) >= 0);
+  const box = h('div', { class: 'ota-pick' + (open ? ' is-open' : '') });
+  box.appendChild(h('button', {
+    type: 'button',
+    class: 'ota-pick-btn',
+    onclick: (e) => {
+      e.stopPropagation();
+      state.otaPickOpen = open ? '' : id;
+      state.otaPickQ = '';
+      render();
+    },
+  },
+    h('span', { class: 'ota-pick-txt' }, selectedText || placeholder),
+    fa(open ? 'fa-chevron-up' : 'fa-chevron-down'),
+  ));
+  if (!open) return box;
+  const inp = h('input', { type: 'search', class: 'ota-pick-q', placeholder: searchPh || t('searchDevices') });
+  inp.value = state.otaPickQ || '';
+  inp.addEventListener('click', (e) => e.stopPropagation());
+  inp.addEventListener('input', () => {
+    state.otaPickQ = inp.value;
+    render();
+    requestAnimationFrame(() => {
+      const n = document.querySelector('.ota-pick.is-open .ota-pick-q');
+      if (!n) return;
+      n.focus();
+      const len = n.value.length;
+      try { n.setSelectionRange(len, len); } catch (_) {}
+    });
+  });
+  const items = shown.length
+    ? shown.map((o) => h('button', {
+        type: 'button',
+        class: 'ota-pick-item' + (o.on ? ' on' : '') + (o.offline ? ' is-off' : ''),
+        onclick: (e) => {
+          e.stopPropagation();
+          onPick(o.value);
+          state.otaPickOpen = '';
+          state.otaPickQ = '';
+          render();
+        },
+      },
+        h('span', { class: 'ota-pick-item-t' }, o.badge ? (o.badge + ' ' + o.title) : o.title),
+        o.sub ? h('span', { class: 'ota-pick-item-s' }, o.sub) : null,
+      ))
+    : [h('div', { class: 'ota-pick-empty' }, '—')];
+  const pop = h('div', { class: 'ota-pick-pop', onclick: (e) => e.stopPropagation() }, inp, h('div', { class: 'ota-pick-list' }, ...items));
+  box.appendChild(pop);
+  return box;
+}
+
 function viewOta() {
   const u = state.upload;
   const ug = state.upgrade;
@@ -1523,32 +1595,53 @@ function viewOta() {
   if (!isApp) {
     const onlineDevs = devices.filter((d) => d.online);
     const onlineReady = devices.filter((d) => d.online && d.uuid);
-    const devSel = h('select', { style: { width: '100%' } },
-      h('option', { value: '' }, t('otaPickDevice').replace('{online}', String(onlineDevs.length)).replace('{ready}', String(onlineReady.length))),
-      ...devices.map((d) => h('option', { value: d.id, selected: ug.deviceId === d.id },
-        `${d.online ? '●' : '○'} ${d.name || shortId(d.id)} · v${d.firmware || '?'} ${d.uuid ? '' : '·缺UUID'}`)));
-    devSel.addEventListener('change', () => {
-      ug.deviceId = devSel.value;
-      const d = devices.find((x) => x.id === ug.deviceId);
-      if (d) {
-        const latest = latestPackageForType(resolveDeviceType(d));
-        if (latest) { ug.packageId = latest.id; ug.partition = latest.upgradeDevicePartion || ''; }
-      }
-      render();
-    });
     const latestIdsSel = new Set();
     DEVICE_OTA_TYPES.forEach((typ) => { const L = latestPackageForType(typ); if (L) latestIdsSel.add(L.id); });
     const devicePkgs = packages.filter((p) => !isAppOtaType(p.upgradeDeviceType));
-    const pkgSel = h('select', { style: { width: '100%' } },
-      h('option', { value: '' }, t('pickPkg')),
-      ...devicePkgs.slice().sort(sortPkg).slice(0, 80).map((p) => h('option', { value: p.id, selected: ug.packageId === p.id },
-        `${latestIdsSel.has(p.id) ? t('latestMark') : ''}${p.upgradeDeviceType} v${p.upgradeDeviceVersion || '?'} · ${p.upgradeDevicePartion || '?'} · ${p.upgradeDescribe || ''}`)));
-    pkgSel.addEventListener('change', () => {
-      ug.packageId = pkgSel.value;
-      const p = packages.find((x) => x.id === ug.packageId);
-      if (p) ug.partition = p.upgradeDevicePartion || '';
-      render();
-    });
+    const pickedDev = devices.find((d) => d.id === ug.deviceId);
+    const pickedPkg = devicePkgs.find((p) => p.id === ug.packageId);
+    const devSel = otaSelect(
+      'device',
+      t('otaPickDevice').replace('{online}', String(onlineDevs.length)).replace('{ready}', String(onlineReady.length)),
+      pickedDev ? ((pickedDev.online ? '● ' : '○ ') + (pickedDev.name || shortId(pickedDev.id)) + ' · v' + (pickedDev.firmware || '?')) : '',
+      devices.slice().sort((a, b) => (b.online | 0) - (a.online | 0)).map((d) => ({
+        value: d.id,
+        title: (d.name || shortId(d.id)) + (d.uuid ? '' : ' ·缺UUID'),
+        sub: 'v' + (d.firmware || '?') + (d.model ? ' · ' + d.model : '') + (d.online ? '' : ' · offline'),
+        search: [d.name, d.id, d.uuid, d.firmware, d.model].join(' '),
+        on: d.id === ug.deviceId,
+        offline: !d.online,
+        badge: d.online ? '●' : '○',
+      })),
+      (id) => {
+        ug.deviceId = id;
+        const d = devices.find((x) => x.id === id);
+        if (d) {
+          const latest = latestPackageForType(resolveDeviceType(d));
+          if (latest) { ug.packageId = latest.id; ug.partition = latest.upgradeDevicePartion || ''; }
+        }
+      },
+      t('searchDevices'),
+    );
+    const pkgSel = otaSelect(
+      'pkg',
+      t('pickPkg'),
+      pickedPkg ? ((latestIdsSel.has(pickedPkg.id) ? t('latestMark') : '') + (pickedPkg.upgradeDeviceType || '') + ' v' + (pickedPkg.upgradeDeviceVersion || '?')) : '',
+      devicePkgs.slice().sort(sortPkg).slice(0, 80).map((p) => ({
+        value: p.id,
+        title: 'v' + (p.upgradeDeviceVersion || '?') + ' · ' + (p.upgradeDeviceType || ''),
+        sub: (p.upgradeDevicePartion || '?') + ' · ' + (p.upgradeDescribe || ''),
+        search: [p.upgradeDeviceVersion, p.upgradeDeviceType, p.upgradeDevicePartion, p.upgradeDescribe, p.upgradeFileUrl].join(' '),
+        on: p.id === ug.packageId,
+        badge: latestIdsSel.has(p.id) ? t('latestMark') : '',
+      })),
+      (id) => {
+        ug.packageId = id;
+        const p = packages.find((x) => x.id === id);
+        if (p) ug.partition = p.upgradeDevicePartion || '';
+      },
+      t('searchPkgs'),
+    );
     const partOver = h('select', {},
       ...['', 'system', 'website', 'model', 'config', 'all'].map((part) => h('option', { value: part, selected: (ug.partition || '') === part }, part || t('followPkg'))));
     partOver.addEventListener('change', () => { ug.partition = partOver.value; });
@@ -1668,7 +1761,7 @@ async function doUpload() {
     await putS3Object(creds, {
       bucket: S3_BUCKET, region: COGNITO.region, key, body: u.file,
       contentType: isApk ? 'application/vnd.android.package-archive' : 'application/octet-stream',
-      onProgress: (p) => { u.progress = p; render(); },
+      onProgress: (p) => { u.progress = p; paintUploadProgress(p); },
     });
     const created = await createDeviceUpgrade({
       upgradeMode: u.mode || 'normal',

@@ -218,9 +218,44 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .logs-empty h2{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-.02em}
 .logs-empty p{font-size:13.5px;color:var(--text-md);max-width:36em;line-height:1.55}
 
-.ota-studio{display:grid;grid-template-columns:1.08fr .92fr;gap:14px}
+.ota-studio{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;align-items:start;overflow:visible}
 .ota-studio.is-solo{grid-template-columns:1fr;max-width:720px}
-.ota-panel{padding:18px 18px 16px}
+.ota-panel{padding:18px 18px 16px;overflow:visible;position:relative;z-index:1}
+.ota-panel .admin-form{grid-template-columns:1fr}
+.ota-panel .admin-form .span2{grid-column:auto}
+.ota-pick{position:relative}
+.ota-pick-btn{
+  appearance:none;-webkit-appearance:none;width:100%;height:40px;padding:0 12px;
+  display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;
+  border-radius:10px;border:1px solid var(--border);background:var(--input-bg);
+  color:var(--text-hi);font:inherit;font-size:13px;
+}
+.ota-pick-btn:hover{border-color:var(--border-strong)}
+.ota-pick.is-open .ota-pick-btn{border-color:var(--acc-soft-bd);box-shadow:var(--sh-glow)}
+.ota-pick-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ota-pick-pop{
+  position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;
+  display:flex;flex-direction:column;max-height:300px;
+  border-radius:12px;border:1px solid var(--border);
+  background:rgba(13,17,23,.97);box-shadow:var(--sh-card);
+}
+.ota-pick-q{
+  height:36px;margin:8px 8px 0;padding:0 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--input-bg);color:var(--text-hi);font:inherit;font-size:13px;
+}
+.ota-pick-list{overflow:auto;padding:6px;max-height:240px}
+.ota-pick-item{
+  appearance:none;width:100%;display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;
+  padding:9px 10px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;
+}
+.ota-pick-item:hover{background:var(--fill-md)}
+.ota-pick-item.on{background:var(--acc-soft);color:var(--accent)}
+.ota-pick-item.is-off .ota-pick-item-t{opacity:.7}
+.ota-pick-item-t{font-size:13px;font-weight:650;color:var(--text-hi)}
+.ota-pick-item.on .ota-pick-item-t{color:var(--accent)}
+.ota-pick-item-s{font-size:11px;color:var(--text-lo);line-height:1.35}
+.ota-pick-empty{padding:16px 10px;text-align:center;color:var(--text-lo);font-size:12px}
+
 .ota-panel h3{
   font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.02em;
   margin-bottom:14px;display:flex;align-items:center;gap:10px;
