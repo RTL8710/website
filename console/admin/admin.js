@@ -2382,15 +2382,21 @@ function logsSearchBox() {
 function logsSourceCard(id, count, latestIso) {
   const on = (state.logsSource === 'device' ? 'device' : 'app') === id;
   const isDev = id === 'device';
+  const latest = latestIso ? logsRelTime(latestIso) : '—';
   return h('button', {
     type: 'button',
-    class: 'logs-source' + (isDev ? ' is-device' : '') + (on ? ' on' : ''),
+    role: 'tab',
+    class: 'logs-switch-item' + (isDev ? ' is-device' : '') + (on ? ' on' : ''),
+    'aria-selected': on ? 'true' : 'false',
+    title: latestIso ? (t('logsLatest') + ' · ' + latest) : t(isDev ? 'logsDeviceEmpty' : 'logsAppEmpty'),
     onclick: () => { state.logsSource = id; state.q = ''; render(); },
   },
-    h('span', { class: 'logs-source-ico' }, fa(isDev ? 'fa-robot' : 'fa-mobile-alt')),
-    h('span', { class: 'k' }, isDev ? t('logsTabDevice') : t('logsTabApp')),
-    h('span', { class: 'v num' }, String(count)),
-    h('span', { class: 's' }, latestIso ? (t('logsLatest') + ' · ' + logsRelTime(latestIso)) : t(isDev ? 'logsDeviceEmpty' : 'logsAppEmpty')),
+    h('span', { class: 'logs-switch-ico' }, fa(isDev ? 'fa-robot' : 'fa-mobile-alt')),
+    h('span', { class: 'logs-switch-copy' },
+      h('span', { class: 'k' }, isDev ? t('logsTabDevice') : t('logsTabApp')),
+      h('span', { class: 's' }, latest),
+    ),
+    h('span', { class: 'logs-switch-n num' }, String(count)),
   );
 }
 
@@ -2531,7 +2537,7 @@ function viewLogs() {
           meta.truncated ? chip(t('logsTrunc'), 'stat-offline') : null,
         ),
       ),
-      h('div', { class: 'logs-source-grid' },
+      h('div', { class: 'logs-switch', role: 'tablist' },
         logsSourceCard('app', appRows.length, latestOf(appSorted)),
         logsSourceCard('device', devRows.length, latestOf(devSorted)),
       ),
