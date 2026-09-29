@@ -49,9 +49,13 @@ const state = {
   edit: null, // { type:'user'|'device', id, values, busy, err }
   logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
   dataRegion: null, // 当前内存数据所属区域，切区必清
-  sideCollapsed: false,
+  sideCollapsed: true,
 };
-try { state.sideCollapsed = localStorage.getItem('admin_side_collapsed') === '1'; } catch (_) {}
+try {
+  const v = localStorage.getItem('admin_side_collapsed');
+  if (v === '0') state.sideCollapsed = false;
+  else state.sideCollapsed = v !== '0';
+} catch (_) {}
 
 function tabs() {
   return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
@@ -422,7 +426,6 @@ function shell(body) {
     onclick: () => goTab(tb.id),
   }, fa(tb.icon), h('span', { class: 'nav-label' }, tb.label))));
   const side = h('aside', { class: 'admin-side' },
-    nav,
     h('button', {
       type: 'button',
       class: 'admin-side-toggle',
@@ -430,7 +433,8 @@ function shell(body) {
       'aria-label': collapsed ? t('sideExpand') : t('sideCollapse'),
       'aria-expanded': collapsed ? 'false' : 'true',
       onclick: toggleSide,
-    }, fa(collapsed ? 'fa-angles-right' : 'fa-angles-left')),
+    }, fa('fa-grip-lines')),
+    nav,
   );
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
