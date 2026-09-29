@@ -1549,7 +1549,9 @@ function viewOta() {
 
   const verIn = h('input', { value: u.version, placeholder: isApp ? '1.0.0+1' : '1.0.27' });
   verIn.addEventListener('input', () => { u.version = verIn.value; });
-  const descIn = h('textarea', { placeholder: t('describe') }, u.describe);
+  const descIn = isApp
+    ? h('input', { value: u.describe, placeholder: t('describe') })
+    : h('textarea', { placeholder: t('describe') }, u.describe);
   descIn.addEventListener('input', () => { u.describe = descIn.value; });
 
   const filterType = h('select', {},
@@ -1572,7 +1574,7 @@ function viewOta() {
     ),
   );
 
-  const uploadPanel = h('div', { class: 'glass ota-panel' },
+  const uploadPanel = h('div', { class: 'glass ota-panel' + (isApp ? ' is-app' : '') },
     h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-upload')), isApp ? t('btnUploadApp') : t('stepUpload')),
     fileInput,
     drop,

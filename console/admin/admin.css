@@ -219,7 +219,20 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .logs-empty p{font-size:13.5px;color:var(--text-md);max-width:36em;line-height:1.55}
 
 .ota-studio{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;align-items:start;overflow:visible}
-.ota-studio.is-solo{grid-template-columns:1fr;max-width:720px}
+.ota-studio.is-solo{grid-template-columns:1fr;max-width:none}
+.ota-panel.is-app{padding:12px 14px}
+.ota-panel.is-app h3{margin-bottom:10px}
+.ota-panel.is-app .ota-drop{padding:10px 12px}
+.ota-panel.is-app .admin-form{
+  margin-top:10px!important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) minmax(200px,1.6fr);
+  gap:8px 10px;
+}
+.ota-panel.is-app .admin-form .span2{grid-column:auto}
+.ota-panel.is-app .row-actions{margin-top:10px!important}
+@media (max-width:960px){
+  .ota-panel.is-app .admin-form{grid-template-columns:1fr 1fr}
+}
 .ota-panel{padding:18px 18px 16px;overflow:visible;position:relative;z-index:1}
 .ota-panel .admin-form{grid-template-columns:1fr}
 .ota-panel .admin-form .span2{grid-column:auto}
