@@ -1593,10 +1593,10 @@ function viewOta() {
       h('div', { class: 'admin-field span2' }, h('label', {}, t('describe')), descIn),
     ),
     h('div', { class: 'ota-panel-foot' },
-      h('div', { class: 'progress' }, h('i', { style: { width: (u.progress || 0) + '%' } })),
       h('div', { class: 'row-actions' },
         h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
           u.busy ? `${t('uploading')} ${u.progress}%` : (isApp ? t('btnUploadApp') : t('btnUpload')))),
+      u.busy ? h('div', { class: 'progress ota-upload-bar' }, h('i', { style: { width: (u.progress || 0) + '%' } })) : null,
       u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
       u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
     ),
@@ -1787,7 +1787,7 @@ async function doUpload() {
       upgradeOtaTime: new Date().toISOString(),
     });
     u.msg = `已登记 ${created && created.id ? shortId(created.id) : ''}`;
-    u.file = null; u.progress = 100;
+    u.file = null; u.progress = 0;
     state.packages = null;
     state.upgrade.packageId = created && created.id ? created.id : state.upgrade.packageId;
     toast('上传成功');
@@ -1797,7 +1797,7 @@ async function doUpload() {
     u.err = (e && e.message) || String(e);
     toast(u.err, 'err');
   } finally {
-    u.busy = false; render();
+    u.busy = false; u.progress = 0; render();
   }
 }
 
