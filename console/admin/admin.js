@@ -58,6 +58,62 @@ function tabs() {
 }
 
 
+function adminPersistKey(kind) { return 'admin_' + kind + '_' + getRegion(); }
+function persistAdminSession(session) {
+  if (!session || !session.userRow) return;
+  try {
+    localStorage.setItem(adminPersistKey('session'), JSON.stringify({
+      sub: session.sub || '',
+      account: session.account || '',
+      email: session.email || '',
+      userRow: session.userRow,
+    }));
+  } catch (_) {}
+}
+function peekAdminSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(adminPersistKey('session')) || 'null');
+    if (s && s.userRow && (s.account || s.userRow.awsUserName)) return s;
+  } catch (_) {}
+  return null;
+}
+function peekCognitoLastUser() {
+  try {
+    return localStorage.getItem('CognitoIdentityServiceProvider.' + COGNITO.userPoolClientId + '.LastAuthUser') || '';
+  } catch (_) { return ''; }
+}
+function persistAdminSnap() {
+  try {
+    localStorage.setItem(adminPersistKey('snap'), JSON.stringify({
+      users: state.users, devices: state.devices, binds: state.binds,
+      packages: state.packages, records: state.records, recordsMeta: state.recordsMeta,
+      diagLogs: state.diagLogs, diagLogsMeta: state.diagLogsMeta, at: Date.now(),
+    }));
+  } catch (_) {}
+}
+function hydrateAdminSnap() {
+  try {
+    const s = JSON.parse(localStorage.getItem(adminPersistKey('snap')) || 'null');
+    if (!s || !s.at) return false;
+    if (s.users) state.users = s.users;
+    if (s.devices) state.devices = s.devices;
+    if (s.binds) state.binds = s.binds;
+    if (s.packages) state.packages = s.packages;
+    if (s.records) state.records = s.records;
+    if (s.recordsMeta) state.recordsMeta = s.recordsMeta;
+    if (s.diagLogs) state.diagLogs = s.diagLogs;
+    if (s.diagLogsMeta) state.diagLogsMeta = s.diagLogsMeta;
+    state.dataRegion = getRegion();
+    return true;
+  } catch (_) { return false; }
+}
+function clearAdminPersist() {
+  try {
+    Object.keys(localStorage).forEach((k) => {
+      if (k.indexOf('admin_session_') === 0 || k.indexOf('admin_snap_') === 0) localStorage.removeItem(k);
+    });
+  } catch (_) {}
+}
 function clearAdminDataCache() {
   state.users = state.devices = state.binds = state.packages = state.records = null;
   state.recordsMeta = null;
@@ -83,6 +139,7 @@ async function changeRegion(rc) {
   try { await signOut(); } catch (_) {}
   state.session = null;
   clearAdminDataCache();
+  clearAdminPersist();
   setRegion(rc);
   warmupAuth();
   viewLogin();
@@ -344,7 +401,7 @@ function topbar() {
       regionSwitcher(true, getRegion(), changeRegion),
       ...switcherBar(true).reverse(),
       h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none' } }, fa('fa-arrow-left'), ' ' + t('consoleLink')),
-      h('button', { class: 'gbtn icon', title: t('logout'), onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
+      h('button', { class: 'gbtn icon', title: t('logout'), onclick: async () => { iotDisconnect(); await signOut(); clearAdminPersist(); state.session = null; viewLogin(); } },
         fa('fa-right-from-bracket')),
     ),
   );
@@ -402,7 +459,7 @@ async function refreshAll() {
   toast(t('dataRefreshed'));
 }
 
-async function ensure(kind) {
+async function ensure(kind, opts) {
   if (kind === 'users' && !state.users) state.users = await listAllUsers();
   if (kind === 'devices') {
     if (!state.devices) {
@@ -413,11 +470,13 @@ async function ensure(kind) {
         throw e;
       }
     }
-    if (!state.binds) {
-      try { state.binds = await listAllDeviceUsers(); } catch (_) { state.binds = []; }
-    }
-    if (!state.users) {
-      try { state.users = await listAllUsers(); } catch (_) {}
+    if (!(opts && opts.lite)) {
+      if (!state.binds) {
+        try { state.binds = await listAllDeviceUsers(); } catch (_) { state.binds = []; }
+      }
+      if (!state.users) {
+        try { state.users = await listAllUsers(); } catch (_) {}
+      }
     }
   }
   if (kind === 'packages' && !state.packages) state.packages = await listDeviceUpgrades();
@@ -436,6 +495,14 @@ async function loadRecords() {
   state.recordsMeta = res;
 }
 
+async function refreshOverviewSecondary() {
+  try { await loadRecords(); } catch (_) { if (!state.records) state.records = []; }
+  if (state.tab === 'overview') render();
+  try { await loadDiagLogs(); } catch (_) { if (!state.diagLogs) state.diagLogs = []; }
+  persistAdminSnap();
+  if (state.tab === 'overview' || state.tab === 'logs') render();
+}
+
 async function loadTab(id) {
   ensureDataRegionFresh();
   state.loadingTab = true;
@@ -443,15 +510,17 @@ async function loadTab(id) {
   render();
   try {
     if (id === 'overview') {
-      await Promise.all([
-        ensure('users'), ensure('devices'), ensure('packages'),
+      const hadSnap = !!(state.users || state.devices || state.packages);
+      state.loadingTab = !hadSnap;
+      if (hadSnap) render();
+      const [users, devices, packages] = await Promise.all([
+        listAllUsers(), listAllDevices(), listDeviceUpgrades(),
       ]);
-      if (state.records == null) {
-        try { await loadRecords(); } catch (_) { state.records = []; }
-      }
-      if (state.diagLogs == null) {
-        try { await loadDiagLogs(); } catch (_) { state.diagLogs = []; }
-      }
+      state.users = users;
+      state.devices = devices;
+      state.packages = packages;
+      persistAdminSnap();
+      refreshOverviewSecondary();
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
@@ -2501,7 +2570,7 @@ function mapAuthError(e) {
   return m || t('authFail');
 }
 
-async function enterAdmin(session) {
+async function enterAdmin(session, fresh) {
   if (!session || !session.userRow) {
     viewLogin();
     return;
@@ -2511,7 +2580,9 @@ async function enterAdmin(session) {
     return;
   }
   state.session = session;
-  clearAdminDataCache(); // 登录后强制拉当前区域，避免上一区残留
+  persistAdminSession(session);
+  if (fresh) clearAdminDataCache();
+  else hydrateAdminSnap();
   state.dataRegion = getRegion();
   render();
   await loadTab('overview');
@@ -2527,7 +2598,7 @@ function viewDenied(session) {
         ' 不是运维白名单。管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请打开本页 ',
         h('code', {}, '/console/admin/'), ' 并用 ADMIN_ALLOWLIST 中的账号登录。'),
       h('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } },
-        h('button', { class: 'gbtn primary', onclick: async () => { iotDisconnect(); await signOut(); state.session = null; viewLogin(); } },
+        h('button', { class: 'gbtn primary', onclick: async () => { iotDisconnect(); await signOut(); clearAdminPersist(); state.session = null; viewLogin(); } },
           t('reLogin')),
         h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none', opacity: '0.75' } },
           t('backConsole')),
@@ -2559,7 +2630,7 @@ function viewLogin(preErr) {
     btn.textContent = t('loginLoading');
     try {
       const session = await signIn(username.value.trim(), pass.value);
-      await enterAdmin(session);
+      await enterAdmin(session, true);
     } catch (e) {
       errMsg.textContent = mapAuthError(e);
       err.classList.add('show');
@@ -2614,13 +2685,44 @@ function viewLogin(preErr) {
     else render();
   });
   warmupAuth();
-  mount(app, h('div', { class: 'center', style: { padding: '80px' } }, loading(t('restoring'))));
+  const cached = peekAdminSession();
+  const lastUser = peekCognitoLastUser();
+  const stub = lastUser ? { account: lastUser, userRow: { awsUserName: lastUser } } : null;
+  const paint = (cached && isAdminAccount(cached)) ? cached : ((stub && isAdminAccount(stub)) ? stub : null);
+  if (paint) {
+    state.session = paint;
+    hydrateAdminSnap();
+    state.dataRegion = getRegion();
+    render();
+    loadTab('overview');
+  } else {
+    viewLogin();
+  }
   let session = null;
   try { session = await restoreSession(); } catch (_) {}
   if (!session || !session.userRow) {
-    viewLogin();
+    if (state.session) {
+      state.session = null;
+      clearAdminDataCache();
+      viewLogin();
+    }
     return;
   }
-  await enterAdmin(session);
+  if (!isAdminAccount(session)) {
+    state.session = null;
+    viewDenied(session);
+    return;
+  }
+  persistAdminSession(session);
+  const already = state.tab === 'overview' && (state.users || state.devices || state.packages || state.loadingTab);
+  state.session = session;
+  if (!already && !paint) {
+    hydrateAdminSnap();
+    state.dataRegion = getRegion();
+    render();
+    await loadTab('overview');
+  } else {
+    render();
+  }
 })();
 
