@@ -1519,26 +1519,8 @@ function viewOta() {
     u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
   );
 
-  let secondPanel;
-  if (isApp) {
-    const latestApp = latestPackageForType(u.deviceType);
-    secondPanel = h('div', { class: 'glass ota-panel' },
-      h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-mobile-alt')), t('otaScopeApp')),
-      h('div', { class: 'ota-note' }, t('otaAppHint')),
-      latestApp
-        ? h('div', { class: 'ota-latest' },
-            h('div', { class: 'faint', style: { fontSize: '11px', fontWeight: '800', letterSpacing: '.08em', textTransform: 'uppercase' } }, t('logsLatest')),
-            h('div', { class: 'v' }, 'v' + (latestApp.upgradeDeviceVersion || '?')),
-            h('div', { class: 's' },
-              (latestApp.upgradeDeviceType || '') + ' · ' + (latestApp.upgradeMode || 'normal') + ' · ' + (latestApp.upgradeDescribe || '')),
-          )
-        : h('div', { class: 'ota-latest' },
-            h('div', { class: 's' }, t('otaNoPkgForType'))),
-      h('div', { class: 'row-actions', style: { marginTop: '14px' } },
-        h('button', { class: 'gbtn', onclick: async () => { state.packages = null; await loadTab('ota'); } }, fa('fa-rotate'), ' ' + t('refresh')),
-      ),
-    );
-  } else {
+  let secondPanel = null;
+  if (!isApp) {
     const onlineDevs = devices.filter((d) => d.online);
     const onlineReady = devices.filter((d) => d.online && d.uuid);
     const devSel = h('select', { style: { width: '100%' } },
@@ -1655,7 +1637,7 @@ function viewOta() {
         otaSourceCard('device', devPkgs.length, otaPkgTime(devSorted[0]), devSorted[0] && devSorted[0].upgradeDeviceVersion),
       ),
     ),
-    h('div', { class: 'ota-studio' }, uploadPanel, secondPanel),
+    h('div', { class: 'ota-studio' + (secondPanel ? '' : ' is-solo') }, uploadPanel, secondPanel),
     h('div', { class: 'glass logs-dock' },
       searchWrap, filterType,
       h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; await loadTab('ota'); } }, fa('fa-rotate'), ' ' + t('refresh')),

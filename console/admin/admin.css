@@ -219,6 +219,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .logs-empty p{font-size:13.5px;color:var(--text-md);max-width:36em;line-height:1.55}
 
 .ota-studio{display:grid;grid-template-columns:1.08fr .92fr;gap:14px}
+.ota-studio.is-solo{grid-template-columns:1fr;max-width:720px}
 .ota-panel{padding:18px 18px 16px}
 .ota-panel h3{
   font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.02em;
