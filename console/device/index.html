@@ -3277,6 +3277,9 @@ window.__presignThumbUrl = function (raw) {
                 </div><!-- /settings -->
                 <div class="dv-nav-section" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;" @click="tog('navSys')"><span data-i18n="nav_sec_system">System</span><i class="fas" :class="navSys?'fa-chevron-down':'fa-chevron-right'" style="font-size:10px;opacity:.55;"></i></div>
                 <div x-show="navSys" x-cloak>
+                <a class="dv-nav-item" href="#" onclick="showPage('system-service', this); return false;">
+                    <i class="fa-solid fa-server"></i> <span data-i18n="nav_system_service">System</span>
+                </a>
                 <a class="dv-nav-item" href="#" onclick="showPage('device-information', this); return false;">
                     <i class="fa fa-microchip"></i> <span data-i18n="nav_device_info">Device Info</span>
                 </a>
@@ -8708,162 +8711,358 @@ window.__presignThumbUrl = function (raw) {
 
                 <!--日志页面-->
                 <!--        <div  class="page-section" id="debug" x-data="deviceSettings()" x-init="initLogInformation()" >-->
-                <div class="page-section" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId)">
-                        <div class="vs-param-tabs" role="tablist" aria-label="Log settings groups" style="margin-bottom:14px;">
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="logParamTab==='settings' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="logParamTab==='settings'"
-                                    @click="logParamTab='settings'; initLogInformation()"
-                                    data-i18n="ls_tab_settings">Log Settings</button>
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="logParamTab==='viewer' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="logParamTab==='viewer'"
-                                    @click="logParamTab='viewer'; fetchLogs()"
-                                    data-i18n="ls_tab_logfile">Log File</button>
+                
+                <!-- 系统：系统状态 / 系统管理 -->
+                <div class="page-section" id="system-service" x-data="deviceSettings()"
+                     x-init="(function(){ if (window.__pendingSystemTab) { systemParamTab = window.__pendingSystemTab; delete window.__pendingSystemTab; } refreshSystemService(); })()"
+                     @pagechange.window="if ($event.detail.pageId==='system-service') { refreshSystemService(); startSystemServicePoll(); } else { stopSystemServicePoll(); }">
+                    <header class="log-page-hero">
+                        <div class="log-page-hero-main">
+                            <div class="log-eyebrow" data-i18n="ph_eyebrow_system">System</div>
+                            <div class="log-title-row">
+                                <h1 data-i18n="page_system_service">System</h1>
+                                <div class="log-seg" role="tablist" aria-label="System groups">
+                                    <button type="button" role="tab"
+                                            :class="systemParamTab==='status' && 'active'"
+                                            :aria-selected="systemParamTab==='status'"
+                                            @click="systemParamTab='status'; refreshSystemService()"
+                                            data-i18n="sys_tab_status">System Status</button>
+                                    <button type="button" role="tab"
+                                            :class="systemParamTab==='manage' && 'active'"
+                                            :aria-selected="systemParamTab==='manage'"
+                                            @click="systemParamTab='manage'; refreshSystemService()"
+                                            data-i18n="sys_tab_manage">System Management</button>
+                                </div>
+                            </div>
+                            <p class="log-sub" x-text="systemParamTab==='manage' ? tIdx('ph_sub_sys_manage') : tIdx('ph_sub_sys_status')"></p>
+                            <span class="log-badge">
+                                <i class="fa-solid fa-server" aria-hidden="true"></i>
+                                <span x-text="(systemService && systemService.unit) || 'smart_robot.service'"></span>
+                            </span>
                         </div>
+                        <div class="log-hero-stats">
+                            <div class="log-stat-card">
+                                <div class="ico"><i class="fa-solid fa-circle" :style="'color:'+(systemService && systemService.active ? '#2fbf71':'#e5533d')"></i></div>
+                                <div class="lbl" data-i18n="sys_run_state">Running</div>
+                                <div class="num sm" x-text="systemServiceActiveLabel()"></div>
+                            </div>
+                            <div class="log-stat-card">
+                                <div class="ico"><i class="fa-solid fa-power-off"></i></div>
+                                <div class="lbl" data-i18n="sys_mgmt_state">Enabled</div>
+                                <div class="num sm" x-text="systemServiceEnabledLabel()"></div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div class="vs-param-pane" x-show="systemParamTab==='status'" x-cloak>
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div class="text-secondary small" data-i18n="sys_status_hint">CPU / memory of smart_robot.service and disk used under /mnt/sd/smartdevice.</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" :disabled="systemServiceBusy" @click="refreshSystemService()">
+                                <i class="fa-solid fa-rotate" :class="systemServiceBusy && 'fa-spin'"></i>
+                                <span data-i18n="sys_refresh">Refresh</span>
+                            </button>
+                        </div>
+                        <div class="sys-stat-grid">
+                            <div class="sys-stat-card">
+                                <div class="lbl" data-i18n="sys_cpu">CPU</div>
+                                <div class="num"><span x-text="fmtSysNum(systemService && systemService.cpuPercent, 1)"></span><span class="unit">%</span></div>
+                                <div class="foot">
+                                    <span x-text="(systemService && systemService.comm) || 'smart_robot_pro'"></span>
+                                    · PID <span x-text="(systemService && systemService.pid) || '—'"></span>
+                                </div>
+                            </div>
+                            <div class="sys-stat-card">
+                                <div class="lbl" data-i18n="sys_mem">Memory</div>
+                                <div class="num"><span x-text="fmtSysNum(systemService && systemService.memoryPercent, 1)"></span><span class="unit">%</span></div>
+                                <div class="foot">
+                                    RES <span x-text="fmtSysNum(systemService && systemService.memoryRssMb, 0)"></span> MB
+                                </div>
+                            </div>
+                            <div class="sys-stat-card">
+                                <div class="lbl" data-i18n="sys_disk">Disk</div>
+                                <div class="num"><span x-text="fmtSysDisk(systemService && systemService.diskUsedMb)"></span></div>
+                                <div class="foot" x-text="(systemService && systemService.diskPath) || '/mnt/sd/smartdevice'"></div>
+                            </div>
+                        </div>
+
+                        <div class="sys-thread-card">
+                            <div class="sys-thread-glow" aria-hidden="true"></div>
+                            <div class="card-header">
+                                <div class="ttl">
+                                    <span class="ico"><i class="fa-solid fa-microchip"></i></span>
+                                    <span data-i18n="sys_threads_title">Threads (top -H)</span>
+                                </div>
+                                <span class="sys-thread-badge">
+                                    <i class="fa-solid fa-layer-group" style="font-size:10px;opacity:.85;"></i>
+                                    <span x-text="(systemService && systemService.threadCount) || ((systemService && systemService.threads) || []).length || 0"></span>
+                                    <span data-i18n="sys_threads_unit">threads</span>
+                                </span>
+                            </div>
+                            <div class="sys-thread-scroll">
+                                <table class="sys-thread-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="num">#</th>
+                                            <th class="num" data-i18n="sys_th_tid">PID</th>
+                                            <th class="cmd" data-i18n="sys_th_cmd">NAME</th>
+                                            <th class="num" data-i18n="sys_th_state">S</th>
+                                            <th class="num" data-i18n="sys_th_cpu">%CPU</th>
+                                            <th class="num" data-i18n="sys_th_mem">%MEM</th>
+                                            <th class="num" data-i18n="sys_th_res">RES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(th, idx) in ((systemService && systemService.threads) || [])" :key="'tid_'+th.tid">
+                                            <tr :class="(th.cpuPercent||0) >= 10 && 'is-hot'">
+                                                <td class="num"><span class="sys-rank" x-text="idx+1"></span></td>
+                                                <td class="num" x-text="th.tid"></td>
+                                                <td class="cmd" :title="th.comm">
+                                                    <span class="sys-cmd-pill" x-text="th.comm || '—'"></span>
+                                                </td>
+                                                <td class="num">
+                                                    <span class="sys-state-pill" :class="th.state==='R' && 'is-r'" x-text="th.state || '—'"></span>
+                                                </td>
+                                                <td class="num">
+                                                    <div class="sys-cpu-cell">
+                                                        <div class="sys-cpu-meter">
+                                                            <i :style="'width:'+sysCpuBarPct(th.cpuPercent)+'%'"></i>
+                                                            <span class="sys-cpu-val" x-text="fmtSysNum(th.cpuPercent, 1)"></span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="num sys-mem-muted" x-text="fmtSysNum(th.memoryPercent != null ? th.memoryPercent : (systemService && systemService.memoryPercent), 1)"></td>
+                                                <td class="num sys-mem-muted" x-text="fmtSysNum(th.memoryRssMb != null ? th.memoryRssMb : (systemService && systemService.memoryRssMb), 0) + 'M'"></td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!((systemService && systemService.threads) || []).length">
+                                            <td colspan="7" class="text-secondary text-center py-4" data-i18n="sys_threads_empty">No thread data (rebuild firmware to enable)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="vs-param-pane" x-show="systemParamTab==='manage'" x-cloak>
+                        <div class="sys-mgmt-card card shadow">
+                            <div class="card-header" data-i18n="sys_mgmt_title">System Service Management</div>
+                            <div class="card-body p-0">
+                                <table class="sys-table">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="sys_col_name">Service</th>
+                                            <th data-i18n="sys_col_mgmt">Managed</th>
+                                            <th data-i18n="sys_col_run">Running</th>
+                                            <th data-i18n="sys_col_ops">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="unit" x-text="(systemService && systemService.unit) || 'smart_robot.service'"></td>
+                                            <td>
+                                                <span :class="(systemService && systemService.enabled) ? 'sys-state-on' : 'sys-state-off'"
+                                                      x-text="systemServiceEnabledLabel()"></span>
+                                            </td>
+                                            <td>
+                                                <span :class="(systemService && systemService.active) ? 'sys-state-on' : 'sys-state-off'"
+                                                      x-text="systemServiceActiveLabel()"></span>
+                                            </td>
+                                            <td>
+                                                <div class="sys-actions">
+                                                    <button type="button" class="btn btn-sm"
+                                                            :class="(systemService && systemService.enabled) ? 'btn-danger' : 'btn-success'"
+                                                            :disabled="systemServiceBusy"
+                                                            @click="controlSystemService((systemService && systemService.enabled) ? 'disable' : 'enable')"
+                                                            x-text="(systemService && systemService.enabled) ? tIdx('sys_act_disable') : tIdx('sys_act_enable')"></button>
+                                                    <button type="button" class="btn btn-sm"
+                                                            :class="(systemService && systemService.active) ? 'btn-danger' : 'btn-success'"
+                                                            :disabled="systemServiceBusy"
+                                                            @click="controlSystemService((systemService && systemService.active) ? 'stop' : 'start')"
+                                                            x-text="(systemService && systemService.active) ? tIdx('sys_act_stop') : tIdx('sys_act_start')"></button>
+                                                    <button type="button" class="btn btn-sm btn-primary"
+                                                            :disabled="systemServiceBusy"
+                                                            @click="controlSystemService('restart')" data-i18n="sys_act_restart">Restart</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <p class="text-secondary small mt-3 mb-0" data-i18n="sys_mgmt_hint">Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.</p>
+                    </div>
+
+                    <div class="sys-confirm-backdrop" x-cloak x-show="sysConfirmOpen"
+                         @keydown.escape.window="sysConfirmOpen && closeSysConfirm()"
+                         @click.self="closeSysConfirm()"
+                         role="presentation">
+                        <div class="sys-confirm-modal" :class="sysConfirmTone()==='danger' && 'tone-danger'"
+                             @click.stop role="dialog" aria-modal="true"
+                             :aria-label="sysConfirmTitle()">
+                            <div class="sys-confirm-glow"></div>
+                            <div class="sys-confirm-body">
+                                <div class="sys-confirm-ico" aria-hidden="true">
+                                    <i class="fa-solid" :class="sysConfirmIcon()"></i>
+                                </div>
+                                <h3 class="sys-confirm-title" x-text="sysConfirmTitle()"></h3>
+                                <div class="sys-confirm-unit">
+                                    <i class="fa-solid fa-server" style="font-size:11px;opacity:.85;"></i>
+                                    <span x-text="(systemService && systemService.unit) || 'smart_robot.service'"></span>
+                                </div>
+                                <p class="sys-confirm-msg" x-text="sysConfirmMessage()"></p>
+                            </div>
+                            <div class="sys-confirm-foot">
+                                <button type="button" class="btn btn-ghost" @click="closeSysConfirm()" data-i18n="sys_confirm_cancel">Cancel</button>
+                                <button type="button" class="btn btn-confirm" :disabled="systemServiceBusy"
+                                        @click="confirmSystemService()">
+                                    <i class="fa-solid" :class="sysConfirmIcon()" style="margin-right:6px;opacity:.95;"></i>
+                                    <span x-text="sysConfirmOkLabel()"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ initDeviceGeneralInformation(); if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
+
+                    <header class="log-page-hero">
+                        <div class="log-page-hero-main">
+                            <div class="log-eyebrow" data-i18n="ls_eyebrow">Diagnostics</div>
+                            <div class="log-title-row">
+                                <h1 data-i18n="page_debug">Log Settings</h1>
+                                <div class="log-seg" role="tablist" aria-label="Log sections">
+                                    <button type="button" role="tab"
+                                            :class="logParamTab==='settings' && 'active'"
+                                            :aria-selected="logParamTab==='settings'"
+                                            @click="switchLogParamTab('settings')"
+                                            data-i18n="ls_tab_settings">Log Settings</button>
+                                    <button type="button" role="tab"
+                                            :class="logParamTab==='viewer' && 'active'"
+                                            :aria-selected="logParamTab==='viewer'"
+                                            @click="switchLogParamTab('viewer')"
+                                            data-i18n="ls_tab_logfile">Log File</button>
+                                </div>
+                            </div>
+                            <p class="log-sub"
+                               x-text="logParamTab==='viewer'
+                                 ? (tIdx('ls_sub_files') + ' · ' + (logInformation.logDir || '/mnt/sd/smartdevice/log/'))
+                                 : tIdx('ls_sub_settings')"></p>
+                            <span class="log-badge" x-show="logParamTab==='viewer'">
+                                <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+                                <span x-text="filteredLogs.length + ' ' + tIdx('ls_badge_files')"></span>
+                            </span>
+                            <span class="log-badge" x-show="logParamTab==='settings'">
+                                <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                                <span x-text="logModuleOnCount() + '/' + logModuleTotal() + ' ' + tIdx('ls_badge_modules')"></span>
+                            </span>
+                        </div>
+                        <div class="log-hero-stats">
+                            <div class="log-stat-card" x-show="logParamTab==='settings'">
+                                <div class="ico"><i class="fa-solid fa-toggle-on"></i></div>
+                                <div class="lbl" data-i18n="ls_stat_modules">Modules</div>
+                                <div class="num" x-text="logModuleOnCount()"></div>
+                                <div class="foot" x-text="tIdx('ls_stat_modules_on')"></div>
+                            </div>
+                            <div class="log-stat-card" x-show="logParamTab==='settings'">
+                                <div class="ico"><i class="fa-solid fa-gauge-high"></i></div>
+                                <div class="lbl" data-i18n="ls_stat_level">Level</div>
+                                <div class="num" style="font-size:18px;padding-top:6px;"
+                                     x-text="['INFO','WARN','ERROR'][logInformation.minloglevel] || 'INFO'"></div>
+                                <div class="foot" data-i18n="db_min_log_level">Min Log Level</div>
+                            </div>
+                            <div class="log-stat-card" x-show="logParamTab==='viewer'">
+                                <div class="ico"><i class="fa-solid fa-file-lines"></i></div>
+                                <div class="lbl" data-i18n="ls_stat_files">Files</div>
+                                <div class="num" x-text="filteredLogs.length"></div>
+                                <div class="foot" data-i18n="lg_sessions">Sessions</div>
+                            </div>
+                            <div class="log-stat-card" x-show="logParamTab==='viewer'">
+                                <div class="ico"><i class="fa-solid fa-bolt"></i></div>
+                                <div class="lbl" data-i18n="lg_live">Live</div>
+                                <div class="num" x-text="filteredLogs.filter(l => l.current).length"></div>
+                                <div class="foot" data-i18n="ls_stat_live_foot">Active now</div>
+                            </div>
+                        </div>
+                    </header>
+
                         <div class="vs-param-pane" x-show="logParamTab==='settings'" x-cloak>
-<div class="card shadow">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="db_log_title">Log Information</h3>
+                    <div class="log-glass">
+                        <div class="log-glass-head">
+                            <h3 data-i18n="db_log_title">Log Information</h3>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-4 row">
-
-                                <div class="col-12 col-md-4">
-                                    <label for="logtostderr" class="col-form-label col-12 col-md-6" data-i18n="db_log_stdout">Log to Stdout</label>
-                                    <input
-                                            id="logtostdout"
-                                            type="number"
-                                            class="form-control"
-                                            x-model.number="logInformation.logtostdout"
-                                            min="0"
-                                    />
+                        <div class="log-glass-body">
+                            <div class="log-field-grid">
+                                <div class="log-field">
+                                    <label for="logtostdout" data-i18n="db_log_stdout">Log to Stdout</label>
+                                    <input id="logtostdout" type="number" class="form-control"
+                                           x-model.number="logInformation.logtostdout" min="0" />
                                 </div>
-
-                                <div class="col-12 col-md-4">
-                                    <label for="logtostderr" class="col-form-label col-12 col-md-6" data-i18n="db_log_stderr">Log to Stderr</label>
-                                    <input
-                                            id="logtostderr"
-                                            type="number"
-                                            class="form-control"
-                                            x-model.number="logInformation.logtostderr"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="logtostderr" data-i18n="db_log_stderr">Log to Stderr</label>
+                                    <input id="logtostderr" type="number" class="form-control"
+                                           x-model.number="logInformation.logtostderr" min="0" />
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="alsologtostderr" class="col-form-label col-12 col-md-6" data-i18n="db_also_stderr">Also Log to Stderr</label>
-                                    <input
-                                            id="alsologtostderr"
-                                            type="number"
-                                            class="form-control"
-                                            x-model.number="logInformation.alsologtostderr"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="alsologtostderr" data-i18n="db_also_stderr">Also Log to Stderr</label>
+                                    <input id="alsologtostderr" type="number" class="form-control"
+                                           x-model.number="logInformation.alsologtostderr" min="0" />
                                 </div>
-                            </div>
-                            <div class="mb-4 row">
-
-                                <div class="col-12 col-md-4">
-                                    <label for="minloglevel" class="col-form-label col-12 col-md-6" data-i18n="db_min_log_level">Min Log Level</label>
-                                    <!--                            <input-->
-                                    <!--                                    id="minloglevel"-->
-                                    <!--                                    type="number"-->
-                                    <!--                                    class="form-control"-->
-                                    <!--                                    x-model.number="logInformation.minloglevel"-->
-                                    <!--                                    min="0"-->
-                                    <!--                            />-->
-
-                                    <select
-                                            id="minloglevel"
-                                            class="form-control"
-                                            x-model.number="logInformation.minloglevel"
-                                    >
+                                <div class="log-field">
+                                    <label for="minloglevel" data-i18n="db_min_log_level">Min Log Level</label>
+                                    <select id="minloglevel" class="form-select" x-model.number="logInformation.minloglevel">
                                         <option value="0">INFO</option>
                                         <option value="1">WARN</option>
                                         <option value="2">ERROR</option>
                                     </select>
-
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="minLogSeverity" class="col-form-label col-12 col-md-6" data-i18n="db_min_severity">Min Log Severity</label>
-                                    <!--                            <input-->
-                                    <!--                                    id="minLogSeverity"-->
-                                    <!--                                    type="number"-->
-                                    <!--                                    class="form-control"-->
-                                    <!--                                    x-model.number="logInformation.minLogSeverity"-->
-                                    <!--                                    min="0"-->
-                                    <!--                            />-->
-                                    <select
-                                            id="minLogSeverity"
-                                            class="form-control"
-                                            x-model.number="logInformation.minLogSeverity"
-                                    >
+                                <div class="log-field">
+                                    <label for="minLogSeverity" data-i18n="db_min_severity">Min Log Severity</label>
+                                    <select id="minLogSeverity" class="form-select" x-model.number="logInformation.minLogSeverity">
                                         <option value="0">INFO</option>
                                         <option value="1">WARN</option>
                                         <option value="2">ERROR</option>
                                     </select>
-
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="maxLogSize" class="col-form-label col-12 col-md-6" data-i18n="db_max_log_size">Max Log Size</label>
-                                    <input
-                                            id="maxLogSize"
-                                            type="number"
-                                            class="form-control"
-                                            x-model.number="logInformation.maxLogSize"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="logVerbose" data-i18n="db_log_verbose">Log Verbose Level</label>
+                                    <input id="logVerbose" type="number" class="form-control"
+                                           x-model.number="logInformation.logVerbose" min="0" />
                                 </div>
-
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label for="logVerbose" class="col-form-label col-12 col-md-6" data-i18n="db_log_verbose">Log Verbose</label>
-                                    <input
-                                            id="logVerbose"
-                                            type="number"
-                                            class="form-control"
-                                            x-model.number="logInformation.logVerbose"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="maxLogSize" data-i18n="db_max_log_size">Max Log Size</label>
+                                    <input id="maxLogSize" type="number" class="form-control"
+                                           x-model.number="logInformation.maxLogSize" min="0" />
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="logDir" class="col-form-label col-12 col-md-6" data-i18n="db_log_dir">Log Directory</label>
-                                    <input
-                                            id="logDir"
-                                            type="text"
-                                            class="form-control"
-                                            x-model="logInformation.logDir"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="logDir" data-i18n="db_log_dir">Log Directory</label>
+                                    <input id="logDir" type="text" class="form-control"
+                                           x-model="logInformation.logDir" />
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label for="logApplicationName"
-                                           class="col-form-label col-12 col-md-6" data-i18n="db_log_app_name">App Name</label>
-                                    <input
-                                            id="logApplicationName"
-                                            type="text"
-                                            class="form-control"
-                                            x-model="logInformation.logApplicationName"
-                                            min="0"
-                                    />
+                                <div class="log-field">
+                                    <label for="logApplicationName" data-i18n="db_log_app_name">Application Name</label>
+                                    <input id="logApplicationName" type="text" class="form-control"
+                                           x-model="logInformation.logApplicationName" />
                                 </div>
                             </div>
                         </div>
-                        <hr class="my-0">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <h4 class="mb-0 me-3" data-i18n="db_module_switches">Module Log Switches</h4><hr class="my-0">
-                                <button class="btn btn-sm btn-success me-2" @click="Object.keys(logInformation).filter(k => k.startsWith('log') && k.endsWith('Enable')).forEach(k => logInformation[k] = true)">
+                    </div>
+
+                    <div class="log-glass">
+                        <div class="log-glass-head">
+                            <h3 data-i18n="db_module_switches">Module Log Switches</h3>
+                            <div class="log-mod-actions">
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        @click="Object.keys(logInformation).filter(k => k.startsWith('log') && k.endsWith('Enable')).forEach(k => logInformation[k] = true)">
                                     <span data-i18n="db_log_all_on">All ON</span>
                                 </button>
-                                <button class="btn btn-sm btn-secondary" @click="Object.keys(logInformation).filter(k => k.startsWith('log') && k.endsWith('Enable')).forEach(k => logInformation[k] = false)">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        @click="Object.keys(logInformation).filter(k => k.startsWith('log') && k.endsWith('Enable')).forEach(k => logInformation[k] = false)">
                                     <span data-i18n="db_log_all_off">All OFF</span>
                                 </button>
                             </div>
-                            <div class="row">
+                        </div>
+                        <div class="log-glass-body">
+                            <div class="log-mod-grid">
                                 <template x-for="mod in [
                                     {key:'logGstServiceEnable', label:'GstService'},
                                     {key:'logMediaPipelineEnable', label:'MediaPipeline'},
@@ -8883,37 +9082,36 @@ window.__presignThumbUrl = function (raw) {
                                     {key:'logMdnsServiceEnable', label:'MdnsService'},
                                     {key:'logRemoteCommandEnable', label:'RemoteCommand'},
                                 ]" :key="mod.key">
-                                    <div class="col-6 col-md-3 mb-2">
-                                        <label class="form-check">
-                                            <input class="form-check-input" type="checkbox"
-                                                   :checked="logInformation[mod.key]"
-                                                   @change="logInformation[mod.key] = $event.target.checked">
-                                            <span class="form-check-label" x-text="mod.label"></span>
-                                        </label>
-                                    </div>
+                                    <label class="log-mod-chip" :class="logInformation[mod.key] && 'on'">
+                                        <input type="checkbox"
+                                               :checked="logInformation[mod.key]"
+                                               @change="logInformation[mod.key] = $event.target.checked">
+                                        <span class="dot" aria-hidden="true"></span>
+                                        <span class="name" x-text="mod.label"></span>
+                                    </label>
                                 </template>
                             </div>
                         </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary me-2" @click="submitLogInformation">
+                        <div class="log-glass-foot">
+                            <button type="button" class="btn btn-primary" @click="submitLogInformation">
+                                <i class="fa-solid fa-floppy-disk me-1"></i>
                                 <span data-i18n="db_update_log">Update Log</span>
                             </button>
                         </div>
-
                     </div>
 
-                    <!-- Camera Health（完整卡片：header + body 检测指标） -->
-                    <div class="card shadow mb-3">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <h3 class="card-title mb-0" data-i18n="db_camera_health">Camera Health</h3>
-                            <button type="button" class="btn btn-sm btn-primary" @click="fetchCameraHealth()" data-i18n="ch_refresh">Refresh</button>
+                    <div class="log-glass">
+                        <div class="log-glass-head">
+                            <h3 data-i18n="db_camera_health">Camera Health</h3>
+                            <button type="button" class="btn btn-sm btn-outline-primary" style="border-radius:999px;"
+                                    @click="fetchCameraHealth()" data-i18n="ch_refresh">Refresh</button>
                         </div>
-                        <div class="card-body">
+                        <div class="log-glass-body">
                             <div class="row g-2">
                                 <template x-for="cam in cameraHealth" :key="'health-'+cam.cameraIndex">
                                     <div class="col-12 col-md-6">
                                         <div class="d-flex flex-wrap align-items-center gap-2 p-2"
-                                             style="border-radius:8px;border:1px solid var(--border-color);min-height:44px;"
+                                             style="border-radius:12px;border:1px solid var(--border);min-height:44px;"
                                              :style="cam.status==2 ? 'background:rgba(239,68,68,0.12)' : cam.status==1 ? 'background:rgba(245,158,11,0.12)' : 'background:rgba(34,197,94,0.10)'">
                                             <span class="badge" style="min-width:3.2rem;text-align:center;" :class="cam.cameraIndex===0 ? 'bg-primary' : 'bg-success'" x-text="'CAM'+(cam.cameraIndex+1)"></span>
                                             <span class="badge" :class="cam.status==2 ? 'bg-danger' : cam.status==1 ? 'bg-warning text-dark' : 'bg-success'"
@@ -8933,215 +9131,415 @@ window.__presignThumbUrl = function (raw) {
                         </div>
                     </div>
 
+</div><!-- /.vs-param-pane settings -->
+<div class="vs-param-pane log-tabs-wrap" x-show="logParamTab==='viewer'" x-cloak>
+<div class="log-studio">
+  <div class="log-studio-shell">
+    <div class="log-studio-toolbar">
+      <div class="log-studio-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" class="form-control form-control-sm"
+               :placeholder="tIdx('lg_search_ph')" x-model="logSearchQ"
+               @keydown.enter.prevent="searchLogHistory()">
+      </div>
+      <button class="btn btn-sm btn-primary" style="border-radius:999px;padding:5px 14px;"
+              @click="searchLogHistory()" data-i18n="lg_search_btn">Search</button>
+      <div class="log-studio-seg" role="group" :aria-label="tIdx('lg_level_all')">
+        <button type="button" :class="logLevelFilter==='ALL' && 'active'" @click="logLevelFilter='ALL'" data-i18n="lg_level_all">All</button>
+        <button type="button" :class="logLevelFilter==='INFO' && 'active'" @click="logLevelFilter='INFO'">INFO</button>
+        <button type="button" class="lv-warn" :class="logLevelFilter==='WARNING' && 'active'" @click="logLevelFilter='WARNING'">WARN</button>
+        <button type="button" class="lv-err" :class="logLevelFilter==='ERROR' && 'active'" @click="logLevelFilter='ERROR'">ERR</button>
+      </div>
+      <select class="form-select form-select-sm" style="max-width:120px;border-radius:999px;height:34px;" x-model="logDateFilter">
+        <option value="all" x-text="tIdx('lg_date_all')">All dates</option>
+        <option value="today" x-text="tIdx('lg_date_today')">Today</option>
+      </select>
+      <div class="log-studio-actions">
+        <button class="btn btn-sm btn-outline-primary" @click="fetchLogs()" :title="tIdx('lg_refresh')">
+          <i class="fa-solid fa-rotate-right me-1"></i><span data-i18n="lg_refresh">Refresh</span>
+        </button>
+        <button class="btn btn-sm btn-outline-success" @click="openLogUploadModal()" :title="tIdx('lg_upload')" :disabled="logUploadPhase==='uploading'">
+          <i class="fa-solid fa-cloud-arrow-up me-1"></i><span data-i18n="lg_upload">Upload</span>
+        </button>
+        <button class="btn btn-sm btn-outline-warning" @click="clearLogs()" :title="tIdx('lg_clear')">
+          <i class="fa-solid fa-trash-can me-1"></i><span data-i18n="lg_clear">Clear</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 px-1 mb-2" x-show="logSearchHits.length" style="padding:0 14px;">
+      <span class="small text-muted" x-text="tIdx('lg_hits') + ': ' + logSearchHits.length"></span>
+      <button class="btn btn-sm btn-outline-secondary" style="border-radius:999px;" @click="logSearchHits=[]" data-i18n="lg_hits_clear">Clear hits</button>
+    </div>
+    <div class="log-hits mb-2" x-show="logSearchHits.length" style="margin:0 14px 10px;">
+      <template x-for="(hit, hi) in logSearchHits" :key="hi">
+        <div class="log-hit" @click="openSearchHit(hit)">
+          <span class="lv me-1"
+                :class="hit.level==='ERROR'?'err':(hit.level==='WARNING'?'warn':'info')"
+                style="display:inline-flex;width:auto;padding:0 7px;height:18px;border-radius:6px;font-size:10px;font-weight:800;"
+                x-text="hit.level"></span>
+          <span class="text-muted small" x-text="(hit.file||'').slice(0,28) + ':' + hit.lineNo"></span>
+          <div class="snip" x-text="hit.text"></div>
+        </div>
+      </template>
+    </div>
+
+    <div class="log-studio-body list-only">
+      <aside class="log-studio-list" aria-label="log sessions">
+        <div class="log-studio-list-head">
+          <span data-i18n="lg_sessions">Sessions</span>
+          <span x-text="filteredLogs.length"></span>
+        </div>
+        <div class="log-studio-list-scroll">
+          <div class="log-group-label" x-show="filteredLogs.length"
+               x-text="tIdx('lg_sessions') + ' · ' + filteredLogs.length"></div>
+          <template x-for="log in filteredLogs" :key="log.name">
+            <div class="log-session" :class="{ active: logActiveFile===log.name && logViewOpen }"
+                 @click="viewLog(log.name)" :title="log.name">
+              <div class="log-ico"
+                   :class="(log.kind||'')==='crash' ? 'crash' : (log.level==='ERROR'?'err':(log.level==='WARNING'?'warn':''))">
+                <i class="fa-solid"
+                   :class="(log.kind||'')==='crash' ? 'fa-bomb' : ((log.kind||'')==='sys' ? 'fa-terminal' : 'fa-file-lines')"></i>
+              </div>
+              <div class="log-main">
+                <div class="log-title">
+                  <span class="name" x-text="log.name || '—'"></span>
+                  <span class="live-pill" x-show="log.current" data-i18n="lg_live">Live</span>
+                </div>
+                <div class="chips">
+                  <span class="chip"
+                        :class="log.level==='ERROR'?'lv-err':(log.level==='WARNING'?'lv-warn':'lv-info')"
+                        x-text="logLevelShort(log)"></span>
+                  <span class="chip muted" x-text="formatLogSessionTime(log)"></span>
+                  <span class="chip muted" x-text="formatLogSize(log.size)"></span>
+                  <span class="chip muted" x-show="(log.kind||'')==='crash'">crash</span>
+                  <span class="chip muted" x-show="(log.kind||'')==='sys'">sys</span>
+                  <span class="chip muted" x-show="(log.kind||'')==='glog' || !log.kind">glog</span>
+                </div>
+              </div>
+              <div class="time-col">
+                <div class="rel" x-text="formatLogRelTime(log) || '—'"></div>
+                <div class="abs" x-text="formatLogAbsTime(log) || formatLogSessionTime(log)"></div>
+              </div>
+              <div class="ops">
+                <button type="button" class="view-pill" @click.stop="viewLog(log.name)" x-text="tIdx('lg_view')">View</button>
+                <button type="button" class="icon-btn" @click.stop="downloadLog(log.name)" :title="tIdx('lg_download')" aria-label="download">
+                  <i class="fa-solid fa-download"></i>
+                </button>
+                <button type="button" class="icon-btn danger" @click.stop="clearLogs(log.name)" :title="tIdx('lg_delete')" aria-label="delete">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          </template>
+          <div class="log-empty" x-show="!filteredLogs.length" data-i18n="lg_no_files">No log files</div>
+        </div>
+      </aside>
+    </div><!-- /.log-studio-body -->
+  </div><!-- /.log-studio-shell -->
+</div><!-- /.log-studio -->
+</div><!-- /.vs-param-pane.log-tabs-wrap -->
+
+<!-- 日志内容弹框：必须仍在 #debug 的 x-data 内 -->
+<div class="dv-modal-backdrop" x-cloak x-show="logViewOpen"
+     @click.self="closeLogView()"
+     @keydown.escape.window="logViewOpen && closeLogView()">
+  <div class="dv-modal log-view-modal" @click.stop role="dialog" aria-modal="true" :aria-label="logActiveFile || tIdx('lg_view')">
+    <div class="log-view-head">
+      <i class="fa-solid fa-file-lines" style="color:var(--accent);"></i>
+      <span class="file" :title="logActiveFile" x-text="logActiveFile || '—'"></span>
+      <div class="log-view-tools">
+        <input type="search" class="form-control form-control-sm"
+               :placeholder="tIdx('lg_find_ph')" x-model="logFindQ"
+               @keydown.enter.prevent="findInLog(1)">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="findInLog(-1)" :title="tIdx('lg_find_prev')">↑</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="findInLog(1)" :title="tIdx('lg_find_next')">↓</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.__scrollLogEdge && window.__scrollLogEdge('top')" @click.prevent="scrollLogEdge('top')" data-i18n="lg_to_head">Top</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.__scrollLogEdge && window.__scrollLogEdge('bottom')" @click.prevent="scrollLogEdge('bottom')" data-i18n="lg_to_tail">End</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="refreshLogView()"
+                x-show="logActiveFile" :disabled="logViewLoading" :title="tIdx('lg_view_refresh')">
+          <i class="fa-solid fa-rotate-right" :class="logViewLoading && 'fa-spin'"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="downloadLog(logActiveFile)" x-show="logActiveFile" :title="tIdx('lg_download')">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeLogView()" :title="tIdx('cm_close')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+    <div class="log-view-meta" x-show="logFindQ || logViewLoading">
+      <span x-show="logFindQ" x-text="tIdx('lg_find_match') + ': ' + logFindMatchCount"></span>
+      <span class="ms-auto" x-show="logViewLoading" data-i18n="lg_view_loading">Loading…</span>
+    </div>
+    <div class="log-view-console" id="logViewConsole" x-ref="logContentBox">
+      <pre x-html="renderedLogHtml"></pre>
+    </div>
+  </div>
 </div>
-<div class="vs-param-pane" x-show="logParamTab==='viewer'" x-cloak>
-<div class="card shadow">
-                        <!--                <div class="card-header" style="padding: 10px;">-->
-                        <!--                    <h3 class="card-title">Log Content</h3>-->
-                        <!--                </div>-->
-                        <div class="card-body">
-                            <div class="row">
-                                <!-- 左侧：日志内容 -->
-                                <div class="col-md-9" style="padding: 0;">
-                                    <!-- 不再使用 card 组件 -->
-                                    <div style="height: 90vh; display: flex; flex-direction: column;">
-                                        <div style="flex: 1; overflow-y: auto;">
-                                            <pre x-text="logContent"></pre>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <!-- 右侧：日志文件列表，悬浮在日志框上方 -->
-                                <div class="card shadow col-md-3">
-                                    <div class="card-header" style="padding: 10px;">
-                                        <div class="d-flex flex-row justify-content-between align-items-center w-60 p-1"
-                                             style="gap: 10px;">
-                                            <button class="btn btn-muted btn-primary" @click="fetchLogs()">
-                                                <span data-i18n="lg_refresh">Refresh</span>
-                                            </button>
-                                            <button class="btn btn-muted  btn-warning" @click="clearLogs()">
-                                                <span data-i18n="lg_clear">Clear</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="card-body" style="max-height: 100vh; overflow-y: auto;">
-                                        <ul class="list-group"
-                                            style="position: absolute; top: 0; left: 0; width: 100%; z-index: 10;  max-height: 100vh; overflow-y: auto;">
-                                            <template x-for="log in logs" :key="log.name">
-                                                <li class="list-group-item d-flex flex-row align-items-center justify-content-between"
-                                                    style="padding: 10px;">
-                                                    <!-- 左侧图标 -->
-                                                    <i class="me-3" :class="{
-                                            'fa fa-info-circle text-primary': log.name.includes('INFO'),
-                                            'fa fa-exclamation-triangle text-warning': log.name.includes('WARNING'),
-                                            'fa fa-times-circle text-danger': log.name.includes('ERROR')
-                                        }" style="font-size: 1.5rem;"></i>
-
-                                                    <!-- 右侧内容 -->
-                                                    <div class="d-flex flex-column align-items-start justify-content-start w-100">
-                                                        <!-- 日志名称 -->
-                                                        <!--                                                <span class="text-dark mb-2" style="font-size: 0.8rem;" x-text="log.name.slice(20)"></span>-->
-                                                        <span class="mb-2" style="font-size: 0.8rem; color: var(--text-primary);"
-                                                              x-text="log.name.split('.')[0] + log.name.slice(20)">
-                                                </span>
-
-                                                        <!-- 按钮组 -->
-                                                        <div class="d-flex flex-row justify-content-end gap-2">
-                                                            <button class="btn btn-sm btn-primary" @click="viewLog(log.name)">
-                                                                <span data-i18n="lg_view">View</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-success"
-                                                                    @click="downloadLog(log.name)">
-                                                                <span data-i18n="lg_download">Download</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-warning" @click="clearLogs(log.name)">
-                                                                <span data-i18n="lg_delete">Delete</span>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </li>
+<!-- 日志上传云端弹层 -->
+<div class="dv-modal-backdrop" x-cloak x-show="logUploadOpen" @click.self="closeLogUploadModal()"
+     @keydown.escape.window="logUploadOpen && closeLogUploadModal()">
+  <div class="dv-modal log-upload-modal" @click.stop role="dialog" aria-modal="true" :aria-label="tIdx('lg_upload_title')">
+    <div class="dv-modal-head" style="align-items:flex-start;">
+      <div class="log-upload-icon"
+           :class="logUploadPhase==='done'?'ok':(logUploadPhase==='error'?'err':(logUploadPhase==='uploading'?'spin':''))">
+        <i class="fa-solid" :class="logUploadPhase==='done'?'fa-circle-check':(logUploadPhase==='error'?'fa-circle-exclamation':(logUploadPhase==='uploading'?'fa-cloud-arrow-up':'fa-cloud-arrow-up'))"></i>
+      </div>
+      <div style="min-width:0;flex:1;">
+        <div class="log-upload-title" x-text="logUploadTitleText()"></div>
+        <div class="log-upload-sub" x-text="logUploadSubText()"></div>
+      </div>
+    </div>
+    <div class="dv-modal-body" style="white-space:normal;color:var(--text-secondary);">
+      <div class="log-upload-card">
+        <div class="log-upload-row">
+          <span class="k" data-i18n="lg_upload_target">Target</span>
+          <span class="v" data-i18n="lg_upload_target_val">console_systemd.out → S3</span>
+        </div>
+        <div class="log-upload-row">
+          <span class="k" data-i18n="lg_upload_uuid">Device UUID</span>
+          <span class="v" x-text="logUploadDeviceId || '—'" :title="logUploadDeviceId"></span>
+        </div>
+        <div class="log-upload-row" x-show="logUploadS3Key">
+          <span class="k" data-i18n="lg_upload_path">Path</span>
+          <span class="v" x-text="shortLogUploadPath(logUploadS3Key)" :title="logUploadS3Key"></span>
+        </div>
+        <div class="log-upload-row" x-show="logUploadMessage">
+          <span class="k" data-i18n="lg_upload_status">Status</span>
+          <span class="v" x-text="logUploadMessage"></span>
+        </div>
+      </div>
+      <div class="log-upload-ticket" x-show="logUploadTicket">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px;" data-i18n="lg_upload_code">Support code</div>
+          <code x-text="logUploadTicket"></code>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" style="border-radius:999px;"
+                @click="copyLogUploadCode()" :title="tIdx('lg_upload_copy')">
+          <i class="fa-solid fa-copy"></i>
+        </button>
+      </div>
+      <div class="log-upload-progress" x-show="logUploadPhase==='uploading'" aria-hidden="true"><i></i></div>
+    </div>
+    <div class="dv-modal-foot">
+      <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius:999px;min-width:88px;"
+              x-show="logUploadPhase==='confirm' || logUploadPhase==='uploading'"
+              @click="closeLogUploadModal()"
+              x-text="tIdx('cm_cancel')"></button>
+      <button type="button" class="btn btn-sm btn-success" style="border-radius:999px;min-width:108px;"
+              x-show="logUploadPhase==='confirm'"
+              @click="confirmLogUploadToCloud()" data-i18n="lg_upload_start">Upload</button>
+      <button type="button" class="btn btn-sm btn-primary" style="border-radius:999px;min-width:88px;"
+              x-show="logUploadPhase==='done' || logUploadPhase==='error'"
+              @click="closeLogUploadModal()" data-i18n="cm_close">Close</button>
+    </div>
+  </div>
+</div>
 
 
-                                                <!--                                        <li class="list-group-item d-flex flex-column justify-content-start align-items-center">-->
-                                                <!--                                            <div class="d-flex flex-row mb-1">-->
-                                                <!--&lt;!&ndash;                                                <span class="fw-bold text-dark" style="font-size: 1rem;">Name:</span>&ndash;&gt;-->
-                                                <!--                                                <span class="text-dark" style="font-size: 0.8rem;" x-text="log.name.slice(20)"></span>-->
-                                                <!--                                            </div>-->
-                                                <!--                                            <div class="d-flex flex-row  justify-content-between align-items-center w-80 mt-2 gap-3">-->
-                                                <!--                                                <button class="btn btn-sm btn-primary " @click="viewLog(log.name)">-->
-                                                <!--                                                    View-->
-                                                <!--                                                </button>-->
-                                                <!--                                                <button class="btn btn-sm btn-success" @click="downloadLog(log.name)">-->
-                                                <!--                                                    Download-->
-                                                <!--                                                </button>-->
-                                                <!--                                                <button class="btn btn-sm  btn-muted  btn-warning" @click="clearLogs(log.name)">-->
-                                                <!--                                                    Delete-->
-                                                <!--                                                </button>-->
-                                                <!--                                            </div>-->
-                                                <!--                                        </li>-->
-                                            </template>
-                                        </ul>
-                                    </div>
-                                    <!--                            <div class="card-footer">-->
-                                    <!--&lt;!&ndash;                                <div class="d-flex flex-row justify-content-between align-items-center w-60 p-1" style="gap: 10px;">&ndash;&gt;-->
-                                    <!--                                    <button class="btn btn-muted btn-primary" @click="fetchLogs()">-->
-                                    <!--                                        refresh-->
-                                    <!--                                    </button>-->
-                                    <!--                                    <button class="btn btn-muted  btn-warning" @click="clearLogs()">-->
-                                    <!--                                        Clear-->
-                                    <!--                                    </button>-->
-                                    <!--&lt;!&ndash;                                </div>&ndash;&gt;-->
-                                    <!--                            </div>-->
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                        </div>
                 </div>
 <!-- log：已并入 Log Settings → Log Tab -->
                 <div class="page-section" id="log"></div>
                 <!--关于-->
                 <div class="page-section" id="help">
                     <style>
-                        .help-wrap{ max-width:980px; }
-                        .help-hero{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
-                            padding:22px 24px; box-shadow:var(--shadow); margin-bottom:18px; }
-                        .help-hero h2{ font-size:22px; font-weight:800; margin:0 0 6px; }
-                        .help-hero p{ color:var(--text-secondary); font-size:13.5px; margin:0; }
-                        .help-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-bottom:22px; }
-                        .help-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; transition:.18s; }
-                        .help-card:hover{ border-color:var(--accent); transform:translateY(-2px); }
-                        .help-card .hc-ic{ width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-                            color:var(--accent); background:color-mix(in srgb,var(--accent) 12%, transparent); font-size:16px; margin-bottom:10px; }
-                        .help-card h4{ font-size:14px; font-weight:700; margin:0 0 6px; }
-                        .help-card p{ font-size:12.5px; color:var(--text-secondary); margin:0; line-height:1.6; }
-                        .help-sec-title{ font-size:16px; font-weight:700; margin:6px 0 12px; display:flex; align-items:center; gap:8px; }
-                        .help-sec-title i{ color:var(--accent); }
-                        .help-faq{ display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
-                        .help-faq details{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
-                        .help-faq summary{ list-style:none; cursor:pointer; padding:13px 16px; font-size:14px; font-weight:600;
-                            display:flex; align-items:center; gap:10px; user-select:none; }
-                        .help-faq summary::-webkit-details-marker{ display:none; }
-                        .help-faq summary::before{ content:'\f105'; font-family:'Font Awesome 6 Free','FontAwesome'; font-weight:900;
-                            color:var(--accent); transition:transform .2s; width:14px; text-align:center; }
-                        .help-faq details[open] summary::before{ transform:rotate(90deg); }
-                        .help-faq .faq-body{ padding:2px 16px 15px 40px; color:var(--text-secondary); font-size:13px; line-height:1.75; }
-                        .help-faq .faq-body b{ color:var(--text-primary); }
-                        .help-faq .faq-body code{ background:var(--bg-card2); padding:1px 6px; border-radius:4px; color:var(--accent); font-size:12px; }
-                        .help-badge{ display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;
-                            background:color-mix(in srgb,var(--accent) 14%, transparent); color:var(--accent); }
-                        .help-note{ background:var(--bg-card2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;
-                            font-size:13px; color:var(--text-secondary); }
-                        .help-group{ font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin:18px 0 10px; }
-                        .hc-tips{ margin:9px 0 0; padding-left:16px; }
-                        .hc-tips li{ font-size:11.5px; color:var(--text-muted); line-height:1.7; }
+                        #help .help-wrap { max-width: 1400px; margin: 0; width: 100%; }
+                        #help .help-hero {
+                            position: relative; overflow: hidden;
+                            border-radius: 20px; margin-bottom: 18px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+                            background:
+                                radial-gradient(120% 90% at 8% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%), var(--bg-panel));
+                            box-shadow: 0 14px 40px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05);
+                            padding: 22px 24px 20px;
+                        }
+                        #help .help-hero-glow {
+                            position: absolute; left: 0; right: 0; top: 0; height: 2px;
+                            background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff), var(--accent), transparent);
+                            opacity: .9;
+                        }
+                        #help .help-hero-inner { display: flex; align-items: flex-start; gap: 16px; }
+                        #help .help-hero-ico {
+                            flex: 0 0 auto; width: 48px; height: 48px; border-radius: 14px;
+                            display: flex; align-items: center; justify-content: center;
+                            color: #fff; font-size: 20px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 78%, #fff), var(--accent));
+                            box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 38%, transparent);
+                        }
+                        #help .help-hero h2 {
+                            font-size: 24px; font-weight: 760; margin: 0 0 6px; letter-spacing: -.02em;
+                            color: var(--text-primary);
+                        }
+                        #help .help-hero p { color: var(--text-secondary); font-size: 13.5px; margin: 0; line-height: 1.55; max-width: 62ch; }
+                        #help .help-panel {
+                            position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+                            background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 10%), var(--bg-panel));
+                            box-shadow: 0 12px 36px rgba(0,0,0,.14), inset 0 1px 0 rgba(255,255,255,.04);
+                        }
+                        #help .help-panel > .help-panel-glow {
+                            height: 2px;
+                            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+                            opacity: .75;
+                        }
+                        #help .help-panel-hd {
+                            display: flex; align-items: center; gap: 10px;
+                            padding: 14px 18px 10px;
+                            font-weight: 750; font-size: 14px; color: var(--text-primary);
+                        }
+                        #help .help-panel-hd .ico {
+                            width: 28px; height: 28px; border-radius: 9px;
+                            display: flex; align-items: center; justify-content: center;
+                            color: #fff; font-size: 12px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+                            box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+                        }
+                        #help .help-panel-bd { padding: 4px 16px 16px; }
+                        #help .help-link-grid {
+                            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;
+                        }
+                        @media (max-width: 820px) {
+                            #help .help-link-grid { grid-template-columns: 1fr; }
+                        }
+                        #help .help-link-card {
+                            text-align: center;
+                            border-radius: 14px; padding: 14px 12px 12px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+                            background:
+                                radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+                                color-mix(in srgb, var(--bg-card2, #152033) 70%, transparent);
+                            transition: border-color .18s, transform .18s;
+                        }
+                        #help .help-link-card:hover {
+                            border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+                            transform: translateY(-1px);
+                        }
+                        #help .help-link-card .help-badge { margin-bottom: 8px; }
+                        #help .help-link-card h5 {
+                            margin: 0 0 4px; font-size: 13px; font-weight: 720; color: var(--text-primary);
+                        }
+                        #help .help-link-card p {
+                            margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.5;
+                        }
+                        #help .help-rule {
+                            border-radius: 12px; padding: 12px 14px;
+                            font-size: 12.5px; color: var(--text-secondary); line-height: 1.7;
+                            background: color-mix(in srgb, var(--bg-card2, #152033) 55%, transparent);
+                            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+                        }
+                        #help .help-rule b { color: var(--text-primary); }
+                        #help .help-sec-title {
+                            font-size: 14px; font-weight: 750; margin: 4px 0 12px;
+                            display: flex; align-items: center; gap: 10px; color: var(--text-primary);
+                        }
+                        #help .help-sec-title .ico {
+                            width: 28px; height: 28px; border-radius: 9px;
+                            display: flex; align-items: center; justify-content: center;
+                            color: #fff; font-size: 12px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+                            box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+                        }
+                        #help .help-group {
+                            font-size: 11px; font-weight: 720; color: var(--text-muted);
+                            text-transform: uppercase; letter-spacing: .12em;
+                            margin: 16px 0 10px; display: flex; align-items: center; gap: 10px;
+                        }
+                        #help .help-group::after {
+                            content: ''; flex: 1; height: 1px;
+                            background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, transparent), transparent);
+                        }
+                        #help .help-grid {
+                            display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+                            gap: 12px; margin-bottom: 6px;
+                        }
+                        #help .help-card {
+                            position: relative; overflow: hidden;
+                            border-radius: 16px; padding: 16px 15px 14px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+                            background:
+                                radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 90%, var(--accent) 8%), var(--bg-panel));
+                            box-shadow: 0 8px 28px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.04);
+                            transition: border-color .18s, transform .18s, box-shadow .18s;
+                        }
+                        #help .help-card:hover {
+                            border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+                            transform: translateY(-2px);
+                            box-shadow: 0 14px 36px rgba(0,0,0,.18), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+                        }
+                        #help .help-card .hc-ic {
+                            width: 38px; height: 38px; border-radius: 11px;
+                            display: flex; align-items: center; justify-content: center;
+                            color: #fff; font-size: 15px; margin-bottom: 12px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 72%, #fff), var(--accent));
+                            box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent);
+                        }
+                        #help .help-card h4 { font-size: 14px; font-weight: 740; margin: 0 0 6px; color: var(--text-primary); }
+                        #help .help-card > p { font-size: 12.5px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+                        #help .hc-tips { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+                        #help .hc-tips li {
+                            font-size: 11.5px; color: var(--text-muted); line-height: 1.45;
+                            padding: 6px 10px; border-radius: 8px;
+                            background: color-mix(in srgb, var(--bg-card2, #152033) 70%, transparent);
+                            border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+                        }
+                        #help .help-faq { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+                        #help .help-faq details {
+                            border-radius: 12px; overflow: hidden;
+                            border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+                            background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 6%);
+                            transition: border-color .18s, box-shadow .18s;
+                        }
+                        #help .help-faq details[open] {
+                            border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+                            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+                        }
+                        #help .help-faq summary {
+                            list-style: none; cursor: pointer; padding: 13px 16px;
+                            font-size: 13.5px; font-weight: 680; color: var(--text-primary);
+                            display: flex; align-items: center; gap: 10px; user-select: none;
+                        }
+                        #help .help-faq summary::-webkit-details-marker { display: none; }
+                        #help .help-faq summary::before {
+                            content: '\f105'; font-family: 'Font Awesome 6 Free','FontAwesome'; font-weight: 900;
+                            color: var(--accent); transition: transform .2s; width: 14px; text-align: center;
+                        }
+                        #help .help-faq details[open] summary::before { transform: rotate(90deg); }
+                        #help .help-faq .faq-body {
+                            padding: 0 16px 14px 40px; color: var(--text-secondary);
+                            font-size: 13px; line-height: 1.75;
+                        }
+                        #help .help-faq .faq-body b { color: var(--text-primary); }
+                        #help .help-faq .faq-body code {
+                            background: color-mix(in srgb, var(--bg-card2, #152033) 80%, transparent);
+                            padding: 1px 6px; border-radius: 5px; color: var(--accent); font-size: 12px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+                        }
+                        #help .help-badge {
+                            display: inline-block; padding: 3px 10px; border-radius: 999px;
+                            font-size: 11px; font-weight: 740; letter-spacing: .02em;
+                            background: color-mix(in srgb, var(--accent) 16%, transparent);
+                            color: color-mix(in srgb, var(--accent) 88%, #fff);
+                            border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+                        }
+                        #help .help-support {
+                            position: relative; overflow: hidden; border-radius: 16px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+                            background:
+                                radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 10%), var(--bg-panel));
+                            padding: 16px 18px; margin-bottom: 8px;
+                            box-shadow: 0 10px 32px rgba(0,0,0,.14);
+                        }
+                        #help .help-support .help-support-bd {
+                            font-size: 13px; color: var(--text-secondary); line-height: 1.7;
+                        }
+                        #help .help-support .help-support-bd b { color: var(--text-primary); }
                     </style>
-                    <div class="help-wrap" id="helpRoot">
-                        <div class="help-hero">
-                            <h2><i class="fa-solid fa-circle-question" style="color:var(--accent)"></i> 帮助中心 · Help Center</h2>
-                            <p>快速上手设备控制台,遇到问题在下方「常见问题」里按场景查找,大多数可自助解决。</p>
-                        </div>
-
-                        <div class="help-sec-title"><i class="fa-solid fa-bolt"></i> 快速上手</div>
-                        <div class="help-grid">
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-right-to-bracket"></i></div>
-                                <h4>登录</h4><p>用<b>云端账号</b>(外网)或<b>设备账号</b>(局域网)登录。外网访问由门户携云端凭证进入,无需公网 IP。</p></div>
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-play"></i></div>
-                                <h4>实时观看</h4><p>进「Live」选择设备即出画,基于 <b>KVS/Agora</b> 低延迟传输。画面加载中会显示转圈,稍候即可。</p></div>
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-film"></i></div>
-                                <h4>录像回放</h4><p>「Video Playback」本地回放、「Cloud Playback」云端回放;按天 ◀ 日期 ▶ 切换,点列表片段播放。</p></div>
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-camera"></i></div>
-                                <h4>抓拍/图片</h4><p>「Image Playback」查看设备抓拍的图片记录,可下载查看。</p></div>
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-sliders"></i></div>
-                                <h4>参数设置</h4><p>视频/音频/AI 检测/录像/存储/网络/云端等设置项,修改后保存即下发设备。</p></div>
-                            <div class="help-card"><div class="hc-ic"><i class="fa-solid fa-palette"></i></div>
-                                <h4>主题切换</h4><p>右上角调色板可切换 7 套主题(深靖蓝/浅色/赛博紫/琥珀橙/极客绿/纯黑/大海),选择会被记住。</p></div>
-                        </div>
-
-                        <div class="help-sec-title"><i class="fa-solid fa-circle-nodes"></i> 连接方式说明</div>
-                        <div class="help-note" style="margin-bottom:22px">
-                            顶栏会显示当前控制链路徽标:<span class="help-badge">http</span> 局域网直连设备(最快)·
-                            <span class="help-badge">awsIot</span> 外网经 AWS 云控制(参数 get/set 走 MQTT)·
-                            <span class="help-badge">rtm</span> 备用通道。<br>
-                            规则:<b>有云端凭证(外网门户进入)→ 直连 AWS IoT</b>;<b>局域网打开 → HTTP 优先</b>,失败自动回退云端。视频始终走 KVS/Agora。
-                        </div>
-
-                        <div class="help-sec-title"><i class="fa-solid fa-screwdriver-wrench"></i> 常见问题 · 故障排查</div>
-                        <div class="help-faq">
-                            <details><summary>看不到实时画面 / 一直转圈?</summary><div class="faq-body">
-                                ① 确认设备<b>在线</b>(设备列表显示离线则需先让设备联网上云);② 检查本机网络;③ 点击刷新或重新进入页面;
-                                ④ 尝试在预览窗切换 <b>KVS / Agora</b> 传输;⑤ 设备刚上电需等待视频服务就绪(约 10–30 秒)。
-                            </div></details>
-                            <details><summary>改了设置 / 点了控制,设备没反应?</summary><div class="faq-body">
-                                看顶栏链路徽标:外网应为 <span class="help-badge">awsIot</span>。若长时间无响应:① <b>会话凭证可能过期</b>(约 1 小时),退出重新登录;
-                                ② 设备是否在线;③ 个别参数需设备重启生效。命令默认 <code>8 秒</code> 超时,超时会提示,可重试。
-                            </div></details>
-                            <details><summary>提示「连不上设备 / 握手失败」?</summary><div class="faq-body">
-                                多为<b>设备离线或未连上云</b>,或<b>登录会话过期</b>。处理:① 确认设备通电且联网;② <b>退出后重新登录</b>刷新云端凭证;
-                                ③ 稍候 1–2 分钟重试。若所有设备都连不上,通常是网络或账号问题。
-                            </div></details>
-                            <details><summary>云回放列表为空 / 找不到录像?</summary><div class="faq-body">
-                                ① 用按天 <b>◀ 日期 ▶</b> 选到<b>正确日期</b>;② 该设备当天是否产生并上传了云录像(受云存储开关/保留期影响);
-                                ③ 录像类型筛选是否过滤掉了;④ 切到「Video Playback」看本地录像作对比。
-                            </div></details>
-                            <details><summary>实时卡顿 / 延迟大?</summary><div class="faq-body">
-                                ① 多为<b>网络带宽/抖动</b>;② 尝试切换<b>次码流</b>(更低分辨率码率);③ 切换 <b>Agora ↔ KVS</b>;④ 关闭其他占用带宽的应用。
-                            </div></details>
-                            <details><summary>登录失败?</summary><div class="faq-body">
-                                ① 核对账号密码;② 区分<b>云端账号</b>(外网门户)与<b>设备账号</b>(局域网设备页);③ 检查网络;④ 密码错误多次可能被临时锁定,稍后再试。
-                            </div></details>
-                            <details><summary>界面/主题显示异常?</summary><div class="faq-body">
-                                ① 右上角重新选择主题;② <b>强制刷新</b>(Ctrl/Cmd+Shift+R)清缓存;③ 建议使用较新版本 Chrome/Edge/Safari。
-                            </div></details>
-                        </div>
-
-                        <div class="help-sec-title"><i class="fa-solid fa-headset"></i> 仍未解决?</div>
-                        <div class="help-note">
-                            请记录:<b>设备名/UUID、出问题的页面、操作步骤、顶栏链路徽标状态、浏览器 Console 报错(F12)</b>,
-                            连同截图反馈给技术支持,可大幅加快定位。云端账号相关问题请联系您的服务提供商。
-                        </div>
-                    </div>
+                    <div class="help-wrap" id="helpRoot"></div>
                 </div>
 
                                 <!-- about：已移除；保留空 section 兼容旧链接 → 跳转 Device Info -->
@@ -9149,36 +9547,43 @@ window.__presignThumbUrl = function (raw) {
 
 
                 <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="loadUsers()">
-                    <div class="card shadow">
-                        <div class="card-header">
-                            <h3 class="card-title" data-i18n="ab_user_mgmt">User Management</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <button class="btn btn-primary" @click="addUserModal = true; newUser = {username:'', password:'', confirmPassword:'', displayName:''}">
-                                    <i class="fas fa-plus me-1"></i><span data-i18n="ab_user_add">Add User</span>
-                                </button>
+                    <div class="um-wrap">
+                        <header class="um-head">
+                            <div>
+                                <h2 class="um-title" data-i18n="ab_user_mgmt">User Management</h2>
+                                <p class="um-sub" data-i18n="ab_user_sub">Manage device login accounts</p>
                             </div>
-                            <table class="table table-hover">
+                            <button type="button" class="btn btn-primary um-add"
+                                    @click="addUserModal = true; newUser = {username:'', password:'', confirmPassword:'', displayName:''}">
+                                <i class="fas fa-plus me-1"></i><span data-i18n="ab_user_add">Add User</span>
+                            </button>
+                        </header>
+                        <div class="um-card">
+                            <table class="um-table">
                                 <thead>
                                     <tr>
                                         <th data-i18n="ab_user_name">Username</th>
                                         <th data-i18n="ab_user_display">Display Name</th>
-                                        <th data-i18n="ab_user_actions">Actions</th>
+                                        <th class="um-col-actions" data-i18n="ab_user_actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="user in userList" :key="user.username">
                                         <tr>
-                                            <td x-text="user.username"></td>
-                                            <td x-text="user.displayName"></td>
                                             <td>
-                                                <button class="btn btn-sm btn-warning me-1"
+                                                <span class="um-user-id" x-text="user.username"></span>
+                                                <span class="um-pill" x-show="user.username === 'admin'" data-i18n="ab_user_admin">Admin</span>
+                                            </td>
+                                            <td x-text="user.displayName || '—'"></td>
+                                            <td class="um-col-actions">
+                                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                                        :title="tIdx('ab_user_edit')"
                                                         @click="editUser = {...user}; editUserModal = true">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-danger"
+                                                <button type="button" class="btn btn-sm btn-outline-danger"
                                                         x-show="user.username !== 'admin'"
+                                                        :title="tIdx('ab_user_delete') || 'Delete'"
                                                         @click="deleteUser(user.username)">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
@@ -9187,10 +9592,11 @@ window.__presignThumbUrl = function (raw) {
                                     </template>
                                 </tbody>
                             </table>
+                            <div class="um-empty" x-show="!userList || !userList.length" data-i18n="ab_user_empty">No users</div>
                         </div>
                     </div>
 
-                    <div class="modal fade" :class="{'show d-block': addUserModal}" tabindex="-1"
+                    <div class="modal fade" x-cloak :class="{'show d-block': addUserModal}" tabindex="-1"
                          x-show="addUserModal" style="background: rgba(0,0,0,0.5);">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
@@ -9229,7 +9635,7 @@ window.__presignThumbUrl = function (raw) {
                         </div>
                     </div>
 
-                    <div class="modal fade" :class="{'show d-block': editUserModal}" tabindex="-1"
+                    <div class="modal fade" x-cloak :class="{'show d-block': editUserModal}" tabindex="-1"
                          x-show="editUserModal" style="background: rgba(0,0,0,0.5);">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
@@ -9279,7 +9685,7 @@ const I18N_INDEX = {
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_production:'Production', nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
-    nav_debug:'Log Settings', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
+    nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
@@ -9432,7 +9838,7 @@ const I18N_INDEX = {
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_production:'生产', nav_provisioning:'配网', nav_factory_test:'工厂测试',
-    nav_debug:'日志设置', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
+    nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
     page_home:'直播', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
@@ -9585,7 +9991,7 @@ const I18N_INDEX = {
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_production:'生産', nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
-    nav_debug:'ログ設定', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
+    nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
     page_home:'ライブ', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
@@ -9737,7 +10143,7 @@ const I18N_INDEX = {
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_production:'Produktion', nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
-    nav_debug:'Log-Einstellungen', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
+    nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
@@ -9888,7 +10294,7 @@ const I18N_INDEX = {
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_production:'Production', nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
-    nav_debug:'Paramètres journal', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
+    nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
     page_home:'Direct', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
@@ -10040,7 +10446,7 @@ const I18N_INDEX = {
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_production:'Producción', nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
-    nav_debug:'Ajustes de registro', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
+    nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
     page_home:'En vivo', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
@@ -10232,6 +10638,7 @@ const STATUS = Object.freeze({
     CLEAR_RECORDS:            1071,
     GET_RECORD_DISK_USAGE:    1072,
     GET_RECORD_TIMELINE:      1073,
+    GET_SYSTEM_SERVICE: 1109, CONTROL_SYSTEM_SERVICE: 1110,  // smart_robot.service
     GET_OSD_INFORMATION:      1076, SET_OSD_INFORMATION:      1077,
     GET_ALGORITHM_INFORMATION: 1078, SET_ALGORITHM_INFORMATION: 1079,
     GET_MODEL_LIST: 1083,   // 中间 1080-1082 为 login/user(不走 STATUS 数值判定)
@@ -10812,6 +11219,12 @@ document.addEventListener('DOMContentLoaded', function() {
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
             logParamTab: 'settings', // Log Settings 分段: settings|viewer
+            systemParamTab: 'status',  // 系统页：'status' | 'manage'
+            systemService: { unit: 'smart_robot.service', enabled: false, active: false, cpuPercent: 0, memoryRssMb: 0, memoryPercent: 0, diskUsedMb: 0, diskTotalMb: 0, diskPath: '/mnt/sd/smartdevice', pid: 0, comm: 'smart_robot_pro', threadCount: 0, threads: [] },
+            systemServiceBusy: false,
+            _systemServicePollTimer: null,
+            sysConfirmOpen: false,
+            sysConfirmAction: '',
             productionParamTab: 'provisioning', // Production 分段: provisioning|factory
             deviceInfoParamTab: 'info', // Device Info 分段: info|ota|peripheral|motor
             peripheralControlInformation: {
@@ -14822,6 +15235,146 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!quiet) this.showAlert("warning", "Notice", "Agora RTC update error");
                     return false;
                 }
+            },
+
+            startSystemServicePoll() {
+                this.stopSystemServicePoll();
+                this._systemServicePollTimer = setInterval(() => {
+                    if (this.systemParamTab === 'status') this.refreshSystemService(true);
+                }, 5000);
+            },
+            stopSystemServicePoll() {
+                if (this._systemServicePollTimer) {
+                    clearInterval(this._systemServicePollTimer);
+                    this._systemServicePollTimer = null;
+                }
+            },
+            async refreshSystemService(silent) {
+                if (!silent) this.systemServiceBusy = true;
+                try {
+                    const response = await fetch('/getDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: 'getSystemServiceCommand', params: {} })
+                    });
+                    const responseData = await response.json();
+                    if (responseData.status === STATUS.GET_SYSTEM_SERVICE && responseData.params && responseData.params.systemService) {
+                        this.systemService = Object.assign({}, this.systemService, responseData.params.systemService);
+                    }
+                } catch (e) {
+                    console.error('refreshSystemService', e);
+                    if (!silent) this.showAlert && this.showAlert('warning', 'Notice', 'get systemService failed');
+                } finally {
+                    if (!silent) this.systemServiceBusy = false;
+                }
+            },
+            sysConfirmTone() {
+                const a = this.sysConfirmAction;
+                return (a === 'stop' || a === 'disable') ? 'danger' : 'accent';
+            },
+            sysConfirmIcon() {
+                const a = this.sysConfirmAction;
+                if (a === 'restart') return 'fa-rotate';
+                if (a === 'stop') return 'fa-stop';
+                if (a === 'disable') return 'fa-ban';
+                if (a === 'start') return 'fa-play';
+                if (a === 'enable') return 'fa-power-off';
+                return 'fa-circle-exclamation';
+            },
+            sysConfirmTitle() {
+                const a = this.sysConfirmAction;
+                if (a === 'restart') return tIdx('sys_confirm_title_restart');
+                if (a === 'stop') return tIdx('sys_confirm_title_stop');
+                if (a === 'disable') return tIdx('sys_confirm_title_disable');
+                return tIdx('sys_confirm_title');
+            },
+            sysConfirmMessage() {
+                const a = this.sysConfirmAction;
+                if (a === 'restart') return tIdx('sys_confirm_msg_restart');
+                if (a === 'stop') return tIdx('sys_confirm_msg_stop');
+                if (a === 'disable') return tIdx('sys_confirm_msg_disable');
+                return '';
+            },
+            sysConfirmOkLabel() {
+                const a = this.sysConfirmAction;
+                if (a === 'restart') return tIdx('sys_act_restart');
+                if (a === 'stop') return tIdx('sys_act_stop');
+                if (a === 'disable') return tIdx('sys_act_disable');
+                return tIdx('sys_confirm_ok');
+            },
+            closeSysConfirm() {
+                if (this.systemServiceBusy) return;
+                this.sysConfirmOpen = false;
+                this.sysConfirmAction = '';
+            },
+            async confirmSystemService() {
+                const action = this.sysConfirmAction;
+                this.sysConfirmOpen = false;
+                if (!action) return;
+                await this._execSystemServiceAction(action);
+                this.sysConfirmAction = '';
+            },
+            async controlSystemService(action) {
+                if (!action) return;
+                const needConfirm = (action === 'stop' || action === 'restart' || action === 'disable');
+                if (needConfirm) {
+                    this.sysConfirmAction = action;
+                    this.sysConfirmOpen = true;
+                    return;
+                }
+                await this._execSystemServiceAction(action);
+            },
+            async _execSystemServiceAction(action) {
+                this.systemServiceBusy = true;
+                try {
+                    const response = await fetch('/setDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: 'controlSystemServiceCommand',
+                            params: { systemService: { unit: 'smart_robot.service', action: action } }
+                        })
+                    });
+                    const responseData = await response.json();
+                    const ok = responseData && responseData.params && responseData.params.systemService && responseData.params.systemService.success;
+                    if (ok) {
+                        this.showAlert && this.showAlert('success', 'Notice', action + ' ok');
+                        if (action === 'stop' || action === 'restart') {
+                            setTimeout(() => this.refreshSystemService(), 3500);
+                        } else {
+                            await this.refreshSystemService(true);
+                        }
+                    } else {
+                        const err = (responseData && responseData.params && responseData.params.systemService && responseData.params.systemService.error) || 'failed';
+                        this.showAlert && this.showAlert('warning', 'Notice', action + ': ' + err);
+                    }
+                } catch (e) {
+                    console.error('controlSystemService', e);
+                    if (action === 'stop' || action === 'restart') {
+                        this.showAlert && this.showAlert('success', 'Notice', action + ' sent');
+                    } else {
+                        this.showAlert && this.showAlert('warning', 'Notice', action + ' error');
+                    }
+                } finally {
+                    this.systemServiceBusy = false;
+                }
+            },
+            systemServiceActiveLabel() {
+                return (this.systemService && this.systemService.active) ? tIdx('sys_running') : tIdx('sys_stopped');
+            },
+            systemServiceEnabledLabel() {
+                return (this.systemService && this.systemService.enabled) ? tIdx('sys_enabled') : tIdx('sys_disabled');
+            },
+            fmtSysNum(v, digits) {
+                const n = Number(v);
+                if (!isFinite(n)) return '—';
+                return n.toFixed(digits == null ? 1 : digits);
+            },
+            fmtSysDisk(mb) {
+                const n = Number(mb);
+                if (!isFinite(n)) return '—';
+                if (n >= 1024) return (n / 1024).toFixed(2) + ' GB';
+                return n.toFixed(0) + ' MB';
             },
 
             async loadUsers() {
