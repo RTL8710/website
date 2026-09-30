@@ -20191,6 +20191,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.playbackFocusIdx = 0;
                     if (wan) {
                         // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
+                        this._setLocalPbLoading(false);
                         this._revokeLocalMp4Blobs(this.syncRecords);
                         this.syncRecords = [];
                     } else {
@@ -20214,6 +20215,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (typeof this.$nextTick === 'function') this.$nextTick(kick);
                         else setTimeout(kick, 0);
                     }
+                } else {
+                    this._setLocalPbLoading(false);
                 }
                 // 列表只拉点击附近 pageSize（默认 10）条：勿用当天 00:00→点击（会扫整天再分页，缩略图跟着爆）
                 const listN = Math.max(1, Number(this.pageSize) || 10);
