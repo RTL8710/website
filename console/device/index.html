@@ -4164,7 +4164,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })()">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } initAgoraRtcService(); if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })()">
                     <div class="playback-inner">
                         <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
@@ -9435,6 +9435,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             agoraRtcService: {
                 rtcAppId: "289f22d97eab4db98e53af72edbef3b7",
+                rtcAppCertificate: "",
                 rtcToken: "",
                 rtcChannelName: "",
                 rtcLogLevel: 0,
@@ -9983,13 +9984,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         await this.initMediaServerInformation();
                     }
                 } catch (e) {}
+                // Alpine 默认就有 rtcAppId=289f22d9，不能靠「有没有 appId」决定要不要拉设备。
+                // 回放页若跳过 getAgoraRtcService，会用错 App ID/证书去 join（实时页常已拉过所以看起来「无 token 也能播」）。
                 try {
-                    if (!this.agoraRtcService || !this.agoraRtcService.rtcAppId) {
-                        await this.initAgoraRtcService();
-                    } else {
-                        this.sanitizeAgoraRtcForm();
-                    }
-                } catch (e) {}
+                    await this.initAgoraRtcService();
+                } catch (e) {
+                    try { this.sanitizeAgoraRtcForm(); } catch (e2) {}
+                }
                 const ch = this.resolveAgoraChannelName();
                 if (ch && window.DeviceTransport) window.DeviceTransport.rememberUuid(ch);
                 // 同步网页 RTC AppId（跟设备 agora 配置）
@@ -10938,19 +10939,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             prepareAgoraJoinToken(channel) {
+                // 对齐设备站 ensureAgoraJoinToken：只用设备下发的 App ID + Certificate；
+                // 无证书 → 空 token（设备很多项目未开 App Certificate，空 token 即可进房）。
                 const defaultAppId = '289f22d97eab4db98e53af72edbef3b7';
                 const defaultCert = '46e63f9a49b14d649c9a360c96dcbc9b';
-                let appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || (this.options && this.options.appid) || defaultAppId).trim();
-                let cert = ((this.options && this.options.appCertificate) || defaultCert).trim();
+                let appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId)
+                    || (this.options && this.options.appid) || '').trim();
+                if (!appId) appId = defaultAppId;
+                let cert = ((this.agoraRtcService && this.agoraRtcService.rtcAppCertificate)
+                    || (this.options && this.options.appCertificate) || '').trim();
+                // 换了 App ID 后禁止用旧默认证书硬签（会 invalid token / no active）
                 if (cert === defaultCert && appId !== defaultAppId) cert = '';
+                // 没有设备证书时：不要用网页硬编码证书给未知项目签发
+                if (!((this.agoraRtcService && this.agoraRtcService.rtcAppCertificate) || '').trim()
+                    && cert === defaultCert && appId === defaultAppId) {
+                    // 仅默认 App 且控制台仍填着默认证书时允许签发；否则空 token
+                } else if (!((this.agoraRtcService && this.agoraRtcService.rtcAppCertificate) || '').trim()
+                    && appId !== defaultAppId) {
+                    cert = '';
+                }
                 if (appId) this.options.appid = appId;
+                if (this.options) this.options.appCertificate = cert;
                 let tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                if (tok && tok.length === 32 && /^[0-9a-fA-F]+$/.test(tok)) tok = '';
                 if (tok && (tok.indexOf('006') === 0 || tok.indexOf('007') === 0) && tok.length > 40) {
                     this.options.token = tok;
                     return tok;
                 }
                 if (window.AhsAgoraRtc && window.AhsAgoraRtc.token
-                    && String(window.AhsAgoraRtc.token).indexOf('006') === 0) {
+                    && String(window.AhsAgoraRtc.token).indexOf('006') === 0
+                    && window.AhsAgoraRtc.appid === appId) {
                     this.options.token = window.AhsAgoraRtc.token;
                     return this.options.token;
                 }
@@ -10973,57 +10991,70 @@ document.addEventListener('DOMContentLoaded', function() {
             _agoraIsNoActive(e) {
                 return /no active status|CAN_NOT_GET_GATEWAY|CANNOT_GET_GATEWAY/i.test(this._agoraErrText(e));
             },
+            /* AHS_AGORA_JOIN_REV2 */
             async _joinAgoraWithFallback(channel, wan) {
-                const tok = this.prepareAgoraJoinToken(channel);
+                await this.ensureRtcSdk();
+                // 无证书项目：空 token 合法（与设备/实时预览一致）。
+                // 有证书才签 token；签过就不要再回退 token=null（会报 no active status）。
+                let tok = this.prepareAgoraJoinToken(channel);
                 if (typeof this.agoraLog === 'function') {
                     this.agoraLog('join plan ch=' + channel + ' appid=' + String(this.options.appid || '').slice(0, 8)
                         + ' tokenLen=' + (tok ? tok.length : 0) + ' tokenHead=' + (tok ? tok.slice(0, 8) : 'none')
-                        + ' crypto=' + !!(window.CryptoJS && window.CryptoJS.HmacSHA256));
+                        + ' crypto=' + !!(window.CryptoJS && window.CryptoJS.HmacSHA256)
+                        + ' wan=' + !!wan + ' emptyOk=' + !tok);
                 }
-                const directs = [];
-                if (tok) directs.push(tok);
-                else directs.push(null);
                 let lastErr = null;
-                for (let i = 0; i < directs.length; i++) {
-                    const t = directs[i];
-                    this.options.token = t;
-                    try { await this._teardownAgoraClient(); } catch (e) {}
-                    this._setupAgoraClient(channel);
-                    this.options.token = t;
-                    try {
-                        await this._joinAgoraClient(0);
-                        this._agoraLastErr = '';
-                        this.publishSharedAgora();
-                        if (typeof this.agoraLog === 'function') this.agoraLog('join ok uid=' + this.options.uid + ' token=' + !!t);
-                        this.refreshAgoraDebug();
-                        return;
-                    } catch (e) {
-                        lastErr = e;
-                        if (typeof this.agoraLog === 'function') this.agoraLog('join fail direct token=' + !!t + ' ' + this._agoraErrText(e));
+                this.options.token = tok || null;
+                try { await this._teardownAgoraClient(); } catch (e) {}
+                this._setupAgoraClient(channel);
+                this.options.token = tok || null;
+                try {
+                    await this._joinAgoraClient(0);
+                    this._agoraLastErr = '';
+                    this.publishSharedAgora();
+                    if (typeof this.agoraLog === 'function') {
+                        this.agoraLog('join ok uid=' + this.options.uid + ' token=' + !!tok + ' proxy=false');
+                    }
+                    this.refreshAgoraDebug();
+                    return;
+                } catch (e) {
+                    lastErr = e;
+                    if (typeof this.agoraLog === 'function') {
+                        this.agoraLog('join fail direct token=' + !!tok + ' ' + this._agoraErrText(e));
                     }
                 }
-                // Cloud Proxy 未开通时会报 no active status，再开 proxy 只会重复失败
-                if (wan && lastErr && !this._agoraIsNoActive(lastErr) && tok) {
+                // 外网直连失败 → Cloud Proxy（保持同一 token/空 token 策略，不切换）
+                if (wan && lastErr) {
                     const modes = [3, 5];
                     for (let m = 0; m < modes.length; m++) {
-                        this.options.token = tok || null;
+                        const t2 = this.prepareAgoraJoinToken(channel);
+                        // 直连时已有 token 则禁止改成空；直连本就空则继续空
+                        const useTok = tok ? (t2 || tok) : null;
+                        this.options.token = useTok;
                         try { await this._teardownAgoraClient(); } catch (e) {}
                         this._setupAgoraClient(channel);
-                        this.options.token = tok || null;
+                        this.options.token = useTok;
                         try {
                             await this._joinAgoraClient(modes[m]);
                             this._agoraLastErr = '';
                             this.publishSharedAgora();
-                            if (typeof this.agoraLog === 'function') this.agoraLog('join ok proxy=' + modes[m] + ' uid=' + this.options.uid);
+                            if (typeof this.agoraLog === 'function') {
+                                this.agoraLog('join ok proxy=' + modes[m] + ' uid=' + this.options.uid + ' token=' + !!useTok);
+                            }
                             this.refreshAgoraDebug();
                             return;
                         } catch (e) {
                             lastErr = e;
-                            if (typeof this.agoraLog === 'function') this.agoraLog('join fail proxy=' + modes[m] + ' ' + this._agoraErrText(e));
+                            if (typeof this.agoraLog === 'function') {
+                                this.agoraLog('join fail proxy=' + modes[m] + ' ' + this._agoraErrText(e));
+                            }
                         }
                     }
                 }
                 this._agoraLastErr = 'join ' + this._agoraErrText(lastErr);
+                if (typeof this.agoraLog === 'function') {
+                    this.agoraLog('agora join failed final ' + this._agoraErrText(lastErr));
+                }
                 this.refreshAgoraDebug();
                 throw lastErr;
             },
@@ -15305,8 +15336,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         await this.muteLiveAgoraUids(true);
                     } else if (!this.isStreaming) {
                         this.agoraLog('no shared session, join ' + channel);
-                        await this.startPreview('replay');
-                        this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
+                        try {
+                            await this.startPreview('replay');
+                        } catch (je) {
+                            this.agoraLog('replay join failed ' + this._agoraErrText(je)
+                                + ' tip=先开直播页进房再回放，或检查 App Certificate/Cloud Proxy');
+                            throw je;
+                        }
+                        this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState)
+                            + ' token=' + !!(this.options && this.options.token) + ' proxy=' + !!this._agoraProxy);
                     } else {
                         this.agoraLog('already streaming on this instance');
                     }
@@ -15436,9 +15474,14 @@ document.addEventListener('DOMContentLoaded', function() {
             async fetchTimeline() {
                 this.timelineLoading = true;
                 try {
+                    // LAN HTTP 可带路径；外网 MQTT 必须 slim（只 s/d/ty/cam），否则一天时间轴可到 255KB 打挂。
+                    const lan = !!(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
                     const r = await fetch('/getDeviceCommand', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ method: 'getRecordTimelineCommand', params: { date: this.timelineDate } })
+                        body: JSON.stringify({
+                            method: 'getRecordTimelineCommand',
+                            params: { date: this.timelineDate, includePaths: lan, slim: !lan }
+                        })
                     });
                     const rd = await r.json();
                     if (rd.status === STATUS.GET_RECORD_TIMELINE) {
@@ -15464,21 +15507,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.fetchTimeline();
             },
             tlCamOf(p) { p = String(p || ''); return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0; },
-            // 时间轴段 → 摄像头序号(0-based)。与录像列表的 _camOfRecord 保持同一优先级：
-            // 先认段自带的 cameraIndex/cam 字段(设备若下发)，没有再按路径 /second//third//fourth/ 反推。
-            // 只看路径的话，设备换个目录名下发，整路就会挤到 CAM1 或直接消失，标尺与右侧列表对不上。
-            tlCamOfSeg(e) {
+            // slim 时间轴带 cam；旧包体无 cam 时回退路径推断
+            tlSegCam(e) {
                 if (!e) return 0;
-                if (e.cameraIndex != null) return +e.cameraIndex;
-                if (e.cam != null) return +e.cam;
+                if (typeof e.cam === 'number' && e.cam >= 0) return e.cam;
+                if (typeof e.cameraIndex === 'number' && e.cameraIndex >= 0) return e.cameraIndex;
+                if (e.cam != null && e.cam !== '') return +e.cam;
+                if (e.cameraIndex != null && e.cameraIndex !== '') return +e.cameraIndex;
                 return this.tlCamOf(e.p);
             },
+            // 兼容旧调用名
+            tlCamOfSeg(e) { return this.tlSegCam(e); },
             // 时间轴轨道数：取「数据里出现过的最大序号+1」与「设备实际路数 cameraCounts」的较大值。
-            // 只按数据反推会漏路——某路当天没录像、或设备没下发该路的段时，timelineBlocksMerged
-            // 就不会遍历到那一路，整路的录像块在合并轨道上直接看不见。用 cameraCounts 兜底。
             timelineCamCount() {
                 let m = 0;
-                for (const e of this.recordTimeline) if (e && e.p) m = Math.max(m, this.tlCamOfSeg(e));
+                for (const e of this.recordTimeline) if (e) m = Math.max(m, this.tlSegCam(e));
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
                 return Math.max(1, m + 1, n);
             },
@@ -15490,13 +15533,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return all;
             },
             timelineHasCam2() {
-                return this.recordTimeline.some(e => e.p && e.p.includes('/second/'));
+                return this.recordTimeline.some(e => this.tlSegCam(e) === 1);
             },
             // 该路摄像头的渲染块（相邻同类型段合并 + 按可见窗口裁剪）
             timelineBlocks(camera) {
                 const v = this.timelineView, span = (v.end - v.start) || 1;
                 const segs = this.recordTimeline
-                    .filter(e => e.p && this.tlCamOfSeg(e) === camera
+                    .filter(e => this.tlSegCam(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType))
                     .sort((a, b) => a.s - b.s);
                 const merged = [];
@@ -15705,7 +15748,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 找指定摄像头在 secs 时刻所在/最近的段
             findSegmentAt(secs, camera) {
-                const segs = this.recordTimeline.filter(e => e.p && this.tlCamOfSeg(e) === camera
+                const segs = this.recordTimeline.filter(e => this.tlSegCam(e) === camera
                                  && (this.searchRecordType === 0 || e.ty === this.searchRecordType));
                 let best = null, bestDist = Infinity;
                 for (const e of segs) {
