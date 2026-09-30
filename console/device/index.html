@@ -20109,7 +20109,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (off < -1 || off > dur + 1) return false;
                 this.tlClickSecs = secs;
                 this.syncSeekSecs = secs;
-                this._localPbEpoch = (this._localPbEpoch | 0) + 1;
+                // 同段内 seek：先把条清零，再 seek；UI 随后跟 currentTime（勿 bump epoch，避免无 kick 的整树重建）
                 this.playbackPositionMs = 0;
                 this._localPbDragging = false;
                 this._applyLocalSeek(Math.max(0, Math.min(dur, off)), { syncUi: false });
