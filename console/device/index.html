@@ -5902,26 +5902,53 @@ window.__presignThumbUrl = function (raw) {
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
                 <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); fetchRecords(false); } }); })()">
                     <div class="playback-inner">
-                        <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="playbackTab==='video' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="playbackTab==='video'"
-                                    @click="playbackTab='video'; fetchRecords(false); initTimeline()"
-                                    data-i18n="nav_video_playback">Video Playback</button>
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="playbackTab==='image' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="playbackTab==='image'"
-                                    @click="playbackTab='image'; fetchImages(false); initTimeline()"
-                                    data-i18n="nav_image_playback">Image Playback</button>
-                            <button type="button" class="btn btn-sm"
-                                    role="tab"
-                                    :class="playbackTab==='cloud' ? 'btn-primary' : 'btn-outline-primary'"
-                                    :aria-selected="playbackTab==='cloud'"
-                                    @click="playbackTab='cloud'; getCloudRecordService(); initCloudPlayback()"
-                                    data-i18n="nav_cloud_playback">Cloud Playback</button>
-                        </div>
+                        <header class="log-page-hero">
+                            <div class="log-page-hero-main">
+                                <div class="log-eyebrow" data-i18n="ph_eyebrow_playback">Playback</div>
+                                <div class="log-title-row">
+                                    <h1 data-i18n="page_playback">Playback</h1>
+                                    <div class="log-seg" role="tablist" aria-label="Playback groups">
+                                        <button type="button" role="tab"
+                                                :class="playbackTab==='video' && 'active'"
+                                                :aria-selected="playbackTab==='video'"
+                                                @click="playbackTab='video'; fetchRecords(false); initTimeline()"
+                                                data-i18n="nav_video_playback">Video Playback</button>
+                                        <button type="button" role="tab"
+                                                :class="playbackTab==='image' && 'active'"
+                                                :aria-selected="playbackTab==='image'"
+                                                @click="playbackTab='image'; fetchImages(false); initTimeline()"
+                                                data-i18n="nav_image_playback">Image Playback</button>
+                                        <button type="button" role="tab"
+                                                :class="playbackTab==='cloud' && 'active'"
+                                                :aria-selected="playbackTab==='cloud'"
+                                                @click="playbackTab='cloud'; getCloudRecordService(); initCloudPlayback()"
+                                                data-i18n="nav_cloud_playback">Cloud Playback</button>
+                                    </div>
+                                </div>
+                                <p class="log-sub" x-text="playbackTab==='image' ? tIdx('ph_sub_image') : (playbackTab==='cloud' ? tIdx('ph_sub_cloud_pb') : tIdx('ph_sub_video_pb'))"></p>
+                                <span class="log-badge">
+                                    <i class="fa-solid fa-play" aria-hidden="true"></i>
+                                    <span x-text="playbackTab==='image' ? tIdx('nav_image_playback') : (playbackTab==='cloud' ? tIdx('nav_cloud_playback') : tIdx('nav_video_playback'))"></span>
+                                </span>
+                            </div>
+                            <div class="log-hero-stats">
+                                <div class="log-stat-card" x-show="playbackTab==='video'">
+                                    <div class="ico"><i class="fa-solid fa-film"></i></div>
+                                    <div class="lbl" data-i18n="ph_stat_clips">Clips</div>
+                                    <div class="num" x-text="(records || []).length"></div>
+                                </div>
+                                <div class="log-stat-card" x-show="playbackTab==='image'">
+                                    <div class="ico"><i class="fa-solid fa-image"></i></div>
+                                    <div class="lbl" data-i18n="ph_stat_imgs">Images</div>
+                                    <div class="num" x-text="(images || []).length"></div>
+                                </div>
+                                <div class="log-stat-card" x-show="playbackTab==='cloud'">
+                                    <div class="ico"><i class="fa-solid fa-cloud"></i></div>
+                                    <div class="lbl" data-i18n="ph_stat_cloud">Cloud</div>
+                                    <div class="num" x-text="((cloudPlayback && cloudPlayback.records) || []).length"></div>
+                                </div>
+                            </div>
+                        </header>
 
                         <div class="vs-param-pane" x-show="playbackTab==='video'" x-cloak>
                                 <div class="row">
@@ -5930,34 +5957,35 @@ window.__presignThumbUrl = function (raw) {
                                         <!-- 搜索框和分页控件 -->
                                         <div class="card shadow">
                                             <div class="card-body">
-                                                <!-- 时间范围选择器 -->
-                                                <div class="row mb-2 gx-2">
-                                                    <div class="col-3">
+                                                <!-- 时间范围选择器（对齐本地：事件类型 + 仅含AI标注）-->
+                                                <div class="row mb-2 gx-2 align-items-end">
+                                                    <div class="col-2">
                                                         <label class="form-label" data-i18n="cm_start_time">Start</label>
                                                         <input type="datetime-local" class="form-control form-control-sm" x-model="startTime" />
                                                     </div>
-                                                    <div class="col-3">
+                                                    <div class="col-2">
                                                         <label class="form-label" data-i18n="cm_end_time">End</label>
                                                         <input type="datetime-local" class="form-control form-control-sm" x-model="endTime" />
                                                     </div>
                                                     <div class="col-2">
+                                                        <label class="form-label" data-i18n="evt_event_type">Event type</label>
+                                                        <select class="form-control form-control-sm" x-model="searchEventType">
+                                                            <option value="" data-i18n="evt_event_type_all">All</option>
+                                                            <template x-for="lab in eventTypeSelectOptions()" :key="'evt-'+lab">
+                                                                <option :value="lab" x-text="classDisplay(lab)"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-1">
                                                         <label class="form-label" data-i18n="cm_page_size">Size</label>
-                                                        <select
-                                                                id="pageSize"
-                                                                class="form-control form-control-sm"
-                                                                x-model.number="pageSize"
-                                                        >
+                                                        <select id="pageSize" class="form-control form-control-sm" x-model.number="pageSize">
                                                             <option value="10">10</option>
                                                             <option value="20">20</option>
                                                             <option value="30">30</option>
                                                             <option value="40">40</option>
-                                                            <!--                                                    <option value="50">50</option>-->
-                                                            <!--                                                    <option value="60">60</option>-->
-                                                            <!--                                                    <option value="80">80</option>-->
-                                                            <!--                                                    <option value="100">100</option>-->
                                                         </select>
                                                     </div>
-                                                    <div class="col-2">
+                                                    <div class="col-1">
                                                         <label class="form-label" data-i18n="cm_page_number">Page Number</label>
                                                         <input type="number" class="form-control form-control-sm"
                                                                x-model.number="pageNumber" min="1" />
@@ -5971,33 +5999,51 @@ window.__presignThumbUrl = function (raw) {
                                                             <option :value="3" data-i18n="vp_type_timelapse">Timelapse</option>
                                                         </select>
                                                     </div>
+                                                    <div class="col-2">
+                                                        <label class="form-label" data-i18n="evt_ai_tagged">AI tagged</label>
+                                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" x-model="searchEventOnly"></div>
+                                                    </div>
                                                 </div>
-                                                <!-- 搜索按钮 -->
+                                                <!-- 搜索 / 录像控制 / 多摄像布局 / 重建索引 -->
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div class="d-flex flex-wrap gap-1 align-items-center">
-                                                        <button class="btn btn-sm btn-success gap-1"
-                                                                @click="submitManualRecordStart()">
+                                                        <button class="btn btn-sm btn-success gap-1" @click="submitManualRecordStart()">
                                                             <i class="fa-solid fa-video"></i> <span data-i18n="cm_start">Start</span>
                                                         </button>
-
-                                                        <button class="btn btn-sm btn-warning gap-1"
-                                                                @click="submitManualRecordStop()">
+                                                        <button class="btn btn-sm btn-warning gap-1" @click="submitManualRecordStop()">
                                                             <i class="fa-solid fa-video-slash"></i> <span data-i18n="cm_stop">Stop</span>
                                                         </button>
-
-                                                        <button class="btn btn-sm btn-danger gap-1"
-                                                                @click="triggerEmrEvent()">
+                                                        <button class="btn btn-sm btn-danger gap-1" @click="triggerEmrEvent()">
                                                             <i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="emr_record">EMR</span>
                                                         </button>
-
-                                                        <button class="btn btn-sm btn-info gap-1"
-                                                                @click="triggerPreRecord()">
+                                                        <button class="btn btn-sm btn-info gap-1" @click="triggerPreRecord()">
                                                             <i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="pre_record">Pre-Record</span>
                                                         </button>
+                                                        <button class="btn btn-sm btn-outline-warning gap-1"
+                                                                :disabled="reindexBusy"
+                                                                @click="reindexLocalRecords()">
+                                                            <i class="fa-solid" :class="reindexBusy ? 'fa-spinner fa-spin' : 'fa-database'"></i>
+                                                            <span x-text="reindexBusy ? tIdx('vp_reindex_busy') : tIdx('vp_reindex')"></span>
+                                                        </button>
                                                     </div>
-
-
-                                                    <div class="d-flex gap-2">
+                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                        <div class="pb-layout-seg" role="group" aria-label="Playback layout"
+                                                             x-show="(remotePlaybackActive && remotePbCount()>1) || syncRecords.length>1 || playbackIdleCamCount()>1"
+                                                             :title="playbackLayout==='pip' ? tIdx('pl_pip_drag') : (playbackLayout==='single' ? tIdx('pl_switch_hint') : tIdx('pl_grid'))">
+                                                            <button type="button" :class="playbackLayout==='grid' && 'active'"
+                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')" :aria-pressed="playbackLayout==='grid'">
+                                                                <i class="fa-solid fa-table-cells" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_grid')"></span>
+                                                            </button>
+                                                            <button type="button" :class="playbackLayout==='single' && 'active'"
+                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')" :aria-pressed="playbackLayout==='single'">
+                                                                <i class="fa-regular fa-square" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_single')"></span>
+                                                            </button>
+                                                            <button type="button" :class="playbackLayout==='pip' && 'active'"
+                                                                    @click="playbackLayout='pip'; _ensurePipDefaults(remotePlaybackActive ? remotePbCount() : Math.max(syncRecords.length, playbackIdleCamCount()))"
+                                                                    :title="tIdx('pl_pip')" :aria-pressed="playbackLayout==='pip'">
+                                                                <i class="fa-solid fa-clone" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_pip')"></span>
+                                                            </button>
+                                                        </div>
                                                         <button class="btn btn-sm btn-outline-secondary"
                                                                 @click="recordListCollapsed = !recordListCollapsed">
                                                             <i class="fa-solid" :class="recordListCollapsed ? 'fa-chevron-left' : 'fa-chevron-right'"></i>
@@ -6063,19 +6109,7 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-bod yd-flex flex-fill">
                                                 <!-- 视频播放区域，视频大小根据父容器自动调整 -->
                                                 <div class="text-center" style="position:relative;">
-                                                    <!-- 显示样式切换（多路时可选：网格 / 单画面聚焦 / 画中画）——放在视频控件上方 -->
-                                                    <div x-show="(remotePlaybackActive && remotePbCount()>1) || syncRecords.length>1 || playbackIdleCamCount()>1" class="d-flex align-items-center gap-2 mb-2">
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='single'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')"><i class="fa-regular fa-square"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_single')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='pip'; _ensurePipDefaults(remotePlaybackActive ? remotePbCount() : syncRecords.length)" :title="tIdx('pl_pip')"><i class="fa-solid fa-clone"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_pip')"></span></button>
-                                                        </div>
-                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout==='pip'" x-text="tIdx('pl_pip_drag')"></span>
-                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout==='single'" x-text="tIdx('pl_switch_hint')"></span>
-                                                    </div>
+                                                    <!-- 布局切换已上移到工具栏 pb-layout-seg（对齐本地网页）-->
                                                     <!-- 云端远程回放：非局域网时设备把本地 MP4 demux 帧经独立 Agora 回放通道(uid 1226)推来，这里渲染该独立远端流 -->
                                                     <div x-show="remotePlaybackActive" class="mb-3 p-2 rounded" style="background:rgba(16,185,129,0.10);">
                                                         <div class="d-flex align-items-center mb-1" style="font-size:12px;font-weight:600;">
@@ -6250,6 +6284,9 @@ window.__presignThumbUrl = function (raw) {
                                                                             <span class="badge bg-warning text-dark" style="font-size:9px;"><i class="fa fa-stopwatch me-1"></i><span x-text="record.RecordIndexInformationDuration + 's'"></span></span>
                                                                             <span class="badge bg-secondary" style="font-size:9px;opacity:0.85;" x-text="record.RecordIndexInformationCodec === 0 ? 'H265' : 'H264'"></span>
                                                                             <span class="badge bg-dark" style="font-size:9px;opacity:0.7;">#<span x-text="record.RecordIndexInformationPath.match(/(\d{6,})\./)?.[1] || ''"></span></span>
+                                                                            <template x-for="ty in (record.eventTypes || []).slice(0,4)" :key="'ev-'+ty">
+                                                                                <span class="badge bg-success" style="font-size:9px;" x-text="ty"></span>
+                                                                            </template>
                                                                         </div>
 
 
@@ -6311,86 +6348,74 @@ window.__presignThumbUrl = function (raw) {
                                         <!-- 搜索框和分页控件 -->
                                         <div class="card shadow">
                                             <div class="card-body">
-                                                <!-- 时间范围选择器 -->
-                                                <div class="row mb-2">
-                                                    <div class="col-lg-4">
-                                                        <label for="startTime" class="form-label" data-i18n="cm_start_time">Start Time</label>
-                                                        <input
-                                                                id="snapStartTime"
-                                                                type="datetime-local"
-                                                                class="form-control"
-                                                                x-model="snapStartTime"
-                                                        />
-                                                    </div>
-                                                    <div class="col-lg-4">
-                                                        <label for="endTime" class="form-label" data-i18n="cm_end_time">End Time</label>
-                                                        <input
-                                                                id="snapEndTime"
-                                                                type="datetime-local"
-                                                                class="form-control"
-                                                                x-model="snapEndTime"
-                                                        />
+                                                <!-- 时间范围选择器（对齐本地：事件类型 + 仅含AI标注）-->
+                                                <div class="row mb-2 gx-2 align-items-end">
+                                                    <div class="col-lg-2">
+                                                        <label class="form-label" data-i18n="cm_start_time">Start Time</label>
+                                                        <input id="snapStartTime" type="datetime-local" class="form-control form-control-sm" x-model="snapStartTime" />
                                                     </div>
                                                     <div class="col-lg-2">
-                                                        <label for="pageSize" class="form-label" data-i18n="cm_page_size">Page Size</label>
-                                                        <select
-                                                                id="snapPageSize"
-                                                                class="form-control"
-                                                                x-model.number="snapPageSize"
-                                                        >
+                                                        <label class="form-label" data-i18n="cm_end_time">End Time</label>
+                                                        <input id="snapEndTime" type="datetime-local" class="form-control form-control-sm" x-model="snapEndTime" />
+                                                    </div>
+                                                    <div class="col-lg-2">
+                                                        <label class="form-label" data-i18n="evt_event_type">Event type</label>
+                                                        <select class="form-control form-control-sm" x-model="snapSearchEventType">
+                                                            <option value="" data-i18n="evt_event_type_all">All</option>
+                                                            <template x-for="lab in eventTypeSelectOptions()" :key="'snap-evt-'+lab">
+                                                                <option :value="lab" x-text="classDisplay(lab)"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-lg-1">
+                                                        <label class="form-label" data-i18n="cm_page_size">Page Size</label>
+                                                        <select id="snapPageSize" class="form-control form-control-sm" x-model.number="snapPageSize">
                                                             <option value="10">10</option>
                                                             <option value="20">20</option>
                                                             <option value="30">30</option>
                                                             <option value="40">40</option>
                                                         </select>
                                                     </div>
+                                                    <div class="col-lg-1">
+                                                        <label class="form-label" data-i18n="cm_page_number">Page Number</label>
+                                                        <input id="snapPageNumber" type="number" class="form-control form-control-sm" x-model.number="snapPageNumber" min="1" />
+                                                    </div>
                                                     <div class="col-lg-2">
-                                                        <label for="pageNumber" class="form-label" data-i18n="cm_page_number">Page Number</label>
-                                                        <input
-                                                                id="snapPageNumber"
-                                                                type="number"
-                                                                class="form-control"
-                                                                x-model.number="snapPageNumber"
-                                                                min="1"
-                                                        />
+                                                        <label class="form-label" data-i18n="evt_ai_tagged">AI tagged</label>
+                                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" x-model="snapSearchEventOnly"></div>
                                                     </div>
                                                 </div>
-                                                <!-- 搜索按钮 -->
-                                                <div class="d-flex justify-content-end justify-content-between">
-                                                    <!--                                            <button-->
-                                                    <!--                                                    type="button"-->
-                                                    <!--                                                    class="btn btn-outline-primary btn-lg mt-2"-->
-                                                    <!--                                                    data-bs-toggle="tooltip"-->
-                                                    <!--                                                    title="Display Logo"-->
-                                                    <!--                                                    @click="submitManualCapture()">-->
-                                                    <!--                                                <i class="fa-solid fa-image"></i>-->
-                                                    <!--                                            </button>-->
-                                                    <!--                                            <button-->
-                                                    <!--                                                    class="btn btn-success"-->
-                                                    <!--                                                    @click="submitManualCapture()">-->
-                                                    <!--                                                capture-->
-                                                    <!--                                            </button>-->
-
+                                                <!-- 搜索 / 抓拍 / 多摄像布局 -->
+                                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                                     <div class="d-flex gap-2">
-                                                        <!-- 主码流抓拍(原有行为,不传参=空 params) -->
-                                                        <button class="btn  btn-success justify-content-between gap-1"
-                                                                @click="submitManualCapture(0)">
-                                                            <!--                                                                        <i class="fa-solid fa-download"></i> Jpeg-->
+                                                        <button class="btn btn-sm btn-success gap-1" @click="submitManualCapture(0)">
                                                             <i class="fa-solid fa-image"></i> <span data-i18n="cm_capture">Capture</span>
                                                         </button>
-                                                        <!-- 次码流抓拍：同一命令带 videoStreamMode:1 -->
-                                                        <button class="btn btn-outline-success justify-content-between gap-1"
-                                                                @click="submitManualCapture(1)">
+                                                        <button class="btn btn-sm btn-outline-success gap-1" @click="submitManualCapture(1)">
                                                             <i class="fa-solid fa-images"></i> <span data-i18n="cm_capture_sub">Capture (Sub)</span>
                                                         </button>
                                                     </div>
-
-                                                    <button
-                                                            class="btn btn-primary"
-                                                            @click="fetchImages(true)">
-                                                        <span data-i18n="cm_search">Search</span>
-                                                    </button>
-
+                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                        <div class="pb-layout-seg" role="group" aria-label="Playback layout"
+                                                             x-show="syncImages.length>1 || playbackIdleCamCount()>1"
+                                                             :title="playbackLayout!=='grid' ? tIdx('pl_switch_hint') : tIdx('pl_grid')">
+                                                            <button type="button" :class="playbackLayout==='grid' && 'active'"
+                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')" :aria-pressed="playbackLayout==='grid'">
+                                                                <i class="fa-solid fa-table-cells" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_grid')"></span>
+                                                            </button>
+                                                            <button type="button" :class="playbackLayout==='single' && 'active'"
+                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')" :aria-pressed="playbackLayout==='single'">
+                                                                <i class="fa-regular fa-square" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_single')"></span>
+                                                            </button>
+                                                            <button type="button" :class="playbackLayout==='pip' && 'active'"
+                                                                    @click="playbackLayout='pip'" :title="tIdx('pl_pip')" :aria-pressed="playbackLayout==='pip'">
+                                                                <i class="fa-solid fa-clone" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_pip')"></span>
+                                                            </button>
+                                                        </div>
+                                                        <button class="btn btn-sm btn-primary" @click="fetchImages(true)">
+                                                            <span data-i18n="cm_search">Search</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6432,17 +6457,7 @@ window.__presignThumbUrl = function (raw) {
                                         <div class="card shadow">
                                             <div class="card-body p-1">
                                                 <div class="text-center mt-2" style="position:relative;width:100%;">
-                                                    <div x-show="syncImages.length>1" class="d-flex align-items-center gap-2 mb-2">
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button type="button" class="btn" :class="playbackLayout==='grid'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='grid'" :title="tIdx('pl_grid')"><i class="fa-solid fa-table-cells"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_grid')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='single'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='single'" :title="tIdx('pl_single')"><i class="fa-regular fa-square"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_single')"></span></button>
-                                                            <button type="button" class="btn" :class="playbackLayout==='pip'?'btn-primary':'btn-outline-secondary'"
-                                                                    @click="playbackLayout='pip'" :title="tIdx('pl_pip')"><i class="fa-solid fa-clone"></i><span class="ms-1 d-none d-md-inline" x-text="tIdx('pl_pip')"></span></button>
-                                                        </div>
-                                                        <span class="text-muted" style="font-size:11px;" x-show="playbackLayout!=='grid'" x-text="tIdx('pl_switch_hint')"></span>
-                                                    </div>
+                                                    <!-- 布局切换已上移到工具栏 pb-layout-seg -->
                                                     <div x-show="syncImages.length" :style="layoutContainerStyle(syncImages.length)">
                                                         <template x-for="(img, idx) in syncImages" :key="(img.RecordIndexInformationImage||'')+'-'+idx">
                                                             <div :style="layoutItemStyle(idx, syncImages.length)+';aspect-ratio:16/9;overflow:hidden;background:var(--video-bg,#0b1020);'" @click="setSnapFocus(idx)">
@@ -6536,6 +6551,9 @@ window.__presignThumbUrl = function (raw) {
                                                                                   x-text="image.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : image.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : image.RecordIndexInformationType==3 ? tIdx('ip_snap') : tIdx('vp_type_timelapse')"></span>
                                                                             <span class="badge bg-secondary" style="font-size:9px;"><i class="fa fa-clock me-1"></i><span x-text="image.RecordIndexInformationDateTime.substring(0, 19)"></span></span>
                                                                             <span class="badge bg-dark" style="font-size:9px;opacity:0.7;">#<span x-text="image.RecordIndexInformationImage.match(/(\d{6,})\./)?.[1] || ''"></span></span>
+                                                                            <template x-for="ty in (image.eventTypes || []).slice(0,4)" :key="'snap-ev-'+ty">
+                                                                                <span class="badge bg-success" style="font-size:9px;" x-text="ty"></span>
+                                                                            </template>
                                                                         </div>
 
                                                                         <div class="d-flex flex-wrap justify-content-start align-items-center mt-1 gap-2">
@@ -9872,7 +9890,7 @@ const I18N_INDEX = {
     nav_production:'Production', nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
     nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', ls_tab_upload:'Upload Logs', ls_sub_upload:'Upload device logs to cloud diagnostics (WAN cannot browse /log files).', ls_badge_upload:'Cloud upload', ls_upload_title:'Upload device logs', ls_upload_desc:'WAN cannot browse device log files over MQTT. Package console logs and upload to cloud diagnostics for support.', ls_stat_upload:'S3', ls_stat_upload_foot:'Send to cloud', ls_eyebrow:'Diagnostics', ls_sub_settings:'Configure glog output, severity and per-module switches.', ls_sub_files:'Device diagnostic sessions', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Enabled now', ls_stat_level:'Level', ls_stat_files:'Files', ls_stat_live_foot:'Active now', ls_rel_just:'Just now', ls_rel_min:' min ago', ls_rel_hour:' h ago', ls_rel_day:' d ago', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
-    page_home:'Live', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
+    page_home:'Live', page_dashboard:'Dashboard', page_playback:'Playback', ph_eyebrow_playback:'Playback', ph_sub_video_pb:'Browse and play local recordings.', ph_sub_image:'Browse captured images.', ph_sub_cloud_pb:'Cloud archived clips.', ph_stat_clips:'Clips', ph_stat_imgs:'Images', ph_stat_cloud:'Cloud', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
     page_ai_detection:'AI Settings', page_chatgpt_information:'LLM Settings',
     page_audio_settings:'Audio Settings', page_record_settings:'Record Settings',
@@ -9882,7 +9900,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Factory Test', page_debug:'Log Settings',
     page_log:'Log', page_about:'About',
     vs_camera_select:'Camera Select', vs_camera:'Camera',
-    nav_ai_detection:'AI Settings', ai_tab_detect:'Detection', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
+    nav_ai_detection:'AI Settings', evt_ai_tagged:'AI tagged', evt_event_type:'Event type', evt_event_type_all:'All', ai_tab_detect:'Detection', algo_preview_hint:'Click Play to preview detection live', algo_global:'Detection (Global)', algo_master_enable:'Master Enable', algo_osd_draw:'Draw Box on Video', algo_foxglove:'Publish to Foxglove', algo_camera_cfg:'Camera Detection', algo_cam_enable:'Enable this camera', algo_config_path:'nvinfer Config (.txt)', algo_engine_path:'TensorRT Engine', algo_labels_path:'Labels File', algo_threshold:'Confidence', algo_interval:'Infer interval', algo_class_filter:'Class filter', algo_hint:'Each camera can load a different model. Changing the config path rebuilds that camera\'s pipeline.', algo_select_model:'Model', algo_model_custom:'— Custom (manual path) —', algo_select_model_hint:'Pick a model; paths fill in automatically. Each camera can use a different model.', algo_advanced_paths:'Advanced: manual paths', algo_detect_classes:'Detected classes', algo_detect_classes_hint:'Checked = will be detected. Uncheck to ignore. All checked = detect everything; none = detect nothing.', algo_class_all:'All', algo_class_none:'None', algo_class_all_label:'All',
     vs_main_stream:'Main Stream', vs_sub_stream:'Sub Stream',
     vs_resolution:'Resolution', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: same quality at ~40% lower bitrate',
     vs_brightness:'Brightness', vs_saturation:'Saturation',
@@ -9911,7 +9929,7 @@ const I18N_INDEX = {
     cm_capture:'Capture', cm_capture_sub:'Capture (Sub)', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
-    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_select_record:'Please select a record to play.', vp_idle_hint:'Tap a camera tile, timeline, or list to play', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
+    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_reindex:'Rebuild index', vp_reindex_confirm:'Scan disk and restore missing recording list entries (files are not deleted). This may take a minute.', vp_reindex_ok:'Index rebuilt, added ', vp_reindex_fail:'Rebuild index failed', vp_reindex_busy:'Rebuilding…', vp_select_record:'Please select a record to play.', vp_idle_hint:'Tap a camera tile, timeline, or list to play', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
     vp_datetime:'Datetime:', vp_video:'Video', vp_del:'Del', vp_del_confirm:'Delete this record? This cannot be undone.',
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
@@ -10025,7 +10043,7 @@ const I18N_INDEX = {
     nav_production:'生产', nav_provisioning:'配网', nav_factory_test:'工厂测试',
     nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', ls_tab_upload:'上传日志', ls_sub_upload:'外网无法浏览设备 /log 文件，请打包上传到云端诊断。', ls_badge_upload:'云端上传', ls_upload_title:'上传设备日志', ls_upload_desc:'外网经 MQTT 无法浏览设备日志文件。请打包控制台日志并上传到云端诊断，供售后分析。', ls_stat_upload:'S3', ls_stat_upload_foot:'上传到云端', ls_eyebrow:'诊断', ls_sub_settings:'配置 glog 输出、级别与各模块开关。', ls_sub_files:'设备诊断会话', ls_badge_files:'个会话', ls_badge_modules:'模块开启', ls_stat_modules:'模块', ls_stat_modules_on:'当前开启', ls_stat_level:'级别', ls_stat_files:'文件', ls_stat_live_foot:'正在写入', ls_rel_just:'刚刚', ls_rel_min:' 分钟前', ls_rel_hour:' 小时前', ls_rel_day:' 天前', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
-    page_home:'直播', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
+    page_home:'直播', page_dashboard:'仪表盘', page_playback:'回放', ph_eyebrow_playback:'回放', ph_sub_video_pb:'浏览并播放本地录像。', ph_sub_image:'浏览抓拍图片。', ph_sub_cloud_pb:'云端归档片段。', ph_stat_clips:'片段', ph_stat_imgs:'图片', ph_stat_cloud:'云端', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
     page_ai_detection:'AI 设置', page_chatgpt_information:'大模型设置',
     page_audio_settings:'音频设置', page_record_settings:'录像设置',
@@ -10035,7 +10053,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'工厂测试', page_debug:'日志设置',
     page_log:'日志', page_about:'关于',
     vs_camera_select:'摄像头选择', vs_camera:'摄像头',
-    nav_ai_detection:'AI 设置', ai_tab_detect:'检测', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
+    nav_ai_detection:'AI 设置', evt_ai_tagged:'仅含AI标注', evt_event_type:'事件类型', evt_event_type_all:'全部', ai_tab_detect:'检测', algo_preview_hint:'点击播放，实时查看检测效果', algo_global:'检测（全局）', algo_master_enable:'总开关', algo_osd_draw:'画框到视频', algo_foxglove:'发布到 Foxglove', algo_camera_cfg:'摄像头检测', algo_cam_enable:'启用该摄像头', algo_config_path:'nvinfer 配置(.txt)', algo_engine_path:'TensorRT 引擎', algo_labels_path:'标签文件', algo_threshold:'置信度', algo_interval:'推理间隔', algo_class_filter:'类别过滤', algo_hint:'不同摄像头可加载不同模型；修改配置路径会重建该路推理管线。', algo_select_model:'模型', algo_model_custom:'— 自定义（手填路径） —', algo_select_model_hint:'选择模型，自动填充路径；每路摄像头可用不同模型。', algo_advanced_paths:'高级：手填路径', algo_detect_classes:'可检测类别', algo_detect_classes_hint:'勾选=会检测，取消=过滤忽略。全勾=检测全部；全不选=一个都不检测。', algo_class_all:'全选', algo_class_none:'全不选', algo_class_all_label:'全部',
     vs_main_stream:'主码流', vs_sub_stream:'子码流',
     vs_resolution:'分辨率', vs_fps:'帧率', vs_bitrate:'码率', vs_codec_hint:'H265 同画质约省 40% 码流，可适当调低',
     vs_brightness:'亮度', vs_saturation:'饱和度',
@@ -10064,7 +10082,7 @@ const I18N_INDEX = {
     cm_capture:'抓拍', cm_capture_sub:'次码流抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
-    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_select_record:'请选择一个录像进行播放。', vp_idle_hint:'点击宫格/时间轴/列表开始播放', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
+    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_reindex:'重建索引', vp_reindex_confirm:'扫描磁盘，把丢失的录像列表补回来（不会删除文件）。可能需要一两分钟。', vp_reindex_ok:'索引已重建，新增 ', vp_reindex_fail:'重建索引失败', vp_reindex_busy:'正在重建…', vp_select_record:'请选择一个录像进行播放。', vp_idle_hint:'点击宫格/时间轴/列表开始播放', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
     vp_datetime:'时间：', vp_video:'视频', vp_del:'删除', vp_del_confirm:'确定删除这条记录吗？此操作不可恢复。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
@@ -10178,7 +10196,7 @@ const I18N_INDEX = {
     nav_production:'生産', nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
     nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', ls_tab_upload:'ログアップロード', ls_sub_upload:'WAN では /log を閲覧できません。クラウド診断へアップロードしてください。', ls_badge_upload:'クラウド送信', ls_upload_title:'デバイスログをアップロード', ls_upload_desc:'WAN では MQTT 経由でログファイルを閲覧できません。コンソールログを打包してクラウド診断へ送ってください。', ls_stat_upload:'S3', ls_stat_upload_foot:'クラウドへ', ls_eyebrow:'診断', ls_sub_settings:'glog 出力・レベル・モジュール切替を設定。', ls_sub_files:'デバイス診断セッション', ls_badge_files:'件', ls_badge_modules:'モジュール ON', ls_stat_modules:'モジュール', ls_stat_modules_on:'有効', ls_stat_level:'レベル', ls_stat_files:'ファイル', ls_stat_live_foot:'書込中', ls_rel_just:'たった今', ls_rel_min:'分前', ls_rel_hour:'時間前', ls_rel_day:'日前', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
-    page_home:'ライブ', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
+    page_home:'ライブ', page_dashboard:'ダッシュボード', page_playback:'再生', ph_eyebrow_playback:'再生', ph_sub_video_pb:'ローカル録画を再生。', ph_sub_image:'スナップショット閲覧。', ph_sub_cloud_pb:'クラウド録画。', ph_stat_clips:'クリップ', ph_stat_imgs:'画像', ph_stat_cloud:'クラウド', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
     page_ai_detection:'AI 設定', page_chatgpt_information:'LLM 設定',
     page_audio_settings:'音声設定', page_record_settings:'録画設定',
@@ -10188,7 +10206,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'工場テスト', page_debug:'ログ設定',
     page_log:'ログ', page_about:'バージョン情報',
     vs_camera_select:'カメラ選択', vs_camera:'カメラ',
-    nav_ai_detection:'AI 設定', ai_tab_detect:'検出', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
+    nav_ai_detection:'AI 設定', evt_ai_tagged:'AIタグのみ', evt_event_type:'イベント種別', evt_event_type_all:'すべて', ai_tab_detect:'検出', algo_preview_hint:'再生をクリックして検出をライブ表示', algo_global:'検出（グローバル）', algo_master_enable:'マスター有効', algo_osd_draw:'映像に枠を描画', algo_foxglove:'Foxglove に配信', algo_camera_cfg:'カメラ検出', algo_cam_enable:'このカメラを有効化', algo_config_path:'nvinfer 設定(.txt)', algo_engine_path:'TensorRT エンジン', algo_labels_path:'ラベルファイル', algo_threshold:'信頼度', algo_interval:'推論間隔', algo_class_filter:'クラスフィルタ', algo_hint:'カメラごとに異なるモデルを読み込めます。設定パスを変更するとそのカメラのパイプラインが再構築されます。', algo_select_model:'モデル', algo_model_custom:'— カスタム（手動パス） —', algo_select_model_hint:'モデルを選ぶとパスが自動入力されます。カメラごとに別モデル可。', algo_advanced_paths:'詳細：手動パス', algo_detect_classes:'検出クラス', algo_detect_classes_hint:'チェック=検出する。外す=無視。全チェック=すべて検出；なし=何も検出しない。', algo_class_all:'全選択', algo_class_none:'全解除', algo_class_all_label:'すべて',
     vs_main_stream:'メインストリーム', vs_sub_stream:'サブストリーム',
     vs_resolution:'解像度', vs_fps:'FPS', vs_bitrate:'ビットレート', vs_codec_hint:'H265 同画質で約40%低いビットレート',
     vs_brightness:'明るさ', vs_saturation:'彩度',
@@ -10217,7 +10235,7 @@ const I18N_INDEX = {
     cm_capture:'キャプチャ', cm_capture_sub:'サブストリーム撮影', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
     cm_enable:'有効', cm_disable:'無効',
-    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_select_record:'再生する録画を選択してください。', vp_idle_hint:'タイル・タイムライン・リストから再生', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
+    vp_record_type:'種別', vp_type_all:'全て', vp_type_loop:'通常', vp_type_pre:'緊急', vp_type_timelapse:'タイムラプス', vp_record_list:'録画リスト', vp_show_list:'リスト表示', vp_hide_list:'リストを隠す', vp_reindex:'インデックス再構築', vp_reindex_confirm:'ディスクを走査し、欠けた録画一覧を復元します（ファイルは削除しません）。1〜2分かかることがあります。', vp_reindex_ok:'再構築完了、追加 ', vp_reindex_fail:'再構築に失敗', vp_reindex_busy:'再構築中…', vp_select_record:'再生する録画を選択してください。', vp_idle_hint:'タイル・タイムライン・リストから再生', vp_playing:'再生中', vp_remote_playback:'リモート再生', rp_btn:'クラウド再生', rp_stop:'停止', rp_started:'リモート再生を開始しました', rp_failed:'リモート再生に失敗しました', tl_segments:'件', tl_type_filter_hint:'タイプをクリックして絞り込み', tl_reset:'リセット', tl_zoom_hint:'ホイールでズーム、クリックで再生', tl_click_hint:'タイムラインをクリックしてその時刻の録画を再生',
     vp_datetime:'日時：', vp_video:'動画', vp_del:'削除', vp_del_confirm:'この記録を削除しますか？元に戻せません。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'説明の生成に失敗しました', ai_search_ph:'内容説明で検索…', ai_search_btn:'検索', ai_search_none:'一致する録画がありません',
     ai_ask_title:'ライブ映像に質問', ai_ask_ph:'カメラの映像について質問を入力…', ai_ask_btn:'撮影して質問', ai_ask_running:'考え中…', ai_ask_failed:'質問に失敗しました', ai_ask_history:'履歴', ai_ask_empty:'まだ質問がありません。撮影して質問してみてください。',
@@ -10330,7 +10348,7 @@ const I18N_INDEX = {
     nav_production:'Produktion', nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
     nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', ls_tab_upload:'Logs hochladen', ls_sub_upload:'WAN kann /log nicht lesen — Logs in die Cloud-Diagnose hochladen.', ls_badge_upload:'Cloud-Upload', ls_upload_title:'Gerätelogs hochladen', ls_upload_desc:'Über MQTT sind Logdateien nicht lesbar. Konsolenlogs packen und zur Cloud-Diagnose senden.', ls_stat_upload:'S3', ls_stat_upload_foot:'In die Cloud', ls_eyebrow:'Diagnose', ls_sub_settings:'glog-Ausgabe, Schweregrad und Modulschalter.', ls_sub_files:'Geräte-Diagnosesitzungen', ls_badge_files:'Sitzungen', ls_badge_modules:'Module an', ls_stat_modules:'Module', ls_stat_modules_on:'Aktiv', ls_stat_level:'Stufe', ls_stat_files:'Dateien', ls_stat_live_foot:'Aktiv jetzt', ls_rel_just:'Gerade eben', ls_rel_min:' Min. her', ls_rel_hour:' Std. her', ls_rel_day:' T. her', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
-    page_home:'Live', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
+    page_home:'Live', page_dashboard:'Dashboard', page_playback:'Wiedergabe', ph_eyebrow_playback:'Wiedergabe', ph_sub_video_pb:'Lokale Aufnahmen abspielen.', ph_sub_image:'Schnappschüsse.', ph_sub_cloud_pb:'Cloud-Clips.', ph_stat_clips:'Clips', ph_stat_imgs:'Bilder', ph_stat_cloud:'Cloud', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
     page_ai_detection:'KI-Einstellungen', page_chatgpt_information:'LLM-Einstellungen',
     page_audio_settings:'Audioeinstellungen', page_record_settings:'Aufnahmeeinstellungen',
@@ -10340,7 +10358,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Werkstest', page_debug:'Log-Einstellungen',
     page_log:'Protokoll', page_about:'Über',
     vs_camera_select:'Kameraauswahl', vs_camera:'Kamera',
-    nav_ai_detection:'KI-Einstellungen', ai_tab_detect:'Erkennung', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
+    nav_ai_detection:'KI-Einstellungen', evt_ai_tagged:'Nur KI-markiert', evt_event_type:'Ereignistyp', evt_event_type_all:'Alle', ai_tab_detect:'Erkennung', algo_preview_hint:'Auf Wiedergabe klicken, um die Erkennung live zu sehen', algo_global:'Erkennung (Global)', algo_master_enable:'Hauptschalter', algo_osd_draw:'Box im Video zeichnen', algo_foxglove:'An Foxglove senden', algo_camera_cfg:'Kamera-Erkennung', algo_cam_enable:'Diese Kamera aktivieren', algo_config_path:'nvinfer-Konfig (.txt)', algo_engine_path:'TensorRT-Engine', algo_labels_path:'Labels-Datei', algo_threshold:'Konfidenz', algo_interval:'Inferenzintervall', algo_class_filter:'Klassenfilter', algo_hint:'Jede Kamera kann ein anderes Modell laden. Das Ändern des Konfig-Pfads baut die Pipeline dieser Kamera neu auf.', algo_select_model:'Modell', algo_model_custom:'— Benutzerdefiniert (manueller Pfad) —', algo_select_model_hint:'Modell wählen; Pfade werden automatisch ausgefüllt. Jede Kamera kann ein anderes Modell nutzen.', algo_advanced_paths:'Erweitert: manuelle Pfade', algo_detect_classes:'Erkannte Klassen', algo_detect_classes_hint:'Angehakt = wird erkannt. Abwählen zum Ignorieren. Alle angehakt = alles erkennen; keine = nichts erkennen.', algo_class_all:'Alle', algo_class_none:'Keine', algo_class_all_label:'Alle',
     vs_main_stream:'Hauptstream', vs_sub_stream:'Substream',
     vs_resolution:'Auflösung', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: gleiche Qualität bei ~40% weniger Bitrate',
     vs_brightness:'Helligkeit', vs_saturation:'Sättigung',
@@ -10369,7 +10387,7 @@ const I18N_INDEX = {
     cm_capture:'Aufnehmen', cm_capture_sub:'Aufnehmen (Substream)', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
     cm_enable:'aktiviert', cm_disable:'deaktiviert',
-    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_idle_hint:'Kachel, Zeitleiste oder Liste antippen', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
+    vp_record_type:'Typ', vp_type_all:'Alle', vp_type_loop:'Normal', vp_type_pre:'Notfall', vp_type_timelapse:'Zeitraffer', vp_record_list:'Aufnahmeliste', vp_show_list:'Liste zeigen', vp_hide_list:'Liste ausblenden', vp_reindex:'Index neu aufbauen', vp_reindex_confirm:'Datenträger scannen und fehlende Listeneinträge wiederherstellen (Dateien werden nicht gelöscht). Kann ein bis zwei Minuten dauern.', vp_reindex_ok:'Index neu aufgebaut, hinzugefügt ', vp_reindex_fail:'Index-Aufbau fehlgeschlagen', vp_reindex_busy:'Wird aufgebaut…', vp_select_record:'Bitte wählen Sie eine Aufnahme zur Wiedergabe.', vp_idle_hint:'Kachel, Zeitleiste oder Liste antippen', vp_playing:'Wiedergabe', vp_remote_playback:'Fernwiedergabe', rp_btn:'Cloud-Wiedergabe', rp_stop:'Stopp', rp_started:'Fernwiedergabe gestartet', rp_failed:'Fernwiedergabe fehlgeschlagen', tl_segments:'Segmente', tl_type_filter_hint:'Typ anklicken zum Filtern', tl_reset:'Zurücksetzen', tl_zoom_hint:'Scrollen zum Zoomen, Klick zum Abspielen', tl_click_hint:'Auf die Zeitleiste klicken, um die Aufnahme abzuspielen',
     vp_datetime:'Datum:', vp_video:'Video', vp_del:'Löschen', vp_del_confirm:'Diesen Eintrag löschen? Nicht widerrufbar.',
     ai_desc_btn:'AI', ai_desc_running:'Wird erstellt…', ai_desc_failed:'Beschreibung fehlgeschlagen', ai_search_ph:'Nach Inhaltsbeschreibung suchen…', ai_search_btn:'Suchen', ai_search_none:'Keine passenden Aufnahmen',
     ai_ask_title:'Live-Ansicht fragen', ai_ask_ph:'Frage zum aktuellen Kamerabild eingeben…', ai_ask_btn:'Foto & Frage', ai_ask_running:'Denkt nach…', ai_ask_failed:'Anfrage fehlgeschlagen', ai_ask_history:'Verlauf', ai_ask_empty:'Noch keine Fragen — Foto machen und fragen.',
@@ -10481,7 +10499,7 @@ const I18N_INDEX = {
     nav_production:'Production', nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
     nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', ls_tab_upload:'Envoyer journaux', ls_sub_upload:'WAN ne peut pas lire /log — envoyer vers le diagnostic cloud.', ls_badge_upload:'Envoi cloud', ls_upload_title:'Envoyer les journaux', ls_upload_desc:'Impossible de parcourir les journaux via MQTT. Empaqueter et envoyer au diagnostic cloud.', ls_stat_upload:'S3', ls_stat_upload_foot:'Vers le cloud', ls_eyebrow:'Diagnostic', ls_sub_settings:'Configurer sortie glog, sévérité et modules.', ls_sub_files:'Sessions de diagnostic appareil', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Activés', ls_stat_level:'Niveau', ls_stat_files:'Fichiers', ls_stat_live_foot:'Actif', ls_rel_just:'À l\'instant', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' j', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
-    page_home:'Direct', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
+    page_home:'Direct', page_dashboard:'Tableau de bord', page_playback:'Lecture', ph_eyebrow_playback:'Lecture', ph_sub_video_pb:'Lire les enregistrements locaux.', ph_sub_image:'Images capturées.', ph_sub_cloud_pb:'Clips cloud.', ph_stat_clips:'Clips', ph_stat_imgs:'Images', ph_stat_cloud:'Cloud', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
     page_ai_detection:'Paramètres IA', page_chatgpt_information:'Paramètres LLM',
     page_audio_settings:'Paramètres audio', page_record_settings:'Paramètres enreg.',
@@ -10491,7 +10509,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Test usine', page_debug:'Paramètres journal',
     page_log:'Journal', page_about:'À propos',
     vs_camera_select:'Sélection caméra', vs_camera:'Caméra',
-    nav_ai_detection:'Paramètres IA', ai_tab_detect:'Détection', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
+    nav_ai_detection:'Paramètres IA', evt_ai_tagged:'Avec tags IA', evt_event_type:'Type d\'événement', evt_event_type_all:'Tous', ai_tab_detect:'Détection', algo_preview_hint:'Cliquez sur Lecture pour voir la détection en direct', algo_global:'Détection (Globale)', algo_master_enable:'Activation générale', algo_osd_draw:'Dessiner le cadre sur la vidéo', algo_foxglove:'Publier vers Foxglove', algo_camera_cfg:'Détection caméra', algo_cam_enable:'Activer cette caméra', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Moteur TensorRT', algo_labels_path:'Fichier d\'étiquettes', algo_threshold:'Confiance', algo_interval:'Intervalle d\'inférence', algo_class_filter:'Filtre de classes', algo_hint:'Chaque caméra peut charger un modèle différent. Changer le chemin de config reconstruit le pipeline de cette caméra.', algo_select_model:'Modèle', algo_model_custom:'— Personnalisé (chemin manuel) —', algo_select_model_hint:'Choisissez un modèle ; les chemins se remplissent automatiquement. Chaque caméra peut utiliser un modèle différent.', algo_advanced_paths:'Avancé : chemins manuels', algo_detect_classes:'Classes détectées', algo_detect_classes_hint:'Coché = sera détecté. Décocher pour ignorer. Tout coché = tout détecter ; aucun = ne rien détecter.', algo_class_all:'Tout', algo_class_none:'Aucun', algo_class_all_label:'Tout',
     vs_main_stream:'Flux principal', vs_sub_stream:'Flux secondaire',
     vs_resolution:'Résolution', vs_fps:'IPS', vs_bitrate:'Débit', vs_codec_hint:'H265 : même qualité à ~40% de débit en moins',
     vs_brightness:'Luminosité', vs_saturation:'Saturation',
@@ -10520,7 +10538,7 @@ const I18N_INDEX = {
     cm_capture:'Capturer', cm_capture_sub:'Capturer (flux secondaire)', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
     cm_enable:'activé', cm_disable:'désactivé',
-    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_idle_hint:'Touchez une tuile, la timeline ou la liste', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
+    vp_record_type:'Type', vp_type_all:'Tous', vp_type_loop:'Normal', vp_type_pre:'Urgence', vp_type_timelapse:'Accéléré', vp_record_list:'Liste enregistrements', vp_show_list:'Afficher liste', vp_hide_list:'Masquer liste', vp_reindex:'Reconstruire l’index', vp_reindex_confirm:'Scanner le disque et restaurer les entrées manquantes (les fichiers ne sont pas supprimés). Peut prendre 1 à 2 minutes.', vp_reindex_ok:'Index reconstruit, ajoutés ', vp_reindex_fail:'Échec de la reconstruction', vp_reindex_busy:'Reconstruction…', vp_select_record:'Veuillez sélectionner un enregistrement.', vp_idle_hint:'Touchez une tuile, la timeline ou la liste', vp_playing:'Lecture', vp_remote_playback:'Lecture à distance', rp_btn:'Lecture cloud', rp_stop:'Arrêter', rp_started:'Lecture à distance démarrée', rp_failed:'Échec de la lecture à distance', tl_segments:'segments', tl_click_hint:'Cliquez sur la timeline pour lire l enregistrement', tl_type_filter_hint:'Cliquez un type pour filtrer', tl_reset:'Réinit.', tl_zoom_hint:'Molette pour zoomer, clic pour lire',
     vp_datetime:'Date :', vp_video:'Vidéo', vp_del:'Suppr.', vp_del_confirm:'Supprimer cet enregistrement ? Irréversible.',
     ai_desc_btn:'AI', ai_desc_running:'Génération…', ai_desc_failed:'Échec de la description', ai_search_ph:'Rechercher par description…', ai_search_btn:'Rechercher', ai_search_none:'Aucun enregistrement correspondant',
     ai_ask_title:'Interroger la vue en direct', ai_ask_ph:'Posez une question sur l’image de la caméra…', ai_ask_btn:'Capturer & demander', ai_ask_running:'Réflexion…', ai_ask_failed:'Échec de la demande', ai_ask_history:'Historique', ai_ask_empty:'Aucune question — capturez et demandez.',
@@ -10633,7 +10651,7 @@ const I18N_INDEX = {
     nav_production:'Producción', nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
     nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', ls_tab_upload:'Subir registros', ls_sub_upload:'WAN no puede leer /log — subir a diagnóstico en la nube.', ls_badge_upload:'Subida cloud', ls_upload_title:'Subir registros del dispositivo', ls_upload_desc:'No se pueden listar logs por MQTT. Empaqueta y sube a diagnóstico en la nube.', ls_stat_upload:'S3', ls_stat_upload_foot:'A la nube', ls_eyebrow:'Diagnóstico', ls_sub_settings:'Configurar glog, severidad y módulos.', ls_sub_files:'Sesiones de diagnóstico', ls_badge_files:'sesiones', ls_badge_modules:'módulos on', ls_stat_modules:'Módulos', ls_stat_modules_on:'Activos', ls_stat_level:'Nivel', ls_stat_files:'Archivos', ls_stat_live_foot:'Activo', ls_rel_just:'Ahora', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' d', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
-    page_home:'En vivo', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
+    page_home:'En vivo', page_dashboard:'Panel', page_playback:'Reproducción', ph_eyebrow_playback:'Reproducción', ph_sub_video_pb:'Reproducir grabaciones locales.', ph_sub_image:'Imágenes capturadas.', ph_sub_cloud_pb:'Clips en la nube.', ph_stat_clips:'Clips', ph_stat_imgs:'Imágenes', ph_stat_cloud:'Nube', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
     page_ai_detection:'Ajustes IA', page_chatgpt_information:'Ajustes LLM',
     page_audio_settings:'Ajustes audio', page_record_settings:'Ajustes grabación',
@@ -10643,7 +10661,7 @@ const I18N_INDEX = {
     page_factoryTest_information:'Test de fábrica', page_debug:'Ajustes de registro',
     page_log:'Registro', page_about:'Acerca de',
     vs_camera_select:'Selección de cámara', vs_camera:'Cámara',
-    nav_ai_detection:'Ajustes IA', ai_tab_detect:'Detección', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
+    nav_ai_detection:'Ajustes IA', evt_ai_tagged:'Solo con IA', evt_event_type:'Tipo de evento', evt_event_type_all:'Todos', ai_tab_detect:'Detección', algo_preview_hint:'Pulsa Reproducir para ver la detección en vivo', algo_global:'Detección (Global)', algo_master_enable:'Activación general', algo_osd_draw:'Dibujar caja en vídeo', algo_foxglove:'Publicar en Foxglove', algo_camera_cfg:'Detección de cámara', algo_cam_enable:'Activar esta cámara', algo_config_path:'Config nvinfer (.txt)', algo_engine_path:'Motor TensorRT', algo_labels_path:'Archivo de etiquetas', algo_threshold:'Confianza', algo_interval:'Intervalo de inferencia', algo_class_filter:'Filtro de clases', algo_hint:'Cada cámara puede cargar un modelo diferente. Cambiar la ruta de config reconstruye el pipeline de esa cámara.', algo_select_model:'Modelo', algo_model_custom:'— Personalizado (ruta manual) —', algo_select_model_hint:'Elige un modelo; las rutas se rellenan automáticamente. Cada cámara puede usar un modelo distinto.', algo_advanced_paths:'Avanzado: rutas manuales', algo_detect_classes:'Clases detectadas', algo_detect_classes_hint:'Marcado = se detectará. Desmarca para ignorar. Todo marcado = detectar todo; ninguno = no detectar nada.', algo_class_all:'Todo', algo_class_none:'Ninguno', algo_class_all_label:'Todo',
     vs_main_stream:'Flujo principal', vs_sub_stream:'Subflujo',
     vs_resolution:'Resolución', vs_fps:'FPS', vs_bitrate:'Bitrate', vs_codec_hint:'H265: misma calidad con ~40% menos bitrate',
     vs_brightness:'Brillo', vs_saturation:'Saturación',
@@ -10672,7 +10690,7 @@ const I18N_INDEX = {
     cm_capture:'Capturar', cm_capture_sub:'Capturar (flujo secundario)', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
     cm_enable:'activar', cm_disable:'desactivar',
-    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_select_record:'Seleccione una grabación para reproducir.', vp_idle_hint:'Toque una cámara, la línea de tiempo o la lista', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
+    vp_record_type:'Tipo', vp_type_all:'Todos', vp_type_loop:'Normal', vp_type_pre:'Emergencia', vp_type_timelapse:'Timelapse', vp_record_list:'Lista grabaciones', vp_show_list:'Mostrar lista', vp_hide_list:'Ocultar lista', vp_reindex:'Reconstruir índice', vp_reindex_confirm:'Escanear el disco y restaurar entradas de lista faltantes (no se borran archivos). Puede tardar 1–2 minutos.', vp_reindex_ok:'Índice reconstruido, añadidos ', vp_reindex_fail:'Error al reconstruir índice', vp_reindex_busy:'Reconstruyendo…', vp_select_record:'Seleccione una grabación para reproducir.', vp_idle_hint:'Toque una cámara, la línea de tiempo o la lista', vp_playing:'Reproduciendo', vp_remote_playback:'Reproducción remota', rp_btn:'Reproducir nube', rp_stop:'Detener', rp_started:'Reproducción remota iniciada', rp_failed:'Error de reproducción remota', tl_segments:'segmentos', tl_type_filter_hint:'Clic en un tipo para filtrar', tl_reset:'Restablecer', tl_zoom_hint:'Rueda para zoom, clic para reproducir', tl_click_hint:'Haga clic en la línea de tiempo para reproducir',
     vp_datetime:'Fecha:', vp_video:'Vídeo', vp_del:'Eliminar', vp_del_confirm:'¿Eliminar este registro? Irreversible.',
     ai_desc_btn:'AI', ai_desc_running:'Generando…', ai_desc_failed:'Error al generar descripción', ai_search_ph:'Buscar por descripción…', ai_search_btn:'Buscar', ai_search_none:'Sin grabaciones coincidentes',
     ai_ask_title:'Preguntar sobre la vista en vivo', ai_ask_ph:'Escribe una pregunta sobre lo que ve la cámara…', ai_ask_btn:'Capturar y preguntar', ai_ask_running:'Pensando…', ai_ask_failed:'Error en la consulta', ai_ask_history:'Historial', ai_ask_empty:'Sin preguntas todavía — captura y pregunta.',
@@ -10824,6 +10842,7 @@ const STATUS = Object.freeze({
     GET_RECORD_DISK_USAGE:    1072,
     GET_RECORD_TIMELINE:      1073,
     GET_SYSTEM_SERVICE: 1109, CONTROL_SYSTEM_SERVICE: 1110,  // smart_robot.service
+    REINDEX_LOCAL_RECORD_INDEX: 1111,  // 回放页一键补回丢失索引
     GET_OSD_INFORMATION:      1076, SET_OSD_INFORMATION:      1077,
     GET_ALGORITHM_INFORMATION: 1078, SET_ALGORITHM_INFORMATION: 1079,
     GET_MODEL_LIST: 1083,   // 中间 1080-1082 为 login/user(不走 STATUS 数值判定)
@@ -11546,6 +11565,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tlDrag: { active: false, startX: 0, vStart: 0, vEnd: 86400, moved: false, width: 1 },  // 拖拽平移
             tlClickSecs: -1,             // 点击位置（当天秒），用于绿色标记
             recordListCollapsed: false,  // 右侧录像列表收起/展开
+            reindexBusy: false,
             motionDetectionInformation:  {
                 "motionDetectionMode": 1,
                 "motionDetectionEnable": true,
@@ -11828,6 +11848,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             records: [],
             searchRecordType: 0,
+            searchEventOnly: false,
+            searchEventType: '',
             aiBusyPath: '',        // 正在生成 AI 描述的录像路径（按钮置灰用）
             descKeyword: '',       // 按 AI 描述检索的关键词
             descSearchResults: [], // 按描述检索的结果
@@ -11872,6 +11894,8 @@ document.addEventListener('DOMContentLoaded', function() {
             images: [], // 录像记录列表
             snapPageNumber: 1,
             snapPageSize: 10, // 每页加载记录数量
+            snapSearchEventOnly: false,
+            snapSearchEventType: '',
             snapHasMore: true, // 是否还有更多数据
             snapLoading: false, // 是否处于加载状态
             snapSelectedRecord: null, // 当前选中的记录（聚焦路）
@@ -17109,6 +17133,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     .find(x => x.name === name || this._modelDirName(x.configInferPath) === name);
                 return (m && Array.isArray(m.labels)) ? m.labels : [];
             },
+            /** 回放「事件类型」下拉：模型 labels + 当前列表 eventTypes；无则回退 COCO-80 */
+            eventTypeSelectOptions() {
+                const set = new Set();
+                (this.currentModelLabels() || []).forEach(l => { if (l) set.add(String(l)); });
+                const collect = (arr) => {
+                    (arr || []).forEach(r => {
+                        (r.eventTypes || []).forEach(ty => { if (ty) set.add(String(ty)); });
+                        (r.events || []).forEach(e => { if (e && e.type) set.add(String(e.type)); });
+                    });
+                };
+                collect(this.records);
+                collect(this.images);
+                if (set.size === 0 && typeof COCO_CLASS_I18N !== 'undefined' && COCO_CLASS_I18N.zh) {
+                    Object.keys(COCO_CLASS_I18N.zh).forEach(k => set.add(k));
+                }
+                return Array.from(set).sort((a, b) => a.localeCompare(b));
+            },
             // classFilter 字符串 → Set<int>；空串返回 null（=全部）
             _classFilterSet() {
                 const s = (this.algorithmInformation.classFilter || '').trim();
@@ -17779,6 +17820,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 } catch (e) { console.error('setRecordRunMode error', e); }
             },
+            async reindexLocalRecords() {
+                if (this.reindexBusy) return;
+                dvConfirm(tIdx('vp_reindex'), tIdx('vp_reindex_confirm'), async () => {
+                    this.reindexBusy = true;
+                    try {
+                        const ctrl = new AbortController();
+                        const to = setTimeout(() => ctrl.abort(), 180000);
+                        const resp = await fetch('/setDeviceCommand', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            signal: ctrl.signal,
+                            body: JSON.stringify({ method: 'reindexLocalRecordIndexCommand', params: {} })
+                        });
+                        clearTimeout(to);
+                        const d = await resp.json();
+                        if (d.status === STATUS.REINDEX_LOCAL_RECORD_INDEX) {
+                            const added = (d.params && d.params.added != null) ? d.params.added : 0;
+                            this.showAlert('success', tIdx('vp_reindex'), tIdx('vp_reindex_ok') + added);
+                            await this.fetchRecords(true);
+                            if (typeof this.fetchTimeline === 'function') await this.fetchTimeline();
+                            if (typeof this.initDashboardExtras === 'function') await this.initDashboardExtras();
+                        } else {
+                            this.showAlert('warning', tIdx('vp_reindex'), tIdx('vp_reindex_fail'));
+                        }
+                    } catch (e) {
+                        console.error('reindexLocalRecords', e);
+                        this.showAlert('warning', tIdx('vp_reindex'), tIdx('vp_reindex_fail'));
+                    } finally {
+                        this.reindexBusy = false;
+                    }
+                });
+            },
             async triggerEmrEvent() {
                 try {
                     await fetch('/setDeviceCommand', {
@@ -18067,6 +18139,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 pageSize: (opts && opts.pageSize > 0) ? opts.pageSize : this.pageSize,
                                 pageNumber: this.pageNumber,
                                 recordType: this.searchRecordType,
+                                eventOnly: !!this.searchEventOnly,
+                                eventType: (this.searchEventType || '').trim(),
                             }, { keepThumbs: true }),
                         }),
                     });
@@ -19094,6 +19168,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 endTime: this.snapEndTime,
                                 pageSize: this.snapPageSize,
                                 pageNumber: this.snapPageNumber,
+                                eventOnly: !!this.snapSearchEventOnly,
+                                eventType: (this.snapSearchEventType || '').trim(),
                             }, { keepThumbs: true }),
                         }),
                     });
