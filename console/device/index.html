@@ -1649,8 +1649,10 @@ window.__presignThumbUrl = function (raw) {
         .page-section > .log-page-hero,
         .page-section .container-xl > .log-page-hero,
         .page-section .playback-inner > .log-page-hero,
-        .page-section .page-body > .container-xl > .log-page-hero {
+        .page-section .page-body > .container-xl > .log-page-hero,
+        .page-section .um-wrap > .log-page-hero {
             display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px;
+            margin-top: 0 !important;
             margin-bottom: 12px;
             padding: 18px 22px;
             border-radius: 18px;
@@ -2106,7 +2108,15 @@ window.__presignThumbUrl = function (raw) {
             box-shadow: 0 8px 22px rgba(229,83,61,.4);
         }
 
-        /* 日志页：压紧顶栏与内容间距 */
+        /* 全页 hero→顶栏间距统一对齐 AI 设置：去掉外层 page-body.p-1 顶距叠加，
+           page-section 顶距固定 10px（与媒体/AI 设置一致）。 */
+        .page-wrapper > .page-body.p-1 {
+            padding-top: 0 !important;
+        }
+        .page-section.active {
+            padding-top: 10px !important;
+        }
+        /* 日志页保留（与全局规则等价，显式声明便于检索） */
         body:has(#debug.active) .page-body.p-1 { padding-top: 0 !important; }
         /* 录像页复用日志页 hero 视觉（水平空隙沿用全局/媒体设置） */
         #record-settings .log-page-hero {
