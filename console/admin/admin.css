@@ -85,12 +85,73 @@ table.admin-table .mono{font-family:var(--font-display);font-size:11.5px}
 .modal{width:min(480px,100%);padding:20px;border-radius:16px}
 .modal h3{font-size:17px;font-weight:800;margin-bottom:8px}
 .modal .body{font-size:13px;color:var(--text-md);line-height:1.55;margin-bottom:16px}
-.modal.is-success h3{color:var(--text-hi)}
+.modal .body.is-done-sub{margin-bottom:14px;color:var(--text-lo);font-size:12.5px}
+.modal.is-success h3,.modal.is-partial h3{color:var(--text-hi)}
 .modal-ok-ico{
-  width:44px;height:44px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;
-  background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.32);color:#6ee7b7;
-  font-size:22px;margin-bottom:10px
+  width:52px;height:52px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%,rgba(110,231,183,.28),rgba(52,211,153,.1) 62%,rgba(52,211,153,.06));
+  border:1px solid rgba(110,231,183,.38);color:#6ee7b7;
+  font-size:20px;margin-bottom:14px;
+  box-shadow:0 0 0 6px rgba(52,211,153,.08),0 10px 28px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.12);
+  animation:confirmIcoIn .42s cubic-bezier(.2,.8,.2,1) both
 }
+.modal-ok-ico.is-busy{
+  background:radial-gradient(circle at 35% 30%,rgba(45,212,191,.22),rgba(45,212,191,.08));
+  border-color:rgba(45,212,191,.35);color:var(--accent);
+  box-shadow:0 0 0 6px rgba(45,212,191,.08),0 10px 28px rgba(0,0,0,.28)
+}
+.modal-ok-ico.is-warn{
+  background:radial-gradient(circle at 35% 30%,rgba(251,191,36,.28),rgba(251,191,36,.1));
+  border-color:rgba(251,191,36,.4);color:#fcd34d;
+  box-shadow:0 0 0 6px rgba(251,191,36,.08),0 10px 28px rgba(0,0,0,.28)
+}
+@keyframes confirmIcoIn{
+  from{opacity:0;transform:scale(.72)}
+  to{opacity:1;transform:scale(1)}
+}
+.confirm-modal.is-success,.confirm-modal.is-partial{
+  padding:28px 24px 22px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 24px 64px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.03)
+}
+.confirm-modal.is-success{border-color:rgba(52,211,153,.22);box-shadow:0 24px 64px rgba(0,0,0,.5),0 0 72px rgba(52,211,153,.07)}
+.confirm-modal.is-partial{border-color:rgba(251,191,36,.28);box-shadow:0 24px 64px rgba(0,0,0,.5),0 0 72px rgba(251,191,36,.06)}
+.confirm-modal.is-progress{padding:26px 22px 20px}
+.confirm-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  margin:0 0 18px
+}
+.confirm-stat{
+  padding:12px 8px;border-radius:12px;text-align:center;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)
+}
+.confirm-stat-n{
+  display:block;font-size:22px;font-weight:800;line-height:1.1;
+  letter-spacing:-.03em;color:var(--text-hi);font-family:var(--font-display)
+}
+.confirm-stat-l{
+  display:block;margin-top:4px;font-size:11px;font-weight:650;
+  color:var(--text-lo);letter-spacing:.02em
+}
+.confirm-stat.is-ok .confirm-stat-n{color:#6ee7b7}
+.confirm-stat.is-fail .confirm-stat-n{color:#fca5a5}
+.confirm-stat.is-fail.is-zero .confirm-stat-n{color:var(--text-lo)}
+.confirm-stat.is-ok{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.2)}
+.confirm-stat.is-fail:not(.is-zero){background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.22)}
+.confirm-progress{margin:4px 0 6px}
+.confirm-bar{height:6px;margin-top:0;background:rgba(255,255,255,.06)}
+.confirm-bar>i{background:linear-gradient(90deg,var(--accent),#5eead4);box-shadow:0 0 12px rgba(45,212,191,.35)}
+.confirm-progress-meta{
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  margin-top:8px;font-size:12px;color:var(--text-lo)
+}
+.confirm-progress-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-md)}
+.confirm-progress-pct{flex:none;font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.confirm-actions{justify-content:flex-end;margin-top:4px}
+.confirm-done-btn{min-width:108px}
+html[data-theme="light"] .confirm-stat{background:rgba(15,23,42,.03);border-color:rgba(15,23,42,.08)}
+html[data-theme="light"] .confirm-stat.is-ok{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.22)}
+html[data-theme="light"] .confirm-modal.is-success{border-color:rgba(16,185,129,.28);box-shadow:0 20px 48px rgba(15,23,42,.12)}
 
 .ota-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .step{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-lo);margin-bottom:10px}

@@ -1241,32 +1241,68 @@ function renderConfirm() {
     if (typeof c.onOk === 'function') c.onOk();
     else close();
   };
-  const isSuccess = c.kind === 'success' || (c.hideCancel && !busy && c.kind !== 'progress');
-  const isProgress = c.kind === 'progress' || busy;
+  const isPartial = c.kind === 'partial';
+  const isSuccess = c.kind === 'success' || (c.hideCancel && !busy && c.kind !== 'progress' && !isPartial);
+  const isDone = isSuccess || isPartial;
+  const isProgress = (c.kind === 'progress' || busy) && !isDone;
   const actions = [];
-  if (!isSuccess && !isProgress) {
+  if (!isDone && !isProgress) {
     actions.push(h('button', { class: 'gbtn', onclick: close }, t('cancel')));
   }
   if (!busy) {
-    actions.push(h('button', { class: 'gbtn primary', onclick: ok }, c.okText || (isSuccess ? t('gotIt') : t('confirmOk'))));
+    actions.push(h('button', {
+      class: 'gbtn primary' + (isDone ? ' confirm-done-btn' : ''),
+      onclick: ok,
+    }, c.okText || (isDone ? t('gotIt') : t('confirmOk'))));
   }
   const pct = Math.max(0, Math.min(100, Number(c.progress) || 0));
-  const progressBlock = (isProgress || c.progress != null)
-    ? h('div', { class: 'admin-field', style: { marginTop: '12px' } },
-        h('div', { class: 'progress', style: { marginTop: '4px' } }, h('i', { style: { width: pct + '%' } })),
-        h('div', { class: 'admin-msg info', style: { marginTop: '8px' } },
-          c.progressText || (pct + '%'),
+  const stats = c.stats;
+  const statsBlock = (isDone && stats)
+    ? h('div', { class: 'confirm-stats', 'aria-label': c.body || '' },
+        h('div', { class: 'confirm-stat is-ok' },
+          h('span', { class: 'confirm-stat-n' }, String(stats.ok ?? 0)),
+          h('span', { class: 'confirm-stat-l' }, t('batchStatOk')),
+        ),
+        h('div', { class: 'confirm-stat is-total' },
+          h('span', { class: 'confirm-stat-n' }, String(stats.total ?? 0)),
+          h('span', { class: 'confirm-stat-l' }, t('batchStatTotal')),
+        ),
+        h('div', { class: 'confirm-stat is-fail' + (!(stats.fail) ? ' is-zero' : '') },
+          h('span', { class: 'confirm-stat-n' }, String(stats.fail ?? 0)),
+          h('span', { class: 'confirm-stat-l' }, t('batchStatFail')),
         ),
       )
     : null;
+  const progressBlock = isProgress
+    ? h('div', { class: 'confirm-progress' },
+        h('div', { class: 'progress confirm-bar' }, h('i', { style: { width: pct + '%' } })),
+        h('div', { class: 'confirm-progress-meta' },
+          h('span', { class: 'confirm-progress-label' }, c.progressText || ''),
+          h('span', { class: 'confirm-progress-pct' }, pct + '%'),
+        ),
+      )
+    : null;
+  const ico = isSuccess
+    ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-check'))
+    : isPartial
+      ? h('div', { class: 'modal-ok-ico is-warn', 'aria-hidden': 'true' }, fa('fa-triangle-exclamation'))
+      : isProgress
+        ? h('div', { class: 'modal-ok-ico is-busy', 'aria-hidden': 'true' }, fa('fa-circle-notch fa-spin'))
+        : null;
+  const bodyText = (isDone && stats) ? (c.sub || '') : (c.body || '');
   return h('div', { class: 'modal-mask', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
-    h('div', { class: 'glass modal' + (isSuccess ? ' is-success' : '') + (isProgress ? ' is-progress' : '') },
-      isSuccess ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-circle-check')) : null,
-      isProgress && !isSuccess ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-circle-notch fa-spin')) : null,
+    h('div', {
+      class: 'glass modal confirm-modal'
+        + (isSuccess ? ' is-success' : '')
+        + (isPartial ? ' is-partial' : '')
+        + (isProgress ? ' is-progress' : ''),
+    },
+      ico,
       h('h3', {}, c.title),
-      h('div', { class: 'body', style: { whiteSpace: 'pre-wrap' } }, c.body || ''),
+      bodyText ? h('div', { class: 'body' + (isDone ? ' is-done-sub' : ''), style: { whiteSpace: 'pre-wrap' } }, bodyText) : null,
+      statsBlock,
       progressBlock,
-      actions.length ? h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } }, ...actions) : null,
+      actions.length ? h('div', { class: 'row-actions confirm-actions' }, ...actions) : null,
     ),
   );
 }
@@ -1419,7 +1455,7 @@ function askDeletePackages(pkgs) {
             .replace('{name}', name)
             + (phase ? `\n${phase}` : ''),
           progress: pct,
-          progressText: `${Math.min(i, total)} / ${total} · ${pct}%`,
+          progressText: `${Math.min(i, total)} / ${total}`,
         };
         render();
       };
@@ -1445,13 +1481,13 @@ function askDeletePackages(pkgs) {
       state.packages = null;
       // 先出结果弹窗，再刷列表（刷完仍保留结果）
       state.confirm = {
-        kind: fail ? 'progress' : 'success',
+        kind: fail ? 'partial' : 'success',
         hideCancel: true,
         busy: false,
         title: t('otaBatchDelDone'),
         body: summary,
-        progress: 100,
-        progressText: `${ok + fail} / ${total} · 100%`,
+        sub: fail ? t('batchPartialHint') : t('batchSuccessHint'),
+        stats: { ok, fail, total },
         okText: t('gotIt'),
         onOk: () => { state.confirm = null; render(); },
       };
@@ -1460,13 +1496,13 @@ function askDeletePackages(pkgs) {
       // loadTab 可能 render 掉 confirm，再挂回结果
       if (!state.confirm) {
         state.confirm = {
-          kind: fail ? 'progress' : 'success',
+          kind: fail ? 'partial' : 'success',
           hideCancel: true,
           busy: false,
           title: t('otaBatchDelDone'),
           body: summary,
-          progress: 100,
-          progressText: `${ok + fail} / ${total} · 100%`,
+          sub: fail ? t('batchPartialHint') : t('batchSuccessHint'),
+          stats: { ok, fail, total },
           okText: t('gotIt'),
           onOk: () => { state.confirm = null; render(); },
         };
@@ -2694,7 +2730,7 @@ function askDeleteDiagLogs(items) {
             .replace('{n}', String(total))
             .replace('{name}', name),
           progress: pct,
-          progressText: `${Math.min(i, total)} / ${total} · ${pct}%`,
+          progressText: `${Math.min(i, total)} / ${total}`,
         };
         render();
       };
@@ -2726,13 +2762,13 @@ function askDeleteDiagLogs(items) {
         .replace('{fail}', String(fail))
         .replace('{n}', String(total));
       state.confirm = {
-        kind: fail ? 'progress' : 'success',
+        kind: fail ? 'partial' : 'success',
         hideCancel: true,
         busy: false,
         title: t('logsBatchDelDone'),
         body: summary,
-        progress: 100,
-        progressText: `${ok + fail} / ${total} · 100%`,
+        sub: fail ? t('batchPartialHint') : t('batchSuccessHint'),
+        stats: { ok, fail, total },
         okText: t('gotIt'),
         onOk: () => { state.confirm = null; render(); },
       };
