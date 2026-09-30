@@ -6248,7 +6248,9 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'tlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                    <!-- 绿线=点击选点；白线=播放墙钟（两线分离，互不覆盖） -->
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:2px;z-index:5;background:#2fbf71;box-shadow:0 0 4px #2fbf71;left:'+tlClickPct()+'%;pointer-events:none;'"></div>
+                                                    <div x-show="tlPlayPct()>=0" :style="(tlPlaySecs, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #fff,0 0 2px #000;left:'+tlPlayPct()+'%;pointer-events:none;')"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6306,11 +6308,22 @@ window.__presignThumbUrl = function (raw) {
                                                                  @pointerdown="onPipPointerDown($event, idx, syncRecords.length)"
                                                                  @click="onPipTileClick($event, idx)">
                                                                 <video
+                                                                        data-local-pb="1"
                                                                         :src="localPlaybackVideoSrc(rec)"
-                                                                        @loadedmetadata="syncSeekVideo($event, rec)"
+                                                                        @loadedmetadata="onLocalPbMeta($event, rec)"
+                                                                        @timeupdate="onLocalPbTime($event, rec)"
+                                                                        @playing="_setLocalPbLoading(false)"
+                                                                        @loadeddata="_setLocalPbLoading(false)"
+                                                                        @error="_setLocalPbLoading(false)"
                                                                         :style="isPlaybackFocused(idx) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;pointer-events:auto;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;pointer-events:none;'"
-                                                                        :controls="isPlaybackFocused(idx)" autoplay muted playsinline
+                                                                        autoplay muted playsinline
                                                                 ></video>
+                                                                <div x-show="_localPbLoading" style="position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(0,0,0,0.38);">
+                                                                    <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;">
+                                                                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:28px;opacity:0.92;"></i>
+                                                                        <span style="font-size:12px;font-weight:500;" x-text="tIdx('cm_loading')">Loading...</span>
+                                                                    </div>
+                                                                </div>
                                                                 <!-- 下载按钮叠加（仅网格/聚焦路显示）-->
                                                                 <div x-show="isPlaybackFocused(idx)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
                                                                     <button class="btn btn-sm btn-success" style="padding:2px 9px;" @click.stop="downloadFile(rec.RecordIndexInformationPath)" :title="tIdx('vp_video')">
@@ -6339,6 +6352,23 @@ window.__presignThumbUrl = function (raw) {
                                                                      x-text="'CAM'+(tlCamOf(rec.RecordIndexInformationPath)+1)"></div>
                                                             </div>
                                                         </template>
+                                                    </div>
+                                                    <!-- 本地片内进度：与时间轴绿/白线分离，只表示当前 MP4 内秒数 -->
+                                                    <div class="d-flex align-items-center mt-2" style="gap:8px;"
+                                                         x-show="syncRecords.length && !remotePlaybackActive && localPbDurSec>0">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:2px 8px;" @click.stop="toggleLocalPb()">
+                                                            <i class="fa-solid fa-pause"></i>
+                                                        </button>
+                                                        <input type="range" class="form-range flex-fill" min="0" step="1"
+                                                               :max="localPbDurSec" :value="localPbSec"
+                                                               @pointerdown="_localPbDragging=true"
+                                                               @touchstart.passive="_localPbDragging=true"
+                                                               @input="localPbSec=parseInt($event.target.value,10)||0"
+                                                               @change="seekLocalPb($event)"
+                                                               @pointerup="seekLocalPb($event)"
+                                                               @touchend="seekLocalPb($event)">
+                                                        <span class="text-muted" style="font-size:11px;white-space:nowrap;"
+                                                              x-text="localPbSec+'s / '+localPbDurSec+'s'"></span>
                                                     </div>
                                                     <!-- 未选录像空态：多路摄像头缩略图宫格（对齐 App 未出帧垫图）；时间轴切段不打断为「连接中」全屏加载 -->
                                                     <div x-show="!syncRecords.length && !remotePlaybackActive" class="pb-idle-stage">
@@ -6598,7 +6628,9 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'itlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                    <!-- 绿线=点击选点；白线=播放墙钟（两线分离，互不覆盖） -->
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:2px;z-index:5;background:#2fbf71;box-shadow:0 0 4px #2fbf71;left:'+tlClickPct()+'%;pointer-events:none;'"></div>
+                                                    <div x-show="tlPlayPct()>=0" :style="(tlPlaySecs, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #fff,0 0 2px #000;left:'+tlPlayPct()+'%;pointer-events:none;')"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -10254,12 +10286,12 @@ const I18N_INDEX = {
     rs_file_counts:'Record File Counts', rs_file_counts_tip:'Record file count', rs_sec_loop:'Loop Recording', rs_sec_timelapse:'Timelapse Recording',
     cm_start_time:'Start Time', cm_end_time:'End Time',
     cm_page_size:'Page Size', cm_page_number:'Page Number',
-    cm_search:'Search', cm_load_more:'Load More', cm_cancel:'Cancel', cm_confirm:'Confirm',
+    cm_search:'Search', cm_load_more:'Load More', cm_loading:'Loading...', cm_cancel:'Cancel', cm_confirm:'Confirm',
     cm_notice:'Notice', cm_start:'Start', cm_stop:'Stop',
     cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
     cm_enable:'enable', cm_disable:'disable',
-    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_reindex:'Rebuild index', vp_reindex_confirm:'Scan disk and restore missing recording list entries (files are not deleted). This may take a minute.', vp_reindex_ok:'Index rebuilt, added ', vp_reindex_fail:'Rebuild index failed', vp_reindex_busy:'Rebuilding…', vp_select_record:'Please select a record to play.', vp_idle_hint:'Tap a camera tile, timeline, or list to play', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click the timeline to play the recording at that time',
+    vp_record_type:'Type', vp_type_all:'All', vp_type_loop:'Loop', vp_type_pre:'EMR', vp_type_timelapse:'Timelapse', vp_record_list:'Record List', vp_show_list:'Show list', vp_hide_list:'Hide list', vp_reindex:'Rebuild index', vp_reindex_confirm:'Scan disk and restore missing recording list entries (files are not deleted). This may take a minute.', vp_reindex_ok:'Index rebuilt, added ', vp_reindex_fail:'Rebuild index failed', vp_reindex_busy:'Rebuilding…', vp_select_record:'Please select a record to play.', vp_idle_hint:'Tap a camera tile, timeline, or list to play', vp_playing:'Playing', vp_remote_playback:'Remote Playback', rp_btn:'Cloud Play', rp_stop:'Stop', rp_started:'Remote playback started', rp_failed:'Remote playback failed', tl_segments:'segments', tl_type_filter_hint:'Click a type to filter the timeline', tl_reset:'Reset', tl_zoom_hint:'Scroll to zoom toward cursor, click to play', tl_click_hint:'Click to play (green=select, white=playhead). Auto-zooms near click.',
     vp_datetime:'Datetime:', vp_video:'Video', vp_del:'Del', vp_del_confirm:'Delete this record? This cannot be undone.',
     ai_desc_btn:'AI', ai_desc_running:'Generating…', ai_desc_failed:'Failed to generate description', ai_search_ph:'Search by content description…', ai_search_btn:'Search', ai_search_none:'No matching recordings',
     ai_ask_title:'Ask about live view', ai_ask_ph:'Type a question about what the camera sees…', ai_ask_btn:'Snap & Ask', ai_ask_running:'Thinking…', ai_ask_failed:'Ask failed', ai_ask_history:'History', ai_ask_empty:'No questions yet — snap & ask about the live view.',
@@ -10422,12 +10454,12 @@ const I18N_INDEX = {
     rs_file_counts:'录像文件数量', rs_file_counts_tip:'录像文件记录个数', rs_sec_loop:'循环录像', rs_sec_timelapse:'缩时录像',
     cm_start_time:'开始时间', cm_end_time:'结束时间',
     cm_page_size:'每页条数', cm_page_number:'页码',
-    cm_search:'搜索', cm_load_more:'加载更多', cm_cancel:'取消', cm_confirm:'确定',
+    cm_search:'搜索', cm_load_more:'加载更多', cm_loading:'加载中…', cm_cancel:'取消', cm_confirm:'确定',
     cm_notice:'通知', cm_start:'开始', cm_stop:'停止',
     cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
     cm_enable:'启用', cm_disable:'禁用',
-    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_reindex:'重建索引', vp_reindex_confirm:'扫描磁盘，把丢失的录像列表补回来（不会删除文件）。可能需要一两分钟。', vp_reindex_ok:'索引已重建，新增 ', vp_reindex_fail:'重建索引失败', vp_reindex_busy:'正在重建…', vp_select_record:'请选择一个录像进行播放。', vp_idle_hint:'点击宫格/时间轴/列表开始播放', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击时间轴，播放该时刻的录像',
+    vp_record_type:'类型', vp_type_all:'全部', vp_type_loop:'普通', vp_type_pre:'紧急', vp_type_timelapse:'缩时', vp_record_list:'录像列表', vp_show_list:'展开列表', vp_hide_list:'收起列表', vp_reindex:'重建索引', vp_reindex_confirm:'扫描磁盘，把丢失的录像列表补回来（不会删除文件）。可能需要一两分钟。', vp_reindex_ok:'索引已重建，新增 ', vp_reindex_fail:'重建索引失败', vp_reindex_busy:'正在重建…', vp_select_record:'请选择一个录像进行播放。', vp_idle_hint:'点击宫格/时间轴/列表开始播放', vp_playing:'正在播放', vp_remote_playback:'远程回放', rp_btn:'云端回放', rp_stop:'停止', rp_started:'远程回放已开始', rp_failed:'远程回放失败', tl_segments:'段', tl_type_filter_hint:'点击类型筛选时间轴', tl_reset:'复位', tl_zoom_hint:'滚轮以光标为中心缩放，点击播放', tl_click_hint:'点击播放（绿线=选点，白线=播放位置）。点选后自动缩放到附近。',
     vp_datetime:'时间：', vp_video:'视频', vp_del:'删除', vp_del_confirm:'确定删除这条记录吗？此操作不可恢复。',
     ai_desc_btn:'AI', ai_desc_running:'生成中…', ai_desc_failed:'生成描述失败', ai_search_ph:'按内容描述检索…', ai_search_btn:'检索', ai_search_none:'没有匹配的录像',
     ai_ask_title:'对实时画面提问', ai_ask_ph:'输入对当前摄像头画面的问题…', ai_ask_btn:'抓拍并提问', ai_ask_running:'思考中…', ai_ask_failed:'提问失败', ai_ask_history:'历史', ai_ask_empty:'还没有拍问记录——抓拍并提问试试。',
@@ -10590,7 +10622,7 @@ const I18N_INDEX = {
     rs_file_counts:'録画ファイル数', rs_file_counts_tip:'録画ファイル記録数', rs_sec_loop:'ループ録画', rs_sec_timelapse:'タイムラプス録画',
     cm_start_time:'開始時刻', cm_end_time:'終了時刻',
     cm_page_size:'ページサイズ', cm_page_number:'ページ番号',
-    cm_search:'検索', cm_load_more:'さらに読み込む', cm_cancel:'キャンセル', cm_confirm:'確認',
+    cm_search:'検索', cm_load_more:'さらに読み込む', cm_loading:'読み込み中…', cm_cancel:'キャンセル', cm_confirm:'確認',
     cm_notice:'通知', cm_start:'開始', cm_stop:'停止',
     cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
@@ -10757,7 +10789,7 @@ const I18N_INDEX = {
     rs_file_counts:'Aufnahmedateien', rs_file_counts_tip:'Anzahl der Aufnahmedateien', rs_sec_loop:'Schleifenaufnahme', rs_sec_timelapse:'Zeitrafferaufnahme',
     cm_start_time:'Startzeit', cm_end_time:'Endzeit',
     cm_page_size:'Seitengröße', cm_page_number:'Seitennummer',
-    cm_search:'Suchen', cm_load_more:'Mehr laden', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
+    cm_search:'Suchen', cm_load_more:'Mehr laden', cm_loading:'Wird geladen…', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
     cm_notice:'Hinweis', cm_start:'Start', cm_stop:'Stopp',
     cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
@@ -10923,7 +10955,7 @@ const I18N_INDEX = {
     rs_file_counts:'Fichiers enreg.', rs_file_counts_tip:'Nombre de fichiers enregistrés', rs_sec_loop:'Enregistrement en boucle', rs_sec_timelapse:'Enregistrement accéléré',
     cm_start_time:'Début', cm_end_time:'Fin',
     cm_page_size:'Taille page', cm_page_number:'N° page',
-    cm_search:'Rechercher', cm_load_more:'Charger plus', cm_cancel:'Annuler', cm_confirm:'Confirmer',
+    cm_search:'Rechercher', cm_load_more:'Charger plus', cm_loading:'Chargement…', cm_cancel:'Annuler', cm_confirm:'Confirmer',
     cm_notice:'Notification', cm_start:'Démarrer', cm_stop:'Arrêter',
     cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
@@ -11090,7 +11122,7 @@ const I18N_INDEX = {
     rs_file_counts:'Archivos grabación', rs_file_counts_tip:'Cantidad de archivos grabados', rs_sec_loop:'Grabación en bucle', rs_sec_timelapse:'Grabación timelapse',
     cm_start_time:'Inicio', cm_end_time:'Fin',
     cm_page_size:'Tamaño página', cm_page_number:'N° página',
-    cm_search:'Buscar', cm_load_more:'Cargar más', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
+    cm_search:'Buscar', cm_load_more:'Cargar más', cm_loading:'Cargando…', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
     cm_notice:'Aviso', cm_start:'Iniciar', cm_stop:'Detener',
     cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
@@ -12673,7 +12705,13 @@ document.addEventListener('DOMContentLoaded', function() {
             pbCamUids: [],                // 各路云端回放发布者标记(index=摄像头序号)：Agora=uid / KVS='kvs'
             kvsPlaybackViewers: [],       // 多路 KVS 回放 viewer 列表(逐路 -playback/-playback2/…)
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
-            playbackPositionMs: 0,        // 当前进度（拖动 → seek）
+            playbackPositionMs: 0,        // 云端回放进度（拖动 → seek）
+            tlPlaySecs: -1,               // 时间轴白线：当前播放墙钟（与绿线点击分离）
+            localPbSec: 0,                // 本地片内进度秒（只跟 video.currentTime）
+            localPbDurSec: 0,             // 本地片时长秒
+            _localPbLoading: false,
+            _localPbLoadingTimer: null,
+            _localPbDragging: false,
             playbackCodec: '',            // h264/h265（start 响应回传）
             agoraDebugText: '',
             _agoraJoinMode: '',
@@ -19279,8 +19317,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
                 const v = this.timelineView;
                 const secs = Math.round(v.start + pct * (v.end - v.start));
-                this.tlClickSecs = secs;  // 绿色标记定位到精确点击位置（立即，先于异步查询）
+                this.tlClickSecs = secs;  // 绿线：点击选点（播放过程中不再改）
+                this.tlPlaySecs = secs;   // 白线：先落到点击处，出帧后跟画面墙钟
                 this.syncSeekSecs = secs; // 多路同步播放：各路 seek 到该墙钟时刻
+                this.localPbSec = 0;
+                this._setLocalPbLoading(true);
+                // 全天视图点一下几乎看不见标记：自动缩到点击附近 ±45min（可再滚轮缩放）
+                if ((v.end - v.start) >= 8 * 3600) {
+                    const half = 45 * 60;
+                    let s0 = Math.max(0, secs - half), e0 = Math.min(86400, secs + half);
+                    if (e0 - s0 < half * 2) {
+                        if (s0 === 0) e0 = Math.min(86400, half * 2);
+                        if (e0 === 86400) s0 = Math.max(0, 86400 - half * 2);
+                    }
+                    this.timelineView = { start: s0, end: e0 };
+                }
                 // 【修复】时间轴段来自 getRecordTimeline，会把连续片段「合并成块」且块只保留首段路径；
                 // 直接用块的 path 会播成块首文件（连续录一整天时即 00:00 段）。改为按点击墙钟时刻查
                 // queryLocalRecordIndexInformationCommand（返回未合并的逐条真实段），定位包含该时刻的真实文件。
@@ -19291,14 +19342,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     && (active !== 'http' || (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode()
                         : (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode())));
                 if (recs.length) {
-                    this.selectedRecord = recs[0];
+                    const locked = recs.map((r) => this._ensureRecSegStart(Object.assign({}, r)));
+                    this.selectedRecord = locked[0];
                     this.playbackFocusIdx = 0;
+                    this.localPbDurSec = Math.max(1, Number(locked[0].RecordIndexInformationDuration) || 1);
                     if (wan) {
                         // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
+                        this._setLocalPbLoading(false);
                         this.syncRecords = [];
                     } else {
-                        this.syncRecords = recs;
+                        this.syncRecords = locked; // 只换源；绿线仍是点击墙钟
                     }
+                } else {
+                    this._setLocalPbLoading(false);
                 }
                 // 列表只拉点击附近 pageSize（默认 10）条：勿用当天 00:00→点击（会扫整天再分页，缩略图跟着爆）
                 const listN = Math.max(1, Number(this.pageSize) || 10);
@@ -19486,6 +19542,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     _segStart: e.s            // 段起始秒(当天)，多路同步时据此 seek 到点击时刻
                 };
             },
+            _ensureRecSegStart(rec) {
+                if (!rec) return rec;
+                if (rec._segStart != null && Number(rec._segStart) >= 0) return rec;
+                const m = String(rec.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                rec._segStart = m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : 0;
+                return rec;
+            },
+            _setLocalPbLoading(on) {
+                this._localPbLoading = !!on;
+                if (this._localPbLoadingTimer) { clearTimeout(this._localPbLoadingTimer); this._localPbLoadingTimer = null; }
+                if (on) {
+                    const self = this;
+                    this._localPbLoadingTimer = setTimeout(function () { self._localPbLoading = false; self._localPbLoadingTimer = null; }, 8000);
+                }
+            },
+            _localPbVideos() { return Array.from(document.querySelectorAll('video[data-local-pb="1"]')); },
+            _localPbMaster() {
+                const vids = this._localPbVideos();
+                const idx = this.playbackFocusIdx | 0;
+                return vids[idx] || vids[0] || null;
+            },
+            onLocalPbMeta(ev, rec) {
+                this.syncSeekVideo(ev, rec);
+                const d = Number(rec && rec.RecordIndexInformationDuration) || 0;
+                const vd = ev && ev.target && isFinite(ev.target.duration) ? ev.target.duration : 0;
+                this.localPbDurSec = Math.max(1, Math.ceil(d || vd || this.localPbDurSec || 1));
+            },
+            onLocalPbTime(ev, rec) {
+                if (this._localPbDragging || this.remotePlaybackActive) return;
+                const v = ev && ev.target;
+                if (!v || v !== this._localPbMaster()) return;
+                const cur = Math.max(0, Math.floor(v.currentTime || 0));
+                this.localPbSec = cur;
+                // 白线跟播放墙钟；绝不改绿线 tlClickSecs
+                const start = (rec && rec._segStart != null) ? Number(rec._segStart)
+                    : (this.syncRecords[0] && this.syncRecords[0]._segStart != null ? Number(this.syncRecords[0]._segStart) : -1);
+                if (start >= 0) this.tlPlaySecs = start + cur;
+                if (v.readyState >= 2) this._setLocalPbLoading(false);
+            },
+            seekLocalPb(ev) {
+                this._localPbDragging = false;
+                let sec = parseInt((ev && ev.target && ev.target.value != null) ? ev.target.value : this.localPbSec, 10);
+                if (isNaN(sec) || sec < 0) sec = 0;
+                if (sec > this.localPbDurSec) sec = this.localPbDurSec;
+                this.localPbSec = sec;
+                const vids = this._localPbVideos();
+                for (let i = 0; i < vids.length; i++) {
+                    try { vids[i].currentTime = sec; } catch (e) {}
+                    if (vids[i].paused) vids[i].play().catch(function () {});
+                }
+                const r0 = this.syncRecords && this.syncRecords[0];
+                const start = r0 && r0._segStart != null ? Number(r0._segStart) : -1;
+                if (start >= 0) this.tlPlaySecs = start + sec;
+            },
+            toggleLocalPb() {
+                const vids = this._localPbVideos();
+                const master = this._localPbMaster();
+                if (!master) return;
+                if (master.paused) vids.forEach(function (v) { v.play().catch(function () {}); });
+                else vids.forEach(function (v) { try { v.pause(); } catch (e) {} });
+            },
             // 多路同步：seek 到 syncSeekSecs 墙钟；越界则 clamp 到 [0, dur)，避免某路段边界错开时整路从头播导致差几十秒
             syncSeekVideo(ev, rec) {
                 if (this.syncSeekSecs == null || this.syncSeekSecs < 0) return;
@@ -19499,8 +19616,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 多路回放角标：显示同步墙钟（各路文件头时间可能差 1 分钟）
             syncWallClockLabel(rec) {
-                if (this.syncSeekSecs != null && this.syncSeekSecs >= 0 && (this.syncRecords || []).length > 1) {
-                    const s = this.syncSeekSecs;
+                // 优先显示白线播放墙钟，比静止的点击墙钟更贴近画面
+                const s = (this.tlPlaySecs != null && this.tlPlaySecs >= 0) ? this.tlPlaySecs
+                    : ((this.syncSeekSecs != null && this.syncSeekSecs >= 0) ? this.syncSeekSecs : -1);
+                if (s >= 0 && (this.syncRecords || []).length) {
                     const pad = n => String(n).padStart(2, '0');
                     return (this.timelineDate || '') + ' ' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
                 }
@@ -19511,12 +19630,19 @@ document.addEventListener('DOMContentLoaded', function() {
             isPlaying(record) {
                 return this.syncRecords.some(r => r.RecordIndexInformationPath === record.RecordIndexInformationPath);
             },
-            // 点击位置(%)：用于绿色标记，基于可见窗口；超窗/未点返回 -1
+            // 绿线：点击选点
             tlClickPct() {
                 if (this.tlClickSecs < 0) return -1;
                 const v = this.timelineView;
                 if (this.tlClickSecs < v.start || this.tlClickSecs > v.end) return -1;
                 return (this.tlClickSecs - v.start) / (v.end - v.start) * 100;
+            },
+            // 白线：播放墙钟
+            tlPlayPct() {
+                if (this.tlPlaySecs == null || this.tlPlaySecs < 0) return -1;
+                const v = this.timelineView;
+                if (this.tlPlaySecs < v.start || this.tlPlaySecs > v.end) return -1;
+                return (this.tlPlaySecs - v.start) / (v.end - v.start) * 100;
             },
             // 滚轮缩放：上滚放大/下滚缩小，以光标为锚点；窗口 5min~24h
             onTimelineWheel(event) {
