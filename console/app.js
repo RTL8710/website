@@ -267,6 +267,9 @@ async function enterDevice(dev) {
     // 不覆盖 previewTransport：设备页 syncPreviewTransportFromDevice 跟 WEBRTCSolutionType（外网也支持声网预览/回放）
     localStorage.setItem('dv_lang', currentLang);   // 语言同步到设备页
     localStorage.setItem('dv_theme', currentTheme); // 主题同步到设备页
+    // 跳转前清 entering 并重绘：避免 bfcache 把「进入中」冻在 DOM 上
+    state.enteringId = null;
+    if (state.devices) renderDeviceGrid(state.devices);
     location.href = 'device/index.html?deviceId=' + encodeURIComponent(uuid);
   } catch (e) {
     state.enteringId = null;
@@ -350,6 +353,9 @@ function renderDeviceGrid(list) {
   shell(h('div', { class: 'devices-page' }, head, banner, grid));
 }
 async function viewDevices() {
+  // 从设备页返回(含 bfcache)时清掉进入中态，避免卡片永久「进入中」
+  state.enteringId = null;
+  state.enterError = null;
   // 1) 本地缓存优先:上次的设备列表立即渲染(秒显,不再干等 GraphQL)
   if (!state.devices) {
     try { const c = JSON.parse(localStorage.getItem(DEVCACHE_KEY()) || 'null'); if (c && c.length) { state.devices = c; c.forEach((d) => { d._picSigned = false; d._pictureRaw = d.picture || ''; }); } } catch (e) {}
@@ -545,6 +551,17 @@ function route() {
   return viewDevices();
 }
 window.addEventListener('hashchange', route);
+// bfcache 后退恢复：必须清 enteringId 并重绘，否则卡片一直「进入中」
+window.addEventListener('pageshow', (ev) => {
+  if (!state.enteringId && !ev.persisted) return;
+  state.enteringId = null;
+  state.enterError = null;
+  if (state.session && (location.hash || '#/devices') === '#/devices' && state.devices) {
+    renderDeviceGrid(state.devices);
+  } else if (ev.persisted && state.session) {
+    route();
+  }
+});
 
 // ── 启动:首屏立即渲染登录页(不再黑屏空等 restoreSession + esm.sh 导入),会话在后台恢复 ──
 (async function boot() {

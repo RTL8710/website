@@ -1243,6 +1243,8 @@ async function openDevice(dev) {
     })());
     // 从管理后台进入：Logout 回到 admin，而不是用户控制台
     sessionStorage.setItem('dv_return', '../admin/');
+    state.enteringDevice = null;
+    render();
     location.href = '../device/index.html?deviceId=' + encodeURIComponent(uuid);
   } catch (e) {
     state.enteringDevice = null;
@@ -2838,3 +2840,9 @@ function viewLogin(preErr) {
   }
 })();
 
+
+window.addEventListener('pageshow', (ev) => {
+  if (!state.enteringDevice && !ev.persisted) return;
+  state.enteringDevice = null;
+  if (ev.persisted) render();
+});
