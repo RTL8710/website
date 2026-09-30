@@ -13938,7 +13938,12 @@ document.addEventListener('DOMContentLoaded', function() {
             onLocalVideoMeta(ev, rec) {
                 this.syncSeekVideo(ev, rec);
                 this._refreshLocalPlaybackDuration();
-                this.ensureLocalMp4Seekable(ev && ev.target, rec);
+                const v = ev && ev.target;
+                if (v && v === this._localPbMaster()) {
+                    this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                    this._localPbPaused = !!v.paused;
+                }
+                this.ensureLocalMp4Seekable(v, rec);
             },
             onLocalVideoTimeUpdate(ev) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
@@ -19301,7 +19306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             this.selectedRecord = playable || this.records[0];
                             // 仅局域网且尚无播放内容时自动播最新一条；外网/远程回放中勿塞 syncRecords（会叠乱布局）
                             if (this.syncRecords.length === 0 && !this.remotePlaybackActive && !this.isWanPlayback()) {
-                                this.syncRecords = [this.selectedRecord];
+                                this.syncRecords = [this.selectedRecord]; this._resetLocalPlaybackProgressForSeg(this.syncSeekSecs, this.syncRecords);
                             }
                         }
                     } else {
@@ -20042,6 +20047,26 @@ document.addEventListener('DOMContentLoaded', function() {
                              color: b.ty === 2 ? '#dc3545' : b.ty === 3 ? '#7c3aed' : 'var(--accent)' };
                 });
             },
+            _resetLocalPlaybackProgressForSeg(secs, recs) {
+                // 重选时间轴/列表段时立即清进度 UI，避免仍显示上一段的 72s/79s
+                const r0 = (recs && recs[0]) || null;
+                const start = (r0 && r0._segStart != null) ? r0._segStart : 0;
+                const dur = Math.max(1, Number(r0 && r0.RecordIndexInformationDuration) || 1);
+                let off = 0;
+                if (secs != null && secs >= 0) {
+                    off = secs - start;
+                    if (off < 0) off = 0;
+                    if (off > dur) off = 0;
+                }
+                this.playbackPositionMs = Math.round(off * 1000);
+                this.playbackDurationMs = Math.round(dur * 1000);
+                this._playbackSegmentEnded = false;
+                this._localPbPaused = false;
+                this._localPbDragging = false;
+                this._localPbPendingSec = off;
+                this._lastLocalSeekSec = -1;
+                this._lastLocalSeekAt = 0;
+            },
             _localTimelineSeekInPlace(secs, recs) {
                 if (this.remotePlaybackActive) return false;
                 const cur = this.syncRecords || [];
@@ -20092,6 +20117,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         this._revokeLocalMp4Blobs(this.syncRecords);
                         this.syncRecords = recs;
+                        this._resetLocalPlaybackProgressForSeg(secs, recs);
                     }
                 }
                 // 列表只拉点击附近 pageSize（默认 10）条：勿用当天 00:00→点击（会扫整天再分页，缩略图跟着爆）
