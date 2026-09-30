@@ -1228,27 +1228,44 @@ function askUpgradeLatest(dev) {
 
 function renderConfirm() {
   const c = state.confirm;
+  const busy = !!c.busy;
   const close = () => {
+    if (busy) return; // 删除进行中不可关
     state.confirm = null;
     render();
     if (typeof c.onClose === 'function') c.onClose();
   };
   const ok = () => {
+    if (busy) return;
     if (typeof c.onOk === 'function') c.onOk();
     else close();
   };
-  const isSuccess = c.kind === 'success' || c.hideCancel;
+  const isSuccess = c.kind === 'success' || (c.hideCancel && !busy && c.kind !== 'progress');
+  const isProgress = c.kind === 'progress' || busy;
   const actions = [];
-  if (!isSuccess) {
+  if (!isSuccess && !isProgress) {
     actions.push(h('button', { class: 'gbtn', onclick: close }, t('cancel')));
   }
-  actions.push(h('button', { class: 'gbtn primary', onclick: ok }, c.okText || (isSuccess ? t('gotIt') : t('confirmOk'))));
+  if (!busy) {
+    actions.push(h('button', { class: 'gbtn primary', onclick: ok }, c.okText || (isSuccess ? t('gotIt') : t('confirmOk'))));
+  }
+  const pct = Math.max(0, Math.min(100, Number(c.progress) || 0));
+  const progressBlock = (isProgress || c.progress != null)
+    ? h('div', { class: 'admin-field', style: { marginTop: '12px' } },
+        h('div', { class: 'progress', style: { marginTop: '4px' } }, h('i', { style: { width: pct + '%' } })),
+        h('div', { class: 'admin-msg info', style: { marginTop: '8px' } },
+          c.progressText || (pct + '%'),
+        ),
+      )
+    : null;
   return h('div', { class: 'modal-mask', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
-    h('div', { class: 'glass modal' + (isSuccess ? ' is-success' : '') },
+    h('div', { class: 'glass modal' + (isSuccess ? ' is-success' : '') + (isProgress ? ' is-progress' : '') },
       isSuccess ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-circle-check')) : null,
+      isProgress && !isSuccess ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-circle-notch fa-spin')) : null,
       h('h3', {}, c.title),
-      h('div', { class: 'body', style: { whiteSpace: 'pre-wrap' } }, c.body),
-      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } }, ...actions),
+      h('div', { class: 'body', style: { whiteSpace: 'pre-wrap' } }, c.body || ''),
+      progressBlock,
+      actions.length ? h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } }, ...actions) : null,
     ),
   );
 }
@@ -1384,10 +1401,31 @@ function askDeletePackages(pkgs) {
     body: `${preview}${more}\n\n${t('otaBatchDelHint')}`,
     okText: t('confirmDelOk'),
     onOk: async () => {
-      state.confirm = null; render();
+      const total = list.length;
       let ok = 0, fail = 0;
       const left = Object.assign({}, state.otaSelected || {});
-      for (const pkg of list) {
+      const paintProgress = (i, pkg, phase) => {
+        const name = `v${(pkg && pkg.upgradeDeviceVersion) || '?'} · ${(pkg && pkg.upgradeDeviceType) || ''}`;
+        const pct = total ? Math.round((i / total) * 100) : 0;
+        state.confirm = {
+          kind: 'progress',
+          hideCancel: true,
+          busy: true,
+          title: t('otaBatchDelWorking'),
+          body: t('otaBatchDelProgress')
+            .replace('{i}', String(Math.min(i + 1, total)))
+            .replace('{n}', String(total))
+            .replace('{name}', name)
+            + (phase ? `\n${phase}` : ''),
+          progress: pct,
+          progressText: `${Math.min(i, total)} / ${total} · ${pct}%`,
+        };
+        render();
+      };
+      paintProgress(0, list[0], t('otaBatchDelStart'));
+      for (let i = 0; i < list.length; i++) {
+        const pkg = list[i];
+        paintProgress(i, pkg, t('otaBatchDelItem'));
         try {
           await deleteOnePackage(pkg);
           ok++;
@@ -1396,12 +1434,45 @@ function askDeletePackages(pkgs) {
           fail++;
           console.error('[admin] delete pkg', pkg && pkg.id, e);
         }
+        paintProgress(i + 1, pkg, fail && i === list.length - 1 ? '' : '');
       }
       state.otaSelected = left;
+      const summary = t('otaBatchDelSummary')
+        .replace('{ok}', String(ok))
+        .replace('{fail}', String(fail))
+        .replace('{n}', String(total));
+      state.packages = null;
+      // 先出结果弹窗，再刷列表（刷完仍保留结果）
+      state.confirm = {
+        kind: fail ? 'progress' : 'success',
+        hideCancel: true,
+        busy: false,
+        title: t('otaBatchDelDone'),
+        body: summary,
+        progress: 100,
+        progressText: `${ok + fail} / ${total} · 100%`,
+        okText: t('gotIt'),
+        onOk: () => { state.confirm = null; render(); },
+      };
+      render();
+      try { await loadTab('ota'); } catch (e) { console.warn('[admin] reload after batch del', e); }
+      // loadTab 可能 render 掉 confirm，再挂回结果
+      if (!state.confirm) {
+        state.confirm = {
+          kind: fail ? 'progress' : 'success',
+          hideCancel: true,
+          busy: false,
+          title: t('otaBatchDelDone'),
+          body: summary,
+          progress: 100,
+          progressText: `${ok + fail} / ${total} · 100%`,
+          okText: t('gotIt'),
+          onOk: () => { state.confirm = null; render(); },
+        };
+        render();
+      }
       if (fail) toast(`${t('otaBatchDelDone')}: ${ok} OK / ${fail} fail`, 'err');
       else toast(`${t('otaBatchDelDone')}: ${ok}`);
-      state.packages = null;
-      await loadTab('ota');
     },
   };
   render();
