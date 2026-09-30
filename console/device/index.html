@@ -6279,7 +6279,7 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'tlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                    <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6680,7 +6680,7 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'itlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                                    <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6873,7 +6873,7 @@ window.__presignThumbUrl = function (raw) {
                                         <template x-for="(b,i) in timelineBlocks(0)" :key="'cc0-'+i">
                                             <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                         </template>
-                                        <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
+                                        <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
                                     </div>
                                 </div>
                             </div>
@@ -14018,6 +14018,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.playbackPositionMs = Math.round(cur * 1000);
                 this._localPbPaused = !!v.paused;
                 if (v.readyState >= 2) this._setLocalPbLoading(false);
+                this._syncTimelinePlayheadFromPlayback();
             },
             onLocalVideoTimeUpdate(ev) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
@@ -14027,6 +14028,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 进度条唯一真相：画面 currentTime（不再用 pending 锁 UI）
                 this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
                 this._localPbPaused = !!v.paused;
+                this._syncTimelinePlayheadFromPlayback();
             },
             onLocalVideoEnded(ev) {
                 const v = ev && ev.target;
@@ -19620,9 +19622,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         this._haltLocalPlaybackVideos();
                         this._revokeLocalMp4Blobs(this.syncRecords, true);
-                        const recs = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
+                        const recs = ((siblingRecs && siblingRecs.length) ? siblingRecs : [record]).map((r) => this._ensureRecSegStart(Object.assign({}, r)));
                         this.syncRecords = recs;
                         this._resetLocalPlaybackProgressForSeg(this.syncSeekSecs, recs);
+                        this._syncTimelinePlayheadFromPlayback();
                         const self = this;
                         const kick = function () {
                             const vids = self.localPlaybackVideos();
@@ -20209,8 +20212,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         this._haltLocalPlaybackVideos();
                         this._revokeLocalMp4Blobs(this.syncRecords, true);
-                        this.syncRecords = recs;
-                        this._resetLocalPlaybackProgressForSeg(seekSecs, recs);
+                        this.syncRecords = recs.map((r) => this._ensureRecSegStart(r));
+                        this._resetLocalPlaybackProgressForSeg(seekSecs, this.syncRecords);
+                        this._syncTimelinePlayheadFromPlayback();
                         const self = this;
                         const kick = function () {
                             const pending = self._localPbPendingSec;
@@ -20457,8 +20461,21 @@ document.addEventListener('DOMContentLoaded', function() {
             isPlaying(record) {
                 return this.syncRecords.some(r => r.RecordIndexInformationPath === record.RecordIndexInformationPath);
             },
-            // 点击位置(%)：用于绿色标记，基于可见窗口；超窗/未点返回 -1
-            // 时间轴绿线：优先跟当前回放墙钟（段起点+进度），避免点选后多路对齐挪 seek 却标记仍停在旧点击处
+            // 给列表起播的 record 补 _segStart，否则时间轴绿线算不出墙钟
+            _ensureRecSegStart(rec) {
+                if (!rec) return rec;
+                if (rec._segStart != null && Number(rec._segStart) >= 0) return rec;
+                const m = String(rec.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                rec._segStart = m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : 0;
+                return rec;
+            },
+            // Alpine v2：直接改 tlClickSecs 才能稳定触发时间轴绿线重绘
+            _syncTimelinePlayheadFromPlayback() {
+                const secs = this.timelinePlayheadSecs();
+                if (secs == null || secs < 0) return;
+                if ((this.tlClickSecs | 0) !== (secs | 0)) this.tlClickSecs = secs | 0;
+            },
+            // 时间轴绿线：优先跟当前回放墙钟（段起点+进度）
             timelinePlayheadSecs() {
                 const recs = this.syncRecords || [];
                 if (recs.length && !this.remotePlaybackActive) {
