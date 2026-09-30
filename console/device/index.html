@@ -18876,6 +18876,22 @@ document.addEventListener('DOMContentLoaded', function() {
             syncItemStyle(idx) { return this.layoutItemStyle(idx, this.syncRecords.length); },
             isPlaybackFocused(idx) { return this.isLayoutFocused(idx, this.syncRecords.length); },
             setPlaybackFocus(idx) {
+                // 大小图对调时：小窗屏幕位置跟着“窗口”走，不跟路号走，避免跳到默认位
+                if (this.playbackLayout === 'pip') {
+                    const n = this.remotePlaybackActive
+                        ? (this.remotePbCount ? this.remotePbCount() : 1)
+                        : Math.max((this.syncRecords && this.syncRecords.length) || 0,
+                                   (this.syncImages && this.syncImages.length) || 0, 1);
+                    const prev = this._layoutFocus(n);
+                    if (prev !== idx) {
+                        const fromKey = String(idx);   // 当前小窗（被点击升为大图）
+                        const toKey = String(prev);    // 原大图 → 新小窗
+                        const pos = (this.playbackPipPos && this.playbackPipPos[fromKey]) || this._pipPos(idx, n);
+                        this.playbackPipPos = Object.assign({}, this.playbackPipPos || {}, {
+                            [toKey]: { left: pos.left, top: pos.top }
+                        });
+                    }
+                }
                 if (this.playbackLayout !== 'grid') this.playbackFocusIdx = idx;
                 if (this.remotePlaybackActive && this.playbackLayout === 'pip') this.renderPlaybackVideo();
             },
