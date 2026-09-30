@@ -10836,14 +10836,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!sess.instances) sess.instances = [];
                 if (sess.instances.indexOf(this) < 0) sess.instances.push(this);
             },
+            stealLiveAgoraClient(channel) {
+                const sess = window.AhsAgoraRtc;
+                if (sess && sess.client) {
+                    const st = sess.client.connectionState || '';
+                    if (st === 'CONNECTED' || st === 'CONNECTING') {
+                        sess.joined = true;
+                        if (!sess.channel) sess.channel = channel;
+                    }
+                }
+                if (this.adoptSharedAgora(channel)) return true;
+                const sections = document.querySelectorAll('.page-section');
+                for (let i = 0; i < sections.length; i++) {
+                    const stack = sections[i]._x_dataStack || [];
+                    for (let j = 0; j < stack.length; j++) {
+                        const data = stack[j];
+                        if (!data || data === this || !data.client) continue;
+                        const st = data.client.connectionState || '';
+                        if (st !== 'CONNECTED' && st !== 'CONNECTING') continue;
+                        const s = window.AhsAgoraRtc || (window.AhsAgoraRtc = { instances: [] });
+                        s.client = data.client;
+                        s.channel = (data.options && data.options.channel) || channel;
+                        s.joined = true;
+                        s.appid = data.options && data.options.appid;
+                        s.token = data.options && data.options.token;
+                        s.uid = data.options && data.options.uid;
+                        s.proxy = !!data._agoraProxy;
+                        s.connState = st;
+                        if (this.agoraLog) this.agoraLog('steal live client conn=' + st);
+                        return this.adoptSharedAgora(channel);
+                    }
+                }
+                return false;
+            },
             adoptSharedAgora(channel) {
                 const sess = window.AhsAgoraRtc;
-                if (!sess || !sess.joined || !sess.client || sess.channel !== channel) return false;
+                if (!sess || !sess.client) return false;
+                if (sess.channel && channel && sess.channel !== channel) return false;
                 const st = sess.client.connectionState || '';
                 if (st && st !== 'CONNECTED' && st !== 'CONNECTING') {
                     console.warn('[AHS][Agora] shared session not connected', st);
                     return false;
                 }
+                sess.joined = true;
+                if (!sess.channel && channel) sess.channel = channel;
                 this.client = sess.client;
                 this.options.channel = sess.channel;
                 if (sess.appid) this.options.appid = sess.appid;
@@ -10913,6 +10949,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.options.token = tok;
                     return tok;
                 }
+                if (window.AhsAgoraRtc && window.AhsAgoraRtc.token
+                    && String(window.AhsAgoraRtc.token).indexOf('006') === 0) {
+                    this.options.token = window.AhsAgoraRtc.token;
+                    return this.options.token;
+                }
                 if (appId && cert && channel && window.AhsAgoraToken && window.CryptoJS && window.CryptoJS.HmacSHA256) {
                     try {
                         tok = window.AhsAgoraToken.buildRtcToken(appId, cert, channel, 0) || '';
@@ -10941,7 +10982,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 const directs = [];
                 if (tok) directs.push(tok);
-                directs.push(null);
+                else directs.push(null);
                 let lastErr = null;
                 for (let i = 0; i < directs.length; i++) {
                     const t = directs[i];
@@ -10962,7 +11003,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 // Cloud Proxy 未开通时会报 no active status，再开 proxy 只会重复失败
-                if (wan && lastErr && !this._agoraIsNoActive(lastErr)) {
+                if (wan && lastErr && !this._agoraIsNoActive(lastErr) && tok) {
                     const modes = [3, 5];
                     for (let m = 0; m < modes.length; m++) {
                         this.options.token = tok || null;
@@ -11011,7 +11052,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const wantMode = 'rtc';
                 const reuse = !!(this.client && this.isStreaming && this._agoraJoinMode === wantMode
                     && this.options && this.options.channel === channel);
-                if (reuse || this.adoptSharedAgora(channel)) {
+                if (reuse || this.stealLiveAgoraClient(channel) || this.adoptSharedAgora(channel)) {
                     console.log('[AHS][Agora] stay in room', wantMode, channel);
                     this.options.role = 'host';
                     if (m === 'replay') {
@@ -15259,19 +15300,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const channel = this.resolveAgoraChannelName();
                     this.agoraLog('channel=' + channel + ' uuid=' + ((this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || ''));
                     if (!channel) throw new Error('missing agora channel uuid');
-                    if (this.adoptSharedAgora(channel)) {
+                    if (this.stealLiveAgoraClient(channel) || this.adoptSharedAgora(channel)) {
                         this.agoraLog('adopt shared conn=' + (this.client && this.client.connectionState));
                         await this.muteLiveAgoraUids(true);
                     } else if (!this.isStreaming) {
                         this.agoraLog('no shared session, join ' + channel);
-                        try {
-                            await this.startPreview('replay');
-                            this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
-                        } catch (joinErr) {
-                            this.agoraLog('agora join failed → KVS fallback ' + this._agoraErrText(joinErr));
-                            await this.startKvsPlayback(record, this._playbackSiblingRecs, gen);
-                            return;
-                        }
+                        await this.startPreview('replay');
+                        this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
                     } else {
                         this.agoraLog('already streaming on this instance');
                     }
