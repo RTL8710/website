@@ -794,12 +794,28 @@ window.__presignThumbUrl = function (raw) {
             text-shadow: 0 1px 2px rgba(0,0,0,.65);
             pointer-events: none;
         }
-        /* 回放 PiP 小窗：铺满画面，去掉黑底“框”；Agora fit 用 CSS 兜底 cover */
+        /* 回放远端槽：Agora 播到 div（video 上 fit 无效）；PiP 强制 cover 铺满 */
+        .pb-remote-slot {
+            overflow: hidden;
+            background: transparent;
+        }
+        .pb-pip-host {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
         [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] {
             background: transparent !important;
             box-shadow: none !important;
             border: 0 !important;
+            padding: 0 !important;
         }
+        .pb-pip-host,
+        .pb-pip-host .agora_video_player,
+        .pb-pip-host .agora_video_player > *,
+        .pb-pip-host video.pb-remote-video,
+        [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] .pb-remote-slot,
+        [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] .agora_video_player,
         [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] video,
         [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] img {
             position: absolute !important;
@@ -807,6 +823,8 @@ window.__presignThumbUrl = function (raw) {
             width: 100% !important;
             height: 100% !important;
             min-height: 0 !important;
+            max-width: none !important;
+            max-height: none !important;
             object-fit: cover !important;
             background: transparent !important;
         }
@@ -6288,7 +6306,13 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1] || playbackCamPoster(pi-1)"
                                                                      @pointerdown="onPipPointerDown($event, pi-1, remotePbCount())"
                                                                      @click="onPipTileClick($event, pi-1)">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="isLayoutFocused(pi-1, remotePbCount()) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;'" autoplay muted playsinline></video>
+                                                                    <div :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi"
+                                                                         class="pb-remote-slot"
+                                                                         :class="(!isLayoutFocused(pi-1, remotePbCount()) && playbackLayout==='pip') ? 'pb-pip-host' : ''"
+                                                                         :style="isLayoutFocused(pi-1, remotePbCount()) ? 'position:absolute;inset:0;width:100%;height:100%;background:#000;' : 'position:absolute;inset:0;width:100%;height:100%;background:transparent;'">
+                                                                        <video class="pb-remote-video" autoplay muted playsinline
+                                                                               :style="isLayoutFocused(pi-1, remotePbCount()) ? 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;'"></video>
+                                                                    </div>
                                                                     <!-- 出流前垫封面（列表/同刻段缩略图），避免黑窗转圈 -->
                                                                     <img x-show="!pbCamUids[pi-1] && playbackCamPoster(pi-1)" :src="playbackCamPoster(pi-1)" alt=""
                                                                          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;pointer-events:none;"
@@ -14141,7 +14165,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 viewer.peerConnection.addEventListener('track', event => {
                     viewer.remoteStream = event.streams[0];
                     const el = document.getElementById(viewer.targetElId);
-                    if (el) el.srcObject = viewer.remoteStream;
+                    const v = el && (el.tagName === 'VIDEO' ? el : (el.querySelector && el.querySelector('video')));
+                    if (v) v.srcObject = viewer.remoteStream;
                     // 主路(cam0)远端流到达 → 关闭主视图"连接中"动效(spinner 条件 isStreaming && !currentMainViewUid)
                     if (localElId) this.currentMainViewUid = 'kvs-cam1';
                     // 标记该路远端流已到 → 关闭对应画中画的加载动效(数组重新赋值以触发 Alpine 响应)
@@ -14218,8 +14243,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (this.kvsLocalStream === viewer.localStream) this.kvsLocalStream = null;
                         viewer.localStream = null;
                     }
-                    if (viewer.targetElId) { const el = document.getElementById(viewer.targetElId); if (el) el.srcObject = null; }
-                    if (viewer.localElId) { const lel = document.getElementById(viewer.localElId); if (lel) lel.srcObject = null; }
+                    if (viewer.targetElId) {
+                        const el = document.getElementById(viewer.targetElId);
+                        const v = el && (el.tagName === 'VIDEO' ? el : (el.querySelector && el.querySelector('video')));
+                        if (v) v.srcObject = null;
+                    }
+                    if (viewer.localElId) {
+                        const lel = document.getElementById(viewer.localElId);
+                        const lv = lel && (lel.tagName === 'VIDEO' ? lel : (lel.querySelector && lel.querySelector('video')));
+                        if (lv) lv.srcObject = null;
+                    }
                 } catch (e) { console.error('[AHS][KVS] close viewer error', e); }
             },
 
@@ -19409,29 +19442,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.showAlert('error', tIdx('rp_failed'), this._agoraLastErr || tIdx('vp_remote_playback'));
                 }
             },
-            // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView
-            // PiP 小窗用 cover 铺满（避免 Agora fit=contain 上下黑边像“框”）
+            // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView（div 槽；Agora 在 <video> 上会忽略 fit）
+            // PiP 小窗用 cover 铺满，避免 contain 黑边像“框”
             renderPlaybackVideo() {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || this.pbCamUids.length || 1;
                 const focus = this._layoutFocus(n);
                 const pip = this.playbackLayout === 'pip';
+                const applyFit = (root, fit) => {
+                    if (!root) return;
+                    const nodes = [];
+                    if (root.tagName === 'VIDEO') nodes.push(root);
+                    try {
+                        root.querySelectorAll && root.querySelectorAll('video, .agora_video_player').forEach(function (n) { nodes.push(n); });
+                    } catch (e) {}
+                    nodes.forEach(function (v) {
+                        try {
+                            v.style.objectFit = fit;
+                            v.style.width = '100%';
+                            v.style.height = '100%';
+                            v.style.minHeight = '0';
+                            v.style.maxWidth = 'none';
+                            v.style.maxHeight = 'none';
+                            v.style.background = 'transparent';
+                            if (v.tagName === 'VIDEO' && v.paused) v.play().catch(function () {});
+                        } catch (e) {}
+                    });
+                };
                 for (let i = 0; i < n; i++) {
                     const el = document.getElementById(this.pbElId(i));
                     const u = this.pbCamUids[i] ? this.remoteUsers[this.pbCamUids[i]] : null;
                     if (!el || !u || !u.videoTrack) continue;
                     const fit = (pip && i !== focus) ? 'cover' : 'contain';
                     try { u.videoTrack.play(el, { fit: fit }); } catch (e) { console.warn('[AHS][Agora] play', e); }
-                    try {
-                        const v = (el.tagName === 'VIDEO') ? el : el.querySelector && el.querySelector('video');
-                        if (v) {
-                            v.style.objectFit = fit;
-                            v.style.width = '100%';
-                            v.style.height = '100%';
-                            v.style.minHeight = '0';
-                            v.style.background = 'transparent';
-                            if (v.paused) v.play().catch(function () {});
-                        }
-                    } catch (e) {}
+                    applyFit(el, fit);
+                    // Agora 异步建 player 后再盖一次
+                    setTimeout(function () { applyFit(el, fit); }, 0);
+                    setTimeout(function () { applyFit(el, fit); }, 120);
                 }
             },
             async stopRemotePlayback(keepAgora) {
@@ -19479,8 +19525,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     for (let i = 0; i < 8; i++) {
                         const el = document.getElementById(this.pbElId(i));
                         if (!el) continue;
-                        try { el.srcObject = null; } catch (e) {}
-                        try { el.removeAttribute('src'); el.load(); } catch (e) {}
+                        const vids = el.tagName === 'VIDEO' ? [el] : Array.from(el.querySelectorAll ? el.querySelectorAll('video') : []);
+                        vids.forEach(function (v) {
+                            try { v.srcObject = null; } catch (e) {}
+                            try { v.removeAttribute('src'); v.load(); } catch (e) {}
+                        });
+                        try { el.querySelectorAll('.agora_video_player').forEach(function (n) { n.remove(); }); } catch (e) {}
                     }
                 } catch (e) {}
             },
