@@ -6340,7 +6340,7 @@ window.__presignThumbUrl = function (raw) {
                                                     </div>
                                                     <!-- 多路同步播放：点击时间轴时收集同一时刻所有摄像头，按所选样式同步播放 -->
                                                     <div x-show="syncRecords.length && !remotePlaybackActive" data-pb-stage="1" :style="syncContainerStyle()">
-                                                        <template x-for="(rec, idx) in syncRecords" :key="rec.RecordIndexInformationPath">
+                                                        <template x-for="(rec, idx) in syncRecords" :key="(_localPbEpoch|0)+':'+(rec.RecordIndexInformationPath||idx)">
                                                             <div :style="syncItemStyle(idx)"
                                                                  @pointerdown="onPipPointerDown($event, idx, syncRecords.length)"
                                                                  @click="onPipTileClick($event, idx)">
@@ -13942,21 +13942,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return vids[idx] || vids[0] || null;
             },
             onLocalVideoMeta(ev, rec) {
-                const epoch = this._localPbEpoch | 0;
                 this.syncSeekVideo(ev, rec);
-                this._refreshLocalPlaybackDuration();
+                // 若有墙钟目标，再推一次 seek（不把目标秒数写进进度条）
                 const v = ev && ev.target;
-                if (v && v === this._localPbMaster() && epoch === (this._localPbEpoch | 0)) {
-                    const pending = this._localPbPendingSec;
-                    const cur = v.currentTime || 0;
-                    if (pending != null && Math.abs(cur - pending) > 1.5) {
-                        // seek 未落地：再推一次，UI 暂跟目标；超时由 timeupdate 改跟画面
-                        try { v.currentTime = pending; } catch (e) {}
-                        this.playbackPositionMs = Math.round(pending * 1000);
-                    } else {
-                        this.playbackPositionMs = Math.round(cur * 1000);
-                        if (pending != null) this._localPbPendingSec = null;
-                    }
+                const pending = this._localPbPendingSec;
+                if (v && pending != null && pending >= 0) {
+                    try { v.currentTime = pending; } catch (e) {}
+                }
+                this._refreshLocalPlaybackDuration();
+                if (v && v === this._localPbMaster()) {
+                    this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
                     this._localPbPaused = !!v.paused;
                 }
                 this.ensureLocalMp4Seekable(v, rec);
@@ -13976,37 +13971,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
-                const cur = v.currentTime || 0;
-                if (this._localPbPendingSec != null) {
-                    const pending = this._localPbPendingSec;
-                    const age = Date.now() - (this._localPbPendingAt || 0);
-                    // 旧节点仍报更大进度 → 忽略，避免切段后条跳回上一段
-                    if (cur > pending + 1.5) {
-                        this.playbackPositionMs = Math.round(pending * 1000);
-                        return;
-                    }
-                    // 画面在目标前：短等并重试 seek；超时则以画面为准（修 73s 条 + 段首画面）
-                    if (cur < pending - 1.5) {
-                        if (age < 1200) {
-                            if (age > 300) {
-                                try { v.currentTime = pending; } catch (e) {}
-                            }
-                            this.playbackPositionMs = Math.round(pending * 1000);
-                            return;
-                        }
-                        this._localPbPendingSec = null;
-                    } else {
-                        this._localPbPendingSec = null;
-                    }
-                }
-                this.playbackPositionMs = Math.round(cur * 1000);
+                // 进度条唯一真相：画面 currentTime（不再用 pending 锁 UI）
+                this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
                 this._localPbPaused = !!v.paused;
             },
             onLocalVideoEnded(ev) {
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
-                if (this._localPbPendingSec != null) return;
                 this._playbackSegmentEnded = true;
+                this._localPbPendingSec = null;
                 this.playbackPositionMs = (this.playbackDurationMs | 0) || Math.round((v.duration || 0) * 1000);
                 this._localPbPaused = true;
             },
@@ -14033,6 +14006,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!keepPending) this._localPbPendingSec = null;
             },
             _haltLocalPlaybackVideos() {
+                this.playbackPositionMs = 0;
+                this._localPbPendingSec = null;
                 this.localPlaybackVideos().forEach(function (v) {
                     try { v.pause(); } catch (e) {}
                     try { v.removeAttribute('src'); v.load(); } catch (e) {}
@@ -14099,8 +14074,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this._lastLocalSeekAt = now;
                 this._applyLocalSeek(sec);
             },
-            _applyLocalSeek(sec) {
-                this.playbackPositionMs = sec * 1000;
+            _applyLocalSeek(sec, opts) {
+                opts = opts || {};
+                const syncUi = opts.syncUi !== false;
+                if (syncUi) this.playbackPositionMs = Math.round(sec * 1000);
                 this._playbackSegmentEnded = false;
                 this._localPbPaused = false;
                 const vids = this.localPlaybackVideos();
@@ -20097,7 +20074,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             },
             _resetLocalPlaybackProgressForSeg(secs, recs) {
-                // 重选时间轴/列表段时立即清进度 UI；以墙钟偏移为目标，seek 失败超时后跟画面
+                // 重选段：进度条立刻清零；墙钟偏移只作 seek 目标，UI 只跟画面 currentTime
                 this._localPbEpoch = (this._localPbEpoch | 0) + 1;
                 const r0 = (recs && recs[0]) || null;
                 const start = (r0 && r0._segStart != null) ? r0._segStart : 0;
@@ -20108,7 +20085,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (off < 0) off = 0;
                     if (off > dur) off = 0;
                 }
-                this.playbackPositionMs = Math.round(off * 1000);
+                this.playbackPositionMs = 0;
                 this.playbackDurationMs = Math.round(dur * 1000);
                 this._playbackSegmentEnded = false;
                 this._localPbPaused = false;
@@ -20132,7 +20109,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (off < -1 || off > dur + 1) return false;
                 this.tlClickSecs = secs;
                 this.syncSeekSecs = secs;
-                this._applyLocalSeek(Math.max(0, Math.min(dur, off)));
+                this._localPbEpoch = (this._localPbEpoch | 0) + 1;
+                this.playbackPositionMs = 0;
+                this._localPbDragging = false;
+                this._applyLocalSeek(Math.max(0, Math.min(dur, off)), { syncUi: false });
                 return true;
             },
             // 点击时间轴：定位到该时刻所在/最近的录像并播放
@@ -20174,8 +20154,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         this._resetLocalPlaybackProgressForSeg(seekSecs, recs);
                         const self = this;
                         const kick = function () {
-                            const off = Math.max(0, Math.floor((self.playbackPositionMs | 0) / 1000));
-                            self._applyLocalSeek(off);
+                            const pending = self._localPbPendingSec;
+                            const off = (pending != null && pending >= 0) ? pending : 0;
+                            self._applyLocalSeek(off, { syncUi: false });
                         };
                         if (typeof this.$nextTick === 'function') this.$nextTick(kick);
                         else setTimeout(kick, 0);
