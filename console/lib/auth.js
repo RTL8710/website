@@ -110,29 +110,58 @@ async function cognitoIdentityCall(target, body) {
     headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityService.${target}` },
     body: JSON.stringify(body),
   });
-  const j = await r.json();
-  if (j.__type || j.message) throw new Error(j.message || j.__type);
+  let j = {};
+  try { j = await r.json(); } catch (_) {}
+  if (!r.ok || j.__type || j.message) {
+    const msg = j.message || j.__type || ('Cognito Identity HTTP ' + r.status);
+    const err = new Error(msg);
+    err.status = r.status;
+    err.type = j.__type || '';
+    throw err;
+  }
   return j;
 }
 
-// 临时 AWS 凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)。
-// 裸 GetId + GetCredentialsForIdentity —— 不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。缓存到过期前。
-export async function resolvedCreds() {
+let _credsInflight = null;
+
+function clearIdentityCache() {
+  _identityId = null;
+  try {
+    const idKey = 'dv_identityid_' + COGNITO.userPoolId;
+    localStorage.removeItem(idKey);
+  } catch (e) {}
+}
+
+async function refreshIdTokenIfPossible() {
+  try {
+    const p = await pool();
+    const user = p.getCurrentUser();
+    if (!user) return false;
+    const session = await new Promise((resolve) => {
+      user.getSession((err, s) => resolve(err || !s || !s.isValid() ? null : s));
+    });
+    if (!session) return false;
+    _idToken = session.getIdToken().getJwtToken();
+    return true;
+  } catch (_) { return false; }
+}
+
+async function fetchAwsCreds(forceNewIdentity) {
   if (!_idToken) throw new Error('未登录,无法获取 AWS 凭证。');
-  if (_creds && _creds.expiration && Date.now() < _creds.expiration - 60000) return _creds;
   const logins = { [`cognito-idp.${COGNITO.region}.amazonaws.com/${COGNITO.userPoolId}`]: _idToken };
+  const idKey = 'dv_identityid_' + COGNITO.userPoolId;
+  if (forceNewIdentity) clearIdentityCache();
   if (!_identityId) {
-    // identityId 对同一账号恒定 → localStorage 缓存,省掉每次 GetId 的 ~1.5s 往返
-    const idKey = 'dv_identityid_' + COGNITO.userPoolId;   // 按区域(userPool)缓存,切区域不串
     try { _identityId = localStorage.getItem(idKey) || null; } catch (e) {}
-    if (!_identityId) {
-      const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
-      _identityId = id.IdentityId;
-      try { localStorage.setItem(idKey, _identityId); } catch (e) {}
-    }
+  }
+  if (!_identityId) {
+    const id = await cognitoIdentityCall('GetId', { IdentityPoolId: COGNITO.identityPoolId, Logins: logins });
+    _identityId = id.IdentityId;
+    try { localStorage.setItem(idKey, _identityId); } catch (e) {}
   }
   const cr = await cognitoIdentityCall('GetCredentialsForIdentity', { IdentityId: _identityId, Logins: logins });
   const c = cr.Credentials;
+  if (!c || !c.AccessKeyId) throw new Error('Cognito Identity 未返回凭证');
   _creds = {
     accessKeyId: c.AccessKeyId,
     secretAccessKey: c.SecretKey,
@@ -140,4 +169,35 @@ export async function resolvedCreds() {
     expiration: c.Expiration ? c.Expiration * 1000 : (Date.now() + 3000000),
   };
   return _creds;
+}
+
+// 临时 AWS 凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)。
+// 裸 GetId + GetCredentialsForIdentity —— 不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。
+// 缓存到过期前；并发合并为单次请求；僵死 identityId / 过期 token 自动清缓存重试。
+export async function resolvedCreds() {
+  if (!_idToken) throw new Error('未登录,无法获取 AWS 凭证。');
+  if (_creds && _creds.expiration && Date.now() < _creds.expiration - 60000) return _creds;
+  if (_credsInflight) return _credsInflight;
+  _credsInflight = (async () => {
+    try {
+      try {
+        return await fetchAwsCreds(false);
+      } catch (e1) {
+        // 常见: localStorage 里 identityId 与当前登录账号不匹配 → 400；清掉重 GetId
+        _creds = null;
+        try {
+          return await fetchAwsCreds(true);
+        } catch (e2) {
+          // idToken 过期 → 刷新 Cognito 会话后再试一次
+          const refreshed = await refreshIdTokenIfPossible();
+          if (!refreshed) throw e2;
+          _creds = null;
+          return await fetchAwsCreds(true);
+        }
+      }
+    } finally {
+      _credsInflight = null;
+    }
+  })();
+  return _credsInflight;
 }

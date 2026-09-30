@@ -251,6 +251,7 @@ async function enterDevice(dev) {
       appsyncApiKey: APPSYNC.apiKey,
     }));
     sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
+    sessionStorage.setItem('dv_return', '../index.html#/devices');
     sessionStorage.setItem('dv_user', (state.session.userProp && state.session.userProp.awsUserName) || state.session.email || 'user');
     // 不覆盖 previewTransport：设备页 syncPreviewTransportFromDevice 跟 WEBRTCSolutionType（外网也支持声网预览/回放）
     localStorage.setItem('dv_lang', currentLang);   // 语言同步到设备页

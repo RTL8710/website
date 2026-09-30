@@ -31,6 +31,7 @@ const state = {
   diagLogsMeta: null,
   logsSource: 'device', // app | device
   q: '',
+  enteringDevice: null,
   deviceFilter: 'all', // all | online | offline
   deviceSort: 'updated', // updated | online
   deviceSortDir: 'desc', // desc | asc
@@ -840,7 +841,11 @@ function viewDevices() {
                 fmt(d.updatedAt || d.createdAt),
               ),
               h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
-                h('button', { class: 'gbtn primary btn-sm', onclick: () => openDevice(d) }, t('enter')),
+                h('button', {
+                  class: 'gbtn primary btn-sm',
+                  disabled: !!(state.enteringDevice && state.enteringDevice === (d.uuid || d.id)),
+                  onclick: (e) => { e.stopPropagation(); openDevice(d); },
+                }, (state.enteringDevice && state.enteringDevice === (d.uuid || d.id)) ? '…' : t('enter')),
                 h('button', {
                   class: 'gbtn btn-sm',
                   disabled: !d.uuid || !latest,
@@ -1217,6 +1222,9 @@ function renderConfirm() {
 async function openDevice(dev) {
   const uuid = dev.uuid || dev.id;
   if (!/^[0-9a-fA-F-]{36}$/.test(uuid)) { toast('设备 UUID 无效', 'err'); return; }
+  if (state.enteringDevice) return;
+  state.enteringDevice = uuid;
+  render();
   try {
     const c = await resolvedCreds();
     sessionStorage.setItem('iot_creds', JSON.stringify({
@@ -1225,9 +1233,15 @@ async function openDevice(dev) {
       appsyncEndpoint: APPSYNC.endpoint, appsyncApiKey: APPSYNC.apiKey,
     }));
     sessionStorage.setItem('dv_auth', '1');
-    sessionStorage.setItem('dv_user', (state.session.userRow && state.session.userRow.awsUserName) || state.session.account || 'admin');
+    sessionStorage.setItem('dv_user', (state.session.userProp && state.session.userProp.awsUserName) || state.session.account || 'admin');
+    // 从管理后台进入：Logout 回到 admin，而不是用户控制台
+    sessionStorage.setItem('dv_return', '../admin/');
     location.href = '../device/index.html?deviceId=' + encodeURIComponent(uuid);
-  } catch (e) { toast('进入失败: ' + ((e && e.message) || e), 'err'); }
+  } catch (e) {
+    state.enteringDevice = null;
+    render();
+    toast((t('enter') || '进入') + ' · ' + ((e && e.message) || e), 'err');
+  }
 }
 
 const DEVICE_OTA_TYPES = ['smartRobot', 'smartIpcamera'];
