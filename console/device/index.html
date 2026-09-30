@@ -19597,14 +19597,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const max = this.playbackProgressMaxSec();
                 const dur = this.playbackDurationMs | 0;
                 const pos = this.playbackPositionMs | 0;
-                // 播完或已到末尾：滑块拉满（避免 step/ceil 差一格留白）
+                // 拖拽中跟手显示；未拖时播完拉满滑块
+                if (this._playbackProgressDragging) return Math.min(max, Math.floor(pos / 1000));
                 if (this._playbackSegmentEnded || (dur > 0 && pos >= dur)) return max;
                 return Math.min(max, Math.floor(pos / 1000));
             },
             onPlaybackProgressInput(ev) {
                 const sec = parseInt((ev && ev.target && ev.target.value) || '0', 10) || 0;
                 this.playbackPositionMs = sec * 1000;
-                if (sec < this.playbackProgressMaxSec()) this._playbackSegmentEnded = false;
+                // 注意：拖拽中不要清 _playbackSegmentEnded，否则松手只会发 SEEK、会话已死会从 0 起播
             },
             async _restartLastPlaybackSegment() {
                 const paths = this._lastPlaybackPaths;
@@ -19627,15 +19628,29 @@ document.addEventListener('DOMContentLoaded', function() {
                         return false;
                     }
                     if (result.params.durationMs) this.playbackDurationMs = result.params.durationMs;
-                    this.playbackPositionMs = 0;
                     this._playbackSegmentEnded = false;
                     try { await this.syncExistingPlaybackUsers(); } catch (e) {}
                     try { this.renderPlaybackVideo(); } catch (e) {}
+                    // 等 demux/pipeline 就绪再 seek（立即 seek 常被吞掉，画面仍从 0 播）
+                    await new Promise(function (r) { setTimeout(r, 450); });
                     return true;
                 } catch (e) {
                     console.error('_restartLastPlaybackSegment error', e);
                     return false;
                 }
+            },
+            async _sendPlaybackSeek(positionMs) {
+                const response = await fetch('/setDeviceCommand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'seekPlaybackLocalRecordInformationCommand',
+                        params: { positionMs: positionMs },
+                    }),
+                });
+                const result = await response.json().catch(function () { return null; });
+                const ok = !!(result && result.params && result.params.success !== false);
+                return { ok: ok, result: result };
             },
             async seekRemotePlayback(ev) {
                 // 对齐 App：拖拽中只改本地秒数；松手后 seek。段已播完则先重起再定位。
@@ -19657,46 +19672,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.playbackPositionMs = positionMs;
                 if (!this.remotePlaybackActive) return;
 
-                // 本段已播完：设备回放会话已结束，单发 SEEK 无效 → 先重起再 seek
-                if (this._playbackSegmentEnded) {
+                let needRestart = !!this._playbackSegmentEnded;
+                if (needRestart) {
                     const ok = await this._restartLastPlaybackSegment();
                     if (!ok) {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                         return;
                     }
+                    this.playbackPositionMs = positionMs; // 重起过程勿把 UI 留在 0s
                     if (positionMs <= 0) {
-                        this.playbackPositionMs = 0;
                         this._startPlaybackProgressTicker();
                         return;
                     }
                 }
 
                 try {
-                    const response = await fetch('/setDeviceCommand', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            method: 'seekPlaybackLocalRecordInformationCommand',
-                            params: { positionMs: positionMs },
-                        }),
-                    });
-                    const result = await response.json().catch(function () { return null; });
-                    if (result && result.params && result.params.success === false) {
-                        // seek 失败再尝试重起+seek（会话已死但标志未置）
-                        console.warn('seekRemotePlayback failed, try restart', result.params);
+                    let sent = await this._sendPlaybackSeek(positionMs);
+                    // 会话已死但标志未置 / 起播后首帧未就绪：重起再 seek，必要时再等一轮
+                    if (!sent.ok || (sent.result && sent.result.params && sent.result.params.success === false)) {
+                        console.warn('seekRemotePlayback failed, try restart', sent.result && sent.result.params);
                         const ok = await this._restartLastPlaybackSegment();
-                        if (ok && positionMs > 0) {
-                            await fetch('/setDeviceCommand', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    method: 'seekPlaybackLocalRecordInformationCommand',
-                                    params: { positionMs: positionMs },
-                                }),
-                            });
+                        if (!ok) {
+                            this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                            return;
                         }
-                    } else if (result && result.params && typeof result.params.positionMs === 'number') {
-                        this.playbackPositionMs = result.params.positionMs | 0;
+                        this.playbackPositionMs = positionMs;
+                        if (positionMs > 0) {
+                            sent = await this._sendPlaybackSeek(positionMs);
+                            if (!sent.ok) {
+                                await new Promise(function (r) { setTimeout(r, 400); });
+                                sent = await this._sendPlaybackSeek(positionMs);
+                            }
+                        }
+                    }
+                    if (sent.result && sent.result.params && typeof sent.result.params.positionMs === 'number') {
+                        this.playbackPositionMs = sent.result.params.positionMs | 0;
+                    } else {
+                        this.playbackPositionMs = positionMs;
                     }
                     this._playbackSegmentEnded = false;
                 } catch (error) {
