@@ -787,14 +787,30 @@ window.__presignThumbUrl = function (raw) {
         .pb-pip-cam-tag {
             position: absolute; left: 6px; bottom: 6px; z-index: 4;
             font-size: 10px; font-weight: 720; letter-spacing: .06em;
-            color: #edf7ff; line-height: 1;
-            padding: 3px 8px; border-radius: 999px;
-            background: rgba(6, 12, 24, .62);
-            border: 1px solid rgba(255,255,255,.18);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            box-shadow: 0 2px 10px rgba(0,0,0,.35);
+            color: #fff; line-height: 1;
+            padding: 2px 7px; border-radius: 4px;
+            background: rgba(0, 0, 0, .45);
+            border: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,.65);
             pointer-events: none;
         }
+        /* 回放 PiP 小窗：铺满画面，去掉黑底“框”；Agora fit 用 CSS 兜底 cover */
+        [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+        [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] video,
+        [data-pb-stage] > div[style*="position:absolute"][style*="aspect-ratio"] img {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            object-fit: cover !important;
+            background: transparent !important;
+        }
+
 
 
         /* 实时预览多路布局(对齐 App LiveLayoutMode)：pip / stackV / stackH / grid / single */
@@ -6184,7 +6200,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-regular fa-square" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_single')"></span>
                                                             </button>
                                                             <button type="button" :class="playbackLayout==='pip' && 'active'"
-                                                                    @click="playbackLayout='pip'; _ensurePipDefaults(remotePlaybackActive ? remotePbCount() : Math.max(syncRecords.length, playbackIdleCamCount()))"
+                                                                    @click="playbackLayout='pip'; _ensurePipDefaults(remotePlaybackActive ? remotePbCount() : Math.max(syncRecords.length, playbackIdleCamCount())); if (remotePlaybackActive) renderPlaybackVideo()"
                                                                     :title="tIdx('pl_pip')" :aria-pressed="playbackLayout==='pip'">
                                                                 <i class="fa-solid fa-clone" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_pip')"></span>
                                                             </button>
@@ -6272,7 +6288,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <div :style="layoutItemStyle(pi-1, remotePbCount())" x-show="pi===1 || pbCamUids[pi-1] || playbackCamPoster(pi-1)"
                                                                      @pointerdown="onPipPointerDown($event, pi-1, remotePbCount())"
                                                                      @click="onPipTileClick($event, pi-1)">
-                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="'width:100%;height:100%;min-height:180px;object-fit:contain;background-color:var(--video-bg, var(--bg-card2));display:block;'" autoplay muted playsinline></video>
+                                                                    <video :id="pi===1?'remotePlaybackView':'remotePlaybackView'+pi" :style="isLayoutFocused(pi-1, remotePbCount()) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;'" autoplay muted playsinline></video>
                                                                     <!-- 出流前垫封面（列表/同刻段缩略图），避免黑窗转圈 -->
                                                                     <img x-show="!pbCamUids[pi-1] && playbackCamPoster(pi-1)" :src="playbackCamPoster(pi-1)" alt=""
                                                                          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;pointer-events:none;"
@@ -6280,7 +6296,7 @@ window.__presignThumbUrl = function (raw) {
                                                                     <div x-show="!pbCamUids[pi-1]" class="pb-remote-loading" style="position:absolute;inset:0;z-index:2;pointer-events:none;background:rgba(0,0,0,0.28);">
                                                                         <i class="fa-solid fa-circle-notch fa-spin" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;color:#fff;opacity:0.92;"></i>
                                                                     </div>
-                                                                    <div class="pb-pip-cam-tag" x-text="'CAM'+pi"></div>
+                                                                    <div class="pb-pip-cam-tag" x-show="!isLayoutFocused(pi-1, remotePbCount())" x-text="'CAM'+pi"></div>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -6300,7 +6316,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <video
                                                                         :src="localPlaybackVideoSrc(rec)"
                                                                         @loadedmetadata="syncSeekVideo($event, rec)"
-                                                                        :style="'width:100%;height:auto;background-color:var(--video-bg, var(--bg-card2));display:block;pointer-events:'+(isPlaybackFocused(idx)?'auto':'none')+';'"
+                                                                        :style="isPlaybackFocused(idx) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;pointer-events:auto;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;pointer-events:none;'"
                                                                         :controls="isPlaybackFocused(idx)" autoplay muted playsinline
                                                                 ></video>
                                                                 <!-- 下载按钮叠加（仅网格/聚焦路显示）-->
@@ -18735,13 +18751,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     return idx === focus
                         ? 'position:relative;min-width:0;flex:0 0 100%;order:0;'
                         : 'position:relative;min-width:0;flex:0 0 calc(33.333% - 6px);order:1;cursor:pointer;';
-                // pip：大图 + 可拖动小窗
+                // pip：大图 + 可拖动小窗（小窗只要画面，无黑底框）
                 if (idx === focus)
-                    return 'position:relative;min-width:0;width:100%;';
+                    return 'position:relative;min-width:0;width:100%;aspect-ratio:16/9;overflow:hidden;background:transparent';
                 const pos = this._pipPos(idx, n);
-                return 'position:absolute;z-index:5;left:' + pos.left + '%;top:' + pos.top + '%;width:22%;'
+                return 'position:absolute;z-index:5;left:' + pos.left + '%;top:' + pos.top + '%;width:22%;aspect-ratio:16/9;'
                      + 'cursor:grab;touch-action:none;user-select:none;'
-                     + 'border:none;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.5);';
+                     + 'border:0;outline:0;border-radius:6px;overflow:hidden;background:transparent;box-shadow:none;';
             },
             _pipPos(idx, n) {
                 const key = String(idx);
@@ -18817,6 +18833,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isPlaybackFocused(idx) { return this.isLayoutFocused(idx, this.syncRecords.length); },
             setPlaybackFocus(idx) {
                 if (this.playbackLayout !== 'grid') this.playbackFocusIdx = idx;
+                if (this.remotePlaybackActive && this.playbackLayout === 'pip') this.renderPlaybackVideo();
             },
             setSnapFocus(idx) {
                 this.setPlaybackFocus(idx);
@@ -19382,16 +19399,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             // 把回放专用远端流(uid 1226)渲染到 remotePlaybackView
+            // PiP 小窗用 cover 铺满（避免 Agora fit=contain 上下黑边像“框”）
             renderPlaybackVideo() {
                 const n = (this.videoInformation && this.videoInformation.cameraCounts) || this.pbCamUids.length || 1;
+                const focus = this._layoutFocus(n);
+                const pip = this.playbackLayout === 'pip';
                 for (let i = 0; i < n; i++) {
                     const el = document.getElementById(this.pbElId(i));
                     const u = this.pbCamUids[i] ? this.remoteUsers[this.pbCamUids[i]] : null;
                     if (!el || !u || !u.videoTrack) continue;
-                    try { u.videoTrack.play(el, { fit: 'contain' }); } catch (e) { console.warn('[AHS][Agora] play', e); }
+                    const fit = (pip && i !== focus) ? 'cover' : 'contain';
+                    try { u.videoTrack.play(el, { fit: fit }); } catch (e) { console.warn('[AHS][Agora] play', e); }
                     try {
                         const v = (el.tagName === 'VIDEO') ? el : el.querySelector && el.querySelector('video');
-                        if (v && v.paused) v.play().catch(function () {});
+                        if (v) {
+                            v.style.objectFit = fit;
+                            v.style.width = '100%';
+                            v.style.height = '100%';
+                            v.style.minHeight = '0';
+                            v.style.background = 'transparent';
+                            if (v.paused) v.play().catch(function () {});
+                        }
                     } catch (e) {}
                 }
             },
