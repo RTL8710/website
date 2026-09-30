@@ -20201,6 +20201,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 本地已在播且点在当前段内：直接拖进度，勿重建 <video>（否则像不能拖时间轴）
                         // resolveSegmentsAt 可能把 syncSeekSecs 校正为多路对齐墙钟
                         const seekSecs = (this.syncSeekSecs != null && this.syncSeekSecs >= 0) ? this.syncSeekSecs : secs;
+                        this.tlClickSecs = seekSecs; // 绿线对齐实际起播墙钟（可能被多路对齐微调）
+                        this.syncSeekSecs = seekSecs;
                         if (this._localTimelineSeekInPlace(seekSecs, recs)) {
                             this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: Math.max(1, Number(this.pageSize) || 10) }).catch(function () {});
                             return;
@@ -20316,6 +20318,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 const camOf = r => (this._camOfRecord ? this._camOfRecord(r) : this.tlCamOf(r.RecordIndexInformationPath));
                 const byCam = [];
                 for (let cam = 0; cam < ncam; cam++) byCam.push((all || []).filter(r => camOf(r) === cam));
+                // 优先：点击墙钟各路都能命中 → 不挪 seek，避免绿线停在点击处、画面却跳到别的段
+                const listAtClick = [];
+                for (let cam = 0; cam < ncam; cam++) {
+                    const pick = this._pickRecordAtSecs(byCam[cam], secs, true, secOf);
+                    if (pick) {
+                        const s0 = secOf(pick.RecordIndexInformationDateTime);
+                        listAtClick.push(Object.assign({}, pick, { _segStart: s0 >= 0 ? s0 : 0 }));
+                    }
+                }
+                if (listAtClick.length >= Math.max(1, Math.min(ncam, 1)) && listAtClick.length >= Math.ceil(ncam * 0.5)) {
+                    // 至少半数路覆盖点击时刻：按点击墙钟起播（缺路再 nearest 补）
+                    const list = listAtClick.slice();
+                    for (let cam = 0; cam < ncam; cam++) {
+                        if (list.some(r => camOf(r) === cam)) continue;
+                        const pick = this._pickRecordAtSecs(byCam[cam], secs, false, secOf);
+                        if (pick) {
+                            const s0 = secOf(pick.RecordIndexInformationDateTime);
+                            list.push(Object.assign({}, pick, { _segStart: s0 >= 0 ? s0 : 0 }));
+                        }
+                    }
+                    this.syncSeekSecs = secs;
+                    return list;
+                }
                 const syncT = this._bestSyncTime(byCam, secs, secOf);
                 this.syncSeekSecs = syncT;
                 const list = [];
@@ -20433,11 +20458,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 return this.syncRecords.some(r => r.RecordIndexInformationPath === record.RecordIndexInformationPath);
             },
             // 点击位置(%)：用于绿色标记，基于可见窗口；超窗/未点返回 -1
+            // 时间轴绿线：优先跟当前回放墙钟（段起点+进度），避免点选后多路对齐挪 seek 却标记仍停在旧点击处
+            timelinePlayheadSecs() {
+                const recs = this.syncRecords || [];
+                if (recs.length && !this.remotePlaybackActive) {
+                    const r0 = recs[this.playbackFocusIdx | 0] || recs[0];
+                    let start = (r0 && r0._segStart != null) ? Number(r0._segStart) : -1;
+                    if (!(start >= 0) && r0) {
+                        const m = String(r0.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
+                        if (m) start = (+m[1] * 3600 + +m[2] * 60 + +m[3]);
+                    }
+                    if (start >= 0) {
+                        return start + Math.max(0, Math.floor((this.playbackPositionMs | 0) / 1000));
+                    }
+                }
+                if (this.remotePlaybackActive && this.syncSeekSecs != null && this.syncSeekSecs >= 0) {
+                    return this.syncSeekSecs + Math.max(0, Math.floor((this.playbackPositionMs | 0) / 1000));
+                }
+                return this.tlClickSecs;
+            },
             tlClickPct() {
-                if (this.tlClickSecs < 0) return -1;
+                const secs = this.timelinePlayheadSecs();
+                if (secs == null || secs < 0) return -1;
                 const v = this.timelineView;
-                if (this.tlClickSecs < v.start || this.tlClickSecs > v.end) return -1;
-                return (this.tlClickSecs - v.start) / (v.end - v.start) * 100;
+                if (secs < v.start || secs > v.end) return -1;
+                return (secs - v.start) / (v.end - v.start) * 100;
             },
             // 滚轮缩放：上滚放大/下滚缩小，以光标为锚点；窗口 5min~24h
             onTimelineWheel(event) {
