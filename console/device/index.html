@@ -5984,7 +5984,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
-                                                        <pre id="agora-pb-debug" class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:220px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
+                                                        <pre id="agora-pb-debug" hidden class="mb-2" style="display:none;"></pre>
                                                         <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
                                                         <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
