@@ -5842,7 +5842,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); /* 默认只拉 slim 轴；列表延后到搜索/点轴 */ initPlaybackIdleThumbs(); } }); })()">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); fetchRecords(false); } }); })()">
                     <div class="playback-inner">
                         <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
@@ -11752,11 +11752,9 @@ document.addEventListener('DOMContentLoaded', function() {
             _agoraConnState: '',
             _agoraLastErr: '',
             _agoraLastStart: '',
-            // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
-            // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            // startTime / endTime 占位；进回放页 fetchRecords(false) 会设为「昨天此刻~现在」(懒加载前原逻辑)
-            startTime: new Date("2000-01-09T00:00").toISOString().slice(0, 16),
-            endTime: new Date("2000-01-10T00:00").toISOString().slice(0, 16),
+            // 默认昨天此刻~现在（本地时区）。外网进页会 fetchRecords；搜索用此范围，勿再用 2000 占位。
+            startTime: (() => { const d = new Date(Date.now() - 864e5); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            endTime: (() => { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
 
             statusMessage: '',
 
@@ -11946,6 +11944,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     return true;
                 });
+            },
+            get logFindMatchCount() {
+                const q = (this.logFindQ || '').trim();
+                const raw = this.logContent || '';
+                if (!q || !raw) return 0;
+                try {
+                    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    const m = raw.match(re);
+                    return m ? m.length : 0;
+                } catch (e) { return 0; }
+            },
+            findInLog(dir) {
+                const q = (this.logFindQ || '').trim();
+                if (!q || !this.logContent) return;
+                const src = this.logContent;
+                const lower = src.toLowerCase();
+                const needleQ = q.toLowerCase();
+                let from = this.logFindIdx;
+                if (dir > 0) {
+                    const start = from < 0 ? 0 : from + needleQ.length;
+                    let i = lower.indexOf(needleQ, start);
+                    if (i < 0) i = lower.indexOf(needleQ, 0);
+                    this.logFindIdx = i;
+                } else {
+                    const start = from < 0 ? src.length : from;
+                    let i = lower.lastIndexOf(needleQ, Math.max(0, start - 1));
+                    if (i < 0) i = lower.lastIndexOf(needleQ);
+                    this.logFindIdx = i;
+                }
+                try {
+                    const box = this.$refs.logContentBox;
+                    if (box && this.logFindIdx >= 0) {
+                        const ratio = this.logFindIdx / Math.max(1, src.length);
+                        box.scrollTop = ratio * box.scrollHeight - box.clientHeight / 3;
+                    }
+                } catch (e) {}
             },
             formatLogSize(n) {
                 n = Number(n) || 0;
