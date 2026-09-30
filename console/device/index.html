@@ -216,6 +216,64 @@ window.__presignOtaS3Get = function (rawKeyOrUrl, expiresSec) {
     return null;
   }
 };
+window.__listS3Objects = async function (prefix, maxKeys) {
+  var C = window.CryptoJS;
+  var creds = window.__otaCredsBundle();
+  if (!C || !creds.accessKeyId || !creds.secretAccessKey) throw new Error('No cloud credentials (iot_creds)');
+  var bucket = creds.s3Bucket;
+  var region = creds.region || 'ap-northeast-1';
+  if (!bucket) throw new Error('S3 bucket missing');
+  var host = bucket + '.s3.' + region + '.amazonaws.com';
+  var enc = function (v) { return encodeURIComponent(v).replace(/[!'()*]/g, function (ch) { return '%' + ch.charCodeAt(0).toString(16).toUpperCase(); }); };
+  var params = { 'list-type': '2', 'max-keys': String(Math.max(1, Math.min(Number(maxKeys) || 200, 1000))) };
+  if (prefix) params.prefix = prefix;
+  var qs = Object.keys(params).sort().map(function (k) { return enc(k) + '=' + enc(params[k]); }).join('&');
+  var amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  var date = amz.slice(0, 8);
+  var scope = date + '/' + region + '/s3/aws4_request';
+  var hmac = function (key, data) { return C.HmacSHA256(data, key); };
+  var headers = {
+    host: host,
+    'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+    'x-amz-date': amz
+  };
+  if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
+  var signed = Object.keys(headers).sort();
+  var signedHeaders = signed.join(';');
+  var canonHeaders = signed.map(function (k) { return k + ':' + headers[k] + '\n'; }).join('');
+  var canon = 'GET\n/\n' + qs + '\n' + canonHeaders + '\n' + signedHeaders + '\nUNSIGNED-PAYLOAD';
+  var sts = 'AWS4-HMAC-SHA256\n' + amz + '\n' + scope + '\n' + C.SHA256(canon).toString(C.enc.Hex);
+  var kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), 's3'), 'aws4_request');
+  var sig = hmac(kSigning, sts).toString(C.enc.Hex);
+  var auth = 'AWS4-HMAC-SHA256 Credential=' + creds.accessKeyId + '/' + scope + ', SignedHeaders=' + signedHeaders + ', Signature=' + sig;
+  var h = { Authorization: auth, 'x-amz-content-sha256': 'UNSIGNED-PAYLOAD', 'x-amz-date': amz };
+  if (creds.sessionToken) h['x-amz-security-token'] = creds.sessionToken;
+  var r = await fetch('https://' + host + '/?' + qs, { method: 'GET', headers: h });
+  var text = await r.text();
+  if (!r.ok) throw new Error('S3 List ' + r.status + ': ' + text.slice(0, 240));
+  var doc = new DOMParser().parseFromString(text, 'application/xml');
+  var items = Array.prototype.slice.call(doc.querySelectorAll('Contents')).map(function (node) {
+    return {
+      key: (node.querySelector('Key') || {}).textContent || '',
+      size: Number((node.querySelector('Size') || {}).textContent || 0),
+      lastModified: (node.querySelector('LastModified') || {}).textContent || ''
+    };
+  }).filter(function (x) { return x.key && !x.key.endsWith('/'); });
+  return { items: items };
+};
+window.__gunzipBytes = async function (buf) {
+  var u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  if (typeof DecompressionStream !== 'undefined') {
+    try {
+      var ds = new DecompressionStream('gzip');
+      var stream = new Response(u8).body.pipeThrough(ds);
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    } catch (e) { /* fall through to fflate */ }
+  }
+  var mod = await import('https://esm.sh/fflate@0.8.2');
+  if (typeof mod.gunzipSync !== 'function') throw new Error('gunzip unavailable');
+  return mod.gunzipSync(u8);
+};
 window.__fetchLatestDeviceUpgrade = async function (deviceType) {
   var creds = window.__otaCredsBundle();
   if (!creds.appsyncEndpoint || !creds.appsyncApiKey) throw new Error('AppSync config missing');
@@ -8965,7 +9023,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 
-                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } window.__runWhenPageActive('debug', () => { initDeviceGeneralInformation(); if (logParamTab==='viewer') { if (!isWanLogMode()) fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); }); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
+                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } window.__runWhenPageActive('debug', () => { initDeviceGeneralInformation(); if (logParamTab==='viewer') { if (isWanLogMode()) fetchCloudDiagLogs(); else fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); }); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
 
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
@@ -8994,8 +9052,8 @@ window.__presignThumbUrl = function (raw) {
                                 <span x-text="(filteredLogs || []).length + ' ' + tIdx('ls_badge_files')"></span>
                             </span>
                             <span class="log-badge" x-show="logParamTab==='viewer' && isWanLogMode()">
-                                <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
-                                <span x-text="tIdx('ls_badge_upload')"></span>
+                                <i class="fa-solid fa-cloud" aria-hidden="true"></i>
+                                <span x-text="(filteredCloudDiagLogs || []).length + ' ' + tIdx('ls_badge_cloud')"></span>
                             </span>
                             <span class="log-badge" x-show="logParamTab==='settings'">
                                 <i class="fa-solid fa-sliders" aria-hidden="true"></i>
@@ -9027,6 +9085,12 @@ window.__presignThumbUrl = function (raw) {
                                 <div class="lbl" data-i18n="lg_live">Live</div>
                                 <div class="num" x-text="(filteredLogs || []).filter(l => l.current).length"></div>
                                 <div class="foot" data-i18n="ls_stat_live_foot">Active now</div>
+                            </div>
+                            <div class="log-stat-card" x-show="logParamTab==='viewer' && isWanLogMode()">
+                                <div class="ico"><i class="fa-solid fa-cloud"></i></div>
+                                <div class="lbl" data-i18n="lg_cloud_packs">Cloud packs</div>
+                                <div class="num" x-text="(filteredCloudDiagLogs || []).length"></div>
+                                <div class="foot" data-i18n="ls_stat_cloud_foot">On S3</div>
                             </div>
                             <div class="log-stat-card" x-show="logParamTab==='viewer' && isWanLogMode()"
                                  style="cursor:pointer;" @click="openLogUploadModal()">
@@ -9186,24 +9250,68 @@ window.__presignThumbUrl = function (raw) {
 
 </div><!-- /.vs-param-pane settings -->
 <div class="vs-param-pane log-tabs-wrap" x-show="logParamTab==='viewer'" x-cloak>
-<!-- 外网：无 /log/* HTTP，只保留上传到云端 -->
-<div class="log-glass" x-show="isWanLogMode()" x-cloak>
-  <div class="log-glass-head">
-    <h3 data-i18n="ls_upload_title">Upload device logs</h3>
-  </div>
-  <div class="log-glass-body" style="padding:28px 20px;text-align:center;">
-    <div style="width:64px;height:64px;border-radius:18px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font-size:28px;">
-      <i class="fa-solid fa-cloud-arrow-up"></i>
+<!-- 外网：上传到云端 + 列出 S3 诊断包并解压查看（对齐本地日志文件体验） -->
+<div class="log-studio" x-show="isWanLogMode()" x-cloak>
+  <div class="log-studio-shell">
+    <div class="log-studio-toolbar">
+      <div class="log-studio-search" style="flex:1;min-width:160px;">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" class="form-control form-control-sm"
+               :placeholder="tIdx('lg_cloud_search_ph')" x-model="cloudDiagSearchQ">
+      </div>
+      <div class="log-studio-actions">
+        <button class="btn btn-sm btn-outline-primary" @click="fetchCloudDiagLogs()" :disabled="cloudDiagLoading" :title="tIdx('lg_refresh')">
+          <i class="fa-solid fa-rotate-right me-1" :class="cloudDiagLoading && 'fa-spin'"></i><span data-i18n="lg_refresh">Refresh</span>
+        </button>
+        <button class="btn btn-sm btn-outline-success" @click="openLogUploadModal()" :title="tIdx('lg_upload')" :disabled="logUploadPhase==='uploading'">
+          <i class="fa-solid fa-cloud-arrow-up me-1"></i><span data-i18n="lg_upload">Upload</span>
+        </button>
+      </div>
     </div>
-    <p class="text-secondary mb-2" style="max-width:480px;margin:0 auto 8px;line-height:1.55;" data-i18n="ls_upload_desc">
-      WAN cannot browse device log files over MQTT. Package console logs and upload to cloud diagnostics for support.
-    </p>
-    <p class="small text-muted mb-4" x-text="tIdx('lg_wan_use_upload')"></p>
-    <button type="button" class="btn btn-success btn-lg" style="border-radius:999px;padding:10px 28px;font-weight:700;"
-            @click="openLogUploadModal()" :disabled="logUploadPhase==='uploading'">
-      <i class="fa-solid fa-cloud-arrow-up me-2"></i>
-      <span data-i18n="lg_upload">Upload</span>
-    </button>
+    <p class="small text-muted px-3 mb-2" style="padding:0 14px;" x-text="tIdx('lg_cloud_hint')"></p>
+    <p class="small text-danger px-3 mb-2" style="padding:0 14px;" x-show="cloudDiagErr" x-text="cloudDiagErr"></p>
+    <div class="log-studio-body list-only">
+      <aside class="log-studio-list" aria-label="cloud log packs">
+        <div class="log-studio-list-head">
+          <span data-i18n="lg_cloud_packs">Cloud packs</span>
+          <span x-text="(filteredCloudDiagLogs || []).length"></span>
+        </div>
+        <div class="log-studio-list-scroll">
+          <div class="log-group-label" x-show="(filteredCloudDiagLogs || []).length"
+               x-text="tIdx('lg_cloud_packs') + ' · ' + (filteredCloudDiagLogs || []).length"></div>
+          <template x-for="log in (filteredCloudDiagLogs || [])" :key="log.key">
+            <div class="log-session" :class="{ active: logActiveFile===log.name && logViewOpen }"
+                 @click="viewCloudDiagLog(log)" :title="log.key">
+              <div class="log-ico"><i class="fa-solid fa-file-zipper"></i></div>
+              <div class="log-main">
+                <div class="log-title">
+                  <span class="name" x-text="log.supportCode || log.name || '—'"></span>
+                  <span class="live-pill" x-show="log.fresh" data-i18n="lg_cloud_new">New</span>
+                </div>
+                <div class="chips">
+                  <span class="chip muted" x-text="log.name"></span>
+                  <span class="chip muted" x-text="formatLogSize(log.size)"></span>
+                  <span class="chip muted" x-show="log.userId" x-text="log.userId"></span>
+                </div>
+              </div>
+              <div class="time-col">
+                <div class="rel" x-text="formatCloudDiagRel(log) || '—'"></div>
+                <div class="abs" x-text="formatCloudDiagAbs(log) || '—'"></div>
+              </div>
+              <div class="ops">
+                <button type="button" class="view-pill" @click.stop="viewCloudDiagLog(log)" x-text="tIdx('lg_view')">View</button>
+                <button type="button" class="icon-btn" @click.stop="downloadCloudDiagLog(log)" :title="tIdx('lg_download')" aria-label="download">
+                  <i class="fa-solid fa-download"></i>
+                </button>
+              </div>
+            </div>
+          </template>
+          <div class="log-empty" x-show="cloudDiagLoading" data-i18n="lg_view_loading">Loading…</div>
+          <div class="log-empty" x-show="!cloudDiagLoading && !(filteredCloudDiagLogs || []).length"
+               x-text="tIdx('lg_cloud_empty')"></div>
+        </div>
+      </aside>
+    </div>
   </div>
 </div>
 <!-- 局域网：原日志文件列表 / 查看 -->
@@ -9335,7 +9443,9 @@ window.__presignThumbUrl = function (raw) {
                 x-show="logActiveFile" :disabled="logViewLoading" :title="tIdx('lg_view_refresh')">
           <i class="fa-solid fa-rotate-right" :class="logViewLoading && 'fa-spin'"></i>
         </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="downloadLog(logActiveFile)" x-show="logActiveFile" :title="tIdx('lg_download')">
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                @click="_cloudDiagKey ? downloadCloudDiagByKey(_cloudDiagKey) : downloadLog(logActiveFile)"
+                x-show="logActiveFile" :title="tIdx('lg_download')">
           <i class="fa-solid fa-download"></i>
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeLogView()" :title="tIdx('cm_close')">
@@ -9891,7 +10001,7 @@ const I18N_INDEX = {
     db_module_switches:'Module Log Switches', db_log_all_on:'All ON', db_log_all_off:'All OFF', db_update_log:'Update Log',
     db_watchdog_title:'Watchdog Information', db_watchdog_enable:'Watchdog Enable',
     db_watchdog_timeout:'Watchdog Timeout', db_watchdog_update:'Update Watchdog',
-    lg_refresh:'Refresh', lg_clear:'Clear', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
+    lg_refresh:'Refresh', lg_clear:'Clear', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
     lg_view:'View', lg_download:'Download', lg_delete:'Delete',
     ab_webserver:'Webserver', ab_root:'Root', ab_port:'Port',
     ab_https_port:'HTTPS Port', ab_log:'Log',
@@ -10044,7 +10154,7 @@ const I18N_INDEX = {
     db_module_switches:'模块日志开关', db_log_all_on:'全开', db_log_all_off:'全关', db_update_log:'更新日志',
     db_watchdog_title:'看门狗信息', db_watchdog_enable:'看门狗启用',
     db_watchdog_timeout:'看门狗超时', db_watchdog_update:'更新看门狗',
-    lg_refresh:'刷新', lg_clear:'清除', lg_live:'实时', lg_wan_use_upload:'外网请用「上传到云端」；本地 /log 浏览需连设备局域网。', lg_upload:'上传', lg_upload_title:'上传日志到云端', lg_upload_confirm_sub:'打包控制台日志并上传到云端诊断。', lg_upload_working:'上传中…', lg_upload_working_sub:'设备正在打包并上传日志。', lg_upload_ok:'已接受上传', lg_upload_ok_sub:'支持码已就绪，可发给售后。', lg_upload_fail:'上传失败', lg_upload_fail_sub:'无法上传日志。', lg_upload_busy:'设备忙，请稍后重试。', lg_upload_no_uuid:'未知设备 UUID — 请先打开设备信息。', lg_upload_target:'目标', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'设备 UUID', lg_upload_path:'路径', lg_upload_status:'状态', lg_upload_code:'支持码', lg_upload_copy:'复制', lg_upload_copied:'已复制', lg_upload_start:'上传', lg_upload_accepted:'已接受 — 后台上传中。',
+    lg_refresh:'刷新', lg_clear:'清除', lg_live:'实时', lg_wan_use_upload:'外网请用「上传到云端」；本地 /log 浏览需连设备局域网。', lg_upload:'上传', lg_upload_title:'上传日志到云端', lg_upload_confirm_sub:'打包控制台日志并上传到云端诊断。', lg_upload_working:'上传中…', lg_upload_working_sub:'设备正在打包并上传日志。', lg_upload_ok:'已接受上传', lg_upload_ok_sub:'支持码已就绪，可发给售后。', lg_upload_fail:'上传失败', lg_upload_fail_sub:'无法上传日志。', lg_upload_busy:'设备忙，请稍后重试。', lg_upload_no_uuid:'未知设备 UUID — 请先打开设备信息。', lg_upload_target:'目标', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'设备 UUID', lg_upload_path:'路径', lg_upload_status:'状态', lg_upload_code:'支持码', lg_upload_copy:'复制', lg_upload_copied:'已复制', lg_upload_start:'上传', lg_upload_accepted:'已接受 — 后台上传中。', lg_cloud_packs:'云端诊断包', lg_cloud_empty:'暂无上传记录 — 点「上传」', lg_cloud_hint:'上传会把设备日志打包到 S3；点列表项可在此解压查看，体验类似本地日志文件。', lg_cloud_search_ph:'搜索短码 / 文件名…', lg_cloud_new:'新', lg_cloud_no_creds:'无云端凭证 — 请从门户重新进入', lg_cloud_view_fail:'打开云端日志失败', ls_badge_cloud:'个包', ls_stat_cloud_foot:'已在 S3', ls_tab_upload:'云端日志', ls_sub_upload:'上传到云端 · 解压查看', ls_badge_upload:'云端', ls_upload_desc:'将设备日志上传到云端诊断，并在此浏览、解压查看。',
     lg_view:'查看', lg_download:'下载', lg_delete:'删除',
     ab_webserver:'Web 服务器', ab_root:'根路径', ab_port:'端口',
     ab_https_port:'HTTPS 端口', ab_log:'日志',
@@ -10196,7 +10306,7 @@ const I18N_INDEX = {
     db_module_switches:'モジュールログスイッチ', db_log_all_on:'全てON', db_log_all_off:'全てOFF', db_update_log:'ログ更新',
     db_watchdog_title:'ウォッチドッグ情報', db_watchdog_enable:'ウォッチドッグ有効',
     db_watchdog_timeout:'ウォッチドッグタイムアウト', db_watchdog_update:'ウォッチドッグ更新',
-    lg_refresh:'リフレッシュ', lg_clear:'クリア', lg_live:'ライブ', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
+    lg_refresh:'リフレッシュ', lg_clear:'クリア', lg_live:'ライブ', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
     lg_view:'表示', lg_download:'ダウンロード', lg_delete:'削除',
     ab_webserver:'Webサーバー', ab_root:'ルート', ab_port:'ポート',
     ab_https_port:'HTTPSポート', ab_log:'ログ',
@@ -10347,7 +10457,7 @@ const I18N_INDEX = {
     db_module_switches:'Modul-Log-Schalter', db_log_all_on:'Alle AN', db_log_all_off:'Alle AUS', db_update_log:'Protokoll aktualisieren',
     db_watchdog_title:'Watchdog-Informationen', db_watchdog_enable:'Watchdog aktiv',
     db_watchdog_timeout:'Watchdog-Timeout', db_watchdog_update:'Watchdog aktualisieren',
-    lg_refresh:'Aktualisieren', lg_clear:'Leeren', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
+    lg_refresh:'Aktualisieren', lg_clear:'Leeren', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
     lg_view:'Anzeigen', lg_download:'Herunterladen', lg_delete:'Löschen',
     ab_webserver:'Webserver', ab_root:'Stammverzeichnis', ab_port:'Port',
     ab_https_port:'HTTPS-Port', ab_log:'Protokoll',
@@ -10499,7 +10609,7 @@ const I18N_INDEX = {
     db_module_switches:'Commutateurs log module', db_log_all_on:'Tout ON', db_log_all_off:'Tout OFF', db_update_log:'Mettre à jour journal',
     db_watchdog_title:'Infos watchdog', db_watchdog_enable:'Watchdog activé',
     db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Mettre à jour watchdog',
-    lg_refresh:'Rafraîchir', lg_clear:'Effacer', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
+    lg_refresh:'Rafraîchir', lg_clear:'Effacer', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
     lg_view:'Voir', lg_download:'Télécharger', lg_delete:'Supprimer',
     ab_webserver:'Serveur web', ab_root:'Racine', ab_port:'Port',
     ab_https_port:'Port HTTPS', ab_log:'Journal',
@@ -10651,7 +10761,7 @@ const I18N_INDEX = {
     db_module_switches:'Interruptores log módulo', db_log_all_on:'Todo ON', db_log_all_off:'Todo OFF', db_update_log:'Actualizar registro',
     db_watchdog_title:'Info watchdog', db_watchdog_enable:'Watchdog activo',
     db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Actualizar watchdog',
-    lg_refresh:'Refrescar', lg_clear:'Limpiar', lg_live:'En vivo', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
+    lg_refresh:'Refrescar', lg_clear:'Limpiar', lg_live:'En vivo', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
     lg_view:'Ver', lg_download:'Descargar', lg_delete:'Eliminar',
     ab_webserver:'Servidor web', ab_root:'Raíz', ab_port:'Puerto',
     ab_https_port:'Puerto HTTPS', ab_log:'Registro',
@@ -10996,7 +11106,8 @@ document.addEventListener('DOMContentLoaded', function() {
             st.logParamTab = tab;
             if (tab === 'viewer') {
                 const wan = typeof st.isWanLogMode === 'function' && st.isWanLogMode();
-                if (!wan && typeof st.fetchLogs === 'function') st.fetchLogs();
+                if (wan && typeof st.fetchCloudDiagLogs === 'function') st.fetchCloudDiagLogs();
+                else if (!wan && typeof st.fetchLogs === 'function') st.fetchLogs();
             } else if (typeof st.initLogInformation === 'function') {
                 st.initLogInformation();
             }
@@ -11875,6 +11986,11 @@ document.addEventListener('DOMContentLoaded', function() {
             logShowSys: false,
             logViewOpen: false,
             logViewLoading: false,
+            cloudDiagLogs: [],
+            cloudDiagLoading: false,
+            cloudDiagErr: '',
+            cloudDiagSearchQ: '',
+            _cloudDiagKey: '',
 
 
             // ─────────────────────────────────────────────────────────────────────
@@ -12188,6 +12304,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (pending || msg === 'accepted' || (okStatus && msg !== 'busy' && msg !== 'invalid params')) {
                         this.logUploadPhase = 'done';
                         this.logUploadMessage = this.tIdx('lg_upload_accepted');
+                        // 设备后台 gzip+PutObject，延迟刷新云端列表
+                        if (this.isWanLogMode()) {
+                            setTimeout(() => { try { this.fetchCloudDiagLogs(); } catch (e) {} }, 8000);
+                            setTimeout(() => { try { this.fetchCloudDiagLogs(); } catch (e) {} }, 25000);
+                        }
                     } else if (msg === 'busy') {
                         this.logUploadPhase = 'error';
                         this.logUploadMessage = this.tIdx('lg_upload_busy');
@@ -12210,12 +12331,181 @@ document.addEventListener('DOMContentLoaded', function() {
             async uploadDeviceLogsToCloud() {
                 this.openLogUploadModal();
             },
+            get filteredCloudDiagLogs() {
+                const q = (this.cloudDiagSearchQ || '').trim().toLowerCase();
+                let list = Array.isArray(this.cloudDiagLogs) ? this.cloudDiagLogs.slice() : [];
+                if (q) {
+                    list = list.filter((x) => {
+                        const hay = [(x.supportCode || ''), (x.name || ''), (x.key || ''), (x.userId || ''), (x.code || '')]
+                            .join(' ').toLowerCase();
+                        return hay.indexOf(q) >= 0;
+                    });
+                }
+                return list;
+            },
+            get renderedLogHtml() {
+                const raw = this.logContent || '';
+                if (!raw) return '<span class="text-muted">—</span>';
+                const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const q = (this.logFindQ || '').trim();
+                let findRe = null;
+                if (q) {
+                    try { findRe = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); } catch (e) { findRe = null; }
+                }
+                return raw.split('\n').map((line) => {
+                    let color = '#c9d1d9';
+                    const c0 = line.charAt(0);
+                    if (c0 === 'E' || c0 === 'F') color = '#ff7b72';
+                    else if (c0 === 'W') color = '#d29922';
+                    else if (c0 === 'I') color = '#79c0ff';
+                    let body = esc(line);
+                    if (findRe) {
+                        body = body.replace(findRe, (m) => `<mark style="background:#f2cc60;color:#000;">${m}</mark>`);
+                    }
+                    return `<span style="color:${color}">${body}</span>`;
+                }).join('\n');
+            },
+            formatCloudDiagAbs(log) {
+                const s = (log && log.lastModified) || '';
+                if (!s) return '';
+                const dt = new Date(s);
+                if (isNaN(dt.getTime())) return s.slice(0, 16);
+                const pad = (x) => String(x).padStart(2, '0');
+                return dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate())
+                    + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+            },
+            formatCloudDiagRel(log) {
+                const s = (log && log.lastModified) || '';
+                if (!s) return '';
+                const dt = new Date(s);
+                if (isNaN(dt.getTime())) return '';
+                const sec = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 1000));
+                if (sec < 60) return this.tIdx('ls_rel_just');
+                if (sec < 3600) return Math.floor(sec/60) + this.tIdx('ls_rel_min');
+                if (sec < 86400) return Math.floor(sec/3600) + this.tIdx('ls_rel_hour');
+                return Math.floor(sec/86400) + this.tIdx('ls_rel_day');
+            },
+            _parseDiagKey(key) {
+                const parts = String(key || '').split('/').filter(Boolean);
+                const i = parts.indexOf('diagnostics');
+                const fileName = parts[parts.length - 1] || key;
+                let deviceId = '', userId = '', code = '', supportCode = '';
+                const isCode = (s) => /^[A-HJ-NP-Z2-9]{8}$/.test(String(s || ''));
+                if (i >= 0 && parts[i + 1] === 'device') {
+                    if (isCode(parts[i + 5])) {
+                        deviceId = parts[i + 3] || '';
+                        userId = parts[i + 4] || '';
+                        code = parts[i + 5] || '';
+                    } else {
+                        userId = parts[i + 3] || '';
+                        code = parts[i + 4] || '';
+                    }
+                    const kind = parts[i + 2] || '';
+                    const pref = /robot/i.test(kind) ? 'ROBOT' : (/ipc|camera/i.test(kind) ? 'CAM' : 'DEV');
+                    if (code) supportCode = pref + '-' + code;
+                }
+                return { fileName, deviceId, userId, code, supportCode };
+            },
+            async fetchCloudDiagLogs() {
+                this.cloudDiagLoading = true;
+                this.cloudDiagErr = '';
+                try {
+                    try { await this.initDeviceGeneralInformation(); } catch (e) {}
+                    const deviceId = this.resolveDeviceUuidForLogUpload();
+                    if (!deviceId) throw new Error(this.tIdx('lg_upload_no_uuid'));
+                    const kind = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceModelName)
+                        || (window.deviceModelName) || 'smartRobot';
+                    const prefix = 'public/diagnostics/device/' + kind + '/' + deviceId + '/';
+                    const res = await window.__listS3Objects(prefix, 200);
+                    const now = Date.now();
+                    const mapped = (res.items || []).map((it) => {
+                        const meta = this._parseDiagKey(it.key);
+                        const lm = Date.parse(it.lastModified || '') || 0;
+                        return {
+                            key: it.key,
+                            name: meta.fileName,
+                            size: it.size,
+                            lastModified: it.lastModified,
+                            mtime: lm ? Math.floor(lm / 1000) : 0,
+                            supportCode: meta.supportCode,
+                            code: meta.code,
+                            userId: meta.userId,
+                            kind: 'cloud',
+                            level: 'INFO',
+                            fresh: lm && (now - lm) < 3600 * 1000
+                        };
+                    }).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+                    this.cloudDiagLogs = mapped;
+                } catch (e) {
+                    console.error('[cloudDiag]', e);
+                    this.cloudDiagErr = (e && e.message) ? e.message : String(e);
+                    this.cloudDiagLogs = [];
+                } finally {
+                    this.cloudDiagLoading = false;
+                }
+            },
+            async viewCloudDiagLog(log) {
+                if (!log || !log.key) return;
+                this._cloudDiagKey = log.key;
+                this.logActiveFile = (log.supportCode ? (log.supportCode + ' · ') : '') + (log.name || 'log');
+                this.logFindIdx = -1;
+                this.logViewOpen = true;
+                this.logViewLoading = true;
+                this.logContent = '';
+                try { document.body.style.overflow = 'hidden'; } catch (e) {}
+                try {
+                    const signed = window.__presignOtaS3Get(log.key, 3600);
+                    if (!signed) throw new Error(this.tIdx('lg_cloud_no_creds'));
+                    const r = await fetch(signed);
+                    if (!r.ok) throw new Error('S3 GET ' + r.status);
+                    const buf = await r.arrayBuffer();
+                    let text = '';
+                    if (/\.gz$/i.test(log.key) && !/\.tar\.gz$/i.test(log.key)) {
+                        const u8 = await window.__gunzipBytes(buf);
+                        text = new TextDecoder('utf-8', { fatal: false }).decode(u8);
+                    } else {
+                        text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(buf));
+                    }
+                    // 大文件只展示尾部，避免卡死页面（与 Admin LOG_MAX 同量级）
+                    const MAX = 1_500_000;
+                    if (text.length > MAX) {
+                        text = '…[truncated ' + (text.length - MAX) + ' bytes]\n' + text.slice(-MAX);
+                    }
+                    this.logContent = text;
+                    this.logViewLoading = false;
+                    this.$nextTick(() => this.scrollLogEdge('bottom'));
+                } catch (e) {
+                    console.error('[viewCloudDiag]', e);
+                    this.logContent = (this.tIdx('lg_cloud_view_fail') || 'Failed to open cloud log') + ': '
+                        + ((e && e.message) ? e.message : String(e));
+                    this.logViewLoading = false;
+                }
+            },
+            async downloadCloudDiagLog(log) {
+                if (!log || !log.key) return;
+                return this.downloadCloudDiagByKey(log.key, log.name);
+            },
+            async downloadCloudDiagByKey(key, nameHint) {
+                try {
+                    const signed = window.__presignOtaS3Get(key, 3600);
+                    if (!signed) throw new Error(this.tIdx('lg_cloud_no_creds'));
+                    const a = document.createElement('a');
+                    a.href = signed;
+                    a.download = nameHint || String(key).split('/').pop() || 'log.gz';
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } catch (e) {
+                    this.showAlert && this.showAlert('danger', 'Log', (e && e.message) || String(e), 6000);
+                }
+            },
             async fetchLogs() {
                 await this.initLogInformation();
-                // 外网 MQTT 无 /log/* HTTP：勿假请求门户域名；引导走 S3 上传
+                // 外网 MQTT 无 /log/* HTTP：列 S3 诊断包
                 if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) {
                     this.logs = [];
-                    this.logContent = this.tIdx('lg_wan_use_upload') || 'WAN: use Upload to S3 (local /log/* unavailable over MQTT).';
+                    await this.fetchCloudDiagLogs();
                     return;
                 }
                 fetch(`/log/log-list?dir=${this.logInformation.logDir}`)
@@ -12228,19 +12518,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
             },
             clearLogs(filename = null) {
-                // 基础 URL，始终包含 dir 参数
+                if (this.isWanLogMode()) return;
                 let url = `/log/log-clear?dir=${this.logInformation.logDir}`;
-
-                // 如果 filename 存在且不为 null，则添加 file 参数
-                if (filename) {
-                    url += `&file=${filename}`;
-                }
-
-                // 发送请求
+                if (filename) url += `&file=${filename}`;
                 fetch(url)
                     .then((response) => response.json())
                     .then((data) => {
-                        // 处理响应数据
                         console.log("Response Data: ", data);
                         this.fetchLogs();
                     })
@@ -12250,18 +12533,77 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.fetchLogs();
             },
             viewLog(fileName) {
-                // 查看日志内容
-                fetch(`/log/log-content?dir=${this.logInformation.logDir}&file=${fileName}`)
-                    // fetch(`/log/log-content?file=${fileName}`)
+                if (!fileName) return;
+                if (this.isWanLogMode()) {
+                    const hit = (this.cloudDiagLogs || []).find((x) => x.name === fileName || x.key === fileName);
+                    if (hit) return this.viewCloudDiagLog(hit);
+                    return;
+                }
+                this._cloudDiagKey = '';
+                this.logActiveFile = fileName;
+                this.logFindIdx = -1;
+                this.logViewOpen = true;
+                this.logViewLoading = true;
+                this.logContent = '';
+                try { document.body.style.overflow = 'hidden'; } catch (e) {}
+                const dir = encodeURIComponent(this.logInformation.logDir || '');
+                fetch(`/log/log-content?dir=${dir}&file=${encodeURIComponent(fileName)}`)
                     .then((response) => response.text())
                     .then((data) => {
                         this.logContent = data;
+                        this.logViewLoading = false;
+                        this.$nextTick(() => this.scrollLogEdge('bottom'));
+                    })
+                    .catch(() => {
+                        this.logContent = '';
+                        this.logViewLoading = false;
                     });
             },
+            refreshLogView() {
+                if (this._cloudDiagKey) {
+                    const hit = (this.cloudDiagLogs || []).find((x) => x.key === this._cloudDiagKey);
+                    if (hit) return this.viewCloudDiagLog(hit);
+                    return;
+                }
+                const fileName = this.logActiveFile;
+                if (!fileName || this.logViewLoading) return;
+                this.logViewLoading = true;
+                const dir = encodeURIComponent(this.logInformation.logDir || '');
+                fetch(`/log/log-content?dir=${dir}&file=${encodeURIComponent(fileName)}`)
+                    .then((response) => response.text())
+                    .then((data) => {
+                        this.logContent = data;
+                        this.logViewLoading = false;
+                        this.logFindIdx = -1;
+                        this.$nextTick(() => {
+                            this.scrollLogEdge('bottom');
+                            if ((this.logFindQ || '').trim()) this.findInLog(1);
+                        });
+                    })
+                    .catch(() => { this.logViewLoading = false; });
+            },
+            closeLogView() {
+                this.logViewOpen = false;
+                this.logViewLoading = false;
+                this._cloudDiagKey = '';
+                try { document.body.style.overflow = ''; } catch (e) {}
+            },
+            scrollLogEdge(where) {
+                if (typeof window.__scrollLogEdge === 'function') {
+                    window.__scrollLogEdge(where);
+                    setTimeout(() => window.__scrollLogEdge(where), 40);
+                    return;
+                }
+                const box = document.getElementById('logViewConsole');
+                if (!box) return;
+                box.scrollTop = (where === 'top') ? 0 : box.scrollHeight;
+            },
             downloadLog(fileName) {
-                // 下载日志
-                window.location.href = `/log/log-download?dir=${this.logInformation.logDir}&file=${fileName}`;
-
+                if (this.isWanLogMode() && this._cloudDiagKey) {
+                    return this.downloadCloudDiagByKey(this._cloudDiagKey, fileName);
+                }
+                const dir = encodeURIComponent(this.logInformation.logDir || '');
+                window.location.href = `/log/log-download?dir=${dir}&file=${encodeURIComponent(fileName)}`;
             },
             downloadFile(fileName) {
                 console.log('downloadFile-fileName:', fileName);
