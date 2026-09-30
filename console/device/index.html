@@ -11982,7 +11982,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function doLogout() {
+        // 云端控制台进入设备页时带 iot_creds / ?deviceId=：Logout = 返回设备列表(保持 Cognito 会话)
+        // 局域网设备本地登录：仍回 login.html
+        const fromCloud = !!sessionStorage.getItem('iot_creds')
+            || /[?&]deviceId=/.test(location.search || '')
+            || /\/console\/device\//.test(location.pathname || '');
         sessionStorage.removeItem('dv_auth');
+        if (fromCloud) {
+            try { sessionStorage.removeItem('iot_creds'); } catch (_) {}
+            window.location.replace('../index.html#/devices');
+            return;
+        }
         window.location.replace('login.html');
     }
 
