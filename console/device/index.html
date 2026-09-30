@@ -5901,7 +5901,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); fetchRecords(false); } }); })()">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); bindPlaybackLifecycle(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); fetchRecords(false); } }); })()" @pagechange.window="onPlaybackPageChange($event.detail.pageId)">
                     <div class="playback-inner">
                         <header class="log-page-hero">
                             <div class="log-page-hero-main">
@@ -5912,17 +5912,17 @@ window.__presignThumbUrl = function (raw) {
                                         <button type="button" role="tab"
                                                 :class="playbackTab==='video' && 'active'"
                                                 :aria-selected="playbackTab==='video'"
-                                                @click="playbackTab='video'; fetchRecords(false); initTimeline()"
+                                                @click="switchPlaybackTab('video')"
                                                 data-i18n="nav_video_playback">Video Playback</button>
                                         <button type="button" role="tab"
                                                 :class="playbackTab==='image' && 'active'"
                                                 :aria-selected="playbackTab==='image'"
-                                                @click="playbackTab='image'; fetchImages(false); initTimeline()"
+                                                @click="switchPlaybackTab('image')"
                                                 data-i18n="nav_image_playback">Image Playback</button>
                                         <button type="button" role="tab"
                                                 :class="playbackTab==='cloud' && 'active'"
                                                 :aria-selected="playbackTab==='cloud'"
-                                                @click="playbackTab='cloud'; getCloudRecordService(); initCloudPlayback()"
+                                                @click="switchPlaybackTab('cloud')"
                                                 data-i18n="nav_cloud_playback">Cloud Playback</button>
                                     </div>
                                 </div>
@@ -18815,6 +18815,50 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw e;
                 }
             },
+            /** 离开回放页 / 切到图片·云端 Tab：停设备 demux + 关掉声网/KVS 回放连接 */
+            bindPlaybackLifecycle() {
+                if (this._pbLifecycleBound) return;
+                this._pbLifecycleBound = true;
+                const self = this;
+                this._pbPageHideHandler = function () {
+                    try { self.leavePlaybackSession('pagehide'); } catch (e) {}
+                };
+                window.addEventListener('pagehide', this._pbPageHideHandler);
+                window.addEventListener('beforeunload', this._pbPageHideHandler);
+            },
+            onPlaybackPageChange(activePageId) {
+                if (activePageId === 'playback') return;
+                this.leavePlaybackSession('page-leave:' + activePageId);
+            },
+            switchPlaybackTab(tab) {
+                if (!tab || tab === this.playbackTab) return;
+                const prev = this.playbackTab;
+                this.playbackTab = tab;
+                if (prev === 'video' || this.remotePlaybackActive || this.viewMode === 'replay'
+                    || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer) {
+                    this.leavePlaybackSession('tab:' + prev + '→' + tab);
+                }
+                if (tab === 'image') { this.fetchImages(false); this.initTimeline(); }
+                else if (tab === 'cloud') { this.getCloudRecordService(); this.initCloudPlayback(); }
+                else { this.fetchRecords(false); this.initTimeline(); this.initPlaybackIdleThumbs && this.initPlaybackIdleThumbs(); }
+            },
+            async leavePlaybackSession(reason) {
+                try {
+                    this._playbackGen = (this._playbackGen || 0) + 1;
+                    const need = !!(this.remotePlaybackActive
+                        || this.kvsPlaybackViewer
+                        || (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length)
+                        || (this.isStreaming && this.viewMode === 'replay')
+                        || this.viewMode === 'replay');
+                    if (!need && !(this.syncRecords && this.syncRecords.length)) return;
+                    console.log('[AHS] leavePlaybackSession', reason || '', 'needStop=' + need);
+                    if (need) await this.stopRemotePlayback(false);
+                    this.viewMode = 'main';
+                    if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
+                } catch (e) {
+                    console.warn('[AHS] leavePlaybackSession failed', e);
+                }
+            },
             async _stopCurrentPlaybackForSwitch() {
                 const hasKvs = (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) || this.kvsPlaybackViewer;
                 if (hasKvs) { await this.stopRemotePlayback(false); return; }
@@ -18930,6 +18974,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ method: 'stopPlaybackLocalRecordInformationCommand', params: {} }),
+                        keepalive: true,
                     });
                 } catch (error) {
                     console.error('stopRemotePlayback error:', error);
@@ -18939,11 +18984,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.refreshAgoraDebug();
                     return;
                 }
+                // 先停掉回放轨(1226+)，避免切页后声网仍在收流/占连接
+                try {
+                    (this.pbCamUids || []).forEach((uid) => {
+                        const u = this.remoteUsers && this.remoteUsers[uid];
+                        if (u && u.videoTrack) { try { u.videoTrack.stop(); } catch (e) {} }
+                        if (u && u.audioTrack) { try { u.audioTrack.stop(); } catch (e) {} }
+                    });
+                } catch (e) {}
                 this.remotePlaybackActive = false;
                 this.remotePlaybackPath = '';
                 this.playbackDurationMs = 0;
                 this.playbackPositionMs = 0;
                 this.pbCamUids = [];
+                if (this.viewMode === 'replay') this.viewMode = 'main';
                 // KVS 回放：拆各路回放通道 viewer（不影响 KVS 实时预览）；Agora 回放：停实时订阅。
                 if (this.kvsPlaybackViewers && this.kvsPlaybackViewers.length) {
                     this.kvsPlaybackViewers.forEach(v => this.kvsCloseViewer(v));
