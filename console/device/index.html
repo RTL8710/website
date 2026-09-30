@@ -6325,16 +6325,17 @@ window.__presignThumbUrl = function (raw) {
                                                             </template>
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
-                                                            <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
-                                                                   :value="playbackPositionMs"
+                                                            <input type="range" class="form-range flex-fill" min="0"
+                                                                   :max="playbackProgressMaxSec()" step="1"
+                                                                   :value="playbackProgressSec()"
                                                                    @pointerdown="_playbackProgressDragging=true; _stopPlaybackProgressTicker()"
                                                                    @touchstart.passive="_playbackProgressDragging=true; _stopPlaybackProgressTicker()"
-                                                                   @input="playbackPositionMs = parseInt($event.target.value, 10) || 0"
+                                                                   @input="onPlaybackProgressInput($event)"
                                                                    @change="seekRemotePlayback($event)"
                                                                    @pointerup="seekRemotePlayback($event)"
                                                                    @touchend="seekRemotePlayback($event)">
                                                             <span class="text-muted" style="font-size:11px;white-space:nowrap;"
-                                                                  x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
+                                                                  x-text="playbackProgressSec()+'s / '+playbackProgressMaxSec()+'s'"></span>
                                                         </div>
                                                     </div>
                                                     <!-- 多路同步播放：点击时间轴时收集同一时刻所有摄像头，按所选样式同步播放 -->
@@ -12626,6 +12627,8 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackPositionMs: 0,        // 当前进度（拖动 → seek）
             _playbackProgressTimer: null, // 设备不推进度：1s 本地计时器推进进度条
             _playbackProgressDragging: false,
+            _playbackSegmentEnded: false, // 本段已播完：设备会话结束，seek 需先重起
+            _lastPlaybackPaths: null,     // 最近一次起播 paths，供播完后重起
             playbackCodec: '',            // h264/h265（start 响应回传）
             agoraDebugText: '',
             _agoraJoinMode: '',
@@ -14403,6 +14406,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.remotePlaybackPath = record.RecordIndexInformationPath;
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
+                        this._playbackSegmentEnded = false;
+                        if (typeof paths !== "undefined") this._lastPlaybackPaths = paths;
                         this._startPlaybackProgressTicker();
                         this.playbackCodec = result.params.codec || '';
                         // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
@@ -19450,6 +19455,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result && result.params && result.params.success) {
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
+                        this._playbackSegmentEnded = false;
+                        if (typeof paths !== "undefined") this._lastPlaybackPaths = paths;
                         this._startPlaybackProgressTicker();
                         this.playbackCodec = result.params.codec || '';
                         await this.syncExistingPlaybackUsers();
@@ -19535,6 +19542,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.remotePlaybackPath = '';
                 this.playbackDurationMs = 0;
                 this.playbackPositionMs = 0;
+                this._playbackSegmentEnded = false;
+                this._lastPlaybackPaths = null;
                 this.pbCamUids = [];
                 if (this.viewMode === 'replay') this.viewMode = 'main';
                 // KVS 回放：拆各路回放通道 viewer（不影响 KVS 实时预览）；Agora 回放：停实时订阅。
@@ -19572,7 +19581,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const dur = self.playbackDurationMs | 0;
                     if (dur <= 0) return;
                     if (cur + 1000 <= dur) self.playbackPositionMs = cur + 1000;
-                    else { self.playbackPositionMs = dur; self._stopPlaybackProgressTicker(); }
+                    else { self.playbackPositionMs = dur; self._playbackSegmentEnded = true; self._stopPlaybackProgressTicker(); }
                 }, 1000);
             },
             _stopPlaybackProgressTicker() {
@@ -19581,23 +19590,87 @@ document.addEventListener('DOMContentLoaded', function() {
                     this._playbackProgressTimer = null;
                 }
             },
+            playbackProgressMaxSec() {
+                return Math.max(1, Math.ceil((this.playbackDurationMs || 0) / 1000));
+            },
+            playbackProgressSec() {
+                const max = this.playbackProgressMaxSec();
+                const dur = this.playbackDurationMs | 0;
+                const pos = this.playbackPositionMs | 0;
+                // 播完或已到末尾：滑块拉满（避免 step/ceil 差一格留白）
+                if (this._playbackSegmentEnded || (dur > 0 && pos >= dur)) return max;
+                return Math.min(max, Math.floor(pos / 1000));
+            },
+            onPlaybackProgressInput(ev) {
+                const sec = parseInt((ev && ev.target && ev.target.value) || '0', 10) || 0;
+                this.playbackPositionMs = sec * 1000;
+                if (sec < this.playbackProgressMaxSec()) this._playbackSegmentEnded = false;
+            },
+            async _restartLastPlaybackSegment() {
+                const paths = this._lastPlaybackPaths;
+                if (!paths) return false;
+                try {
+                    const response = await fetch('/setDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: 'startPlaybackLocalRecordInformationCommand',
+                            params: {
+                                paths: paths,
+                                RecordIndexInformationPath: this.remotePlaybackPath || '',
+                            },
+                        }),
+                    });
+                    const result = await response.json().catch(function () { return null; });
+                    if (!(result && result.params && result.params.success)) {
+                        console.warn('_restartLastPlaybackSegment failed', result && result.params);
+                        return false;
+                    }
+                    if (result.params.durationMs) this.playbackDurationMs = result.params.durationMs;
+                    this.playbackPositionMs = 0;
+                    this._playbackSegmentEnded = false;
+                    try { await this.syncExistingPlaybackUsers(); } catch (e) {}
+                    try { this.renderPlaybackVideo(); } catch (e) {}
+                    return true;
+                } catch (e) {
+                    console.error('_restartLastPlaybackSegment error', e);
+                    return false;
+                }
+            },
             async seekRemotePlayback(ev) {
-                // 对齐 App：拖拽中 @input 只改本地秒数；松手/change 才下发 seek 并与设备同步
+                // 对齐 App：拖拽中只改本地秒数；松手后 seek。段已播完则先重起再定位。
                 this._playbackProgressDragging = false;
-                let positionMs = parseInt((ev && ev.target && ev.target.value != null) ? ev.target.value : this.playbackPositionMs, 10);
-                if (isNaN(positionMs) || positionMs < 0) positionMs = 0;
+                let sec = parseInt((ev && ev.target && ev.target.value != null) ? ev.target.value : this.playbackProgressSec(), 10);
+                if (isNaN(sec) || sec < 0) sec = 0;
+                const maxSec = this.playbackProgressMaxSec();
+                if (sec > maxSec) sec = maxSec;
+                let positionMs = sec * 1000;
                 const dur = this.playbackDurationMs | 0;
                 if (dur > 0 && positionMs > dur) positionMs = dur;
-                // pointerup + change 可能连打两次，短窗口去重
                 const now = Date.now();
                 if (this._lastSeekMs === positionMs && (now - (this._lastSeekAt || 0)) < 400) {
-                    if (this.remotePlaybackActive) this._startPlaybackProgressTicker();
+                    if (this.remotePlaybackActive && !this._playbackSegmentEnded) this._startPlaybackProgressTicker();
                     return;
                 }
                 this._lastSeekMs = positionMs;
                 this._lastSeekAt = now;
                 this.playbackPositionMs = positionMs;
                 if (!this.remotePlaybackActive) return;
+
+                // 本段已播完：设备回放会话已结束，单发 SEEK 无效 → 先重起再 seek
+                if (this._playbackSegmentEnded) {
+                    const ok = await this._restartLastPlaybackSegment();
+                    if (!ok) {
+                        this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
+                        return;
+                    }
+                    if (positionMs <= 0) {
+                        this.playbackPositionMs = 0;
+                        this._startPlaybackProgressTicker();
+                        return;
+                    }
+                }
+
                 try {
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -19608,12 +19681,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         }),
                     });
                     const result = await response.json().catch(function () { return null; });
-                    if (result && result.params && typeof result.params.positionMs === 'number') {
+                    if (result && result.params && result.params.success === false) {
+                        // seek 失败再尝试重起+seek（会话已死但标志未置）
+                        console.warn('seekRemotePlayback failed, try restart', result.params);
+                        const ok = await this._restartLastPlaybackSegment();
+                        if (ok && positionMs > 0) {
+                            await fetch('/setDeviceCommand', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    method: 'seekPlaybackLocalRecordInformationCommand',
+                                    params: { positionMs: positionMs },
+                                }),
+                            });
+                        }
+                    } else if (result && result.params && typeof result.params.positionMs === 'number') {
                         this.playbackPositionMs = result.params.positionMs | 0;
                     }
-                    if (result && result.params && result.params.success === false) {
-                        console.warn('seekRemotePlayback failed', result.params);
-                    }
+                    this._playbackSegmentEnded = false;
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
                 }
