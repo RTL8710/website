@@ -90,10 +90,13 @@ window.isWanMediaMode = function () {
   if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
   return !!(window.isCloudOtaMode && window.isCloudOtaMode());
 };
-/* MQTT 列表投影：外网请求 slim=true，设备省略 Image/ImuPath/Description/events。 */
-window.wanListSlimParams = function (params) {
+/* MQTT 列表投影：外网默认 slim=true（省略 Image/ImuPath/Description/events）。
+ * 可见回放列表传 { keepThumbs:true } —— 不要 slim，否则砍掉 ImageUrl，列表只剩占位
+ *（对齐 App：可见列表关 slim；时间轴/探针仍 slim）。 */
+window.wanListSlimParams = function (params, opts) {
   params = params || {};
   if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) {
+    if (opts && opts.keepThumbs) return params;
     params.slim = true;
   }
   return params;
@@ -9203,7 +9206,7 @@ window.__presignThumbUrl = function (raw) {
   </div>
 </div>
 <!-- 局域网：原日志文件列表 / 查看 -->
-<div class="log-studio" x-show="!isWanLogMode()" x-cloak>
+<template x-if="!isWanLogMode()"><div class="log-studio" x-cloak>
   <div class="log-studio-shell">
     <div class="log-studio-toolbar">
       <div class="log-studio-search">
@@ -9258,12 +9261,12 @@ window.__presignThumbUrl = function (raw) {
       <aside class="log-studio-list" aria-label="log sessions">
         <div class="log-studio-list-head">
           <span data-i18n="lg_sessions">Sessions</span>
-          <span x-text="filteredLogs.length"></span>
+          <span x-text="(filteredLogs || []).length"></span>
         </div>
         <div class="log-studio-list-scroll">
-          <div class="log-group-label" x-show="filteredLogs.length"
-               x-text="tIdx('lg_sessions') + ' · ' + filteredLogs.length"></div>
-          <template x-for="log in filteredLogs" :key="log.name">
+          <div class="log-group-label" x-show="(filteredLogs || []).length"
+               x-text="tIdx('lg_sessions') + ' · ' + (filteredLogs || []).length"></div>
+          <template x-for="log in (filteredLogs || [])" :key="log.name">
             <div class="log-session" :class="{ active: logActiveFile===log.name && logViewOpen }"
                  @click="viewLog(log.name)" :title="log.name">
               <div class="log-ico"
@@ -9302,12 +9305,13 @@ window.__presignThumbUrl = function (raw) {
               </div>
             </div>
           </template>
-          <div class="log-empty" x-show="!filteredLogs.length" data-i18n="lg_no_files">No log files</div>
+          <div class="log-empty" x-show="!(filteredLogs || []).length" data-i18n="lg_no_files">No log files</div>
         </div>
       </aside>
     </div><!-- /.log-studio-body -->
   </div><!-- /.log-studio-shell -->
 </div><!-- /.log-studio -->
+</template>
 </div><!-- /.vs-param-pane.log-tabs-wrap -->
 
 <!-- 日志内容弹框：必须仍在 #debug 的 x-data 内 -->
@@ -17663,7 +17667,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 pageSize: (opts && opts.pageSize > 0) ? opts.pageSize : this.pageSize,
                                 pageNumber: this.pageNumber,
                                 recordType: this.searchRecordType,
-                            }),
+                            }, { keepThumbs: true }),
                         }),
                     });
                     const result = await response.json();
@@ -18281,7 +18285,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             deviceID: this.deviceGeneralInformation.deviceUuid,
                             startTime: fmt(startS), endTime: fmt(endS),
                             pageSize: pageSize, pageNumber: 1, recordType: this.searchRecordType,
-                        }),
+                        }, { keepThumbs: true }),
                     }),
                 });
                 const result = await resp.json();
@@ -18685,7 +18689,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 endTime: this.snapEndTime,
                                 pageSize: this.snapPageSize,
                                 pageNumber: this.snapPageNumber,
-                            }),
+                            }, { keepThumbs: true }),
                         }),
                     });
                     const result = await response.json();
