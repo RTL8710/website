@@ -12652,6 +12652,9 @@ document.addEventListener('DOMContentLoaded', function() {
             _localPbDragging: false,
             _localPbPaused: false,
             _localPbPendingSec: null,
+            _localPbEpoch: 0,             // 切段时递增，忽略销毁中旧 video 的 timeupdate 写回
+            _lastLocalSeekSec: -1,
+            _lastLocalSeekAt: 0,
             _playbackSegmentEnded: false, // 本段已播完：设备会话结束，seek 需先重起
             _lastPlaybackPaths: null,     // 最近一次起播 paths，供播完后重起
             playbackCodec: '',            // h264/h265（start 响应回传）
@@ -13936,11 +13939,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return vids[idx] || vids[0] || null;
             },
             onLocalVideoMeta(ev, rec) {
+                const epoch = this._localPbEpoch | 0;
                 this.syncSeekVideo(ev, rec);
                 this._refreshLocalPlaybackDuration();
                 const v = ev && ev.target;
-                if (v && v === this._localPbMaster()) {
-                    this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                if (v && v === this._localPbMaster() && epoch === (this._localPbEpoch | 0)) {
+                    if (this._localPbPendingSec != null) {
+                        this.playbackPositionMs = Math.round(this._localPbPendingSec * 1000);
+                    } else {
+                        this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                    }
                     this._localPbPaused = !!v.paused;
                 }
                 this.ensureLocalMp4Seekable(v, rec);
@@ -13949,12 +13957,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
+                if (this._localPbPendingSec != null) {
+                    const pending = this._localPbPendingSec;
+                    const cur = v.currentTime || 0;
+                    if (Math.abs(cur - pending) > 1.5) {
+                        this.playbackPositionMs = Math.round(pending * 1000);
+                        return;
+                    }
+                    this._localPbPendingSec = null;
+                }
                 this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
                 this._localPbPaused = !!v.paused;
             },
             onLocalVideoEnded(ev) {
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
+                if (this._localPbPendingSec != null) return;
                 this._playbackSegmentEnded = true;
                 this.playbackPositionMs = (this.playbackDurationMs | 0) || Math.round((v.duration || 0) * 1000);
                 this._localPbPaused = true;
@@ -13970,7 +13988,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 if (d > 0) this.playbackDurationMs = Math.round(d * 1000);
             },
-            _revokeLocalMp4Blobs(list) {
+            _revokeLocalMp4Blobs(list, keepPending) {
                 (list || this.syncRecords || []).forEach(function (r) {
                     if (!r) return;
                     if (r._blobUrl) {
@@ -13979,7 +13997,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     r._blobLoading = false;
                 });
-                this._localPbPendingSec = null;
+                if (!keepPending) this._localPbPendingSec = null;
+            },
+            _haltLocalPlaybackVideos() {
+                this.localPlaybackVideos().forEach(function (v) {
+                    try { v.pause(); } catch (e) {}
+                    try { v.removeAttribute('src'); v.load(); } catch (e) {}
+                });
             },
             _videoIsSeekable(video) {
                 // 渐进下载时常有 seekable=[0,buffered]，但拖到未缓冲区会失败；需能 seek 到接近片尾才算真可拖
@@ -19530,20 +19554,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (this.isLiveTransportKvs()) await this.startKvsPlayback(record, siblingRecs, gen);
                         else await this.startRemotePlayback(record, gen);
                     } else {
-                        this._revokeLocalMp4Blobs();
+                        this._haltLocalPlaybackVideos();
+                        this._revokeLocalMp4Blobs(this.syncRecords, true);
                         const recs = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
                         this.syncRecords = recs;
-                        this._localPbDragging = false;
-                        this._localPbPaused = false;
-                        this._localPbPendingSec = null;
-                        this._playbackSegmentEnded = false;
-                        this.playbackPositionMs = 0;
-                        let d = 0;
-                        recs.forEach(function (r) {
-                            const rd = Number(r && r.RecordIndexInformationDuration) || 0;
-                            if (rd > d) d = rd;
-                        });
-                        this.playbackDurationMs = d * 1000;
+                        this._resetLocalPlaybackProgressForSeg(this.syncSeekSecs, recs);
                         const self = this;
                         const kick = function () {
                             const vids = self.localPlaybackVideos();
@@ -20049,6 +20064,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             _resetLocalPlaybackProgressForSeg(secs, recs) {
                 // 重选时间轴/列表段时立即清进度 UI，避免仍显示上一段的 72s/79s
+                this._localPbEpoch = (this._localPbEpoch | 0) + 1;
                 const r0 = (recs && recs[0]) || null;
                 const start = (r0 && r0._segStart != null) ? r0._segStart : 0;
                 const dur = Math.max(1, Number(r0 && r0.RecordIndexInformationDuration) || 1);
@@ -20115,7 +20131,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: Math.max(1, Number(this.pageSize) || 10) }).catch(function () {});
                             return;
                         }
-                        this._revokeLocalMp4Blobs(this.syncRecords);
+                        this._haltLocalPlaybackVideos();
+                        this._revokeLocalMp4Blobs(this.syncRecords, true);
                         this.syncRecords = recs;
                         this._resetLocalPlaybackProgressForSeg(secs, recs);
                     }
