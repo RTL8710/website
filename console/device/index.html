@@ -6363,9 +6363,12 @@ window.__presignThumbUrl = function (raw) {
                                                                      style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;pointer-events:none;opacity:0.85;"
                                                                      onerror="this.style.display='none'">
                                                                 <div x-show="_localPbLoading" class="pb-local-loading"
-                                                                     style="position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(0,0,0,0.38);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;">
-                                                                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:28px;opacity:0.92;"></i>
-                                                                    <span style="font-size:12px;font-weight:500;opacity:0.92;" x-text="tIdx('cm_loading')">Loading...</span>
+                                                                     style="position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(0,0,0,0.38);">
+                                                                    <!-- 内层 flex：避免 Alpine x-show 冲掉 display:flex 导致不居中 -->
+                                                                    <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;">
+                                                                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:28px;opacity:0.92;"></i>
+                                                                        <span style="font-size:12px;font-weight:500;opacity:0.92;" x-text="tIdx('cm_loading')">Loading...</span>
+                                                                    </div>
                                                                 </div>
                                                                 <!-- 下载按钮叠加（仅网格/聚焦路显示）-->
                                                                 <div x-show="isPlaybackFocused(idx)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
@@ -10437,7 +10440,7 @@ const I18N_INDEX = {
  rs_file_counts:'Record File Counts', rs_file_counts_tip:'Record file count', rs_sec_loop:'Loop Recording', rs_sec_timelapse:'Timelapse Recording',
  cm_start_time:'Start Time', cm_end_time:'End Time',
  cm_page_size:'Page Size', cm_page_number:'Page Number',
- cm_search:'Search', cm_load_more:'Load More', cm_cancel:'Cancel', cm_confirm:'Confirm',
+ cm_search:'Search', cm_load_more:'Load More', cm_loading:'Loading...', cm_cancel:'Cancel', cm_confirm:'Confirm',
  cm_notice:'Notice', cm_start:'Start', cm_stop:'Stop',
  cm_capture:'Capture', cm_capture_sub:'Capture (Sub)', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
  cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
@@ -10589,7 +10592,7 @@ const I18N_INDEX = {
  rs_file_counts:'录像文件数量', rs_file_counts_tip:'录像文件记录个数', rs_sec_loop:'循环录像', rs_sec_timelapse:'缩时录像',
  cm_start_time:'开始时间', cm_end_time:'结束时间',
  cm_page_size:'每页条数', cm_page_number:'页码',
- cm_search:'搜索', cm_load_more:'加载更多', cm_cancel:'取消', cm_confirm:'确定',
+ cm_search:'搜索', cm_load_more:'加载更多', cm_loading:'加载中…', cm_cancel:'取消', cm_confirm:'确定',
  cm_notice:'通知', cm_start:'开始', cm_stop:'停止',
  cm_capture:'抓拍', cm_capture_sub:'次码流抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
  cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
@@ -10741,7 +10744,7 @@ const I18N_INDEX = {
  rs_file_counts:'録画ファイル数', rs_file_counts_tip:'録画ファイル記録数', rs_sec_loop:'ループ録画', rs_sec_timelapse:'タイムラプス録画',
  cm_start_time:'開始時刻', cm_end_time:'終了時刻',
  cm_page_size:'ページサイズ', cm_page_number:'ページ番号',
- cm_search:'検索', cm_load_more:'さらに読み込む', cm_cancel:'キャンセル', cm_confirm:'確認',
+ cm_search:'検索', cm_load_more:'さらに読み込む', cm_loading:'読み込み中…', cm_cancel:'キャンセル', cm_confirm:'確認',
  cm_notice:'通知', cm_start:'開始', cm_stop:'停止',
  cm_capture:'キャプチャ', cm_capture_sub:'サブストリーム撮影', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
  cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
@@ -10892,7 +10895,7 @@ const I18N_INDEX = {
  rs_file_counts:'Aufnahmedateien', rs_file_counts_tip:'Anzahl der Aufnahmedateien', rs_sec_loop:'Schleifenaufnahme', rs_sec_timelapse:'Zeitrafferaufnahme',
  cm_start_time:'Startzeit', cm_end_time:'Endzeit',
  cm_page_size:'Seitengröße', cm_page_number:'Seitennummer',
- cm_search:'Suchen', cm_load_more:'Mehr laden', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
+ cm_search:'Suchen', cm_load_more:'Mehr laden', cm_loading:'Wird geladen…', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
  cm_notice:'Hinweis', cm_start:'Start', cm_stop:'Stopp',
  cm_capture:'Aufnehmen', cm_capture_sub:'Aufnehmen (Substream)', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
  cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
@@ -11042,7 +11045,7 @@ const I18N_INDEX = {
  rs_file_counts:'Fichiers enreg.', rs_file_counts_tip:'Nombre de fichiers enregistrés', rs_sec_loop:'Enregistrement en boucle', rs_sec_timelapse:'Enregistrement accéléré',
  cm_start_time:'Début', cm_end_time:'Fin',
  cm_page_size:'Taille page', cm_page_number:'N° page',
- cm_search:'Rechercher', cm_load_more:'Charger plus', cm_cancel:'Annuler', cm_confirm:'Confirmer',
+ cm_search:'Rechercher', cm_load_more:'Charger plus', cm_loading:'Chargement…', cm_cancel:'Annuler', cm_confirm:'Confirmer',
  cm_notice:'Notification', cm_start:'Démarrer', cm_stop:'Arrêter',
  cm_capture:'Capturer', cm_capture_sub:'Capturer (flux secondaire)', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
  cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
@@ -11193,7 +11196,7 @@ const I18N_INDEX = {
  rs_file_counts:'Archivos grabación', rs_file_counts_tip:'Cantidad de archivos grabados', rs_sec_loop:'Grabación en bucle', rs_sec_timelapse:'Grabación timelapse',
  cm_start_time:'Inicio', cm_end_time:'Fin',
  cm_page_size:'Tamaño página', cm_page_number:'N° página',
- cm_search:'Buscar', cm_load_more:'Cargar más', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
+ cm_search:'Buscar', cm_load_more:'Cargar más', cm_loading:'Cargando…', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
  cm_notice:'Aviso', cm_start:'Iniciar', cm_stop:'Detener',
  cm_capture:'Capturar', cm_capture_sub:'Capturar (flujo secundario)', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
  cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
