@@ -2729,6 +2729,15 @@ function viewLogin(preErr) {
     class: 'form-input', type: 'password', id: 'admin-password', placeholder: t('phPass'),
     autocomplete: 'current-password', required: true,
   });
+  const pwIcon = fa('fa-eye');
+  const togglePw = h('button', {
+    type: 'button', class: 'toggle-pw', title: '显示/隐藏密码',
+    onclick: () => {
+      const show = pass.type === 'password';
+      pass.type = show ? 'text' : 'password';
+      pwIcon.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    },
+  }, pwIcon);
   const errMsg = h('span', {}, preErr || '');
   const err = h('div', { class: 'login-error' + (preErr ? ' show' : '') }, fa('fa-circle-exclamation'), errMsg);
   const btn = h('button', { type: 'submit', class: 'btn-login' }, t('loginBtn'));
@@ -2752,45 +2761,70 @@ function viewLogin(preErr) {
       btn.textContent = t('loginBtn');
     }
   }
-  mount(app,
-    ...switcherBar(false),
-    h('div', { class: 'center', style: { minHeight: '100vh', padding: '40px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
-      h('div', { class: 'glass', style: { padding: '28px 32px', width: '100%', maxWidth: '420px' } },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' } },
-          fa('fa-shield-halved'),
-          h('div', { style: { fontWeight: 800, fontSize: '18px' } }, t('loginTitle')),
+  const badge = () => h('div', { class: 'brand-badge' }, fa('fa-shield-halved'));
+  const feat = (ic, tx) => h('div', { class: 'feature-item' },
+    h('div', { class: 'feature-ic' }, fa(ic)),
+    h('div', { class: 'feature-tx' }, tx),
+  );
+  const field = (labelText, forId, iconCls, input, extra) => h('div', { class: 'form-group' },
+    h('label', { class: 'form-label', for: forId }, labelText),
+    h('div', { class: 'input-wrap' }, fa(iconCls + ' input-icon'), input, extra || null),
+  );
+  const brandBlock = (small) => h('div', {},
+    h('div', { class: 'brand-name', style: small ? { fontSize: '17px' } : {} }, t('brand')),
+    h('div', { class: 'brand-sub' }, t('brandSub')),
+  );
+  const shellEl = h('div', { class: 'login-shell' },
+    h('aside', { class: 'login-hero' },
+      h('div', { class: 'hero-top brand-row' }, badge(), brandBlock(false)),
+      h('div', { class: 'hero-mid' },
+        h('h1', { class: 'hero-title' }, t('heroTitle')),
+        h('p', { class: 'hero-tagline' }, t('heroTagline')),
+        h('div', { class: 'feature-list' },
+          feat('fa-users', t('featUsers')),
+          feat('fa-cloud-arrow-up', t('featOta')),
+          feat('fa-film', t('featRecords')),
+          feat('fa-file-lines', t('featLogs')),
         ),
-        h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.55', marginBottom: '18px' } },
-          t('loginSub')),
-        h('form', { onsubmit: submit },
-          err,
-          h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
-            h('label', {}, t('labelRegion')),
-            h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
-              type: 'button',
-              class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
-              onclick: () => { changeRegion(rc); },
-            }, regionLabel(rc)))),
-          ),
-          h('div', { class: 'admin-field', style: { marginBottom: '12px' } },
-            h('label', { for: 'admin-username' }, t('labelUser')),
-            username,
-          ),
-          h('div', { class: 'admin-field', style: { marginBottom: '8px' } },
-            h('label', { for: 'admin-password' }, t('labelPass')),
-            pass,
-          ),
-          btn,
+      ),
+      h('div', { class: 'hero-bottom' }, t('heroFoot')),
+    ),
+    h('main', { class: 'login-main' },
+      h('form', { class: 'login-card', onsubmit: submit },
+        h('div', { class: 'card-brand' }, badge(), brandBlock(true)),
+        h('div', { class: 'login-title' }, t('welcomeBack')),
+        h('div', { class: 'login-subtitle' }, t('loginSub')),
+        err,
+        h('div', { class: 'form-group' },
+          h('label', { class: 'form-label' }, t('labelRegion')),
+          h('div', { class: 'region-tabs' }, ...REGION_ORDER.map((rc) => h('button', {
+            type: 'button',
+            class: 'region-tab' + (getRegion() === rc ? ' active' : ''),
+            onclick: () => { changeRegion(rc); },
+          }, regionLabel(rc)))),
         ),
-        h('div', { style: { marginTop: '14px', textAlign: 'center' } },
-          h('a', { class: 'faint', href: '../index.html#/devices', style: { fontSize: '12px', textDecoration: 'none' } },
-            t('goConsole')),
+        field(t('labelUser'), 'admin-username', 'fa-user', username),
+        field(t('labelPass'), 'admin-password', 'fa-lock', pass, togglePw),
+        btn,
+        h('a', {
+          class: 'admin-entry',
+          href: '../index.html#/login',
+          title: t('goConsole'),
+        },
+          fa('fa-display'),
+          h('span', { class: 'admin-entry-txt' },
+            h('strong', {}, t('goConsole')),
+            h('em', {}, t('consoleLink')),
+          ),
+          fa('fa-chevron-right'),
         ),
       ),
     ),
   );
+  mount(app, ...switcherBar(false), shellEl);
   username.focus();
 }
+
 
 (async function boot() {
   applyTheme(getTheme());

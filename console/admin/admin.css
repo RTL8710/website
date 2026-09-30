@@ -363,3 +363,7 @@ html[data-theme="light"] .logs-hero h1{background:none;-webkit-background-clip:u
   .log-body{grid-template-columns:1fr}
   .log-files{max-height:140px;border-right:none;border-bottom:1px solid var(--border)}
 }
+
+/* admin login inherits console split login-shell from ../styles.css */
+body:has(.login-shell){overflow:auto}
+body:has(.login-shell) #app{min-height:100vh}
