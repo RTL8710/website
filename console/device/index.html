@@ -7401,12 +7401,12 @@ window.__presignThumbUrl = function (raw) {
                                                             <div class="d-flex justify-content-end mb-1">
                                                                 <div class="card shadow" style="max-width:80%;border-radius:16px;background:var(--accent);">
                                                                     <div class="card-body p-2">
-                                                                        <template x-if="h.image">
+                                                                        <template x-if="askHistoryThumbSrc(h)">
                                                                             <img :src="askHistoryThumbSrc(h)" alt="snap"
                                                                                  class="img-fluid mb-1"
                                                                                  style="border-radius:10px;cursor:pointer;max-height:180px;"
                                                                                  @load="if (h.pending) scrollAskToBottom()"
-                                                                                 @click="downloadFile(h.image)">
+                                                                                 @click="askHistoryOpenImage(h)">
                                                                         </template>
                                                                         <p class="mb-0" style="color:#fff;font-size:13px;" x-text="h.question"></p>
                                                                         <div style="font-size:9px;color:rgba(255,255,255,0.7);text-align:right;" x-text="h.datetime"></div>
@@ -12627,12 +12627,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const t = (this.dashThumbs || []).find(x => x.cam === (ci - 1));
                 return this.dashThumbSrc(t);
             },
+            // 拍问气泡图：对齐 App —— 优先 imageUrl(S3) 预签；局域网才用本地 image → /download
             askHistoryThumbSrc(h) {
-                if (!h || !h.image) return '';
-                const img = String(h.image);
-                if (/^https?:\/\//i.test(img)) return img;
-                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) return ''; // WAN 无本地 /download
-                return '/download?filePath=' + img;
+                if (!h) return '';
+                const url = String(h.imageUrl || '').trim();
+                const img = String(h.image || '').trim();
+                const remote = url || (/^https?:\/\//i.test(img) ? img : '');
+                if (remote) {
+                    if (typeof window.__presignThumbUrl === 'function') {
+                        const signed = window.__presignThumbUrl(remote);
+                        if (signed) return signed;
+                    }
+                    return remote;
+                }
+                const wan = (typeof window.isWanMediaMode === 'function')
+                    ? window.isWanMediaMode()
+                    : !!(this.isCloudOtaMode && this.isCloudOtaMode());
+                if (wan) return ''; // 外网本地 SD 路径不可直链
+                if (img) return '/download?filePath=' + img;
+                return '';
+            },
+            askHistoryOpenImage(h) {
+                const src = this.askHistoryThumbSrc(h);
+                if (src && /^https?:\/\//i.test(src)) {
+                    try { window.open(src, '_blank'); } catch (e) {}
+                    return;
+                }
+                if (h && h.image && !(typeof window.isWanMediaMode === 'function' && window.isWanMediaMode())) {
+                    this.downloadFile(h.image);
+                }
             },
             // 局域网：设备同源可直接 /mnt 或 /download；外网禁止把 SD 路径当地址（会变成门户 404）
             localPlaybackVideoSrc(rec) {
@@ -17852,6 +17875,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result && result.params && result.params.success) {
                         entry.answer = result.params.answer;
                         if (result.params.image) entry.image = result.params.image;
+                        if (result.params.imageUrl) entry.imageUrl = result.params.imageUrl;
                         entry.pending = false;
                     } else {
                         entry.pending = false;
@@ -17908,7 +17932,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         // 后端最新在前：取最近 pageSize 条
                         if (this.openaiChatpageSize > 0) recs = recs.slice(0, this.openaiChatpageSize);
-                        this.askHistory = recs.reverse();
+                        // 对齐 App OpenaiChatRecord.fromJson：保留 image(本地)+imageUrl(S3)，展示走 askHistoryThumbSrc
+                        this.askHistory = recs.reverse().map(r => Object.assign({}, r, {
+                            image: r.image || '',
+                            imageUrl: r.imageUrl || '',
+                        }));
                     }
                 } catch (error) {
                     console.error('loadAskHistory error:', error);
