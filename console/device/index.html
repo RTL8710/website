@@ -6279,7 +6279,7 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'tlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;pointer-events:none;'"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6680,7 +6680,7 @@ window.__presignThumbUrl = function (raw) {
                                                     <template x-for="(b,i) in timelineBlocksMerged()" :key="'itlm'+i">
                                                         <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                                     </template>
-                                                    <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
+                                                    <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;pointer-events:none;'"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -6873,7 +6873,7 @@ window.__presignThumbUrl = function (raw) {
                                         <template x-for="(b,i) in timelineBlocks(0)" :key="'cc0-'+i">
                                             <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
                                         </template>
-                                        <div x-show="tlClickPct()>=0" :style="(playbackPositionMs, syncRecords, tlClickSecs, remotePlaybackActive, 'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#fff;box-shadow:0 0 6px #2fbf71,0 0 2px #000;left:'+tlClickPct()+'%;pointer-events:none;')"></div>
+                                        <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;z-index:6;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;pointer-events:none;'"></div>
                                     </div>
                                 </div>
                             </div>
@@ -14018,7 +14018,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.playbackPositionMs = Math.round(cur * 1000);
                 this._localPbPaused = !!v.paused;
                 if (v.readyState >= 2) this._setLocalPbLoading(false);
-                this._syncTimelinePlayheadFromPlayback();
             },
             onLocalVideoTimeUpdate(ev) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
@@ -14028,7 +14027,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 进度条唯一真相：画面 currentTime（不再用 pending 锁 UI）
                 this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
                 this._localPbPaused = !!v.paused;
-                this._syncTimelinePlayheadFromPlayback();
             },
             onLocalVideoEnded(ev) {
                 const v = ev && ev.target;
@@ -19625,8 +19623,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const recs = ((siblingRecs && siblingRecs.length) ? siblingRecs : [record]).map((r) => this._ensureRecSegStart(Object.assign({}, r)));
                         this.syncRecords = recs;
                         this._resetLocalPlaybackProgressForSeg(this.syncSeekSecs, recs);
-                        this._syncTimelinePlayheadFromPlayback();
-                        const self = this;
+                                const self = this;
                         const kick = function () {
                             const vids = self.localPlaybackVideos();
                             for (let i = 0; i < vids.length; i++) {
@@ -20182,7 +20179,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const secs = Math.round(v.start + pct * (v.end - v.start));
                 this.tlClickSecs = secs;  // 绿色标记定位到精确点击位置（立即，先于异步查询）
                 this.syncSeekSecs = secs; // 多路同步播放：各路 seek 到该墙钟时刻
-                this._setLocalPbLoading(true); // 查询段文件期间也显示加载，避免黑屏无反馈
+                this._setLocalPbLoading(true); // 查询/起播前显示加载叠层
                 // 【修复】时间轴段来自 getRecordTimeline，会把连续片段「合并成块」且块只保留首段路径；
                 // 直接用块的 path 会播成块首文件（连续录一整天时即 00:00 段）。改为按点击墙钟时刻查
                 // queryLocalRecordIndexInformationCommand（返回未合并的逐条真实段），定位包含该时刻的真实文件。
@@ -20201,28 +20198,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         this._revokeLocalMp4Blobs(this.syncRecords);
                         this.syncRecords = [];
                     } else {
-                        // 本地已在播且点在当前段内：直接拖进度，勿重建 <video>（否则像不能拖时间轴）
-                        // resolveSegmentsAt 可能把 syncSeekSecs 校正为多路对齐墙钟
-                        const seekSecs = (this.syncSeekSecs != null && this.syncSeekSecs >= 0) ? this.syncSeekSecs : secs;
-                        this.tlClickSecs = seekSecs; // 绿线对齐实际起播墙钟（可能被多路对齐微调）
-                        this.syncSeekSecs = seekSecs;
-                        if (this._localTimelineSeekInPlace(seekSecs, recs)) {
-                            this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: Math.max(1, Number(this.pageSize) || 10) }).catch(function () {});
-                            return;
-                        }
-                        this._haltLocalPlaybackVideos();
+                        // 恢复正常版：点轴只锁定 syncRecords + 清进度 UI；绿线保持点击墙钟，由 syncSeekVideo 对齐画面
+                        const locked = recs.map((r) => this._ensureRecSegStart(Object.assign({}, r)));
                         this._revokeLocalMp4Blobs(this.syncRecords, true);
-                        this.syncRecords = recs.map((r) => this._ensureRecSegStart(r));
-                        this._resetLocalPlaybackProgressForSeg(seekSecs, this.syncRecords);
-                        this._syncTimelinePlayheadFromPlayback();
-                        const self = this;
-                        const kick = function () {
-                            const pending = self._localPbPendingSec;
-                            const off = (pending != null && pending >= 0) ? pending : 0;
-                            self._applyLocalSeek(off, { syncUi: false });
-                        };
-                        if (typeof this.$nextTick === 'function') this.$nextTick(kick);
-                        else setTimeout(kick, 0);
+                        this.syncRecords = locked;
+                        this._resetLocalPlaybackProgressForSeg(secs, locked);
+                        // 注意：不要改 tlClickSecs；不要 halt/整树 epoch 重建（会破坏时间轴观感）
                     }
                 } else {
                     this._setLocalPbLoading(false);
@@ -20322,29 +20303,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const camOf = r => (this._camOfRecord ? this._camOfRecord(r) : this.tlCamOf(r.RecordIndexInformationPath));
                 const byCam = [];
                 for (let cam = 0; cam < ncam; cam++) byCam.push((all || []).filter(r => camOf(r) === cam));
-                // 优先：点击墙钟各路都能命中 → 不挪 seek，避免绿线停在点击处、画面却跳到别的段
-                const listAtClick = [];
-                for (let cam = 0; cam < ncam; cam++) {
-                    const pick = this._pickRecordAtSecs(byCam[cam], secs, true, secOf);
-                    if (pick) {
-                        const s0 = secOf(pick.RecordIndexInformationDateTime);
-                        listAtClick.push(Object.assign({}, pick, { _segStart: s0 >= 0 ? s0 : 0 }));
-                    }
-                }
-                if (listAtClick.length >= Math.max(1, Math.min(ncam, 1)) && listAtClick.length >= Math.ceil(ncam * 0.5)) {
-                    // 至少半数路覆盖点击时刻：按点击墙钟起播（缺路再 nearest 补）
-                    const list = listAtClick.slice();
-                    for (let cam = 0; cam < ncam; cam++) {
-                        if (list.some(r => camOf(r) === cam)) continue;
-                        const pick = this._pickRecordAtSecs(byCam[cam], secs, false, secOf);
-                        if (pick) {
-                            const s0 = secOf(pick.RecordIndexInformationDateTime);
-                            list.push(Object.assign({}, pick, { _segStart: s0 >= 0 ? s0 : 0 }));
-                        }
-                    }
-                    this.syncSeekSecs = secs;
-                    return list;
-                }
                 const syncT = this._bestSyncTime(byCam, secs, secOf);
                 this.syncSeekSecs = syncT;
                 const list = [];
@@ -20461,45 +20419,19 @@ document.addEventListener('DOMContentLoaded', function() {
             isPlaying(record) {
                 return this.syncRecords.some(r => r.RecordIndexInformationPath === record.RecordIndexInformationPath);
             },
-            // 给列表起播的 record 补 _segStart，否则时间轴绿线算不出墙钟
+            // 点击位置(%)：绿线只表示点击墙钟（与 a97536bb 正常版一致）；勿用播放进度覆盖，否则像时间轴错位
+            tlClickPct() {
+                if (this.tlClickSecs < 0) return -1;
+                const v = this.timelineView;
+                if (this.tlClickSecs < v.start || this.tlClickSecs > v.end) return -1;
+                return (this.tlClickSecs - v.start) / (v.end - v.start) * 100;
+            },
             _ensureRecSegStart(rec) {
                 if (!rec) return rec;
                 if (rec._segStart != null && Number(rec._segStart) >= 0) return rec;
                 const m = String(rec.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
                 rec._segStart = m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : 0;
                 return rec;
-            },
-            // Alpine v2：直接改 tlClickSecs 才能稳定触发时间轴绿线重绘
-            _syncTimelinePlayheadFromPlayback() {
-                const secs = this.timelinePlayheadSecs();
-                if (secs == null || secs < 0) return;
-                if ((this.tlClickSecs | 0) !== (secs | 0)) this.tlClickSecs = secs | 0;
-            },
-            // 时间轴绿线：优先跟当前回放墙钟（段起点+进度）
-            timelinePlayheadSecs() {
-                const recs = this.syncRecords || [];
-                if (recs.length && !this.remotePlaybackActive) {
-                    const r0 = recs[this.playbackFocusIdx | 0] || recs[0];
-                    let start = (r0 && r0._segStart != null) ? Number(r0._segStart) : -1;
-                    if (!(start >= 0) && r0) {
-                        const m = String(r0.RecordIndexInformationDateTime || '').match(/(\d{2}):(\d{2}):(\d{2})/);
-                        if (m) start = (+m[1] * 3600 + +m[2] * 60 + +m[3]);
-                    }
-                    if (start >= 0) {
-                        return start + Math.max(0, Math.floor((this.playbackPositionMs | 0) / 1000));
-                    }
-                }
-                if (this.remotePlaybackActive && this.syncSeekSecs != null && this.syncSeekSecs >= 0) {
-                    return this.syncSeekSecs + Math.max(0, Math.floor((this.playbackPositionMs | 0) / 1000));
-                }
-                return this.tlClickSecs;
-            },
-            tlClickPct() {
-                const secs = this.timelinePlayheadSecs();
-                if (secs == null || secs < 0) return -1;
-                const v = this.timelineView;
-                if (secs < v.start || secs > v.end) return -1;
-                return (secs - v.start) / (v.end - v.start) * 100;
             },
             // 滚轮缩放：上滚放大/下滚缩小，以光标为锚点；窗口 5min~24h
             onTimelineWheel(event) {
