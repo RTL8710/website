@@ -12707,8 +12707,11 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 云端回放进度（拖动 → seek）
             tlPlaySecs: -1,               // 时间轴白线：当前播放墙钟（与绿线点击分离）
-            localPbSec: 0,                // 本地片内进度秒（只跟 video.currentTime）
-            localPbDurSec: 0,             // 本地片时长秒
+            localPbSec: 0,                // 进度条：相对本次起播点的已播秒（点轴后从 0 起）
+            localPbDurSec: 0,             // 进度条：从起播点到片尾的剩余秒
+            _localPbOriginSec: 0,         // 起播时 master 片内偏移（currentTime 基准）
+            _localPbMasterStart: 0,       // 起播时 master 段墙钟起点
+            _localPbEpoch: 0,             // 点轴/切段代数，防旧 timeupdate 写回进度
             _localPbLoading: false,
             _localPbLoadingTimer: null,
             _localPbDragging: false,
@@ -16610,7 +16613,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 点击云时间轴：换算当天秒 → 找覆盖该秒(否则最近≤120s)的云记录 → DASH 播放
             onCloudTimelineClick(event) {
-                if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
+                if (this._tlDragConsumedClick()) return;
                 const rect = event.currentTarget.getBoundingClientRect();
                 const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
                 const v = this.timelineView;
@@ -18991,7 +18994,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (this.previewTransport === 'kvs') await this.startKvsPlayback(record, siblingRecs, gen);
                         else await this.startRemotePlayback(record, gen);
                     } else {
-                        this.syncRecords = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
+                        const raw = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
+                        this.syncRecords = raw.map((r) => this._ensureRecSegStart(Object.assign({}, r)));
+                        const r0 = this.syncRecords[0];
+                        if (r0 && r0._segStart != null) {
+                            this._localPbEpoch = (this._localPbEpoch || 0) + 1;
+                            this._localPbOriginSec = 0;
+                            this._localPbMasterStart = Number(r0._segStart);
+                            this.tlPlaySecs = Number(r0._segStart);
+                            this.tlClickSecs = Number(r0._segStart);
+                            this.localPbSec = 0;
+                            this.localPbDurSec = Math.max(1, Number(r0.RecordIndexInformationDuration) || 1);
+                        }
                     }
                 } catch (e) {
                     throw e;
@@ -19312,7 +19326,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 点击时间轴：定位到该时刻所在/最近的录像并播放
             async onTimelineClick(event, camera) {
-                if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }  // 刚才是拖动平移，不触发播放
+                if (this._tlDragConsumedClick()) return;  // 真平移才吞点击；全日轴/微抖不当拖动
                 const rect = event.currentTarget.getBoundingClientRect();
                 const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
                 const v = this.timelineView;
@@ -19321,7 +19335,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.tlClickSecs = clickSecs;  // 绿线：点击选点（播放过程中不再改）
                 this.tlPlaySecs = clickSecs;   // 白线先落点击处
                 this.syncSeekSecs = clickSecs;
+                this._localPbEpoch = (this._localPbEpoch || 0) + 1;
+                this._localPbOriginSec = 0;
                 this.localPbSec = 0;
+                this.localPbDurSec = 0;
                 this._setLocalPbLoading(true);
                 // 注意：点轴时不要自动缩放窗口——视图一跳，光标下的时刻会“对不上”，体感像点错
                 // 【修复】时间轴段来自 getRecordTimeline，会把连续片段「合并成块」且块只保留首段路径；
@@ -19340,7 +19357,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const locked = recs.map((r) => this._ensureRecSegStart(Object.assign({}, r)));
                     this.selectedRecord = locked[0];
                     this.playbackFocusIdx = 0;
-                    this.localPbDurSec = Math.max(1, Number(locked[0].RecordIndexInformationDuration) || 1);
+                    // localPbDurSec 在 kick 里按「起播点→片尾」设置，这里不预填整段时长
                     if (wan) {
                         // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
                         this._setLocalPbLoading(false);
@@ -19554,24 +19571,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     this._localPbLoadingTimer = setTimeout(function () { self._localPbLoading = false; self._localPbLoadingTimer = null; }, 8000);
                 }
             },
-            _localPbVideos() { return Array.from(document.querySelectorAll('video[data-local-pb="1"]')); },
+            _localPbVideos() {
+                // 只取回放页实例，避免其它 page-section 的空 video 干扰 master/进度
+                const root = document.getElementById('playback') || document;
+                return Array.from(root.querySelectorAll('video[data-local-pb="1"]'));
+            },
             _localPbMaster() {
                 const vids = this._localPbVideos();
                 const idx = this.playbackFocusIdx | 0;
                 return vids[idx] || vids[0] || null;
             },
-            // 把各路本地 video seek 到墙钟 secs（同文件再点也能生效）
+            // 把各路本地 video seek 到墙钟 secs；进度条相对此次起播点从 0 计
             _kickLocalSeekToWallClock(secs, recs) {
                 const self = this;
+                const epoch = self._localPbEpoch || 0;
                 let tries = 0;
                 const apply = function () {
+                    if (epoch !== (self._localPbEpoch || 0)) return; // 已被更新点击取代
                     const vids = self._localPbVideos();
                     if (!vids.length) {
                         if (tries++ < 20) setTimeout(apply, 50);
                         else self._setLocalPbLoading(false);
                         return;
                     }
-                    let masterOff = 0, masterStart = 0;
+                    let masterOff = 0, masterStart = 0, masterDur = 0;
+                    const focus = self.playbackFocusIdx | 0;
                     for (let i = 0; i < vids.length; i++) {
                         const rec = (recs && recs[i]) || (self.syncRecords && self.syncRecords[i]) || null;
                         const start = (rec && rec._segStart != null) ? Number(rec._segStart) : 0;
@@ -19583,35 +19607,45 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (dur > 0 && t > dur - 0.05) t = Math.max(0, dur - 0.05);
                         try { v.currentTime = t; } catch (e) {}
                         if (v.paused) v.play().catch(function () {});
-                        if (i === (self.playbackFocusIdx | 0) || (i === 0 && !(self.playbackFocusIdx | 0))) {
+                        if (i === focus || (i === 0 && !focus)) {
                             masterOff = Math.floor(t);
                             masterStart = start;
+                            masterDur = Math.max(1, Math.ceil(dur || recDur || 1));
                         }
                     }
-                    self.localPbSec = masterOff;
+                    self._localPbOriginSec = masterOff;
+                    self._localPbMasterStart = masterStart;
+                    self.localPbSec = 0; // 点轴/再选：进度从 0 起，不是片内绝对秒
+                    self.localPbDurSec = Math.max(1, masterDur - masterOff);
                     self.tlPlaySecs = masterStart + masterOff;
                     self._setLocalPbLoading(false);
                 };
                 if (typeof this.$nextTick === 'function') this.$nextTick(apply);
                 else setTimeout(apply, 0);
-                setTimeout(apply, 120); // meta/decode 后再补一次
+                setTimeout(apply, 120);
+                setTimeout(apply, 350); // 慢 seek / 同文件复用再补一次
             },
             onLocalPbMeta(ev, rec) {
                 this.syncSeekVideo(ev, rec);
                 const d = Number(rec && rec.RecordIndexInformationDuration) || 0;
                 const vd = ev && ev.target && isFinite(ev.target.duration) ? ev.target.duration : 0;
-                this.localPbDurSec = Math.max(1, Math.ceil(d || vd || this.localPbDurSec || 1));
+                const full = Math.max(1, Math.ceil(d || vd || 1));
+                const origin = Math.max(0, this._localPbOriginSec || 0);
+                // 勿用整段时长覆盖「相对起播点」的剩余长度
+                this.localPbDurSec = Math.max(1, full - origin);
             },
             onLocalPbTime(ev, rec) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
-                const cur = Math.max(0, Math.floor(v.currentTime || 0));
-                this.localPbSec = cur;
+                const origin = Math.max(0, this._localPbOriginSec || 0);
+                const curAbs = Math.max(0, v.currentTime || 0);
+                this.localPbSec = Math.max(0, Math.floor(curAbs - origin));
                 // 白线跟播放墙钟；绝不改绿线 tlClickSecs
                 const start = (rec && rec._segStart != null) ? Number(rec._segStart)
-                    : (this.syncRecords[0] && this.syncRecords[0]._segStart != null ? Number(this.syncRecords[0]._segStart) : -1);
-                if (start >= 0) this.tlPlaySecs = start + cur;
+                    : (this._localPbMasterStart != null ? Number(this._localPbMasterStart)
+                    : (this.syncRecords[0] && this.syncRecords[0]._segStart != null ? Number(this.syncRecords[0]._segStart) : -1));
+                if (start >= 0) this.tlPlaySecs = start + curAbs;
                 if (v.readyState >= 2) this._setLocalPbLoading(false);
             },
             seekLocalPb(ev) {
@@ -19620,14 +19654,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (isNaN(sec) || sec < 0) sec = 0;
                 if (sec > this.localPbDurSec) sec = this.localPbDurSec;
                 this.localPbSec = sec;
+                const origin = Math.max(0, this._localPbOriginSec || 0);
+                const masterStart = (this._localPbMasterStart != null) ? Number(this._localPbMasterStart)
+                    : (this.syncRecords[0] && this.syncRecords[0]._segStart != null ? Number(this.syncRecords[0]._segStart) : 0);
+                const wall = masterStart + origin + sec; // 进度条相对秒 → 墙钟
                 const vids = this._localPbVideos();
+                const recs = this.syncRecords || [];
                 for (let i = 0; i < vids.length; i++) {
-                    try { vids[i].currentTime = sec; } catch (e) {}
+                    const rec = recs[i];
+                    const start = (rec && rec._segStart != null) ? Number(rec._segStart) : masterStart;
+                    let t = wall - start;
+                    if (t < 0) t = 0;
+                    const recDur = Number(rec && rec.RecordIndexInformationDuration) || 0;
+                    const dur = (isFinite(vids[i].duration) && vids[i].duration > 0) ? vids[i].duration : recDur;
+                    if (dur > 0 && t > dur - 0.05) t = Math.max(0, dur - 0.05);
+                    try { vids[i].currentTime = t; } catch (e) {}
                     if (vids[i].paused) vids[i].play().catch(function () {});
                 }
-                const r0 = this.syncRecords && this.syncRecords[0];
-                const start = r0 && r0._segStart != null ? Number(r0._segStart) : -1;
-                if (start >= 0) this.tlPlaySecs = start + sec;
+                this.tlPlaySecs = wall;
             },
             toggleLocalPb() {
                 const vids = this._localPbVideos();
@@ -19701,11 +19745,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     width: event.currentTarget.getBoundingClientRect().width || 1
                 };
             },
+            // 仅“视图真的被拖走”才吞掉后续 click。全日轴拖不动 + 触控板微抖(>3px) 以前会误吞点击。
+            _tlDragConsumedClick() {
+                if (!this.tlDrag || !this.tlDrag.moved) return false;
+                const unchanged = this.timelineView
+                    && this.timelineView.start === this.tlDrag.vStart
+                    && this.timelineView.end === this.tlDrag.vEnd;
+                this.tlDrag.moved = false;
+                return !unchanged; // 视图变了 → 真平移，吞点击；否则当点击
+            },
             onTimelineMouseMove(event) {
                 if (!this.tlDrag.active) return;
-                const dx = event.clientX - this.tlDrag.startX;
-                if (Math.abs(dx) > 3) this.tlDrag.moved = true;
                 const span = this.tlDrag.vEnd - this.tlDrag.vStart;
+                // 未放大：平移无意义，绝不标 moved，避免点轴被吞
+                if (span >= 86399) return;
+                const dx = event.clientX - this.tlDrag.startX;
+                if (Math.abs(dx) <= 8) return; // 触控板微抖阈值
+                this.tlDrag.moved = true;
                 const deltaSec = -(dx / this.tlDrag.width) * span;  // 拖右→看更早的时间
                 let start = this.tlDrag.vStart + deltaSec;
                 let end = this.tlDrag.vEnd + deltaSec;
@@ -19812,7 +19868,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // 图片回放页：点击时间轴定位到该时刻的图片并显示，搜索截止=点击时间
             onTimelineClickImage(event, camera) {
-                if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }
+                if (this._tlDragConsumedClick()) return;
                 const rect = event.currentTarget.getBoundingClientRect();
                 const pct = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
                 const v = this.timelineView;
