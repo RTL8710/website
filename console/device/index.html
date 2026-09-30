@@ -6269,7 +6269,8 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
-                                                        <pre class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:180px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
+                                                        <!-- 声网回放调试：默认隐藏，需要时控制台设 showAgoraPbDebug=true -->
+                                                        <pre id="agora-pb-debug" x-show="showAgoraPbDebug" class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:180px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
                                                         <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
                                                         <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
@@ -6343,7 +6344,7 @@ window.__presignThumbUrl = function (raw) {
                                                                           :class="rec.RecordIndexInformationType==1 ? 'bg-primary' : rec.RecordIndexInformationType==2 ? 'bg-danger' : 'bg-purple'"
                                                                           :style="rec.RecordIndexInformationType==3 ? 'background:#7c3aed' : ''"
                                                                           x-text="rec.RecordIndexInformationType==1 ? tIdx('vp_type_loop') : rec.RecordIndexInformationType==2 ? tIdx('vp_type_pre') : tIdx('vp_type_timelapse')"></span>
-                                                                    <span class="badge bg-secondary" style="font-size:10px;"><i class="fa fa-clock me-1"></i><span x-text="syncWallClockLabel(rec)"></span></span>
+                                                                    <span class="badge bg-secondary" style="font-size:10px;" x-show="showPbDebugWallClock"><i class="fa fa-clock me-1"></i><span x-text="syncWallClockLabel(rec)"></span></span>
                                                                     <span class="badge bg-dark" style="font-size:10px;" x-show="rec.RecordIndexInformationWidth" x-text="rec.RecordIndexInformationWidth + 'x' + rec.RecordIndexInformationHeight"></span>
                                                                     <span class="badge bg-warning text-dark" style="font-size:10px;"><i class="fa fa-stopwatch me-1"></i><span x-text="rec.RecordIndexInformationDuration + 's'"></span></span>
                                                                 </div>
@@ -12707,16 +12708,17 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 云端回放进度（拖动 → seek）
             tlPlaySecs: -1,               // 时间轴白线：当前播放墙钟（与绿线点击分离）
-            localPbSec: 0,                // 进度条：相对本次起播点的已播秒（点轴后从 0 起）
-            localPbDurSec: 0,             // 进度条：从起播点到片尾的剩余秒
-            _localPbOriginSec: 0,         // 起播时 master 片内偏移（currentTime 基准）
-            _localPbMasterStart: 0,       // 起播时 master 段墙钟起点
+            showPbDebugWallClock: false,   // 回放画面墙钟角标（调试用，默认隐藏）
+            localPbSec: 0,                // 进度条：master 片内绝对秒（= video.currentTime）
+            localPbDurSec: 0,             // 进度条总长：整段 MP4 时长（秒）
+            _localPbMasterStart: 0,       // master 段墙钟起点（多路拖进度用）
             _localPbEpoch: 0,             // 点轴/切段代数，防旧 timeupdate 写回进度
             _localPbLoading: false,
             _localPbLoadingTimer: null,
             _localPbDragging: false,
             playbackCodec: '',            // h264/h265（start 响应回传）
             agoraDebugText: '',
+            showAgoraPbDebug: false,       // 声网远程回放调试绿框（默认隐藏）
             _agoraJoinMode: '',
             _agoraConnState: '',
             _agoraLastErr: '',
@@ -18999,7 +19001,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const r0 = this.syncRecords[0];
                         if (r0 && r0._segStart != null) {
                             this._localPbEpoch = (this._localPbEpoch || 0) + 1;
-                            this._localPbOriginSec = 0;
                             this._localPbMasterStart = Number(r0._segStart);
                             this.tlPlaySecs = Number(r0._segStart);
                             this.tlClickSecs = Number(r0._segStart);
@@ -19336,7 +19337,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.tlPlaySecs = clickSecs;   // 白线先落点击处
                 this.syncSeekSecs = clickSecs;
                 this._localPbEpoch = (this._localPbEpoch || 0) + 1;
-                this._localPbOriginSec = 0;
                 this.localPbSec = 0;
                 this.localPbDurSec = 0;
                 this._setLocalPbLoading(true);
@@ -19581,7 +19581,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const idx = this.playbackFocusIdx | 0;
                 return vids[idx] || vids[0] || null;
             },
-            // 把各路本地 video seek 到墙钟 secs；进度条相对此次起播点从 0 计
+            // 把各路本地 video seek 到墙钟 secs；进度条显示片内绝对秒 / 整段时长
             _kickLocalSeekToWallClock(secs, recs) {
                 const self = this;
                 const epoch = self._localPbEpoch || 0;
@@ -19613,34 +19613,29 @@ document.addEventListener('DOMContentLoaded', function() {
                             masterDur = Math.max(1, Math.ceil(dur || recDur || 1));
                         }
                     }
-                    self._localPbOriginSec = masterOff;
                     self._localPbMasterStart = masterStart;
-                    self.localPbSec = 0; // 点轴/再选：进度从 0 起，不是片内绝对秒
-                    self.localPbDurSec = Math.max(1, masterDur - masterOff);
+                    self.localPbSec = masterOff;          // 片内绝对位置（点轴后跳到此处，非剩余相对 0）
+                    self.localPbDurSec = masterDur;       // 总时间 = 整段时长
                     self.tlPlaySecs = masterStart + masterOff;
                     self._setLocalPbLoading(false);
                 };
                 if (typeof this.$nextTick === 'function') this.$nextTick(apply);
                 else setTimeout(apply, 0);
                 setTimeout(apply, 120);
-                setTimeout(apply, 350); // 慢 seek / 同文件复用再补一次
+                setTimeout(apply, 350);
             },
             onLocalPbMeta(ev, rec) {
                 this.syncSeekVideo(ev, rec);
                 const d = Number(rec && rec.RecordIndexInformationDuration) || 0;
                 const vd = ev && ev.target && isFinite(ev.target.duration) ? ev.target.duration : 0;
-                const full = Math.max(1, Math.ceil(d || vd || 1));
-                const origin = Math.max(0, this._localPbOriginSec || 0);
-                // 勿用整段时长覆盖「相对起播点」的剩余长度
-                this.localPbDurSec = Math.max(1, full - origin);
+                this.localPbDurSec = Math.max(1, Math.ceil(d || vd || this.localPbDurSec || 1));
             },
             onLocalPbTime(ev, rec) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
-                const origin = Math.max(0, this._localPbOriginSec || 0);
                 const curAbs = Math.max(0, v.currentTime || 0);
-                this.localPbSec = Math.max(0, Math.floor(curAbs - origin));
+                this.localPbSec = Math.floor(curAbs);
                 // 白线跟播放墙钟；绝不改绿线 tlClickSecs
                 const start = (rec && rec._segStart != null) ? Number(rec._segStart)
                     : (this._localPbMasterStart != null ? Number(this._localPbMasterStart)
@@ -19654,10 +19649,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (isNaN(sec) || sec < 0) sec = 0;
                 if (sec > this.localPbDurSec) sec = this.localPbDurSec;
                 this.localPbSec = sec;
-                const origin = Math.max(0, this._localPbOriginSec || 0);
+                // 进度条是 master 片内绝对秒 → 墙钟，再同步各路
                 const masterStart = (this._localPbMasterStart != null) ? Number(this._localPbMasterStart)
                     : (this.syncRecords[0] && this.syncRecords[0]._segStart != null ? Number(this.syncRecords[0]._segStart) : 0);
-                const wall = masterStart + origin + sec; // 进度条相对秒 → 墙钟
+                const wall = masterStart + sec;
                 const vids = this._localPbVideos();
                 const recs = this.syncRecords || [];
                 for (let i = 0; i < vids.length; i++) {
@@ -19698,7 +19693,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     : ((this.syncSeekSecs != null && this.syncSeekSecs >= 0) ? this.syncSeekSecs : -1);
                 if (s >= 0 && (this.syncRecords || []).length) {
                     const pad = n => String(n).padStart(2, '0');
-                    return (this.timelineDate || '') + ' ' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+                    return (this.timelineDate || '') + ' ' + pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(Math.floor(s % 60));
                 }
                 const dt = rec && rec.RecordIndexInformationDateTime;
                 return dt ? String(dt).substring(0, 19) : '';
