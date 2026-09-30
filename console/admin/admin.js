@@ -2808,7 +2808,7 @@ function viewLogin(preErr) {
         btn,
         h('a', {
           class: 'admin-entry',
-          href: '../index.html#/login',
+          href: '../index.html#/devices',
           title: t('goConsole'),
         },
           fa('fa-display'),

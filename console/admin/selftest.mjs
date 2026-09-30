@@ -54,7 +54,7 @@ async function main() {
   ok('feature confirm modal', js.includes('确认远程升级'));
   ok('tabs merged OTA', js.includes("id: 'ota'") && !js.includes("id: 'packages'"));
   ok('uuid hard require', js.includes('设备缺少 deviceUuid'));
-  ok('admin own login', js.includes('登录管理后台') && js.includes('function viewLogin'));
+  ok('admin own login', js.includes('function viewLogin') && js.includes('login-shell'));
   ok('ota default latest', js.includes('ensureDefaultUpgradeSelection') && js.includes('★最新'));
   ok('ota status push', js.includes('updateRemoteOtaStatusCommand') && js.includes('applyOtaPush'));
   ok('bind null-safe', js.includes('b && (b.deviceId === deviceId'));
@@ -65,7 +65,7 @@ async function main() {
   const s3m = await (await fetch(BASE + '/lib/s3-media.js')).text();
   ok('s3-media module', s3m.includes('signS3MediaUrl') && s3m.includes('s3ObjectKeyFromRaw'));
   const i18n = await (await fetch(BASE + '/admin/i18n.js')).text();
-  ok('i18n module', i18n.includes('export function switcherBar') && i18n.includes('dv_theme'));
+  ok('i18n module', i18n.includes('export function switcherBar') && i18n.includes('dv_theme') && i18n.includes('登录管理后台') && i18n.includes('heroTitle'));
   ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
 
   const appJs = await (await fetch(BASE + '/app.js')).text();
