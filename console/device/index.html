@@ -4350,7 +4350,7 @@ window.__presignThumbUrl = function (raw) {
                                                                 <i class="fa-solid fa-stop me-1"></i><span x-text="tIdx('rp_stop')"></span>
                                                             </button>
                                                         </div>
-                                                        <pre class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:180px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
+                                                        <pre id="agora-pb-debug" class="mb-2" style="font-size:11px;text-align:left;white-space:pre-wrap;max-height:220px;overflow:auto;background:#0b1220;color:#86efac;padding:8px;border-radius:6px;" x-text="agoraDebugText||'agora debug…'"></pre>
                                                         <!-- 云端多路同步回放：路数用 remotePbCount；PiP 小窗可拖动 -->
                                                         <div data-pb-stage="1" :style="layoutContainerStyle(remotePbCount())">
                                                             <template x-for="pi in remotePbCount()" :key="'pb'+pi">
@@ -10703,7 +10703,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("handleUserPublished id:", id, "camIdx:", camIdx, "pbIdx:", pbIdx);
                 // 对齐 App：回放页只订 1226+，实时 1224/1225 静音不订（否则会画到 remotePlaybackView）
                 if (this.viewMode === 'replay' && pbIdx < 0) {
-                    console.log('[AHS][Agora] replay ignore live uid', id);
+                    this.agoraLog('ignore non-pb uid=' + id + ' prefix=' + this.agoraUidPrefix(id));
                     return;
                 }
                 this.remoteUsers[id] = user;
@@ -10829,6 +10829,11 @@ document.addEventListener('DOMContentLoaded', function() {
             adoptSharedAgora(channel) {
                 const sess = window.AhsAgoraRtc;
                 if (!sess || !sess.joined || !sess.client || sess.channel !== channel) return false;
+                const st = sess.client.connectionState || '';
+                if (st && st !== 'CONNECTED' && st !== 'CONNECTING') {
+                    console.warn('[AHS][Agora] shared session not connected', st);
+                    return false;
+                }
                 this.client = sess.client;
                 this.options.channel = sess.channel;
                 if (sess.appid) this.options.appid = sess.appid;
@@ -10875,7 +10880,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const users = (this.client && this.client.remoteUsers) || [];
                 for (let i = 0; i < users.length; i++) {
                     const u = users[i];
-                    if (this.playbackIndexFromUid(String(u.uid)) >= 0) continue;
+                    if (this.camIndexFromUid(String(u.uid)) < 0) continue;
                     try {
                         if (mute) {
                             if (u.hasVideo) await this.client.unsubscribe(u, 'video');
@@ -14175,9 +14180,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return i === 0 ? pfx : pfx + (i + 1);
             },
             agoraUidPrefix(uidStr) {              // 对齐 App：uid ~/ 1000000；旧固件可能只发前缀
-                const n = parseInt(uidStr, 10);
-                if (!isFinite(n) || n < 0) return -1;
-                return (n >= 1000000) ? Math.floor(n / 1000000) : n;
+                const s = String(uidStr == null ? '' : uidStr);
+                const n = parseInt(s, 10);
+                if (isFinite(n) && n >= 0) {
+                    return (n >= 1000000) ? Math.floor(n / 1000000) : n;
+                }
+                const m = s.match(/(122[4-9]|123[0-9])/);
+                return m ? parseInt(m[1], 10) : -1;
             },
             camIndexFromUid(uidStr) {             // 直播：1224 / 1225 / 1230+(i-2)
                 const s = String(uidStr);
@@ -14201,18 +14210,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const p = this.agoraUidPrefix(s);
                 return (p >= 1226 && p <= 1229) ? (p - 1226) : -1;
             },
+            agoraLog(msg) {
+                const line = new Date().toISOString().slice(11, 23) + ' ' + msg;
+                console.log('[AHS][Agora]', msg);
+                this._agoraLogs = (this._agoraLogs || []).concat(line).slice(-36);
+                this._agoraDebugTick = (this._agoraDebugTick || 0) + 1;
+                this.refreshAgoraDebug();
+            },
             refreshAgoraDebug() {
-                const users = (this.client && this.client.remoteUsers) || [];
+                let users = [];
+                try { users = (this.client && this.client.remoteUsers) ? Array.from(this.client.remoteUsers) : []; } catch (e) { users = []; }
+                const shared = window.AhsAgoraRtc || {};
+                const conn = (this.client && this.client.connectionState) || this._agoraConnState || '';
                 const lines = [
-                    'channel=' + ((this.options && this.options.channel) || '') + ' appid=' + ((this.options && this.options.appid) || ''),
-                    'mode=' + (this._agoraJoinMode || '') + ' streaming=' + !!this.isStreaming + ' conn=' + (this._agoraConnState || ''),
+                    'channel=' + ((this.options && this.options.channel) || '') + ' shared=' + (shared.channel || '') + ' joined=' + !!shared.joined,
+                    'mode=' + (this._agoraJoinMode || '') + ' streaming=' + !!this.isStreaming + ' conn=' + conn,
                     'joinUid=' + ((this.options && this.options.uid) || '') + ' token=' + !!(this.options && this.options.token) + ' proxy=' + !!this._agoraProxy,
                     'sol=' + ((this.webrtcInformation && this.webrtcInformation.WEBRTCSolutionType) || '') + ' enable=' + !!(this.agoraRtcService && this.agoraRtcService.rtcServiceEnable) + ' transport=' + (this.previewTransport || ''),
+                    'client=' + !!(this.client) + ' view=' + (this.viewMode || '') + ' pbActive=' + !!this.remotePlaybackActive,
                     'pbUids=' + JSON.stringify(this.pbCamUids || []),
-                    'remote=' + users.map(function (u) { return String(u.uid) + (u.hasVideo ? '+v' : '') + (u.hasAudio ? '+a' : ''); }).join(',') ,
+                    'remote=' + users.map(function (u) {
+                        return String(u.uid) + '(p' + (this.agoraUidPrefix(u.uid)) + (u.hasVideo ? '+v' : '') + (u.hasAudio ? '+a' : '') + ')';
+                    }, this).join(',') ,
                     'start=' + (this._agoraLastStart || '') + ' err=' + (this._agoraLastErr || 'ok'),
-                ];
+                ].concat(this._agoraLogs || []);
                 this.agoraDebugText = lines.join('\n');
+                try {
+                    const el = document.getElementById('agora-pb-debug');
+                    if (el) el.textContent = this.agoraDebugText;
+                } catch (e) {}
                 try { window.__agoraDebug = { text: this.agoraDebugText, users: users.map(function (u) { return { uid: u.uid, hasVideo: u.hasVideo }; }), pb: this.pbCamUids }; } catch (e) {}
             },
             deviceAgoraUids() {
@@ -14274,13 +14300,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     tick();
                 });
             },
+            watchPlaybackUids(gen) {
+                const self = this;
+                let n = 0;
+                const tick = async function () {
+                    if (gen !== self._playbackGen) return;
+                    const users = (self.client && self.client.remoteUsers) ? Array.from(self.client.remoteUsers) : [];
+                    const pbs = users.filter(function (u) { return self.playbackIndexFromUid(String(u.uid)) >= 0; });
+                    self.agoraLog('poll#' + n + ' remotes=' + users.map(function (u) { return u.uid; }).join(',') + ' pb=' + pbs.length + ' conn=' + (self.client && self.client.connectionState));
+                    await self.syncExistingPlaybackUsers();
+                    self.renderPlaybackVideo();
+                    if (pbs.length) return;
+                    n += 1;
+                    if (n < 16) setTimeout(tick, 1000);
+                    else self.agoraLog('no 1226+ uid after 16s — 设备未推回放流或网页不在房');
+                };
+                tick();
+            },
             async syncExistingPlaybackUsers() {
-                const users = (this.client && this.client.remoteUsers) || [];
+                const users = (this.client && this.client.remoteUsers) ? Array.from(this.client.remoteUsers) : [];
                 for (let i = 0; i < users.length; i++) {
                     const user = users[i];
                     const id = user.uid;
                     const pbIdx = this.playbackIndexFromUid(String(id));
-                    console.log('[AHS][Agora] existing remote', id, 'pbIdx', pbIdx, 'hasVideo', !!user.hasVideo);
+                    this.agoraLog('remote uid=' + id + ' type=' + (typeof id) + ' prefix=' + this.agoraUidPrefix(id) + ' pbIdx=' + pbIdx + ' v=' + !!user.hasVideo);
                     if (pbIdx < 0) continue;
                     this.remoteUsers[id] = user;
                     this.setPbCamUid(pbIdx, id);
@@ -15171,22 +15214,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (gen !== this._playbackGen) return;
                     this.viewMode = 'replay';
+                    this._agoraLogs = [];
+                    this.agoraLog('playback begin path=' + record.RecordIndexInformationPath);
                     await this.ensureRtcSdk();
+                    this.agoraLog('sdk=' + !!window.AgoraRTC + ' tokenLib=' + !!(window.AhsAgoraToken));
                     await this.ensureLivePreviewIdentity();
                     const channel = this.resolveAgoraChannelName();
+                    this.agoraLog('channel=' + channel + ' uuid=' + ((this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || ''));
                     if (!channel) throw new Error('missing agora channel uuid');
                     if (this.adoptSharedAgora(channel)) {
+                        this.agoraLog('adopt shared conn=' + (this.client && this.client.connectionState));
                         await this.muteLiveAgoraUids(true);
                     } else if (!this.isStreaming) {
+                        this.agoraLog('no shared session, join ' + channel);
                         await this.startPreview('replay');
+                        this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
+                    } else {
+                        this.agoraLog('already streaming on this instance');
                     }
                     if (gen !== this._playbackGen) return;
                     await this.syncExistingPlaybackUsers();
                     this.renderPlaybackVideo();
-                    // 对齐 App：进房后立刻 START，不等设备进房、不阻塞唤醒
                     const paths = this.siblingPaths(record);
                     this._agoraLastStart = 'paths=' + JSON.stringify(paths);
-                    this.refreshAgoraDebug();
+                    this.agoraLog('START paths=' + JSON.stringify(paths));
                     const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -15201,17 +15252,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         + ' dur=' + ((result && result.params && result.params.durationMs) || 0)
                         + ' started=' + JSON.stringify(result && result.params && result.params.started)
                         + ' device=' + !!this.deviceAgoraUids().length;
-                    this.refreshAgoraDebug();
+                    this.agoraLog('START resp ' + this._agoraLastStart);
                     if (result && result.params && result.params.success) {
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
                         await this.syncExistingPlaybackUsers();
                         this.renderPlaybackVideo();
-                        if (!this.deviceAgoraUids().length) this._wakeAgoraInBackground(gen);
+                        this.watchPlaybackUids(gen);
                     } else {
                         this._agoraLastErr = 'START failed ' + JSON.stringify(result && result.params);
-                        this.refreshAgoraDebug();
+                        this.agoraLog(this._agoraLastErr);
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
                     }
                 } catch (error) {
