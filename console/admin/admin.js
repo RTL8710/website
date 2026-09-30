@@ -1227,14 +1227,27 @@ function askUpgradeLatest(dev) {
 
 function renderConfirm() {
   const c = state.confirm;
-  return h('div', { class: 'modal-mask', onclick: (e) => { if (e.target === e.currentTarget) { state.confirm = null; render(); } } },
-    h('div', { class: 'glass modal' },
+  const close = () => {
+    state.confirm = null;
+    render();
+    if (typeof c.onClose === 'function') c.onClose();
+  };
+  const ok = () => {
+    if (typeof c.onOk === 'function') c.onOk();
+    else close();
+  };
+  const isSuccess = c.kind === 'success' || c.hideCancel;
+  const actions = [];
+  if (!isSuccess) {
+    actions.push(h('button', { class: 'gbtn', onclick: close }, t('cancel')));
+  }
+  actions.push(h('button', { class: 'gbtn primary', onclick: ok }, c.okText || (isSuccess ? t('gotIt') : t('confirmOk'))));
+  return h('div', { class: 'modal-mask', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
+    h('div', { class: 'glass modal' + (isSuccess ? ' is-success' : '') },
+      isSuccess ? h('div', { class: 'modal-ok-ico', 'aria-hidden': 'true' }, fa('fa-circle-check')) : null,
       h('h3', {}, c.title),
       h('div', { class: 'body', style: { whiteSpace: 'pre-wrap' } }, c.body),
-      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } },
-        h('button', { class: 'gbtn', onclick: () => { state.confirm = null; render(); } }, t('cancel')),
-        h('button', { class: 'gbtn primary', onclick: () => c.onOk && c.onOk() }, c.okText || t('confirmOk')),
-      ),
+      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end' } }, ...actions),
     ),
   );
 }
@@ -1829,12 +1842,37 @@ async function doUpload() {
       upgradeFileUrl: key,
       upgradeOtaTime: new Date().toISOString(),
     });
-    u.msg = `已登记 ${created && created.id ? shortId(created.id) : ''}`;
+    const regId = created && created.id ? created.id : '';
+    const ver = u.version.trim();
+    const dtype = u.deviceType || '';
+    const part = u.partition || '';
+    const mode = u.mode || 'normal';
+    const desc = u.describe.trim();
+    const fileName = (u.file && u.file.name) || '';
+    u.msg = `${t('uploadRegOkTitle')} ${regId ? shortId(regId) : ''}`;
     u.file = null; u.progress = 0;
     state.packages = null;
-    state.upgrade.packageId = created && created.id ? created.id : state.upgrade.packageId;
-    toast('上传成功');
+    state.upgrade.packageId = regId || state.upgrade.packageId;
     await loadTab('ota');
+    state.confirm = {
+      kind: 'success',
+      hideCancel: true,
+      title: t('uploadRegOkTitle'),
+      body: [
+        t('uploadRegOkBody'),
+        '',
+        `${t('version')}: v${ver}`,
+        `${state.otaScope === 'app' ? t('appType') : t('deviceType')}: ${dtype}`,
+        `${t('partition')}: ${part}`,
+        `${t('upgradeMode')}: ${mode}`,
+        fileName ? `${t('file')}: ${fileName}` : '',
+        desc ? `${t('describe')}: ${desc}` : '',
+        regId ? `ID: ${regId}` : '',
+      ].filter((line) => line != null).join('\n'),
+      okText: t('gotIt'),
+      onOk: () => { state.confirm = null; render(); },
+    };
+    render();
   } catch (e) {
     console.error('[admin] upload', e);
     u.err = (e && e.message) || String(e);

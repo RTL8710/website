@@ -51,6 +51,7 @@ async function main() {
   ok('feature 升级到最新', js.includes('升级到最新'));
   ok('feature 一键远程升级', js.includes('一键远程升级'));
   ok('feature 上传并登记', js.includes('上传并登记'));
+  ok('feature OTA 登记成功弹框', js.includes("kind: 'success'") && js.includes('uploadRegOkTitle'));
   ok('feature confirm modal', js.includes('确认远程升级'));
   ok('tabs merged OTA', js.includes("id: 'ota'") && !js.includes("id: 'packages'"));
   ok('uuid hard require', js.includes('设备缺少 deviceUuid'));
