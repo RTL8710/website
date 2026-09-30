@@ -708,7 +708,7 @@ window.__presignThumbUrl = function (raw) {
         .rtc-big { position:relative; width:100%; aspect-ratio:16/9; display:block; }
         /* PiP 小窗：未选中路紧凑成组，整组水平居中固定在视频顶部(对齐期望效果图)。
            --pip-n=小窗个数，--pip-i=组内序号(0起)；选中路用 .rtc-big 铺满 */
-        .rtc-pip { position:absolute; top:10px; width:19%; aspect-ratio:16/9; display:block;
+        .rtc-pip { position:absolute; top:10px; width:19%; aspect-ratio:16/9; display:block; cursor:grab;
                    /* left 由 livePipInlineStyle() 按未选中路紧凑居中计算 */
                    z-index:25; cursor:pointer; border-radius:10px; overflow:hidden; background:#070b14;
                    border:1px solid color-mix(in srgb, var(--accent) 38%, rgba(255,255,255,.16));
@@ -718,6 +718,8 @@ window.__presignThumbUrl = function (raw) {
             border-color: color-mix(in srgb, var(--accent) 60%, #fff);
             box-shadow:0 12px 32px rgba(0,0,0,.55), 0 0 28px color-mix(in srgb, var(--accent) 24%, transparent);
         }
+        .rtc-pip:active { cursor: grabbing; }
+
         /* ── Live preview stage：16:9 贴合画面、无底部空洞 ── */
         .live-preview-card {
             margin-bottom: 0 !important;
@@ -3509,7 +3511,7 @@ window.__presignThumbUrl = function (raw) {
                                     <!--                                    <div class="card-header">-->
                                     <!--                                        <h3 class="card-title">Preview Stream</h3>-->
                                     <!--                                    </div>-->
-                                    <div id="videoContainer" class="card-bod yd-flex flex-fill "
+                                    <div id="videoContainer" data-live-stage="1" class="card-bod yd-flex flex-fill "
                                          :class="'live-layout-'+liveLayout"
                                          :style="'width:100%;height:100%;position:relative;--live-cols:'+Math.max(videoInformation.cameraCounts||1,1)">
                                         <!-- 视频播放区域，视频大小根据父容器自动调整 -->
@@ -3518,7 +3520,10 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="rtc-cam" :style="livePipInlineStyle(ci)"
                                                  :class="liveCamClass(ci)"
                                                  x-show="liveCamShow(ci)"
-                                                 @click="focusCamera(ci-1)" :title="focusCam===ci ? '' : tIdx('pl_switch_hint')">
+                                                 data-live-pip="1"
+                                                 @pointerdown="onLivePipPointerDown($event, ci)"
+                                                 @click="onLivePipTileClick($event, ci-1)"
+                                                 :title="focusCam===ci ? '' : (tIdx('pl_pip_drag') + ' · ' + tIdx('pl_switch_hint'))">
                                                 <video :id="ci===1 ? 'remoteView' : 'remoteView'+ci"
                                                        style="width:100%; height:100%; object-fit:contain; display:block;"
                                                        autoplay playsinline muted></video>
@@ -3825,7 +3830,7 @@ window.__presignThumbUrl = function (raw) {
                                     <div class="col-lg-8 d-flex flex-column">
                                         <div class="col-12 flex-fill" style="margin-bottom: 0;">
                                             <div class="card live-preview-card">
-                                                <div id="videoSettingContainer" class="card-body p-0 live-preview-stage"
+                                                <div id="videoSettingContainer" data-live-stage="1" class="card-body p-0 live-preview-stage"
                                                      :class="'live-layout-'+liveLayout"
                                                      :style="'--live-cols:'+Math.max(videoInformation.cameraCounts||1,1)">
                                                     <!-- 视频播放区域，视频大小根据父容器自动调整 -->
@@ -3834,7 +3839,10 @@ window.__presignThumbUrl = function (raw) {
                                                         <div class="rtc-cam" :style="livePipInlineStyle(ci)"
                                                              :class="liveCamClass(ci)"
                                                              x-show="liveCamShow(ci)"
-                                                             @click="focusCamera(ci-1)" :title="focusCam===ci ? '' : tIdx('pl_switch_hint')">
+                                                             data-live-pip="1"
+                                                             @pointerdown="onLivePipPointerDown($event, ci)"
+                                                             @click="onLivePipTileClick($event, ci-1)"
+                                                             :title="focusCam===ci ? '' : (tIdx('pl_pip_drag') + ' · ' + tIdx('pl_switch_hint'))">
                                                             <video :id="ci===1 ? 'remoteViewSetting' : 'remoteViewSetting'+ci"
                                                                    style="width:100%; height:100%; object-fit:contain; display:block;"
                                                                    autoplay playsinline muted></video>
@@ -4768,7 +4776,7 @@ window.__presignThumbUrl = function (raw) {
                                 <!-- 左：实时视频预览（检测框 + OSD 已烧进画面，调参即时可见）-->
                                 <div class="col-lg-7 d-flex flex-column">
                                   <div class="card live-preview-card ai-preview-card">
-                                                <div id="videoAiContainer" class="card-body p-0 live-preview-stage"
+                                                <div id="videoAiContainer" data-live-stage="1" class="card-body p-0 live-preview-stage"
                                                      :class="'live-layout-'+liveLayout"
                                                      :style="'--live-cols:'+Math.max(videoInformation.cameraCounts||1,1)">
                                                     <!-- 视频播放区域，视频大小根据父容器自动调整 -->
@@ -4777,7 +4785,10 @@ window.__presignThumbUrl = function (raw) {
                                                         <div class="rtc-cam" :style="livePipInlineStyle(ci)"
                                                              :class="liveCamClass(ci)"
                                                              x-show="liveCamShow(ci)"
-                                                             @click="focusCamera(ci-1)" :title="focusCam===ci ? '' : tIdx('pl_switch_hint')">
+                                                             data-live-pip="1"
+                                                             @pointerdown="onLivePipPointerDown($event, ci)"
+                                                             @click="onLivePipTileClick($event, ci-1)"
+                                                             :title="focusCam===ci ? '' : (tIdx('pl_pip_drag') + ' · ' + tIdx('pl_switch_hint'))">
                                                             <video :id="ci===1 ? 'remoteViewAi' : 'remoteViewAi'+ci"
                                                                    style="width:100%; height:100%; object-fit:contain; display:block;"
                                                                    autoplay playsinline muted></video>
@@ -12653,6 +12664,9 @@ document.addEventListener('DOMContentLoaded', function() {
             cam3Uid : null,          // 设备 CAM3 发布者 uid（前缀 1230，第三路起）(与 camUids[2] 同步)
             focusCam : 1,            // 当前大图显示的摄像头序号(1-based)
             liveLayout: (function(){ try { localStorage.setItem('dv_live_layout','pip'); } catch(e){} return 'pip'; })(), // 多路显示默认画中画(pip)；用户可点左侧按钮切宫格
+            livePipPos: (function(){ try { return JSON.parse(localStorage.getItem('dv_live_pip_pos') || '{}') || {}; } catch (e) { return {}; } })(),
+            _livePipDrag: null,
+            _livePipJustDragged: false,
             options : {
                 // appid (key) + certificate 默认值
                 appid:"289f22d97eab4db98e53af72edbef3b7",
@@ -18403,16 +18417,69 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return 0;
             },
+            livePipDefaultPos(ci) {
+                const n = this.livePipCount();
+                const i = this.livePipSlot(ci);
+                // 每槽宽约 20%(窗 19%+间隙)，整组水平居中；默认靠顶
+                const left = 50 - (n * 20 - 1) / 2 + i * 20;
+                return { left: left, top: 3 };
+            },
             livePipInlineStyle(ci) {
                 // 宫格模式走 CSS grid，绝不能再写 PiP 的 left%，否则 relative 偏移导致第二排错位
                 const camN = (this.videoInformation && this.videoInformation.cameraCounts) || 1;
                 if (camN <= 1 || this.liveLayout === 'grid') return '';
                 if (this.focusCam === ci) return '';
-                const n = this.livePipCount();
-                const i = this.livePipSlot(ci);
-                // 每槽宽约 20%(窗 19%+间隙)，整组水平居中
-                const left = 50 - (n * 20 - 1) / 2 + i * 20;
-                return 'left:' + left + '%;';
+                const key = String(ci);
+                const pos = (this.livePipPos && this.livePipPos[key]) || this.livePipDefaultPos(ci);
+                return 'left:' + pos.left + '%;top:' + pos.top + '%;cursor:grab;touch-action:none;user-select:none;';
+            },
+            onLivePipPointerDown(ev, ci) {
+                if (this.liveLayout === 'grid') return;
+                if (ci === this.focusCam) return;
+                if (ev.button != null && ev.button !== 0) return;
+                const stage = ev.currentTarget.closest('[data-live-stage]') || ev.currentTarget.parentElement;
+                if (!stage) return;
+                const rect = stage.getBoundingClientRect();
+                const pos = (this.livePipPos && this.livePipPos[String(ci)]) || this.livePipDefaultPos(ci);
+                this._livePipDrag = {
+                    ci: ci,
+                    startX: ev.clientX, startY: ev.clientY,
+                    origLeft: pos.left, origTop: pos.top,
+                    cw: Math.max(rect.width, 1), ch: Math.max(rect.height, 1),
+                    moved: false
+                };
+                try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                const move = (e) => this.onLivePipPointerMove(e);
+                const up = (e) => {
+                    this.onLivePipPointerUp(e);
+                    window.removeEventListener('pointermove', move);
+                    window.removeEventListener('pointerup', up);
+                    window.removeEventListener('pointercancel', up);
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+                window.addEventListener('pointercancel', up);
+            },
+            onLivePipPointerMove(e) {
+                const d = this._livePipDrag;
+                if (!d) return;
+                const dx = (e.clientX - d.startX) / d.cw * 100;
+                const dy = (e.clientY - d.startY) / d.ch * 100;
+                if (Math.abs(dx) + Math.abs(dy) > 0.8) d.moved = true;
+                let left = Math.min(78, Math.max(0, d.origLeft + dx));
+                let top = Math.min(78, Math.max(0, d.origTop + dy));
+                const key = String(d.ci);
+                this.livePipPos = Object.assign({}, this.livePipPos || {}, { [key]: { left: left, top: top } });
+            },
+            onLivePipPointerUp(e) {
+                const d = this._livePipDrag;
+                if (d && d.moved) this._livePipJustDragged = true;
+                this._livePipDrag = null;
+                try { localStorage.setItem('dv_live_pip_pos', JSON.stringify(this.livePipPos || {})); } catch (err) {}
+            },
+            onLivePipTileClick(ev, camIndex) {
+                if (this._livePipJustDragged) { this._livePipJustDragged = false; return; }
+                this.focusCamera(camIndex);
             },
             liveCamShow(ci) {
                 if (ci === 1) return true;
