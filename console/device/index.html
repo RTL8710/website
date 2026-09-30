@@ -6326,7 +6326,10 @@ window.__presignThumbUrl = function (raw) {
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
                                                             <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
-                                                                   x-model.number="playbackPositionMs" @change="seekRemotePlayback($event)">
+                                                                   x-model.number="playbackPositionMs"
+                                                                   @pointerdown="_playbackProgressDragging=true; _stopPlaybackProgressTicker()"
+                                                                   @pointerup="_playbackProgressDragging=false"
+                                                                   @change="seekRemotePlayback($event)">
                                                             <span class="text-muted" style="font-size:11px;white-space:nowrap;"
                                                                   x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
                                                         </div>
@@ -12618,6 +12621,8 @@ document.addEventListener('DOMContentLoaded', function() {
             kvsPlaybackViewers: [],       // 多路 KVS 回放 viewer 列表(逐路 -playback/-playback2/…)
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 当前进度（拖动 → seek）
+            _playbackProgressTimer: null, // 设备不推进度：1s 本地计时器推进进度条
+            _playbackProgressDragging: false,
             playbackCodec: '',            // h264/h265（start 响应回传）
             agoraDebugText: '',
             _agoraJoinMode: '',
@@ -14395,6 +14400,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.remotePlaybackPath = record.RecordIndexInformationPath;
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
+                        this._startPlaybackProgressTicker();
                         this.playbackCodec = result.params.codec || '';
                         // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
                     } else {
@@ -19441,6 +19447,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result && result.params && result.params.success) {
                         this.playbackDurationMs = result.params.durationMs || 0;
                         this.playbackPositionMs = 0;
+                        this._startPlaybackProgressTicker();
                         this.playbackCodec = result.params.codec || '';
                         await this.syncExistingPlaybackUsers();
                         this.renderPlaybackVideo();
@@ -19497,6 +19504,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             async stopRemotePlayback(keepAgora) {
+                this._stopPlaybackProgressTicker();
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -19550,7 +19558,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } catch (e) {}
             },
+            // 设备不推送播放进度（对齐 App）：1s 计时器推进进度条秒数
+            _startPlaybackProgressTicker() {
+                this._stopPlaybackProgressTicker();
+                const self = this;
+                this._playbackProgressTimer = setInterval(function () {
+                    if (!self.remotePlaybackActive) { self._stopPlaybackProgressTicker(); return; }
+                    if (self._playbackProgressDragging) return;
+                    const cur = self.playbackPositionMs | 0;
+                    const dur = self.playbackDurationMs | 0;
+                    if (dur <= 0) return;
+                    if (cur + 1000 <= dur) self.playbackPositionMs = cur + 1000;
+                    else { self.playbackPositionMs = dur; self._stopPlaybackProgressTicker(); }
+                }, 1000);
+            },
+            _stopPlaybackProgressTicker() {
+                if (this._playbackProgressTimer) {
+                    clearInterval(this._playbackProgressTimer);
+                    this._playbackProgressTimer = null;
+                }
+            },
             async seekRemotePlayback(ev) {
+                this._playbackProgressDragging = false;
                 let positionMs = parseInt((ev && ev.target) ? ev.target.value : this.playbackPositionMs, 10);
                 if (isNaN(positionMs) || positionMs < 0) positionMs = 0;
                 this.playbackPositionMs = positionMs;
@@ -19566,6 +19595,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
                 }
+                if (this.remotePlaybackActive) this._startPlaybackProgressTicker();
             },
 
             // ===== 录像时间轴（按天） =====
