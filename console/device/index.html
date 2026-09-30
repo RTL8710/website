@@ -10764,6 +10764,13 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             _setupAgoraClient(channel) {
+                try {
+                    if (window.AgoraRTC && AgoraRTC.setArea && AgoraRTC.AREAS && !window.__ahsAgoraArea) {
+                        const codes = [AgoraRTC.AREAS.GLOBAL, AgoraRTC.AREAS.ASIA, AgoraRTC.AREAS.CHINA].filter(Boolean);
+                        AgoraRTC.setArea({ areaCode: codes });
+                        window.__ahsAgoraArea = true;
+                    }
+                } catch (e) {}
                 this.client = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
                 this._agoraJoinMode = 'rtc';
                 this.options.channel = channel;
@@ -10771,7 +10778,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.agoraRtcService && this.agoraRtcService.rtcAppId) {
                     this.options.appid = this.agoraRtcService.rtcAppId;
                 }
-                const tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                const existing = (this.options && this.options.token) ? String(this.options.token).trim() : '';
+                const fromDev = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                const tok = (existing.indexOf('006') === 0 || existing.indexOf('007') === 0) ? existing : fromDev;
                 this.options.token = tok || null;
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
@@ -10793,13 +10802,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             },
             async _joinAgoraClient(useProxy) {
-                this._agoraProxy = !!useProxy;
-                if (useProxy && this.client && typeof this.client.startProxyServer === 'function') {
-                    const maybe = this.client.startProxyServer(5);
+                const proxyMode = (useProxy === true) ? 5 : (useProxy || 0);
+                this._agoraProxy = !!proxyMode;
+                if (proxyMode && this.client && typeof this.client.startProxyServer === 'function') {
+                    const maybe = this.client.startProxyServer(proxyMode);
                     if (maybe && typeof maybe.then === 'function') await maybe;
-                    console.log('[AHS][Agora] Cloud Proxy mode=5 before join');
+                    console.log('[AHS][Agora] Cloud Proxy mode=' + proxyMode + ' before join');
                 }
-                console.log('[AHS][Agora] join channel=', this.options.channel, 'appid=', this.options.appid, 'proxy=', this._agoraProxy, 'token=', !!(this.options && this.options.token));
+                console.log('[AHS][Agora] join channel=', this.options.channel, 'appid=', this.options.appid, 'proxy=', this._agoraProxy, 'tokenLen=', ((this.options && this.options.token) || '').length);
                 this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
             },
             async _teardownAgoraClient() {
@@ -10892,14 +10902,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             prepareAgoraJoinToken(channel) {
-                const appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || (this.options && this.options.appid) || '').trim();
-                const cert = ((this.options && this.options.appCertificate) || '').trim();
+                const defaultAppId = '289f22d97eab4db98e53af72edbef3b7';
+                const defaultCert = '46e63f9a49b14d649c9a360c96dcbc9b';
+                let appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || (this.options && this.options.appid) || defaultAppId).trim();
+                let cert = ((this.options && this.options.appCertificate) || defaultCert).trim();
+                if (cert === defaultCert && appId !== defaultAppId) cert = '';
+                if (appId) this.options.appid = appId;
                 let tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
                 if (tok && (tok.indexOf('006') === 0 || tok.indexOf('007') === 0) && tok.length > 40) {
                     this.options.token = tok;
                     return tok;
                 }
-                if (appId && cert && channel && window.AhsAgoraToken && typeof window.AhsAgoraToken.buildRtcToken === 'function') {
+                if (appId && cert && channel && window.AhsAgoraToken && window.CryptoJS && window.CryptoJS.HmacSHA256) {
                     try {
                         tok = window.AhsAgoraToken.buildRtcToken(appId, cert, channel, 0) || '';
                     } catch (e) {
@@ -10909,43 +10923,66 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.options.token = tok || null;
                     return this.options.token;
                 }
-                this.options.token = tok || null;
-                return this.options.token;
+                this.options.token = null;
+                return null;
+            },
+            _agoraErrText(e) {
+                return String((e && (e.message || e.code)) || e || '');
+            },
+            _agoraIsNoActive(e) {
+                return /no active status|CAN_NOT_GET_GATEWAY|CANNOT_GET_GATEWAY/i.test(this._agoraErrText(e));
             },
             async _joinAgoraWithFallback(channel, wan) {
-                this.prepareAgoraJoinToken(channel);
-                const tokens = [];
-                if (this.options && this.options.token) tokens.push(this.options.token);
-                tokens.push(null);
-                const seen = {};
-                const unique = tokens.filter(function (t) {
-                    const k = t ? String(t) : '';
-                    if (seen[k]) return false;
-                    seen[k] = true;
-                    return true;
-                });
-                const attempts = [];
-                unique.forEach(function (tok) { attempts.push({ tok: tok, proxy: false }); });
-                if (wan) unique.forEach(function (tok) { attempts.push({ tok: tok, proxy: true }); });
+                const tok = this.prepareAgoraJoinToken(channel);
+                if (typeof this.agoraLog === 'function') {
+                    this.agoraLog('join plan ch=' + channel + ' appid=' + String(this.options.appid || '').slice(0, 8)
+                        + ' tokenLen=' + (tok ? tok.length : 0) + ' tokenHead=' + (tok ? tok.slice(0, 8) : 'none')
+                        + ' crypto=' + !!(window.CryptoJS && window.CryptoJS.HmacSHA256));
+                }
+                const directs = [];
+                if (tok) directs.push(tok);
+                directs.push(null);
                 let lastErr = null;
-                for (let i = 0; i < attempts.length; i++) {
-                    const a = attempts[i];
-                    this.options.token = a.tok;
+                for (let i = 0; i < directs.length; i++) {
+                    const t = directs[i];
+                    this.options.token = t;
                     try { await this._teardownAgoraClient(); } catch (e) {}
                     this._setupAgoraClient(channel);
-                    this.options.token = a.tok;
+                    this.options.token = t;
                     try {
-                        await this._joinAgoraClient(a.proxy);
+                        await this._joinAgoraClient(0);
                         this._agoraLastErr = '';
                         this.publishSharedAgora();
+                        if (typeof this.agoraLog === 'function') this.agoraLog('join ok uid=' + this.options.uid + ' token=' + !!t);
                         this.refreshAgoraDebug();
                         return;
                     } catch (e) {
                         lastErr = e;
-                        console.warn('[AHS][Agora] join fail token=' + !!a.tok + ' proxy=' + a.proxy, e);
+                        if (typeof this.agoraLog === 'function') this.agoraLog('join fail direct token=' + !!t + ' ' + this._agoraErrText(e));
                     }
                 }
-                this._agoraLastErr = 'join ' + ((lastErr && lastErr.message) || lastErr);
+                // Cloud Proxy 未开通时会报 no active status，再开 proxy 只会重复失败
+                if (wan && lastErr && !this._agoraIsNoActive(lastErr)) {
+                    const modes = [3, 5];
+                    for (let m = 0; m < modes.length; m++) {
+                        this.options.token = tok || null;
+                        try { await this._teardownAgoraClient(); } catch (e) {}
+                        this._setupAgoraClient(channel);
+                        this.options.token = tok || null;
+                        try {
+                            await this._joinAgoraClient(modes[m]);
+                            this._agoraLastErr = '';
+                            this.publishSharedAgora();
+                            if (typeof this.agoraLog === 'function') this.agoraLog('join ok proxy=' + modes[m] + ' uid=' + this.options.uid);
+                            this.refreshAgoraDebug();
+                            return;
+                        } catch (e) {
+                            lastErr = e;
+                            if (typeof this.agoraLog === 'function') this.agoraLog('join fail proxy=' + modes[m] + ' ' + this._agoraErrText(e));
+                        }
+                    }
+                }
+                this._agoraLastErr = 'join ' + this._agoraErrText(lastErr);
                 this.refreshAgoraDebug();
                 throw lastErr;
             },
@@ -15227,8 +15264,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         await this.muteLiveAgoraUids(true);
                     } else if (!this.isStreaming) {
                         this.agoraLog('no shared session, join ' + channel);
-                        await this.startPreview('replay');
-                        this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
+                        try {
+                            await this.startPreview('replay');
+                            this.agoraLog('joined uid=' + ((this.options && this.options.uid) || '') + ' conn=' + (this.client && this.client.connectionState));
+                        } catch (joinErr) {
+                            this.agoraLog('agora join failed → KVS fallback ' + this._agoraErrText(joinErr));
+                            await this.startKvsPlayback(record, this._playbackSiblingRecs, gen);
+                            return;
+                        }
                     } else {
                         this.agoraLog('already streaming on this instance');
                     }
