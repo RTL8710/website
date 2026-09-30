@@ -87,17 +87,18 @@ window.isLanDeviceOrigin = function () {
   } catch (e) { return false; }
 };
 window.isWanMediaMode = function () {
+  // IP/localhost = 设备局域网网页；域名(Pages/门户) = 外网，禁止 /download
   if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
-  return !!(window.isCloudOtaMode && window.isCloudOtaMode());
+  return true;
 };
 /* MQTT 列表投影：外网默认 slim=true（省略 Image/ImuPath/Description/events）。
- * 可见回放列表传 { keepThumbs:true } —— 不要 slim，否则砍掉 ImageUrl，列表只剩占位
- *（对齐 App：可见列表关 slim；时间轴/探针仍 slim）。 */
+ * 可见回放列表 { keepThumbs:true } → slim + includeImageUrl：保留 S3 封面，仍砍 Description/events
+ *（比 App 全量非 slim 更省 MQTT；设备 toJSONSlim(includeImageUrl) 已支持）。 */
 window.wanListSlimParams = function (params, opts) {
   params = params || {};
   if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) {
-    if (opts && opts.keepThumbs) return params;
     params.slim = true;
+    if (opts && opts.keepThumbs) params.includeImageUrl = true;
   }
   return params;
 };
@@ -18880,12 +18881,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!rec) return BLANK;
                 let url = rec.RecordIndexInformationImageUrl || '';
                 const path = rec.RecordIndexInformationImage || '';
-                // 时间轴多路残缺项：从当前列表按路径补 ImageUrl（云端 WAN 必需）
-                if (!url && path && Array.isArray(this.images)) {
-                    const hit = this.images.find(x => x && x.RecordIndexInformationImage === path);
-                    if (hit && hit.RecordIndexInformationImageUrl) url = hit.RecordIndexInformationImageUrl;
+                // 时间轴/列表残缺项：从 images/records 按路径补 ImageUrl（云端 WAN 必需）
+                if (!url && path) {
+                    const pools = [];
+                    if (Array.isArray(this.images)) pools.push(this.images);
+                    if (Array.isArray(this.records)) pools.push(this.records);
+                    for (const arr of pools) {
+                        const hit = arr.find(x => x && x.RecordIndexInformationImage === path && x.RecordIndexInformationImageUrl);
+                        if (hit) { url = hit.RecordIndexInformationImageUrl; break; }
+                    }
                 }
-                const wan = (typeof this._injectedCreds === 'function') && this._injectedCreds();
+                const wan = (typeof window.isWanMediaMode === 'function')
+                    ? window.isWanMediaMode()
+                    : ((typeof this._injectedCreds === 'function') && this._injectedCreds());
                 if (wan) {
                     if (url && /^(https?:)/.test(url)) {
                         return (typeof this._s3PresignUrl === 'function') ? this._s3PresignUrl(url) : url;
