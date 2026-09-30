@@ -12452,6 +12452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             size: it.size,
                             lastModified: it.lastModified,
                             mtime: lm ? Math.floor(lm / 1000) : 0,
+                            deviceId: meta.deviceId || deviceId,
                             supportCode: meta.supportCode,
                             code: meta.code,
                             userId: meta.userId,
@@ -12506,21 +12507,68 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.logViewLoading = false;
                 }
             },
+            /** 云端日志下载名：设备ID_日志时间_日志ID + 原扩展名 */
+            cloudDiagDownloadFileName(log) {
+                const meta = log || {};
+                let deviceId = meta.deviceId || '';
+                let code = meta.code || '';
+                if ((!deviceId || !code) && meta.key) {
+                    const p = this._parseDiagKey(meta.key);
+                    deviceId = deviceId || p.deviceId || '';
+                    code = code || p.code || '';
+                }
+                if (!deviceId) {
+                    try { deviceId = this.resolveDeviceUuidForLogUpload() || ''; } catch (e) {}
+                }
+                if (!deviceId) deviceId = 'device';
+                if (!code) code = (meta.supportCode || '').replace(/^[^A-Z0-9]*-/, '') || 'log';
+                let timeStr = 'unknown';
+                const s = meta.lastModified || '';
+                const dt = s ? new Date(s) : null;
+                if (dt && !isNaN(dt.getTime())) {
+                    const pad = (x) => String(x).padStart(2, '0');
+                    timeStr = '' + dt.getFullYear() + pad(dt.getMonth() + 1) + pad(dt.getDate())
+                        + '-' + pad(dt.getHours()) + pad(dt.getMinutes()) + pad(dt.getSeconds());
+                } else if (meta.mtime) {
+                    const d2 = new Date(meta.mtime * 1000);
+                    if (!isNaN(d2.getTime())) {
+                        const pad = (x) => String(x).padStart(2, '0');
+                        timeStr = '' + d2.getFullYear() + pad(d2.getMonth() + 1) + pad(d2.getDate())
+                            + '-' + pad(d2.getHours()) + pad(d2.getMinutes()) + pad(d2.getSeconds());
+                    }
+                }
+                const orig = meta.name || (meta.key && String(meta.key).split('/').pop()) || 'log.gz';
+                const extMatch = String(orig).match(/(\.(?:tar\.)?gz|\.log|\.txt|\.out)$/i);
+                const ext = extMatch ? extMatch[1] : '.gz';
+                const safe = (x) => String(x).replace(/[^\w.\-]+/g, '_');
+                return safe(deviceId) + '_' + timeStr + '_' + safe(code) + ext;
+            },
             async downloadCloudDiagLog(log) {
                 if (!log || !log.key) return;
-                return this.downloadCloudDiagByKey(log.key, log.name);
+                return this.downloadCloudDiagByKey(log.key, this.cloudDiagDownloadFileName(log));
             },
             async downloadCloudDiagByKey(key, nameHint) {
                 try {
                     const signed = window.__presignOtaS3Get(key, 3600);
                     if (!signed) throw new Error(this.tIdx('lg_cloud_no_creds'));
+                    // 跨域 S3 时 <a download> 常被忽略，改 blob 才能固定本地文件名
+                    const r = await fetch(signed);
+                    if (!r.ok) throw new Error('S3 GET ' + r.status);
+                    const blob = await r.blob();
+                    let name = nameHint;
+                    if (!name) {
+                        const hit = (this.cloudDiagLogs || []).find((x) => x.key === key);
+                        name = this.cloudDiagDownloadFileName(hit || { key });
+                    }
+                    const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = signed;
-                    a.download = nameHint || String(key).split('/').pop() || 'log.gz';
+                    a.href = url;
+                    a.download = name;
                     a.rel = 'noopener';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
+                    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 1500);
                 } catch (e) {
                     this.showAlert && this.showAlert('danger', 'Log', (e && e.message) || String(e), 6000);
                 }
@@ -12625,7 +12673,9 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             downloadLog(fileName) {
                 if (this.isWanLogMode() && this._cloudDiagKey) {
-                    return this.downloadCloudDiagByKey(this._cloudDiagKey, fileName);
+                    const hit = (this.cloudDiagLogs || []).find((x) => x.key === this._cloudDiagKey);
+                    return this.downloadCloudDiagByKey(this._cloudDiagKey,
+                        this.cloudDiagDownloadFileName(hit || { key: this._cloudDiagKey }));
                 }
                 const dir = encodeURIComponent(this.logInformation.logDir || '');
                 window.location.href = `/log/log-download?dir=${dir}&file=${encodeURIComponent(fileName)}`;
