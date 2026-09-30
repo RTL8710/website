@@ -6345,10 +6345,14 @@ window.__presignThumbUrl = function (raw) {
                                                                  @pointerdown="onPipPointerDown($event, idx, syncRecords.length)"
                                                                  @click="onPipTileClick($event, idx)">
                                                                 <video
+                                                                        data-local-pb="1"
+                                                                        preload="auto"
                                                                         :src="localPlaybackVideoSrc(rec)"
-                                                                        @loadedmetadata="syncSeekVideo($event, rec)"
+                                                                        @loadedmetadata="onLocalVideoMeta($event, rec)"
+                                                                        @timeupdate="onLocalVideoTimeUpdate($event, rec)"
+                                                                        @ended="onLocalVideoEnded($event, rec)"
                                                                         :style="isPlaybackFocused(idx) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;pointer-events:auto;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;pointer-events:none;'"
-                                                                        :controls="isPlaybackFocused(idx)" autoplay muted playsinline
+                                                                        autoplay muted playsinline
                                                                 ></video>
                                                                 <!-- 下载按钮叠加（仅网格/聚焦路显示）-->
                                                                 <div x-show="isPlaybackFocused(idx)" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
@@ -6378,6 +6382,24 @@ window.__presignThumbUrl = function (raw) {
                                                                      x-text="'CAM'+(tlCamOf(rec.RecordIndexInformationPath)+1)"></div>
                                                             </div>
                                                         </template>
+                                                    </div>
+                                                    <div class="d-flex align-items-center mt-2" style="gap:8px;"
+                                                         x-show="syncRecords.length && !remotePlaybackActive && localPlaybackDurationSec()>0">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:2px 8px;"
+                                                                @click.stop="toggleLocalPlayback()">
+                                                            <i class="fa-solid" :class="_localPbPaused ? 'fa-play' : 'fa-pause'"></i>
+                                                        </button>
+                                                        <input type="range" class="form-range flex-fill" min="0"
+                                                               :max="localPlaybackDurationSec()" step="1"
+                                                               :value="localPlaybackProgressSec()"
+                                                               @pointerdown="_localPbDragging=true"
+                                                               @touchstart.passive="_localPbDragging=true"
+                                                               @input="onLocalPlaybackProgressInput($event)"
+                                                               @change="seekLocalPlayback($event)"
+                                                               @pointerup="seekLocalPlayback($event)"
+                                                               @touchend="seekLocalPlayback($event)">
+                                                        <span class="text-muted" style="font-size:11px;white-space:nowrap;"
+                                                              x-text="localPlaybackProgressSec()+'s / '+localPlaybackDurationSec()+'s'"></span>
                                                     </div>
                                                     <!-- 未选录像空态：多路摄像头缩略图宫格（对齐 App 未出帧垫图）；时间轴切段不打断为「连接中」全屏加载 -->
                                                     <div x-show="!syncRecords.length && !remotePlaybackActive" class="pb-idle-stage">
@@ -12627,6 +12649,9 @@ document.addEventListener('DOMContentLoaded', function() {
             playbackPositionMs: 0,        // 当前进度（拖动 → seek）
             _playbackProgressTimer: null, // 设备不推进度：1s 本地计时器推进进度条
             _playbackProgressDragging: false,
+            _localPbDragging: false,
+            _localPbPaused: false,
+            _localPbPendingSec: null,
             _playbackSegmentEnded: false, // 本段已播完：设备会话结束，seek 需先重起
             _lastPlaybackPaths: null,     // 最近一次起播 paths，供播完后重起
             playbackCodec: '',            // h264/h265（start 响应回传）
@@ -13866,7 +13891,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             // 局域网：设备同源可直接 /mnt 或 /download；外网禁止把 SD 路径当地址（会变成门户 404）
-            localPlaybackVideoSrc(rec) {
+            localPlaybackHttpSrc(rec) {
                 if (!rec || !rec.RecordIndexInformationPath) return '';
                 if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) {
                     /* fall through to build /download */
@@ -13879,6 +13904,179 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('/download')) return p;
                 if (p.startsWith('/mnt/') || p.startsWith('/')) return '/download?filePath=' + p;
                 return p;
+            },
+            localPlaybackVideoSrc(rec) {
+                if (rec && rec._blobUrl) return rec._blobUrl;
+                return this.localPlaybackHttpSrc(rec);
+            },
+            localPlaybackVideos() {
+                return Array.from(document.querySelectorAll('video[data-local-pb="1"]'));
+            },
+            localPlaybackDurationSec() {
+                let d = 0;
+                this.localPlaybackVideos().forEach(function (v) {
+                    if (isFinite(v.duration) && v.duration > d) d = v.duration;
+                });
+                (this.syncRecords || []).forEach(function (r) {
+                    const rd = Number(r && r.RecordIndexInformationDuration) || 0;
+                    if (rd > d) d = rd;
+                });
+                const ms = this.playbackDurationMs | 0;
+                if (ms > 0) d = Math.max(d, ms / 1000);
+                return Math.max(1, Math.ceil(d));
+            },
+            localPlaybackProgressSec() {
+                const max = this.localPlaybackDurationSec();
+                const pos = Math.floor((this.playbackPositionMs | 0) / 1000);
+                return Math.min(max, Math.max(0, pos));
+            },
+            _localPbMaster() {
+                const vids = this.localPlaybackVideos();
+                const idx = this.playbackFocusIdx | 0;
+                return vids[idx] || vids[0] || null;
+            },
+            onLocalVideoMeta(ev, rec) {
+                this.syncSeekVideo(ev, rec);
+                this._refreshLocalPlaybackDuration();
+                this.ensureLocalMp4Seekable(ev && ev.target, rec);
+            },
+            onLocalVideoTimeUpdate(ev) {
+                if (this._localPbDragging || this.remotePlaybackActive) return;
+                const v = ev && ev.target;
+                if (!v || v !== this._localPbMaster()) return;
+                this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                this._localPbPaused = !!v.paused;
+            },
+            onLocalVideoEnded(ev) {
+                const v = ev && ev.target;
+                if (!v || v !== this._localPbMaster()) return;
+                this._playbackSegmentEnded = true;
+                this.playbackPositionMs = (this.playbackDurationMs | 0) || Math.round((v.duration || 0) * 1000);
+                this._localPbPaused = true;
+            },
+            _refreshLocalPlaybackDuration() {
+                let d = 0;
+                this.localPlaybackVideos().forEach(function (v) {
+                    if (isFinite(v.duration) && v.duration > d) d = v.duration;
+                });
+                (this.syncRecords || []).forEach(function (r) {
+                    const rd = Number(r && r.RecordIndexInformationDuration) || 0;
+                    if (rd > d) d = rd;
+                });
+                if (d > 0) this.playbackDurationMs = Math.round(d * 1000);
+            },
+            _revokeLocalMp4Blobs(list) {
+                (list || this.syncRecords || []).forEach(function (r) {
+                    if (!r) return;
+                    if (r._blobUrl) {
+                        try { URL.revokeObjectURL(r._blobUrl); } catch (e) {}
+                        r._blobUrl = '';
+                    }
+                    r._blobLoading = false;
+                });
+                this._localPbPendingSec = null;
+            },
+            _videoIsSeekable(video) {
+                // 渐进下载时常有 seekable=[0,buffered]，但拖到未缓冲区会失败；需能 seek 到接近片尾才算真可拖
+                try {
+                    if (!video || !video.seekable || video.seekable.length === 0) return false;
+                    if (!isFinite(video.duration) || video.duration <= 0) return false;
+                    const end = video.seekable.end(video.seekable.length - 1);
+                    return end >= (video.duration - 0.5);
+                } catch (e) { return false; }
+            },
+            async ensureLocalMp4Seekable(video, rec) {
+                if (!video || !rec) return;
+                if (rec._blobUrl || rec._blobLoading) return;
+                if (this._videoIsSeekable(video)) return;
+                const httpSrc = this.localPlaybackHttpSrc(rec);
+                if (!httpSrc) return;
+                const size = Number(rec.RecordIndexInformationVideoSize) || 0;
+                // 无 Range 的旧固件只能整文件 blob 才可拖；过大则放弃（需升级 Webserver Range）
+                if (size > 200 * 1024 * 1024) {
+                    console.warn('[AHS] skip blob seek for large mp4', size);
+                    return;
+                }
+                rec._blobLoading = true;
+                try {
+                    const resp = await fetch(httpSrc);
+                    if (!resp.ok) throw new Error('http ' + resp.status);
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    rec._blobUrl = url;
+                    rec._blobLoading = false;
+                    const t = (this._localPbPendingSec != null)
+                        ? this._localPbPendingSec
+                        : (video.currentTime || 0);
+                    const wasPaused = video.paused;
+                    video.src = url;
+                    try { video.currentTime = t; } catch (e) {}
+                    if (!wasPaused) video.play().catch(function () {});
+                    this._localPbPendingSec = null;
+                    this._refreshLocalPlaybackDuration();
+                    this.syncRecords = (this.syncRecords || []).slice();
+                } catch (e) {
+                    rec._blobLoading = false;
+                    console.warn('[AHS] local mp4 blob seek', e);
+                }
+            },
+            onLocalPlaybackProgressInput(ev) {
+                const sec = parseInt((ev && ev.target && ev.target.value) || '0', 10) || 0;
+                this.playbackPositionMs = sec * 1000;
+            },
+            seekLocalPlayback(ev) {
+                this._localPbDragging = false;
+                let sec = parseInt((ev && ev.target && ev.target.value != null)
+                    ? ev.target.value : this.localPlaybackProgressSec(), 10);
+                if (isNaN(sec) || sec < 0) sec = 0;
+                const maxSec = this.localPlaybackDurationSec();
+                if (sec > maxSec) sec = maxSec;
+                const now = Date.now();
+                if (this._lastLocalSeekSec === sec && (now - (this._lastLocalSeekAt || 0)) < 400) return;
+                this._lastLocalSeekSec = sec;
+                this._lastLocalSeekAt = now;
+                this._applyLocalSeek(sec);
+            },
+            _applyLocalSeek(sec) {
+                this.playbackPositionMs = sec * 1000;
+                this._playbackSegmentEnded = false;
+                this._localPbPaused = false;
+                const vids = this.localPlaybackVideos();
+                this._localPbPendingSec = sec;
+                let any = false;
+                for (let i = 0; i < vids.length; i++) {
+                    const v = vids[i];
+                    const rec = (this.syncRecords || [])[i];
+                    if (this._videoIsSeekable(v)) {
+                        const dur = isFinite(v.duration) ? v.duration : sec;
+                        const target = Math.min(Math.max(0, sec), Math.max(0, dur - 0.05));
+                        try { v.currentTime = target; } catch (e) {}
+                        // 设置后仍回不到目标 → 当不可 seek，走 blob
+                        const stuck = Math.abs((v.currentTime || 0) - target) > 1.0;
+                        if (!stuck) {
+                            any = true;
+                            if (v.paused) v.play().catch(function () {});
+                            continue;
+                        }
+                    }
+                    this.ensureLocalMp4Seekable(v, rec);
+                }
+                if (any) {
+                    // 有的路已 seek，仍尽量补齐不可 seek 的路
+                    return;
+                }
+            },
+            toggleLocalPlayback() {
+                const vids = this.localPlaybackVideos();
+                const master = this._localPbMaster();
+                if (!master) return;
+                if (master.paused) {
+                    vids.forEach(function (v) { v.play().catch(function () {}); });
+                    this._localPbPaused = false;
+                } else {
+                    vids.forEach(function (v) { try { v.pause(); } catch (e) {} });
+                    this._localPbPaused = true;
+                }
             },
             // 仪表盘主图宫格路数：对齐 App(最多 4；优先 cameraCounts，其次已有封面)
             dashThumbSlotCount() {
@@ -19327,7 +19525,29 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (this.isLiveTransportKvs()) await this.startKvsPlayback(record, siblingRecs, gen);
                         else await this.startRemotePlayback(record, gen);
                     } else {
-                        this.syncRecords = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
+                        this._revokeLocalMp4Blobs();
+                        const recs = (siblingRecs && siblingRecs.length) ? siblingRecs : [record];
+                        this.syncRecords = recs;
+                        this._localPbDragging = false;
+                        this._localPbPaused = false;
+                        this._localPbPendingSec = null;
+                        this._playbackSegmentEnded = false;
+                        this.playbackPositionMs = 0;
+                        let d = 0;
+                        recs.forEach(function (r) {
+                            const rd = Number(r && r.RecordIndexInformationDuration) || 0;
+                            if (rd > d) d = rd;
+                        });
+                        this.playbackDurationMs = d * 1000;
+                        const self = this;
+                        const kick = function () {
+                            const vids = self.localPlaybackVideos();
+                            for (let i = 0; i < vids.length; i++) {
+                                self.ensureLocalMp4Seekable(vids[i], recs[i]);
+                            }
+                        };
+                        if (typeof this.$nextTick === 'function') this.$nextTick(kick);
+                        else setTimeout(kick, 0);
                     }
                 } catch (e) {
                     throw e;
@@ -19372,7 +19592,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('[AHS] leavePlaybackSession', reason || '', 'needStop=' + need);
                     if (need) await this.stopRemotePlayback(false);
                     this.viewMode = 'main';
-                    if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
+                    if (this.syncRecords && this.syncRecords.length) {
+                        this._revokeLocalMp4Blobs();
+                        this.syncRecords = [];
+                    }
                 } catch (e) {
                     console.warn('[AHS] leavePlaybackSession failed', e);
                 }
@@ -19385,7 +19608,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.stopRemotePlayback(true);
                     return;
                 }
-                if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
+                if (this.syncRecords && this.syncRecords.length) {
+                    this._revokeLocalMp4Blobs();
+                    this.syncRecords = [];
+                }
             },
 
             // ===== 云端远程回放（设备 demux 本地 MP4 → 独立 Agora 回放通道 uid 1226）=====
@@ -19816,6 +20042,23 @@ document.addEventListener('DOMContentLoaded', function() {
                              color: b.ty === 2 ? '#dc3545' : b.ty === 3 ? '#7c3aed' : 'var(--accent)' };
                 });
             },
+            _localTimelineSeekInPlace(secs, recs) {
+                if (this.remotePlaybackActive) return false;
+                const cur = this.syncRecords || [];
+                if (!cur.length || !recs || !recs.length) return false;
+                const key = function (list) {
+                    return list.map(function (r) { return r && r.RecordIndexInformationPath; }).filter(Boolean).sort().join('|');
+                };
+                if (key(cur) !== key(recs)) return false;
+                const start = (cur[0] && cur[0]._segStart != null) ? cur[0]._segStart : 0;
+                const dur = Math.max(1, Number(cur[0] && cur[0].RecordIndexInformationDuration) || this.localPlaybackDurationSec());
+                const off = secs - start;
+                if (off < -1 || off > dur + 1) return false;
+                this.tlClickSecs = secs;
+                this.syncSeekSecs = secs;
+                this._applyLocalSeek(Math.max(0, Math.min(dur, off)));
+                return true;
+            },
             // 点击时间轴：定位到该时刻所在/最近的录像并播放
             async onTimelineClick(event, camera) {
                 if (this.tlDrag.moved) { this.tlDrag.moved = false; return; }  // 刚才是拖动平移，不触发播放
@@ -19839,8 +20082,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.playbackFocusIdx = 0;
                     if (wan) {
                         // 外网：远程 demux 推流；把同刻多路 recs 交给 KVS，勿只播一路、勿叠本地 syncRecords
+                        this._revokeLocalMp4Blobs(this.syncRecords);
                         this.syncRecords = [];
                     } else {
+                        // 本地已在播且点在当前段内：直接拖进度，勿重建 <video>（否则像不能拖时间轴）
+                        if (this._localTimelineSeekInPlace(secs, recs)) {
+                            this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: Math.max(1, Number(this.pageSize) || 10) }).catch(function () {});
+                            return;
+                        }
+                        this._revokeLocalMp4Blobs(this.syncRecords);
                         this.syncRecords = recs;
                     }
                 }
