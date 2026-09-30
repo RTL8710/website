@@ -374,3 +374,14 @@ html[data-theme="light"] .logs-hero h1{background:none;-webkit-background-clip:u
 /* admin login inherits console split login-shell from ../styles.css */
 body:has(.login-shell){overflow:auto}
 body:has(.login-shell) #app{min-height:100vh}
+
+/* OTA multi-select batch delete */
+.ota-page .logs-card{grid-template-columns:auto auto minmax(0,1fr) auto}
+.ota-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;flex:none;align-self:center}
+.ota-check input{width:16px;height:16px;accent-color:var(--accent,#22d3ee);cursor:pointer}
+.ota-check.dock{font-size:12px;color:var(--text-lo);padding:0 4px}
+.logs-card.is-checked{border-color:rgba(45,212,191,.55);box-shadow:0 0 0 1px rgba(45,212,191,.25)}
+.ota-batch{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:4px}
+@media (max-width:720px){
+  .ota-page .logs-card{grid-template-columns:auto auto minmax(0,1fr);gap:12px}
+}

@@ -53,6 +53,7 @@ const state = {
   sideCollapsed: true,
   otaPickOpen: '',
   otaPickQ: '',
+  otaSelected: {}, // pkg.id -> true，OTA 多选批量删除
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -1338,34 +1339,77 @@ function openEditPackage(pkg) {
   render();
 }
 function askDeletePackage(pkg) {
-  const label = `${pkg.upgradeDeviceType || ''} v${pkg.upgradeDeviceVersion || '?'} · ${pkg.upgradeDevicePartion || ''} · ${pkg.upgradeMode || 'normal'}`;
+  askDeletePackages([pkg]);
+}
+function otaSelectedIds() {
+  return Object.keys(state.otaSelected || {}).filter((id) => state.otaSelected[id]);
+}
+function otaSelectedCount() { return otaSelectedIds().length; }
+function toggleOtaSelected(id, on) {
+  const next = Object.assign({}, state.otaSelected || {});
+  if (on) next[id] = true;
+  else delete next[id];
+  state.otaSelected = next;
+}
+function setOtaSelectedMany(ids, on) {
+  const next = Object.assign({}, state.otaSelected || {});
+  (ids || []).forEach((id) => {
+    if (!id) return;
+    if (on) next[id] = true;
+    else delete next[id];
+  });
+  state.otaSelected = next;
+}
+async function deleteOnePackage(pkg) {
+  const key = s3KeyFromUpgradeUrl(pkg.upgradeFileUrl);
+  if (key) {
+    try {
+      const creds = await resolvedCreds();
+      await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
+    } catch (e) {
+      console.warn('[admin] delete pkg s3', e);
+    }
+  }
+  await deleteDeviceUpgrade(pkg.id);
+}
+function askDeletePackages(pkgs) {
+  const list = (pkgs || []).filter((p) => p && p.id);
+  if (!list.length) { toast(t('otaBatchNone'), 'err'); return; }
+  const preview = list.slice(0, 8).map((pkg) =>
+    `${pkg.upgradeDeviceType || ''} v${pkg.upgradeDeviceVersion || '?'} · ${pkg.upgradeDevicePartion || ''} · ${pkg.upgradeMode || 'normal'}`
+  ).join('\n');
+  const more = list.length > 8 ? `\n… (+${list.length - 8})` : '';
   state.confirm = {
-    title: t('confirmDelPkg'),
-    body: `${label}\n${pkg.upgradeDescribe || ''}\n${pkg.upgradeFileUrl || ''}\n\n将删除云端登记记录，并尝试删除对应 S3 文件。`,
+    title: list.length === 1 ? t('confirmDelPkg') : t('confirmDelPkgs'),
+    body: `${preview}${more}\n\n${t('otaBatchDelHint')}`,
     okText: t('confirmDelOk'),
     onOk: async () => {
       state.confirm = null; render();
-      try {
-        const key = s3KeyFromUpgradeUrl(pkg.upgradeFileUrl);
-        if (key) {
-          try {
-            const creds = await resolvedCreds();
-            await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
-          } catch (e) {
-            console.warn('[admin] delete pkg s3', e);
-          }
+      let ok = 0, fail = 0;
+      const left = Object.assign({}, state.otaSelected || {});
+      for (const pkg of list) {
+        try {
+          await deleteOnePackage(pkg);
+          ok++;
+          delete left[pkg.id];
+        } catch (e) {
+          fail++;
+          console.error('[admin] delete pkg', pkg && pkg.id, e);
         }
-        await deleteDeviceUpgrade(pkg.id);
-        toast('升级包已删除');
-        state.packages = null;
-        await loadTab('ota');
-      } catch (e) {
-        console.error('[admin] delete pkg', e);
-        toast((e && e.message) || String(e), 'err');
       }
+      state.otaSelected = left;
+      if (fail) toast(`${t('otaBatchDelDone')}: ${ok} OK / ${fail} fail`, 'err');
+      else toast(`${t('otaBatchDelDone')}: ${ok}`);
+      state.packages = null;
+      await loadTab('ota');
     },
   };
   render();
+}
+function askDeleteSelectedPackages(visibleList) {
+  const ids = new Set(otaSelectedIds());
+  const pkgs = (visibleList || state.packages || []).filter((p) => ids.has(p.id));
+  askDeletePackages(pkgs);
 }
 function pkgRowActions(pkg, ug, isApp) {
   const btns = [];
@@ -1417,6 +1461,7 @@ function switchOtaScope(k) {
   state.otaScope = next;
   state.pkgFilterType = '';
   state.q = '';
+  state.otaSelected = {};
   if (k === 'app') {
     if (!isAppOtaType(u.deviceType)) u.deviceType = DEFAULT_APP_OTA_TYPE;
     if (!String(u.describe || '').trim()) u.describe = DEFAULT_APP_OTA_DESC;
@@ -1453,17 +1498,32 @@ function otaSourceCard(id, count, latestIso, latestVer) {
 function otaPkgCard(pkg, ug, isApp, latestIds) {
   const when = otaPkgTime(pkg);
   const selected = !isApp && ug.packageId === pkg.id;
+  const checked = !!(state.otaSelected && state.otaSelected[pkg.id]);
   const latest = latestIds.has(pkg.id);
   const ver = pkg.upgradeDeviceVersion || '—';
   const url = pkg.upgradeFileUrl || '';
+  const check = h('label', {
+    class: 'ota-check',
+    title: t('otaSelect'),
+    onclick: (e) => e.stopPropagation(),
+  }, h('input', {
+    type: 'checkbox',
+    checked: checked ? true : false,
+    onchange: (e) => {
+      e.stopPropagation();
+      toggleOtaSelected(pkg.id, !!e.target.checked);
+      render();
+    },
+  }));
   return h('article', {
-    class: 'glass logs-card' + (isApp ? ' static' : ' is-device') + (selected ? ' on' : ''),
+    class: 'glass logs-card' + (isApp ? ' static' : ' is-device') + (selected ? ' on' : '') + (checked ? ' is-checked' : ''),
     onclick: isApp ? undefined : () => {
       ug.packageId = pkg.id;
       ug.partition = pkg.upgradeDevicePartion || '';
       render();
     },
   },
+    check,
     h('div', { class: 'logs-card-mark' }, fa(otaPkgIcon(pkg.upgradeDeviceType))),
     h('div', { class: 'logs-card-body' },
       h('div', { class: 'logs-card-code', style: { cursor: 'default' } },
@@ -1784,6 +1844,29 @@ function viewOta() {
   const searchWrap = h('div', { class: 'logs-search' }, fa('fa-magnifying-glass'));
   searchWrap.appendChild(searchBox(isApp ? t('searchAppPkgs') : t('searchPkgs')));
 
+  const visibleIds = list.slice(0, 100).map((p) => p.id);
+  const selN = otaSelectedCount();
+  const allVisibleChecked = visibleIds.length > 0 && visibleIds.every((id) => state.otaSelected && state.otaSelected[id]);
+  const batchBar = h('div', { class: 'ota-batch' },
+    h('label', { class: 'ota-check dock' },
+      h('input', {
+        type: 'checkbox',
+        checked: allVisibleChecked ? true : false,
+        onchange: (e) => {
+          setOtaSelectedMany(visibleIds, !!e.target.checked);
+          render();
+        },
+      }),
+      h('span', {}, allVisibleChecked ? t('otaClearSel') : t('otaSelectAll')),
+    ),
+    selN ? h('span', { class: 'logs-chip' }, t('otaSelectedN').replace('{n}', String(selN))) : null,
+    h('button', {
+      class: 'gbtn btn-sm danger',
+      disabled: selN ? false : true,
+      onclick: () => askDeleteSelectedPackages(list.slice(0, 100)),
+    }, fa('fa-trash'), ' ' + t('otaBatchDel')),
+  );
+
   return h('div', { class: 'ota-page logs-page' },
     h('div', { class: 'glass logs-hero' },
       h('div', {},
@@ -1801,8 +1884,8 @@ function viewOta() {
     ),
     h('div', { class: 'ota-studio' + (secondPanel ? '' : ' is-solo') }, uploadPanel, secondPanel),
     h('div', { class: 'glass logs-dock' },
-      searchWrap, filterType,
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; await loadTab('ota'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+      searchWrap, filterType, batchBar,
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.packages = null; state.otaSelected = {}; await loadTab('ota'); } }, fa('fa-rotate'), ' ' + t('refresh')),
     ),
     stream,
   );
