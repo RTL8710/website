@@ -6349,6 +6349,7 @@ window.__presignThumbUrl = function (raw) {
                                                                         preload="auto"
                                                                         :src="localPlaybackVideoSrc(rec)"
                                                                         @loadedmetadata="onLocalVideoMeta($event, rec)"
+                                                                        @seeked="onLocalVideoSeeked($event, rec)"
                                                                         @timeupdate="onLocalVideoTimeUpdate($event, rec)"
                                                                         @ended="onLocalVideoEnded($event, rec)"
                                                                         :style="isPlaybackFocused(idx) ? 'width:100%;height:100%;object-fit:contain;background:#000;display:block;pointer-events:auto;' : 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;display:block;pointer-events:none;'"
@@ -6390,6 +6391,7 @@ window.__presignThumbUrl = function (raw) {
                                                             <i class="fa-solid" :class="_localPbPaused ? 'fa-play' : 'fa-pause'"></i>
                                                         </button>
                                                         <input type="range" class="form-range flex-fill" min="0"
+                                                               :key="'lpb'+(_localPbEpoch|0)"
                                                                :max="localPlaybackDurationSec()" step="1"
                                                                :value="localPlaybackProgressSec()"
                                                                @pointerdown="_localPbDragging=true"
@@ -12653,6 +12655,7 @@ document.addEventListener('DOMContentLoaded', function() {
             _localPbPaused: false,
             _localPbPendingSec: null,
             _localPbEpoch: 0,             // 切段时递增，忽略销毁中旧 video 的 timeupdate 写回
+            _localPbPendingAt: 0,         // pending 开始时间，超时则以画面 currentTime 为准
             _lastLocalSeekSec: -1,
             _lastLocalSeekAt: 0,
             _playbackSegmentEnded: false, // 本段已播完：设备会话结束，seek 需先重起
@@ -13944,29 +13947,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 this._refreshLocalPlaybackDuration();
                 const v = ev && ev.target;
                 if (v && v === this._localPbMaster() && epoch === (this._localPbEpoch | 0)) {
-                    if (this._localPbPendingSec != null) {
-                        this.playbackPositionMs = Math.round(this._localPbPendingSec * 1000);
+                    const pending = this._localPbPendingSec;
+                    const cur = v.currentTime || 0;
+                    if (pending != null && Math.abs(cur - pending) > 1.5) {
+                        // seek 未落地：再推一次，UI 暂跟目标；超时由 timeupdate 改跟画面
+                        try { v.currentTime = pending; } catch (e) {}
+                        this.playbackPositionMs = Math.round(pending * 1000);
                     } else {
-                        this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                        this.playbackPositionMs = Math.round(cur * 1000);
+                        if (pending != null) this._localPbPendingSec = null;
                     }
                     this._localPbPaused = !!v.paused;
                 }
                 this.ensureLocalMp4Seekable(v, rec);
             },
+            onLocalVideoSeeked(ev, rec) {
+                if (this._localPbDragging || this.remotePlaybackActive) return;
+                const v = ev && ev.target;
+                if (!v || v !== this._localPbMaster()) return;
+                const cur = v.currentTime || 0;
+                if (this._localPbPendingSec != null && Math.abs(cur - this._localPbPendingSec) <= 1.5) {
+                    this._localPbPendingSec = null;
+                }
+                this.playbackPositionMs = Math.round(cur * 1000);
+                this._localPbPaused = !!v.paused;
+            },
             onLocalVideoTimeUpdate(ev) {
                 if (this._localPbDragging || this.remotePlaybackActive) return;
                 const v = ev && ev.target;
                 if (!v || v !== this._localPbMaster()) return;
+                const cur = v.currentTime || 0;
                 if (this._localPbPendingSec != null) {
                     const pending = this._localPbPendingSec;
-                    const cur = v.currentTime || 0;
-                    if (Math.abs(cur - pending) > 1.5) {
+                    const age = Date.now() - (this._localPbPendingAt || 0);
+                    // 旧节点仍报更大进度 → 忽略，避免切段后条跳回上一段
+                    if (cur > pending + 1.5) {
                         this.playbackPositionMs = Math.round(pending * 1000);
                         return;
                     }
-                    this._localPbPendingSec = null;
+                    // 画面在目标前：短等并重试 seek；超时则以画面为准（修 73s 条 + 段首画面）
+                    if (cur < pending - 1.5) {
+                        if (age < 1200) {
+                            if (age > 300) {
+                                try { v.currentTime = pending; } catch (e) {}
+                            }
+                            this.playbackPositionMs = Math.round(pending * 1000);
+                            return;
+                        }
+                        this._localPbPendingSec = null;
+                    } else {
+                        this._localPbPendingSec = null;
+                    }
                 }
-                this.playbackPositionMs = Math.round((v.currentTime || 0) * 1000);
+                this.playbackPositionMs = Math.round(cur * 1000);
                 this._localPbPaused = !!v.paused;
             },
             onLocalVideoEnded(ev) {
@@ -14072,6 +14105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this._localPbPaused = false;
                 const vids = this.localPlaybackVideos();
                 this._localPbPendingSec = sec;
+                this._localPbPendingAt = Date.now();
                 let any = false;
                 for (let i = 0; i < vids.length; i++) {
                     const v = vids[i];
@@ -20063,7 +20097,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             },
             _resetLocalPlaybackProgressForSeg(secs, recs) {
-                // 重选时间轴/列表段时立即清进度 UI，避免仍显示上一段的 72s/79s
+                // 重选时间轴/列表段时立即清进度 UI；以墙钟偏移为目标，seek 失败超时后跟画面
                 this._localPbEpoch = (this._localPbEpoch | 0) + 1;
                 const r0 = (recs && recs[0]) || null;
                 const start = (r0 && r0._segStart != null) ? r0._segStart : 0;
@@ -20080,6 +20114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this._localPbPaused = false;
                 this._localPbDragging = false;
                 this._localPbPendingSec = off;
+                this._localPbPendingAt = Date.now();
                 this._lastLocalSeekSec = -1;
                 this._lastLocalSeekAt = 0;
             },
@@ -20127,14 +20162,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.syncRecords = [];
                     } else {
                         // 本地已在播且点在当前段内：直接拖进度，勿重建 <video>（否则像不能拖时间轴）
-                        if (this._localTimelineSeekInPlace(secs, recs)) {
+                        // resolveSegmentsAt 可能把 syncSeekSecs 校正为多路对齐墙钟
+                        const seekSecs = (this.syncSeekSecs != null && this.syncSeekSecs >= 0) ? this.syncSeekSecs : secs;
+                        if (this._localTimelineSeekInPlace(seekSecs, recs)) {
                             this.fetchRecords(true, { soft: true, keepSelection: true, pageSize: Math.max(1, Number(this.pageSize) || 10) }).catch(function () {});
                             return;
                         }
                         this._haltLocalPlaybackVideos();
                         this._revokeLocalMp4Blobs(this.syncRecords, true);
                         this.syncRecords = recs;
-                        this._resetLocalPlaybackProgressForSeg(secs, recs);
+                        this._resetLocalPlaybackProgressForSeg(seekSecs, recs);
+                        const self = this;
+                        const kick = function () {
+                            const off = Math.max(0, Math.floor((self.playbackPositionMs | 0) / 1000));
+                            self._applyLocalSeek(off);
+                        };
+                        if (typeof this.$nextTick === 'function') this.$nextTick(kick);
+                        else setTimeout(kick, 0);
                     }
                 }
                 // 列表只拉点击附近 pageSize（默认 10）条：勿用当天 00:00→点击（会扫整天再分页，缩略图跟着爆）
