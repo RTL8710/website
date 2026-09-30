@@ -9548,162 +9548,250 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="log"></div>
                 <!--关于-->
                 <div class="page-section" id="help">
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
                     <style>
-                        #help .help-wrap { max-width: 1400px; margin: 0; width: 100%; }
+                        #help {
+                            --help-ink: var(--text-primary);
+                            --help-mute: var(--text-secondary);
+                            --help-dim: var(--text-muted);
+                            --help-line: color-mix(in srgb, var(--accent) 18%, var(--border));
+                            --help-glow: color-mix(in srgb, var(--accent) 28%, transparent);
+                            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+                        }
+                        #help .help-wrap { max-width: 1180px; margin: 0; width: 100%; padding-bottom: 28px; }
                         #help .help-hero {
-                            position: relative; overflow: hidden;
-                            border-radius: 20px; margin-bottom: 18px;
-                            border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+                            position: relative; overflow: hidden; border-radius: 22px; margin-bottom: 16px;
+                            border: 1px solid var(--help-line);
                             background:
-                                radial-gradient(120% 90% at 8% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
-                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%), var(--bg-panel));
-                            box-shadow: 0 14px 40px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05);
-                            padding: 22px 24px 20px;
+                                radial-gradient(90% 120% at 0% -10%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 52%),
+                                radial-gradient(70% 90% at 100% 0%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 48%),
+                                linear-gradient(155deg, color-mix(in srgb, var(--bg-card) 82%, var(--accent) 18%), var(--bg-panel));
+                            box-shadow: 0 18px 48px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06);
+                            padding: 26px 26px 20px;
                         }
-                        #help .help-hero-glow {
-                            position: absolute; left: 0; right: 0; top: 0; height: 2px;
-                            background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff), var(--accent), transparent);
-                            opacity: .9;
+                        #help .help-hero::before {
+                            content: ''; position: absolute; inset: 0;
+                            background-image:
+                                linear-gradient(color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px),
+                                linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px);
+                            background-size: 28px 28px; mask-image: radial-gradient(80% 70% at 30% 0%, #000 20%, transparent 75%);
+                            opacity: .35; pointer-events: none;
                         }
-                        #help .help-hero-inner { display: flex; align-items: flex-start; gap: 16px; }
-                        #help .help-hero-ico {
-                            flex: 0 0 auto; width: 48px; height: 48px; border-radius: 14px;
-                            display: flex; align-items: center; justify-content: center;
-                            color: #fff; font-size: 20px;
-                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 78%, #fff), var(--accent));
-                            box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 38%, transparent);
+                        #help .help-hero-top { position: relative; display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+                        #help .help-hero-main { flex: 1 1 320px; min-width: 0; }
+                        #help .help-eyebrow {
+                            display: inline-flex; align-items: center; gap: 8px;
+                            font-size: 11px; font-weight: 650; letter-spacing: .16em; text-transform: uppercase;
+                            color: color-mix(in srgb, var(--accent) 86%, #fff); margin-bottom: 10px;
                         }
+                        #help .help-eyebrow i { font-size: 12px; }
                         #help .help-hero h2 {
-                            font-size: 24px; font-weight: 760; margin: 0 0 6px; letter-spacing: -.02em;
-                            color: var(--text-primary);
+                            font-family: Sora, 'IBM Plex Sans', sans-serif;
+                            font-size: clamp(24px, 3vw, 34px); font-weight: 700; margin: 0 0 8px;
+                            letter-spacing: -.03em; color: var(--help-ink); line-height: 1.15;
                         }
-                        #help .help-hero p { color: var(--text-secondary); font-size: 13.5px; margin: 0; line-height: 1.55; max-width: 62ch; }
-                        #help .help-panel {
-                            position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
-                            border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-                            background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 10%), var(--bg-panel));
-                            box-shadow: 0 12px 36px rgba(0,0,0,.14), inset 0 1px 0 rgba(255,255,255,.04);
+                        #help .help-hero .help-sub {
+                            color: var(--help-mute); font-size: 14px; margin: 0 0 16px; line-height: 1.65; max-width: 58ch;
                         }
-                        #help .help-panel > .help-panel-glow {
-                            height: 2px;
-                            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-                            opacity: .75;
-                        }
-                        #help .help-panel-hd {
+                        #help .help-search {
                             display: flex; align-items: center; gap: 10px;
-                            padding: 14px 18px 10px;
-                            font-weight: 750; font-size: 14px; color: var(--text-primary);
+                            border-radius: 14px; padding: 10px 14px;
+                            background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+                            border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+                            box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 3px color-mix(in srgb, var(--accent) 0%, transparent);
+                            transition: border-color .18s, box-shadow .18s;
+                            max-width: 520px;
                         }
-                        #help .help-panel-hd .ico {
-                            width: 28px; height: 28px; border-radius: 9px;
-                            display: flex; align-items: center; justify-content: center;
-                            color: #fff; font-size: 12px;
-                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
-                            box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+                        #help .help-search:focus-within {
+                            border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+                            box-shadow: 0 0 0 3px var(--ring);
                         }
-                        #help .help-panel-bd { padding: 4px 16px 16px; }
-                        #help .help-link-grid {
-                            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;
+                        #help .help-search i { color: var(--accent); opacity: .9; }
+                        #help .help-search input {
+                            flex: 1; border: 0; outline: 0; background: transparent;
+                            color: var(--help-ink); font-size: 14px; min-width: 0;
                         }
-                        @media (max-width: 820px) {
-                            #help .help-link-grid { grid-template-columns: 1fr; }
+                        #help .help-search input::placeholder { color: var(--help-dim); }
+                        #help .help-search kbd {
+                            font-size: 10px; padding: 2px 6px; border-radius: 6px;
+                            border: 1px solid var(--border); color: var(--help-dim);
+                            background: color-mix(in srgb, var(--bg-card2) 70%, transparent);
                         }
-                        #help .help-link-card {
-                            text-align: center;
-                            border-radius: 14px; padding: 14px 12px 12px;
-                            border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+                        #help .help-hero-side {
+                            flex: 0 1 260px; display: flex; flex-direction: column; gap: 10px;
+                        }
+                        #help .help-live {
+                            border-radius: 14px; padding: 12px 14px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+                            background: color-mix(in srgb, var(--bg-base) 45%, transparent);
+                            backdrop-filter: blur(8px);
+                        }
+                        #help .help-live .lbl {
+                            font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+                            color: var(--help-dim); margin-bottom: 6px; font-weight: 650;
+                        }
+                        #help .help-live .val {
+                            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+                        }
+                        #help .help-live .dot {
+                            width: 8px; height: 8px; border-radius: 50%;
+                            background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 22%, transparent);
+                        }
+                        #help .help-live .dot.off { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 22%, transparent); }
+                        #help .help-quick {
+                            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; position: relative;
+                        }
+                        #help .help-chip {
+                            appearance: none; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+                            background: color-mix(in srgb, var(--bg-card2) 55%, transparent);
+                            color: var(--help-ink); border-radius: 999px; padding: 7px 12px;
+                            font-size: 12px; font-weight: 600; cursor: pointer;
+                            display: inline-flex; align-items: center; gap: 7px;
+                            transition: border-color .15s, background .15s, transform .15s;
+                        }
+                        #help .help-chip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); transform: translateY(-1px); }
+                        #help .help-chip.active {
+                            background: color-mix(in srgb, var(--accent) 18%, transparent);
+                            border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+                            color: color-mix(in srgb, var(--accent) 90%, #fff);
+                        }
+                        #help .help-chip i { font-size: 11px; opacity: .9; }
+
+                        #help .help-toc {
+                            position: sticky; top: calc(var(--topbar-h) + 10px); z-index: 5;
+                            display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;
+                            padding: 8px; border-radius: 14px;
+                            background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+                            border: 1px solid var(--border); backdrop-filter: blur(10px);
+                        }
+                        #help .help-toc button {
+                            appearance: none; border: 0; background: transparent; color: var(--help-mute);
+                            border-radius: 10px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+                        }
+                        #help .help-toc button:hover, #help .help-toc button.active {
+                            background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--help-ink);
+                        }
+
+                        #help .help-section { scroll-margin-top: 88px; margin-bottom: 22px; }
+                        #help .help-sec-hd {
+                            display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+                            margin-bottom: 12px; flex-wrap: wrap;
+                        }
+                        #help .help-sec-hd h3 {
+                            font-family: Sora, sans-serif; font-size: 16px; font-weight: 650; margin: 0;
+                            letter-spacing: -.02em; color: var(--help-ink);
+                            display: flex; align-items: center; gap: 10px;
+                        }
+                        #help .help-sec-hd h3 .ico {
+                            width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+                            color: #04222B; font-size: 12px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+                            box-shadow: 0 6px 16px var(--help-glow);
+                        }
+                        #help .help-sec-hd p { margin: 0; font-size: 12.5px; color: var(--help-dim); max-width: 52ch; }
+
+                        #help .help-path-grid {
+                            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;
+                        }
+                        @media (max-width: 900px) {
+                            #help .help-path-grid { grid-template-columns: 1fr; }
+                        }
+                        #help .help-path {
+                            position: relative; overflow: hidden; border-radius: 16px; padding: 16px;
+                            border: 1px solid var(--help-line);
                             background:
-                                radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-                                color-mix(in srgb, var(--bg-card2, #152033) 70%, transparent);
-                            transition: border-color .18s, transform .18s;
+                                radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 90%, var(--accent) 8%), var(--bg-panel));
+                            transition: transform .18s, border-color .18s, box-shadow .18s;
                         }
-                        #help .help-link-card:hover {
+                        #help .help-path:hover {
+                            transform: translateY(-2px);
                             border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-                            transform: translateY(-1px);
+                            box-shadow: 0 14px 34px rgba(0,0,0,.2);
                         }
-                        #help .help-link-card .help-badge { margin-bottom: 8px; }
-                        #help .help-link-card h5 {
-                            margin: 0 0 4px; font-size: 13px; font-weight: 720; color: var(--text-primary);
-                        }
-                        #help .help-link-card p {
-                            margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.5;
-                        }
+                        #help .help-path .badge-row { margin-bottom: 10px; }
+                        #help .help-path h4 { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--help-ink); }
+                        #help .help-path p { margin: 0; font-size: 12.5px; color: var(--help-mute); line-height: 1.6; }
                         #help .help-rule {
-                            border-radius: 12px; padding: 12px 14px;
-                            font-size: 12.5px; color: var(--text-secondary); line-height: 1.7;
-                            background: color-mix(in srgb, var(--bg-card2, #152033) 55%, transparent);
-                            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+                            border-radius: 14px; padding: 13px 15px; font-size: 13px; color: var(--help-mute); line-height: 1.7;
+                            background: color-mix(in srgb, var(--bg-card2) 55%, transparent);
+                            border: 1px dashed color-mix(in srgb, var(--accent) 28%, var(--border));
                         }
-                        #help .help-rule b { color: var(--text-primary); }
-                        #help .help-sec-title {
-                            font-size: 14px; font-weight: 750; margin: 4px 0 12px;
-                            display: flex; align-items: center; gap: 10px; color: var(--text-primary);
-                        }
-                        #help .help-sec-title .ico {
-                            width: 28px; height: 28px; border-radius: 9px;
-                            display: flex; align-items: center; justify-content: center;
-                            color: #fff; font-size: 12px;
-                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
-                            box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
-                        }
+                        #help .help-rule b { color: var(--help-ink); }
+
                         #help .help-group {
-                            font-size: 11px; font-weight: 720; color: var(--text-muted);
-                            text-transform: uppercase; letter-spacing: .12em;
-                            margin: 16px 0 10px; display: flex; align-items: center; gap: 10px;
+                            font-size: 11px; font-weight: 700; color: var(--help-dim);
+                            text-transform: uppercase; letter-spacing: .14em;
+                            margin: 18px 0 10px; display: flex; align-items: center; gap: 10px;
                         }
                         #help .help-group::after {
                             content: ''; flex: 1; height: 1px;
-                            background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, transparent), transparent);
+                            background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
                         }
                         #help .help-grid {
-                            display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-                            gap: 12px; margin-bottom: 6px;
+                            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;
                         }
                         #help .help-card {
-                            position: relative; overflow: hidden;
-                            border-radius: 16px; padding: 16px 15px 14px;
-                            border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+                            position: relative; overflow: hidden; border-radius: 16px; padding: 16px;
+                            border: 1px solid var(--help-line);
                             background:
-                                radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
-                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 90%, var(--accent) 8%), var(--bg-panel));
+                                radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 92%, var(--accent) 6%), var(--bg-panel));
                             box-shadow: 0 8px 28px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.04);
                             transition: border-color .18s, transform .18s, box-shadow .18s;
+                            display: flex; flex-direction: column; min-height: 168px;
                         }
+                        #help .help-card.is-hidden { display: none; }
                         #help .help-card:hover {
-                            border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+                            border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
                             transform: translateY(-2px);
-                            box-shadow: 0 14px 36px rgba(0,0,0,.18), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+                            box-shadow: 0 16px 40px rgba(0,0,0,.2);
                         }
+                        #help .help-card .hc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
                         #help .help-card .hc-ic {
-                            width: 38px; height: 38px; border-radius: 11px;
-                            display: flex; align-items: center; justify-content: center;
-                            color: #fff; font-size: 15px; margin-bottom: 12px;
-                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 72%, #fff), var(--accent));
-                            box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent);
+                            width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+                            color: #04222B; font-size: 15px;
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 68%, #fff), var(--accent));
+                            box-shadow: 0 8px 18px var(--help-glow);
                         }
-                        #help .help-card h4 { font-size: 14px; font-weight: 740; margin: 0 0 6px; color: var(--text-primary); }
-                        #help .help-card > p { font-size: 12.5px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+                        #help .help-card .hc-go {
+                            appearance: none; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+                            background: transparent; color: color-mix(in srgb, var(--accent) 88%, #fff);
+                            border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 650; cursor: pointer;
+                            white-space: nowrap;
+                        }
+                        #help .help-card .hc-go:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+                        #help .help-card h4 { font-size: 14px; font-weight: 700; margin: 0 0 6px; color: var(--help-ink); }
+                        #help .help-card > p { font-size: 12.5px; color: var(--help-mute); margin: 0; line-height: 1.55; flex: 1; }
                         #help .hc-tips { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
                         #help .hc-tips li {
-                            font-size: 11.5px; color: var(--text-muted); line-height: 1.45;
-                            padding: 6px 10px; border-radius: 8px;
-                            background: color-mix(in srgb, var(--bg-card2, #152033) 70%, transparent);
-                            border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+                            font-size: 11.5px; color: var(--help-dim); line-height: 1.4;
+                            padding: 7px 10px; border-radius: 9px;
+                            background: color-mix(in srgb, var(--bg-card2) 70%, transparent);
+                            border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
                         }
-                        #help .help-faq { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+                        #help .hc-tips li::before {
+                            content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+                            background: var(--accent); margin-right: 7px; vertical-align: middle;
+                        }
+
+                        #help .help-faq { display: flex; flex-direction: column; gap: 8px; }
                         #help .help-faq details {
-                            border-radius: 12px; overflow: hidden;
+                            border-radius: 14px; overflow: hidden;
                             border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
-                            background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 6%);
+                            background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 5%);
                             transition: border-color .18s, box-shadow .18s;
                         }
+                        #help .help-faq details.is-hidden { display: none; }
                         #help .help-faq details[open] {
-                            border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
-                            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+                            border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+                            box-shadow: 0 10px 28px rgba(0,0,0,.14);
                         }
                         #help .help-faq summary {
-                            list-style: none; cursor: pointer; padding: 13px 16px;
-                            font-size: 13.5px; font-weight: 680; color: var(--text-primary);
+                            list-style: none; cursor: pointer; padding: 14px 16px;
+                            font-size: 13.5px; font-weight: 650; color: var(--help-ink);
                             display: flex; align-items: center; gap: 10px; user-select: none;
                         }
                         #help .help-faq summary::-webkit-details-marker { display: none; }
@@ -9713,15 +9801,20 @@ window.__presignThumbUrl = function (raw) {
                         }
                         #help .help-faq details[open] summary::before { transform: rotate(90deg); }
                         #help .help-faq .faq-body {
-                            padding: 0 16px 14px 40px; color: var(--text-secondary);
-                            font-size: 13px; line-height: 1.75;
+                            padding: 0 16px 14px 40px; color: var(--help-mute); font-size: 13px; line-height: 1.75;
                         }
-                        #help .help-faq .faq-body b { color: var(--text-primary); }
+                        #help .help-faq .faq-body b { color: var(--help-ink); }
                         #help .help-faq .faq-body code {
-                            background: color-mix(in srgb, var(--bg-card2, #152033) 80%, transparent);
+                            background: color-mix(in srgb, var(--bg-card2) 80%, transparent);
                             padding: 1px 6px; border-radius: 5px; color: var(--accent); font-size: 12px;
                             border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
                         }
+                        #help .help-empty {
+                            display: none; text-align: center; padding: 28px 16px; color: var(--help-dim); font-size: 13px;
+                            border: 1px dashed var(--border); border-radius: 14px;
+                        }
+                        #help .help-empty.show { display: block; }
+
                         #help .help-badge {
                             display: inline-block; padding: 3px 10px; border-radius: 999px;
                             font-size: 11px; font-weight: 740; letter-spacing: .02em;
@@ -9730,23 +9823,38 @@ window.__presignThumbUrl = function (raw) {
                             border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
                         }
                         #help .help-support {
-                            position: relative; overflow: hidden; border-radius: 16px;
-                            border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+                            position: relative; overflow: hidden; border-radius: 18px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
                             background:
-                                radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
-                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 10%), var(--bg-panel));
-                            padding: 16px 18px; margin-bottom: 8px;
-                            box-shadow: 0 10px 32px rgba(0,0,0,.14);
+                                radial-gradient(100% 120% at 100% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+                                linear-gradient(165deg, color-mix(in srgb, var(--bg-card) 86%, var(--accent) 12%), var(--bg-panel));
+                            padding: 20px; box-shadow: 0 14px 40px rgba(0,0,0,.18);
                         }
-                        #help .help-support .help-support-bd {
-                            font-size: 13px; color: var(--text-secondary); line-height: 1.7;
+                        #help .help-support h4 {
+                            font-family: Sora, sans-serif; margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--help-ink);
                         }
-                        #help .help-support .help-support-bd b { color: var(--text-primary); }
+                        #help .help-support .bd { font-size: 13px; color: var(--help-mute); line-height: 1.7; margin-bottom: 14px; }
+                        #help .help-support .bd b { color: var(--help-ink); }
+                        #help .help-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+                        #help .help-btn {
+                            appearance: none; border-radius: 11px; padding: 9px 14px; font-size: 12.5px; font-weight: 650;
+                            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+                            border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+                            background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--help-ink);
+                            transition: transform .15s, background .15s;
+                        }
+                        #help .help-btn:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+                        #help .help-btn.primary {
+                            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 78%, #fff), var(--accent));
+                            color: #04222B; border-color: transparent;
+                            box-shadow: 0 8px 20px var(--help-glow);
+                        }
+                        #help .help-btn.ghost { background: transparent; }
+                        #help .help-hit { background: color-mix(in srgb, var(--warning) 28%, transparent); border-radius: 3px; padding: 0 2px; }
                     </style>
                     <div class="help-wrap" id="helpRoot"></div>
                 </div>
 
-                                <!-- about：已移除；保留空 section 兼容旧链接 → 跳转 Device Info -->
                 <div class="page-section" id="about"></div>
 
 
@@ -10877,128 +10985,386 @@ function classDisplay(label) {
     return (m && m[label]) ? m[label] : label;
 }
 
-// ── 帮助中心多语言内容(en/zh 完整;ja/de/fr/es 暂回退 en,后续填对象即可) ──
+// ── 帮助中心多语言内容(en/zh 完整;ja/de/fr/es 暂回退 en) ──
 const HELP_I18N = (function () {
     var en = {
+        eyebrow: 'Support Studio',
         title: 'Help Center',
-        subtitle: 'Get started fast and find self-service solutions below — most issues can be solved here.',
-        connBody: 'The top bar shows the active control link: <span class="help-badge">http</span> direct LAN to device (fastest) · <span class="help-badge">awsIot</span> remote control over AWS cloud (MQTT) · <span class="help-badge">rtm</span> backup channel.<br>Rule: <b>with cloud credentials (entered from the portal) → connect AWS IoT directly</b>; <b>opened on LAN → HTTP first</b>, auto-fallback to cloud on failure. Video always uses KVS/Agora.',
-        connTitle: 'How it connects',
-        pagesTitle: 'Page Guide',
-        faqTitle: 'FAQ & Troubleshooting',
+        subtitle: 'Search guides, jump to any console page, and copy a diagnostics snapshot for support — designed for cloud and LAN control.',
+        searchPh: 'Search pages, tips, FAQ…',
+        searchEmpty: 'No matches. Try another keyword.',
+        liveLbl: 'Control link',
+        liveUnknown: 'Detecting…',
+        liveOnline: 'Ready',
+        liveOffline: 'Check connection',
+        openPage: 'Open',
+        tocConnect: 'Connect',
+        tocPages: 'Pages',
+        tocFaq: 'FAQ',
+        tocSupport: 'Support',
+        quickStart: 'Quick start',
+        quick: [
+            { id: 'connect', label: 'How it connects', icon: 'fa-solid fa-circle-nodes' },
+            { id: 'playback', label: 'Playback tips', icon: 'fa-solid fa-film' },
+            { id: 'logs', label: 'Cloud logs', icon: 'fa-solid fa-cloud-arrow-up' },
+            { id: 'faq', label: 'Troubleshoot', icon: 'fa-solid fa-screwdriver-wrench' }
+        ],
+        connTitle: 'How control & video connect',
+        connLead: 'Commands and media use different pipes. Read the top-bar badge first.',
+        paths: [
+            { badge: 'http', title: 'LAN direct', desc: 'Fastest path when you open the console on the device network. Parameter get/set over HTTP.' },
+            { badge: 'awsIot', title: 'Cloud MQTT', desc: 'Portal login with IoT credentials → control over AWS IoT Core. Prefer this on WAN.' },
+            { badge: 'KVS / Agora', title: 'Live video', desc: 'Preview and remote playback always stream via KVS or Agora — independent of the control badge.' }
+        ],
+        connRule: 'Rule: <b>cloud credentials present → AWS IoT directly</b>; <b>LAN open → HTTP first</b>, auto-fallback to cloud on failure. Video always uses KVS/Agora.',
+        pagesTitle: 'Page guide',
+        pagesLead: 'Each card opens the live page. Tips reflect the current cloud console.',
+        faqTitle: 'FAQ & troubleshooting',
+        faqLead: 'Filter with the search box above. Expand an item for the fix.',
         supportTitle: 'Still stuck?',
-        supportBody: 'Please note down: <b>device name/UUID, the page, steps to reproduce, the link-badge state, and browser Console errors (F12)</b>, and send them with a screenshot to support — it greatly speeds up diagnosis. For cloud-account issues, contact your service provider.',
+        supportBody: 'Copy a diagnostics snapshot (UUID, transport, time, browser) and send it with a screenshot of the failing page. For account/billing issues contact your service provider.',
+        copyDiag: 'Copy diagnostics',
+        copyOk: 'Copied',
+        openLogs: 'Open Log Studio',
+        openLive: 'Open Live',
         groups: [
             { name: 'Monitor', pages: [
-                { icon: 'fas fa-video', title: 'Live', desc: 'Live monitoring — select a device to view its real-time stream.', tips: ['Multi-camera picture-in-picture; click a PiP to focus.', 'Switch KVS / Agora transport in the preview.', 'A spinner shows while the remote stream is loading.'] },
-                { icon: 'fas fa-film', title: 'Video Playback', desc: 'Local recordings playback with a visual timeline ruler.', tips: ['Navigate by day with ◀ date ▶.', 'Click a timeline segment or list item to play.', 'Scroll to zoom, drag to pan the timeline.'] },
-                { icon: 'fas fa-cloud-download-alt', title: 'Cloud Playback', desc: 'Cloud recordings playback (KVS archived media via DASH).', tips: ['Pick device + date to query cloud clips.', 'Subject to the cloud-storage switch and retention period.'] },
-                { icon: 'fas fa-camera', title: 'Image Playback', desc: 'View snapshot images captured by the device.', tips: ['Browse by time; click to view or download.'] },
-                { icon: 'fa fa-robot', title: 'Chat Device', desc: 'Talk to the device / AI assistant (ChatGPT integration).', tips: ['Ask questions or issue conversational commands.'] },
-            ] },
+                { icon: 'fas fa-gauge-high', title: 'Dashboard', desc: 'At-a-glance device health, storage, AI and recording status.', tips: ['Jump to Live / Playback from quick actions.', 'Refresh after OTA or service restart.'], page: 'dashboard' },
+                { icon: 'fas fa-video', title: 'Live', desc: 'Multi-camera live preview with KVS / Agora transport switch.', tips: ['PiP / grid layouts for multi-cam.', 'A spinner means the remote stream is still connecting.'], page: 'home' },
+                { icon: 'fas fa-film', title: 'Playback', desc: 'Local / image / cloud playback with timeline, AI filters and rebuild index.', tips: ['Filter by event type or AI-tagged only.', 'Use Rebuild index if list entries are missing.', 'Grid / Single / PiP for multi-cam.'], page: 'playback' },
+                { icon: 'fa fa-robot', title: 'Chat Device', desc: 'Conversational assistant for the robot / vision model.', tips: ['Ask about the current scene or issue commands.'], page: 'chatdevice-information' }
+            ]},
             { name: 'Settings', pages: [
-                { icon: 'fas fa-video', title: 'Video Settings', desc: 'Resolution, frame rate, bitrate, main/sub stream, mirror/flip, encoding.', tips: ['Use the sub-stream for lower bandwidth / smoother remote view.', 'Save to apply changes to the device.'] },
-                { icon: 'fas fa-brain', title: 'AI Detection', desc: 'Human/motion detection, sensitivity, detection zones, model selection and alarm linkage.', tips: ['Tune sensitivity to reduce false alarms.', 'Draw detection regions to limit the area.'] },
-                { icon: 'fas fa-volume-up', title: 'Audio Settings', desc: 'Volume, gain, codec, echo cancellation and two-way talk.', tips: ['Enable echo cancellation for intercom.'] },
-                { icon: 'fas fa-record-vinyl', title: 'Record Settings', desc: 'Recording on/off, schedule, motion-triggered, pre-record and emergency recording.', tips: ['Combine schedule + motion trigger to save storage.'] },
-                { icon: 'fa fa-database', title: 'Storage', desc: 'SD card / disk info, capacity, format and loop overwrite.', tips: ['Format a new card before first use.', 'Loop overwrite keeps the newest recordings.'] },
-                { icon: 'fa fa-wifi', title: 'Network', desc: 'Wi-Fi scan/connect, wired network, IP and signal info.', tips: ['Scan, pick an SSID, enter the password to join Wi-Fi.'] },
-                { icon: 'fa fa-cloud', title: 'Cloud', desc: 'Cloud-storage switch and retention, binding and AWS settings.', tips: ['Set retention to control how long cloud clips are kept.'] },
-            ] },
+                { icon: 'fas fa-video', title: 'Video Settings', desc: 'Resolution, FPS, bitrate, main/sub stream, mirror/flip.', tips: ['Prefer sub-stream on WAN for smoother preview.'], page: 'video-settings' },
+                { icon: 'fas fa-brain', title: 'AI Detection', desc: 'YOLO models, confidence, OSD boxes, stereo ranging, Foxglove.', tips: ['Tune confidence to cut false alarms.', 'LLM tab holds OpenAI / Ollama settings.'], page: 'ai-detection' },
+                { icon: 'fas fa-record-vinyl', title: 'Record & Storage', desc: 'Loop / EMR / timelapse, pre-record, SD format and loop overwrite.', tips: ['Storage tab lives inside Record Settings.'], page: 'record-settings' },
+                { icon: 'fa fa-wifi', title: 'Network', desc: 'Wi-Fi, wired IP, RTSP URLs and webserver ports.', tips: ['Copy RTSP URLs for VLC / NVR.'], page: 'network-information' },
+                { icon: 'fa fa-cloud', title: 'Cloud', desc: 'Cloud record, S3 upload, KVS region and retention.', tips: ['Retention controls how long cloud clips stay.'], page: 'cloud-information' }
+            ]},
             { name: 'System', pages: [
-                { icon: 'fa fa-microchip', title: 'Device Info', desc: 'Device model, firmware version, UUID, serial, time and QR code.', tips: ['Use the UUID / QR when binding or contacting support.'] },
-                { icon: 'fas fa-arrow-up', title: 'OTA Upgrade', desc: 'Check/upload firmware, view upgrade progress and version.', tips: ['Keep the device powered during upgrade; it reboots when done.'] },
-                { icon: 'fa fa-tools', title: 'Provisioning', desc: 'Device provisioning / factory configuration. Technical page.', tips: [] },
-                { icon: 'fa fa-microscope', title: 'Factory Test', desc: 'Factory / hardware self-test. Internal use.', tips: [] },
-                { icon: 'fa-solid fa-code', title: 'Debug Settings', desc: 'Debug / diagnostics options. Technical page.', tips: [] },
-                { icon: 'fa-solid fa-spider', title: 'Log', desc: 'View and export device logs.', tips: ['Attach logs when reporting a problem to support.'] },
-                { icon: 'fa-solid fa-users', title: 'User', desc: 'User management — add/delete/modify users, roles and passwords.', tips: ['Use strong passwords; remove unused accounts.'] },
-            ] },
+                { icon: 'fa fa-microchip', title: 'Device Info', desc: 'Model, firmware, UUID, NTP, peripheral / motor, OTA.', tips: ['OTA tab uploads remote packages via S3.'], page: 'device-information' },
+                { icon: 'fas fa-server', title: 'System Service', desc: 'smart_robot.service CPU/MEM and start/stop/restart.', tips: ['Restart briefly disconnects the console.'], page: 'system-service' },
+                { icon: 'fa-solid fa-scroll', title: 'Log Studio', desc: 'WAN: upload packs to S3, list/decompress/view/download. LAN: local /log files.', tips: ['Download name = deviceId_time_logId.', 'Attach logs when contacting support.'], page: 'debug' },
+                { icon: 'fa fa-tools', title: 'Production', desc: 'Provisioning and factory test (technical).', tips: [], page: 'production' },
+                { icon: 'fa-solid fa-users', title: 'Users', desc: 'Device login accounts (LAN web UI).', tips: ['Use strong passwords; remove unused accounts.'], page: 'user-management' }
+            ]}
         ],
         faq: [
-            { q: 'No live video / endless spinner?', a: '① Make sure the device is <b>online</b>; ② check your network; ③ refresh or re-enter the page; ④ try switching <b>KVS / Agora</b> in the preview; ⑤ a just-powered device needs ~10–30s for the video service to be ready.' },
-            { q: 'Changed a setting / clicked control but nothing happens?', a: 'Check the top-bar link badge — remote should be <span class="help-badge">awsIot</span>. If unresponsive: ① <b>credentials may have expired</b> (~1h) → sign out and back in; ② is the device online; ③ some parameters need a reboot. Commands time out at <code>8s</code>; retry on timeout.' },
-            { q: '"Cannot connect to device / handshake failed"?', a: 'Usually the <b>device is offline / not on the cloud</b>, or your <b>session expired</b>. Fix: ① confirm the device is powered and online; ② <b>sign out and back in</b> to refresh cloud credentials; ③ wait 1–2 min and retry.' },
-            { q: 'Cloud playback list is empty?', a: '① Pick the <b>correct date</b> with ◀ ▶; ② did the device upload cloud clips that day (cloud-storage switch / retention); ③ check the type filter; ④ compare with local Video Playback.' },
-            { q: 'Laggy / high-latency live view?', a: '① Usually <b>bandwidth / jitter</b>; ② try the <b>sub-stream</b> (lower res/bitrate); ③ switch <b>Agora ↔ KVS</b>; ④ close other bandwidth-heavy apps.' },
-            { q: 'Login failed?', a: '① Verify account/password; ② distinguish the <b>cloud account</b> (portal) from the <b>device account</b> (LAN device page); ③ check the network; ④ repeated wrong passwords may lock temporarily.' },
-            { q: 'UI / theme looks wrong?', a: '① Re-pick a theme from the palette (top-right); ② <b>hard refresh</b> (Ctrl/Cmd+Shift+R) to clear cache; ③ use a recent Chrome / Edge / Safari.' },
-        ],
+            { q: 'No live video / endless spinner?', a: '① Device <b>online</b>; ② network OK; ③ refresh; ④ switch <b>KVS / Agora</b>; ⑤ wait 10–30s after power-on for video services.', tags: 'live video spinner agora kvs' },
+            { q: 'Setting / control does nothing?', a: 'Top-bar badge should be <span class="help-badge">awsIot</span> on WAN. If stuck: ① <b>session expired (~1h)</b> → re-login; ② device online; ③ some params need reboot. Command timeout <code>8s</code>.', tags: 'mqtt aws iot timeout setting' },
+            { q: 'Cannot connect / handshake failed?', a: 'Usually <b>device offline</b> or <b>credentials expired</b>. Power + network check, then <b>sign out and back in</b>.', tags: 'handshake offline connect' },
+            { q: 'Cloud playback empty?', a: '① Correct <b>date</b>; ② cloud record switch / retention; ③ type / AI filters; ④ compare with local Video Playback.', tags: 'playback cloud empty timeline' },
+            { q: 'Missing recordings in list?', a: 'On Playback use <b>Rebuild index</b> to rescan disk (files are not deleted). Then Search again.', tags: 'reindex rebuild index missing' },
+            { q: 'Laggy live view?', a: '① Bandwidth; ② switch to <b>sub-stream</b>; ③ toggle <b>Agora ↔ KVS</b>; ④ close other heavy apps.', tags: 'lag latency bitrate' },
+            { q: 'Cloud logs — upload / view / download?', a: 'Log Studio → <b>Upload</b> packs to S3 → list packs → <b>View</b> decompresses in-browser → <b>Download</b> as deviceId_time_code.gz. Device-scoped only.', tags: 'log upload s3 download gzip' },
+            { q: 'Login failed?', a: '① Password; ② cloud portal account ≠ device LAN account; ③ network; ④ temporary lock after many failures.', tags: 'login password' }
+        ]
     };
     var zh = {
+        eyebrow: '支持工坊',
         title: '帮助中心',
-        subtitle: '快速上手设备控制台,遇到问题在下方「常见问题」按场景查找,大多数可自助解决。',
-        connTitle: '连接方式说明',
-        connBody: '顶栏会显示当前控制链路徽标:<span class="help-badge">http</span> 局域网直连设备(最快)· <span class="help-badge">awsIot</span> 外网经 AWS 云控制(参数 get/set 走 MQTT)· <span class="help-badge">rtm</span> 备用通道。<br>规则:<b>有云端凭证(外网门户进入)→ 直连 AWS IoT</b>;<b>局域网打开 → HTTP 优先</b>,失败自动回退云端。视频始终走 KVS/Agora。',
-        pagesTitle: '各页面使用说明',
+        subtitle: '搜索说明、一键跳转控制台页面，并复制诊断快照发给支持——覆盖外网云控与局域网场景。',
+        searchPh: '搜索页面、技巧、常见问题…',
+        searchEmpty: '没有匹配结果，换个关键词试试。',
+        liveLbl: '控制链路',
+        liveUnknown: '检测中…',
+        liveOnline: '就绪',
+        liveOffline: '请检查连接',
+        openPage: '打开',
+        tocConnect: '连接',
+        tocPages: '页面',
+        tocFaq: '问答',
+        tocSupport: '支持',
+        quickStart: '快速入口',
+        quick: [
+            { id: 'connect', label: '连接说明', icon: 'fa-solid fa-circle-nodes' },
+            { id: 'playback', label: '回放技巧', icon: 'fa-solid fa-film' },
+            { id: 'logs', label: '云端日志', icon: 'fa-solid fa-cloud-arrow-up' },
+            { id: 'faq', label: '故障排查', icon: 'fa-solid fa-screwdriver-wrench' }
+        ],
+        connTitle: '控制与视频如何连通',
+        connLead: '指令通道与媒体通道是分开的。先看顶栏链路徽标。',
+        paths: [
+            { badge: 'http', title: '局域网直连', desc: '在设备同网打开控制台时最快，参数 get/set 走 HTTP。' },
+            { badge: 'awsIot', title: '云端 MQTT', desc: '门户登录带 IoT 凭证 → 经 AWS IoT Core 控制。外网优先此链路。' },
+            { badge: 'KVS / Agora', title: '实时视频', desc: '预览与远程回放始终走 KVS 或 Agora，与控制徽标无关。' }
+        ],
+        connRule: '规则：<b>有云端凭证 → 直连 AWS IoT</b>；<b>局域网打开 → HTTP 优先</b>，失败自动回退云端。视频始终走 KVS/Agora。',
+        pagesTitle: '页面指南',
+        pagesLead: '点击卡片即可打开对应页面。说明已对齐当前云端控制台能力。',
         faqTitle: '常见问题 · 故障排查',
-        supportTitle: '仍未解决?',
-        supportBody: '请记录:<b>设备名/UUID、出问题的页面、操作步骤、顶栏链路徽标状态、浏览器 Console 报错(F12)</b>,连同截图反馈给技术支持,可大幅加快定位。云端账号相关问题请联系您的服务提供商。',
+        faqLead: '可用上方搜索框过滤。展开条目查看处理步骤。',
+        supportTitle: '仍未解决？',
+        supportBody: '复制诊断快照（UUID、链路、时间、浏览器），连同故障页截图发给技术支持。账号/账单问题请联系服务提供商。',
+        copyDiag: '复制诊断信息',
+        copyOk: '已复制',
+        openLogs: '打开日志工坊',
+        openLive: '打开直播',
         groups: [
             { name: '实时监控', pages: [
-                { icon: 'fas fa-video', title: '直播', desc: '实时监控——选择设备即可观看实时画面。', tips: ['多路画中画,点击小窗切换大图。', '预览窗可切换 KVS / Agora 传输。', '远端流加载时会显示转圈,稍候即可。'] },
-                { icon: 'fas fa-film', title: '本地回放', desc: '本地录像回放,带可视化时间轴标尺。', tips: ['按天用 ◀ 日期 ▶ 切换。', '点击时间轴段或列表项播放。', '滚轮缩放、拖拽平移时间轴。'] },
-                { icon: 'fas fa-cloud-download-alt', title: '云端回放', desc: '云端录像回放(KVS 归档 + DASH 播放)。', tips: ['按设备 + 日期查询云录像。', '受云存储开关与保留时长影响。'] },
-                { icon: 'fas fa-camera', title: '抓拍回放', desc: '查看设备抓拍的图片记录。', tips: ['按时间浏览,点击查看或下载。'] },
-                { icon: 'fa fa-robot', title: '对话设备', desc: '与设备 / AI 助手对话(ChatGPT 集成)。', tips: ['可提问或下达对话式指令。'] },
-            ] },
+                { icon: 'fas fa-gauge-high', title: '仪表盘', desc: '设备健康、存储、AI 与录像状态一览。', tips: ['快捷入口可跳到直播 / 回放。', 'OTA 或服务重启后刷新一次。'], page: 'dashboard' },
+                { icon: 'fas fa-video', title: '直播', desc: '多路实时预览，可切换 KVS / Agora。', tips: ['多摄像支持网格 / 画中画。', '转圈表示远端流仍在连接。'], page: 'home' },
+                { icon: 'fas fa-film', title: '回放', desc: '本地 / 图片 / 云端回放，含时间轴、AI 筛选与重建索引。', tips: ['可按事件类型或「仅含 AI 标注」筛选。', '列表缺失时用「重建索引」。', '多摄像：网格 / 单画面 / 画中画。'], page: 'playback' },
+                { icon: 'fa fa-robot', title: '对话设备', desc: '与机器人 / 视觉模型对话。', tips: ['可询问当前画面或下发对话指令。'], page: 'chatdevice-information' }
+            ]},
             { name: '参数设置', pages: [
-                { icon: 'fas fa-video', title: '视频设置', desc: '分辨率、帧率、码率、主/次码流、镜像翻转、编码。', tips: ['外网观看可用次码流,带宽更省、更流畅。', '保存即下发设备生效。'] },
-                { icon: 'fas fa-brain', title: 'AI 视觉', desc: '人形/移动侦测、灵敏度、检测区域、模型选择与告警联动。', tips: ['调低灵敏度可减少误报。', '画检测区域可限定侦测范围。'] },
-                { icon: 'fas fa-volume-up', title: '音频设置', desc: '音量、增益、编码、回声消除与双向对讲。', tips: ['对讲建议开启回声消除。'] },
-                { icon: 'fas fa-record-vinyl', title: '录像设置', desc: '录像开关、计划、移动侦测触发、预录与紧急录像。', tips: ['计划 + 移动触发组合可节省存储。'] },
-                { icon: 'fa fa-database', title: '存储', desc: 'SD 卡 / 磁盘信息、容量、格式化、循环覆盖。', tips: ['新卡首次使用先格式化。', '循环覆盖会保留最新录像。'] },
-                { icon: 'fa fa-wifi', title: '网络', desc: 'WiFi 扫描/连接、有线网络、IP 与信号信息。', tips: ['扫描 → 选 SSID → 输入密码连接 WiFi。'] },
-                { icon: 'fa fa-cloud', title: '云端', desc: '云存储开关与保留时长、绑定、AWS 配置。', tips: ['设置保留时长控制云录像保存多久。'] },
-            ] },
+                { icon: 'fas fa-video', title: '视频设置', desc: '分辨率、帧率、码率、主/次码流、镜像翻转。', tips: ['外网建议次码流，更流畅。'], page: 'video-settings' },
+                { icon: 'fas fa-brain', title: 'AI 视觉', desc: '模型、置信度、OSD 画框、双目测距、Foxglove。', tips: ['调高置信度可减少误报。', 'LLM 页签配置 OpenAI / Ollama。'], page: 'ai-detection' },
+                { icon: 'fas fa-record-vinyl', title: '录像与存储', desc: '循环 / 紧急 / 缩时、预录、SD 格式化与循环覆盖。', tips: ['存储页签在「录像设置」内。'], page: 'record-settings' },
+                { icon: 'fa fa-wifi', title: '网络', desc: 'Wi-Fi、有线 IP、RTSP 与 Web 端口。', tips: ['可复制 RTSP 给 VLC / NVR。'], page: 'network-information' },
+                { icon: 'fa fa-cloud', title: '云端', desc: '云录像、S3 上传、KVS 区域与保留期。', tips: ['保留时长决定云片段保存多久。'], page: 'cloud-information' }
+            ]},
             { name: '系统', pages: [
-                { icon: 'fa fa-microchip', title: '设备信息', desc: '型号、固件版本、UUID、序列号、时间与二维码。', tips: ['绑定或联系支持时使用 UUID / 二维码。'] },
-                { icon: 'fas fa-arrow-up', title: 'OTA 升级', desc: '检查/上传固件,查看升级进度与版本。', tips: ['升级过程中保持通电,完成后设备会自动重启。'] },
-                { icon: 'fa fa-tools', title: '配网 / Provisioning', desc: '设备配网 / 出厂配置。技术页。', tips: [] },
-                { icon: 'fa fa-microscope', title: '工厂测试', desc: '工厂 / 硬件自检。内部使用。', tips: [] },
-                { icon: 'fa-solid fa-code', title: '调试设置', desc: '调试 / 诊断选项。技术页。', tips: [] },
-                { icon: 'fa-solid fa-spider', title: '日志', desc: '查看与导出设备日志。', tips: ['向支持反馈问题时附上日志。'] },
-                { icon: 'fa-solid fa-users', title: '用户管理', desc: '增删改用户、角色与密码。', tips: ['使用强密码,删除不再使用的账号。'] },
-            ] },
+                { icon: 'fa fa-microchip', title: '设备信息', desc: '型号、固件、UUID、NTP、外设/电机、OTA。', tips: ['OTA 页签经 S3 下发远程升级包。'], page: 'device-information' },
+                { icon: 'fas fa-server', title: '系统服务', desc: 'smart_robot.service 的 CPU/内存与启停重启。', tips: ['重启会短暂断开控制台。'], page: 'system-service' },
+                { icon: 'fa-solid fa-scroll', title: '日志工坊', desc: '外网：上传到 S3、列表解压查看下载；局域网：本地 /log。', tips: ['下载名 = 设备ID_时间_日志ID。', '反馈问题时请附日志。'], page: 'debug' },
+                { icon: 'fa fa-tools', title: '生产配置', desc: '配网与工厂测试（技术页）。', tips: [], page: 'production' },
+                { icon: 'fa-solid fa-users', title: '用户管理', desc: '设备登录账号（局域网网页）。', tips: ['使用强密码，删除闲置账号。'], page: 'user-management' }
+            ]}
         ],
         faq: [
-            { q: '看不到实时画面 / 一直转圈?', a: '① 确认设备<b>在线</b>;② 检查本机网络;③ 刷新或重新进入页面;④ 尝试在预览窗切换 <b>KVS / Agora</b>;⑤ 设备刚上电需等待视频服务就绪(约 10–30 秒)。' },
-            { q: '改了设置 / 点了控制,设备没反应?', a: '看顶栏链路徽标,外网应为 <span class="help-badge">awsIot</span>。若长时间无响应:① <b>会话凭证可能过期</b>(约 1 小时)→ 退出重新登录;② 设备是否在线;③ 个别参数需设备重启生效。命令默认 <code>8 秒</code> 超时,超时可重试。' },
-            { q: '提示「连不上设备 / 握手失败」?', a: '多为<b>设备离线或未连上云</b>,或<b>登录会话过期</b>。处理:① 确认设备通电且联网;② <b>退出后重新登录</b>刷新云端凭证;③ 稍候 1–2 分钟重试。' },
-            { q: '云回放列表为空 / 找不到录像?', a: '① 用 ◀ ▶ 选到<b>正确日期</b>;② 该设备当天是否上传了云录像(受云存储开关 / 保留期影响);③ 检查录像类型筛选;④ 切到「本地回放」对比。' },
-            { q: '实时卡顿 / 延迟大?', a: '① 多为<b>网络带宽 / 抖动</b>;② 尝试切换<b>次码流</b>(更低分辨率码率);③ 切换 <b>Agora ↔ KVS</b>;④ 关闭其他占用带宽的应用。' },
-            { q: '登录失败?', a: '① 核对账号密码;② 区分<b>云端账号</b>(外网门户)与<b>设备账号</b>(局域网设备页);③ 检查网络;④ 密码错误多次可能被临时锁定,稍后再试。' },
-            { q: '界面 / 主题显示异常?', a: '① 右上角重新选择主题;② <b>强制刷新</b>(Ctrl/Cmd+Shift+R)清缓存;③ 建议使用较新版本 Chrome / Edge / Safari。' },
-        ],
+            { q: '看不到实时画面 / 一直转圈？', a: '① 设备<b>在线</b>；② 本机网络；③ 刷新；④ 切换 <b>KVS / Agora</b>；⑤ 上电后等待视频服务就绪（约 10–30 秒）。', tags: '直播 转圈 agora kvs 视频' },
+            { q: '改了设置 / 点了控制没反应？', a: '外网顶栏应为 <span class="help-badge">awsIot</span>。无响应时：① <b>会话约 1 小时过期</b>→ 重新登录；② 设备在线；③ 个别参数需重启。命令超时 <code>8 秒</code>。', tags: 'mqtt 设置 超时 aws' },
+            { q: '提示连不上 / 握手失败？', a: '多为<b>设备离线</b>或<b>凭证过期</b>。确认通电联网后，<b>退出再登录</b>刷新云端凭证。', tags: '握手 离线 连接' },
+            { q: '云回放列表为空？', a: '① 选对<b>日期</b>；② 云存储开关 / 保留期；③ 类型或 AI 筛选；④ 与本地回放对比。', tags: '回放 云端 空 时间轴' },
+            { q: '录像列表缺条目？', a: '在回放页点<b>重建索引</b>扫描磁盘（不删文件），再搜索。', tags: '重建索引 缺失 列表' },
+            { q: '实时卡顿 / 延迟大？', a: '① 带宽；② 切<b>次码流</b>；③ 切换 <b>Agora ↔ KVS</b>；④ 关掉占带宽应用。', tags: '卡顿 延迟 码率' },
+            { q: '云端日志如何上传 / 查看 / 下载？', a: '日志工坊 → <b>上传</b>到 S3 → 列表 → <b>查看</b>浏览器内解压 → <b>下载</b>文件名为 设备ID_时间_短码.gz。仅当前设备。', tags: '日志 上传 s3 下载' },
+            { q: '登录失败？', a: '① 密码；② 云端门户账号 ≠ 设备局域网账号；③ 网络；④ 多次错误可能临时锁定。', tags: '登录 密码' }
+        ]
     };
     var H = { en: en, zh: zh };
-    ['ja', 'de', 'fr', 'es'].forEach(function (l) { H[l] = en; });   // 暂回退英文,后续补译只需填 H[l]
+    ['ja', 'de', 'fr', 'es'].forEach(function (l) { H[l] = en; });
     return H;
 })();
+
+function __helpTransportLabel() {
+    try {
+        if (window.DeviceTransport && DeviceTransport.mode) return String(DeviceTransport.mode);
+        var el = document.querySelector('.dv-topbar [data-transport], .transport-badge, .link-badge');
+        if (el && el.textContent) return el.textContent.trim();
+    } catch (e) {}
+    try {
+        if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) return 'awsIot';
+    } catch (e2) {}
+    return '';
+}
+
+function __helpDiagText() {
+    var uuid = '';
+    try {
+        uuid = (window.DeviceTransport && DeviceTransport.remoteUuid)
+            || localStorage.getItem('lastDeviceUuid') || '';
+    } catch (e) {}
+    var lines = [
+        'deviceUuid: ' + (uuid || '(unknown)'),
+        'transport: ' + (__helpTransportLabel() || '(unknown)'),
+        'page: ' + ((document.querySelector('.page-section.active') || {}).id || ''),
+        'url: ' + location.href.split('#')[0],
+        'ua: ' + navigator.userAgent,
+        'time: ' + new Date().toISOString(),
+        'lang: ' + (_currentLang || 'en')
+    ];
+    return lines.join('\n');
+}
 
 function renderHelp() {
     var root = document.getElementById('helpRoot');
     if (!root) return;
     var L = HELP_I18N[_currentLang] || HELP_I18N.en;
+    var transport = __helpTransportLabel() || L.liveUnknown;
+    var online = !!(transport && transport !== L.liveUnknown);
+
     var h = '';
-    h += '<div class="help-hero"><h2><i class="fa-solid fa-circle-question" style="color:var(--accent)"></i> ' + L.title + '</h2><p>' + L.subtitle + '</p></div>';
-    h += '<div class="help-sec-title"><i class="fa-solid fa-circle-nodes"></i> ' + L.connTitle + '</div>';
-    h += '<div class="help-note" style="margin-bottom:22px">' + L.connBody + '</div>';
-    h += '<div class="help-sec-title"><i class="fa-solid fa-book"></i> ' + L.pagesTitle + '</div>';
-    L.groups.forEach(function (g) {
+    h += '<div class="help-hero">';
+    h += '<div class="help-hero-top">';
+    h += '<div class="help-hero-main">';
+    h += '<div class="help-eyebrow"><i class="fa-solid fa-sparkles"></i><span>' + L.eyebrow + '</span></div>';
+    h += '<h2>' + L.title + '</h2>';
+    h += '<p class="help-sub">' + L.subtitle + '</p>';
+    h += '<div class="help-search"><i class="fa-solid fa-magnifying-glass"></i>';
+    h += '<input id="helpSearchInput" type="search" placeholder="' + L.searchPh + '" autocomplete="off" />';
+    h += '<kbd>/</kbd></div>';
+    h += '<div class="help-quick" aria-label="' + L.quickStart + '">';
+    (L.quick || []).forEach(function (q) {
+        h += '<button type="button" class="help-chip" data-help-jump="' + q.id + '"><i class="' + q.icon + '"></i>' + q.label + '</button>';
+    });
+    h += '</div></div>';
+    h += '<div class="help-hero-side"><div class="help-live">';
+    h += '<div class="lbl">' + L.liveLbl + '</div><div class="val">';
+    h += '<span class="dot' + (online ? '' : ' off') + '"></span>';
+    h += '<span class="help-badge">' + transport + '</span>';
+    h += '<span style="font-size:12px;color:var(--text-muted)">' + (online ? L.liveOnline : L.liveOffline) + '</span>';
+    h += '</div></div>';
+    h += '<div class="help-actions" style="margin-top:2px">';
+    h += '<button type="button" class="help-btn primary" data-help-act="copy"><i class="fa-solid fa-copy"></i><span>' + L.copyDiag + '</span></button>';
+    h += '<button type="button" class="help-btn ghost" data-help-act="logs"><i class="fa-solid fa-scroll"></i>' + L.openLogs + '</button>';
+    h += '</div></div></div></div>';
+
+    h += '<nav class="help-toc" aria-label="Help sections">';
+    h += '<button type="button" data-help-jump="connect">' + L.tocConnect + '</button>';
+    h += '<button type="button" data-help-jump="pages">' + L.tocPages + '</button>';
+    h += '<button type="button" data-help-jump="faq">' + L.tocFaq + '</button>';
+    h += '<button type="button" data-help-jump="support">' + L.tocSupport + '</button>';
+    h += '</nav>';
+
+    h += '<section class="help-section" id="help-sec-connect">';
+    h += '<div class="help-sec-hd"><h3><span class="ico"><i class="fa-solid fa-circle-nodes"></i></span>' + L.connTitle + '</h3><p>' + L.connLead + '</p></div>';
+    h += '<div class="help-path-grid">';
+    (L.paths || []).forEach(function (p) {
+        h += '<div class="help-path"><div class="badge-row"><span class="help-badge">' + p.badge + '</span></div>';
+        h += '<h4>' + p.title + '</h4><p>' + p.desc + '</p></div>';
+    });
+    h += '</div><div class="help-rule">' + L.connRule + '</div></section>';
+
+    h += '<section class="help-section" id="help-sec-pages">';
+    h += '<div class="help-sec-hd"><h3><span class="ico"><i class="fa-solid fa-book-open"></i></span>' + L.pagesTitle + '</h3><p>' + L.pagesLead + '</p></div>';
+    (L.groups || []).forEach(function (g) {
         h += '<div class="help-group">' + g.name + '</div><div class="help-grid">';
-        g.pages.forEach(function (p) {
-            h += '<div class="help-card"><div class="hc-ic"><i class="' + p.icon + '"></i></div><h4>' + p.title + '</h4><p>' + p.desc + '</p>';
-            if (p.tips && p.tips.length) { h += '<ul class="hc-tips">' + p.tips.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>'; }
-            h += '</div>';
+        (g.pages || []).forEach(function (pg) {
+            var blob = (pg.title + ' ' + pg.desc + ' ' + (pg.tips || []).join(' ') + ' ' + g.name).toLowerCase();
+            h += '<article class="help-card" data-help-text="' + blob.replace(/"/g, '&quot;') + '">';
+            h += '<div class="hc-top"><div class="hc-ic"><i class="' + pg.icon + '"></i></div>';
+            if (pg.page) h += '<button type="button" class="hc-go" data-help-page="' + pg.page + '">' + L.openPage + ' →</button>';
+            h += '</div><h4>' + pg.title + '</h4><p>' + pg.desc + '</p>';
+            if (pg.tips && pg.tips.length) {
+                h += '<ul class="hc-tips">' + pg.tips.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
+            }
+            h += '</article>';
         });
         h += '</div>';
     });
-    h += '<div class="help-sec-title"><i class="fa-solid fa-screwdriver-wrench"></i> ' + L.faqTitle + '</div><div class="help-faq">';
-    L.faq.forEach(function (f) { h += '<details><summary>' + f.q + '</summary><div class="faq-body">' + f.a + '</div></details>'; });
-    h += '</div>';
-    h += '<div class="help-sec-title"><i class="fa-solid fa-headset"></i> ' + L.supportTitle + '</div><div class="help-note">' + L.supportBody + '</div>';
+    h += '<div class="help-empty" id="helpPagesEmpty">' + L.searchEmpty + '</div></section>';
+
+    h += '<section class="help-section" id="help-sec-faq">';
+    h += '<div class="help-sec-hd"><h3><span class="ico"><i class="fa-solid fa-screwdriver-wrench"></i></span>' + L.faqTitle + '</h3><p>' + L.faqLead + '</p></div>';
+    h += '<div class="help-faq">';
+    (L.faq || []).forEach(function (f) {
+        var blob = (f.q + ' ' + f.a.replace(/<[^>]+>/g, '') + ' ' + (f.tags || '')).toLowerCase();
+        h += '<details data-help-text="' + blob.replace(/"/g, '&quot;') + '"><summary>' + f.q + '</summary><div class="faq-body">' + f.a + '</div></details>';
+    });
+    h += '</div><div class="help-empty" id="helpFaqEmpty">' + L.searchEmpty + '</div></section>';
+
+    h += '<section class="help-section" id="help-sec-support">';
+    h += '<div class="help-support"><h4><i class="fa-solid fa-headset" style="color:var(--accent);margin-right:8px"></i>' + L.supportTitle + '</h4>';
+    h += '<div class="bd">' + L.supportBody + '</div><div class="help-actions">';
+    h += '<button type="button" class="help-btn primary" data-help-act="copy"><i class="fa-solid fa-copy"></i><span>' + L.copyDiag + '</span></button>';
+    h += '<button type="button" class="help-btn" data-help-act="live"><i class="fa-solid fa-video"></i>' + L.openLive + '</button>';
+    h += '<button type="button" class="help-btn" data-help-act="logs"><i class="fa-solid fa-scroll"></i>' + L.openLogs + '</button>';
+    h += '</div></div></section>';
+
     root.innerHTML = h;
+    __bindHelpInteractions(root, L);
+}
+
+function __bindHelpInteractions(root, L) {
+    if (!root || root._helpBound) {
+        // re-bind after re-render
+    }
+    root._helpBound = true;
+
+    function jump(id) {
+        var map = { connect: 'help-sec-connect', pages: 'help-sec-pages', faq: 'help-sec-faq', support: 'help-sec-support', playback: 'help-sec-pages', logs: 'help-sec-faq' };
+        var el = document.getElementById(map[id] || id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (id === 'playback') {
+            var card = Array.prototype.find.call(root.querySelectorAll('.help-card h4'), function (n) {
+                return /playback|回放/i.test(n.textContent || '');
+            });
+            if (card && card.parentElement) {
+                card.parentElement.style.outline = '2px solid color-mix(in srgb, var(--accent) 55%, transparent)';
+                setTimeout(function () { card.parentElement.style.outline = ''; }, 1600);
+            }
+        }
+        if (id === 'logs') {
+            var det = Array.prototype.find.call(root.querySelectorAll('.help-faq details'), function (d) {
+                return /log|日志/i.test(d.getAttribute('data-help-text') || '');
+            });
+            if (det) { det.open = true; det.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        }
+        root.querySelectorAll('.help-toc button').forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-help-jump') === id
+                || (id === 'playback' && b.getAttribute('data-help-jump') === 'pages')
+                || (id === 'logs' && b.getAttribute('data-help-jump') === 'faq'));
+        });
+    }
+
+    function openPage(pageId) {
+        if (!pageId || typeof showPage !== 'function') return;
+        var nav = document.querySelector('.dv-nav-item[onclick*="showPage(\'' + pageId + '\'"]');
+        showPage(pageId, nav || null);
+    }
+
+    async function copyDiag(btn) {
+        var text = __helpDiagText();
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (e) {
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); } catch (e2) {}
+            document.body.removeChild(ta);
+        }
+        if (btn) {
+            var span = btn.querySelector('span') || btn;
+            var old = span.textContent;
+            span.textContent = L.copyOk;
+            setTimeout(function () { span.textContent = old; }, 1400);
+        }
+    }
+
+    function applyFilter(q) {
+        q = String(q || '').trim().toLowerCase();
+        var cardHit = 0, faqHit = 0;
+        root.querySelectorAll('.help-card').forEach(function (c) {
+            var ok = !q || (c.getAttribute('data-help-text') || '').indexOf(q) >= 0;
+            c.classList.toggle('is-hidden', !ok);
+            if (ok) cardHit++;
+        });
+        root.querySelectorAll('.help-faq details').forEach(function (d) {
+            var ok = !q || (d.getAttribute('data-help-text') || '').indexOf(q) >= 0;
+            d.classList.toggle('is-hidden', !ok);
+            if (ok) faqHit++;
+        });
+        var pe = document.getElementById('helpPagesEmpty');
+        var fe = document.getElementById('helpFaqEmpty');
+        if (pe) pe.classList.toggle('show', !!q && cardHit === 0);
+        if (fe) fe.classList.toggle('show', !!q && faqHit === 0);
+    }
+
+    root.onclick = function (ev) {
+        var t = ev.target.closest('[data-help-jump],[data-help-page],[data-help-act]');
+        if (!t) return;
+        if (t.hasAttribute('data-help-jump')) { jump(t.getAttribute('data-help-jump')); return; }
+        if (t.hasAttribute('data-help-page')) { openPage(t.getAttribute('data-help-page')); return; }
+        var act = t.getAttribute('data-help-act');
+        if (act === 'copy') copyDiag(t);
+        else if (act === 'logs') openPage('debug');
+        else if (act === 'live') openPage('home');
+    };
+
+    var input = document.getElementById('helpSearchInput');
+    if (input) {
+        input.oninput = function () { applyFilter(input.value); };
+        input.onkeydown = function (e) {
+            if (e.key === 'Escape') { input.value = ''; applyFilter(''); input.blur(); }
+        };
+    }
+    if (!window.__helpSlashBound) {
+        window.__helpSlashBound = true;
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+            var tag = (e.target && e.target.tagName) || '';
+            if (/INPUT|TEXTAREA|SELECT/.test(tag) || (e.target && e.target.isContentEditable)) return;
+            var helpSec = document.getElementById('help');
+            if (!helpSec || !helpSec.classList.contains('active')) return;
+            var inp = document.getElementById('helpSearchInput');
+            if (!inp) return;
+            e.preventDefault();
+            inp.focus();
+        });
+    }
 }
 window.renderHelp = renderHelp;
 
