@@ -8961,7 +8961,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 
-                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } window.__runWhenPageActive('debug', () => { initDeviceGeneralInformation(); if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); }); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
+                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } window.__runWhenPageActive('debug', () => { initDeviceGeneralInformation(); if (logParamTab==='viewer') { if (!isWanLogMode()) fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); }); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
 
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
@@ -8978,16 +8978,20 @@ window.__presignThumbUrl = function (raw) {
                                             :class="logParamTab==='viewer' && 'active'"
                                             :aria-selected="logParamTab==='viewer'"
                                             @click="switchLogParamTab('viewer')"
-                                            data-i18n="ls_tab_logfile">Log File</button>
+                                            x-text="isWanLogMode() ? tIdx('ls_tab_upload') : tIdx('ls_tab_logfile')">Log File</button>
                                 </div>
                             </div>
                             <p class="log-sub"
                                x-text="logParamTab==='viewer'
-                                 ? (tIdx('ls_sub_files') + ' · ' + (logInformation.logDir || '/mnt/sd/smartdevice/log/'))
+                                 ? (isWanLogMode() ? tIdx('ls_sub_upload') : (tIdx('ls_sub_files') + ' · ' + (logInformation.logDir || '/mnt/sd/smartdevice/log/')))
                                  : tIdx('ls_sub_settings')"></p>
-                            <span class="log-badge" x-show="logParamTab==='viewer'">
+                            <span class="log-badge" x-show="logParamTab==='viewer' && !isWanLogMode()">
                                 <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
-                                <span x-text="filteredLogs.length + ' ' + tIdx('ls_badge_files')"></span>
+                                <span x-text="(filteredLogs || []).length + ' ' + tIdx('ls_badge_files')"></span>
+                            </span>
+                            <span class="log-badge" x-show="logParamTab==='viewer' && isWanLogMode()">
+                                <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                                <span x-text="tIdx('ls_badge_upload')"></span>
                             </span>
                             <span class="log-badge" x-show="logParamTab==='settings'">
                                 <i class="fa-solid fa-sliders" aria-hidden="true"></i>
@@ -9008,17 +9012,24 @@ window.__presignThumbUrl = function (raw) {
                                      x-text="['INFO','WARN','ERROR'][logInformation.minloglevel] || 'INFO'"></div>
                                 <div class="foot" data-i18n="db_min_log_level">Min Log Level</div>
                             </div>
-                            <div class="log-stat-card" x-show="logParamTab==='viewer'">
+                            <div class="log-stat-card" x-show="logParamTab==='viewer' && !isWanLogMode()">
                                 <div class="ico"><i class="fa-solid fa-file-lines"></i></div>
                                 <div class="lbl" data-i18n="ls_stat_files">Files</div>
-                                <div class="num" x-text="filteredLogs.length"></div>
+                                <div class="num" x-text="(filteredLogs || []).length"></div>
                                 <div class="foot" data-i18n="lg_sessions">Sessions</div>
                             </div>
-                            <div class="log-stat-card" x-show="logParamTab==='viewer'">
+                            <div class="log-stat-card" x-show="logParamTab==='viewer' && !isWanLogMode()">
                                 <div class="ico"><i class="fa-solid fa-bolt"></i></div>
                                 <div class="lbl" data-i18n="lg_live">Live</div>
-                                <div class="num" x-text="filteredLogs.filter(l => l.current).length"></div>
+                                <div class="num" x-text="(filteredLogs || []).filter(l => l.current).length"></div>
                                 <div class="foot" data-i18n="ls_stat_live_foot">Active now</div>
+                            </div>
+                            <div class="log-stat-card" x-show="logParamTab==='viewer' && isWanLogMode()"
+                                 style="cursor:pointer;" @click="openLogUploadModal()">
+                                <div class="ico"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                                <div class="lbl" data-i18n="lg_upload">Upload</div>
+                                <div class="num sm" style="font-size:15px;padding-top:4px;" data-i18n="ls_stat_upload">S3</div>
+                                <div class="foot" data-i18n="ls_stat_upload_foot">Send to cloud</div>
                             </div>
                         </div>
                     </header>
@@ -9171,7 +9182,28 @@ window.__presignThumbUrl = function (raw) {
 
 </div><!-- /.vs-param-pane settings -->
 <div class="vs-param-pane log-tabs-wrap" x-show="logParamTab==='viewer'" x-cloak>
-<div class="log-studio">
+<!-- 外网：无 /log/* HTTP，只保留上传到云端 -->
+<div class="log-glass" x-show="isWanLogMode()" x-cloak>
+  <div class="log-glass-head">
+    <h3 data-i18n="ls_upload_title">Upload device logs</h3>
+  </div>
+  <div class="log-glass-body" style="padding:28px 20px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:18px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font-size:28px;">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+    </div>
+    <p class="text-secondary mb-2" style="max-width:480px;margin:0 auto 8px;line-height:1.55;" data-i18n="ls_upload_desc">
+      WAN cannot browse device log files over MQTT. Package console logs and upload to cloud diagnostics for support.
+    </p>
+    <p class="small text-muted mb-4" x-text="tIdx('lg_wan_use_upload')"></p>
+    <button type="button" class="btn btn-success btn-lg" style="border-radius:999px;padding:10px 28px;font-weight:700;"
+            @click="openLogUploadModal()" :disabled="logUploadPhase==='uploading'">
+      <i class="fa-solid fa-cloud-arrow-up me-2"></i>
+      <span data-i18n="lg_upload">Upload</span>
+    </button>
+  </div>
+</div>
+<!-- 局域网：原日志文件列表 / 查看 -->
+<div class="log-studio" x-show="!isWanLogMode()" x-cloak>
   <div class="log-studio-shell">
     <div class="log-studio-toolbar">
       <div class="log-studio-search">
@@ -9723,7 +9755,7 @@ const I18N_INDEX = {
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_production:'Production', nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
-    nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', ls_eyebrow:'Diagnostics', ls_sub_settings:'Configure glog output, severity and per-module switches.', ls_sub_files:'Device diagnostic sessions', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Enabled now', ls_stat_level:'Level', ls_stat_files:'Files', ls_stat_live_foot:'Active now', ls_rel_just:'Just now', ls_rel_min:' min ago', ls_rel_hour:' h ago', ls_rel_day:' d ago', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
+    nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', ls_tab_upload:'Upload Logs', ls_sub_upload:'Upload device logs to cloud diagnostics (WAN cannot browse /log files).', ls_badge_upload:'Cloud upload', ls_upload_title:'Upload device logs', ls_upload_desc:'WAN cannot browse device log files over MQTT. Package console logs and upload to cloud diagnostics for support.', ls_stat_upload:'S3', ls_stat_upload_foot:'Send to cloud', ls_eyebrow:'Diagnostics', ls_sub_settings:'Configure glog output, severity and per-module switches.', ls_sub_files:'Device diagnostic sessions', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Enabled now', ls_stat_level:'Level', ls_stat_files:'Files', ls_stat_live_foot:'Active now', ls_rel_just:'Just now', ls_rel_min:' min ago', ls_rel_hour:' h ago', ls_rel_day:' d ago', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
@@ -9876,7 +9908,7 @@ const I18N_INDEX = {
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_production:'生产', nav_provisioning:'配网', nav_factory_test:'工厂测试',
-    nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', ls_eyebrow:'诊断', ls_sub_settings:'配置 glog 输出、级别与各模块开关。', ls_sub_files:'设备诊断会话', ls_badge_files:'个会话', ls_badge_modules:'模块开启', ls_stat_modules:'模块', ls_stat_modules_on:'当前开启', ls_stat_level:'级别', ls_stat_files:'文件', ls_stat_live_foot:'正在写入', ls_rel_just:'刚刚', ls_rel_min:' 分钟前', ls_rel_hour:' 小时前', ls_rel_day:' 天前', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
+    nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', ls_tab_upload:'上传日志', ls_sub_upload:'外网无法浏览设备 /log 文件，请打包上传到云端诊断。', ls_badge_upload:'云端上传', ls_upload_title:'上传设备日志', ls_upload_desc:'外网经 MQTT 无法浏览设备日志文件。请打包控制台日志并上传到云端诊断，供售后分析。', ls_stat_upload:'S3', ls_stat_upload_foot:'上传到云端', ls_eyebrow:'诊断', ls_sub_settings:'配置 glog 输出、级别与各模块开关。', ls_sub_files:'设备诊断会话', ls_badge_files:'个会话', ls_badge_modules:'模块开启', ls_stat_modules:'模块', ls_stat_modules_on:'当前开启', ls_stat_level:'级别', ls_stat_files:'文件', ls_stat_live_foot:'正在写入', ls_rel_just:'刚刚', ls_rel_min:' 分钟前', ls_rel_hour:' 小时前', ls_rel_day:' 天前', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
     page_home:'直播', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
@@ -10029,7 +10061,7 @@ const I18N_INDEX = {
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_production:'生産', nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
-    nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', ls_eyebrow:'診断', ls_sub_settings:'glog 出力・レベル・モジュール切替を設定。', ls_sub_files:'デバイス診断セッション', ls_badge_files:'件', ls_badge_modules:'モジュール ON', ls_stat_modules:'モジュール', ls_stat_modules_on:'有効', ls_stat_level:'レベル', ls_stat_files:'ファイル', ls_stat_live_foot:'書込中', ls_rel_just:'たった今', ls_rel_min:'分前', ls_rel_hour:'時間前', ls_rel_day:'日前', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
+    nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', ls_tab_upload:'ログアップロード', ls_sub_upload:'WAN では /log を閲覧できません。クラウド診断へアップロードしてください。', ls_badge_upload:'クラウド送信', ls_upload_title:'デバイスログをアップロード', ls_upload_desc:'WAN では MQTT 経由でログファイルを閲覧できません。コンソールログを打包してクラウド診断へ送ってください。', ls_stat_upload:'S3', ls_stat_upload_foot:'クラウドへ', ls_eyebrow:'診断', ls_sub_settings:'glog 出力・レベル・モジュール切替を設定。', ls_sub_files:'デバイス診断セッション', ls_badge_files:'件', ls_badge_modules:'モジュール ON', ls_stat_modules:'モジュール', ls_stat_modules_on:'有効', ls_stat_level:'レベル', ls_stat_files:'ファイル', ls_stat_live_foot:'書込中', ls_rel_just:'たった今', ls_rel_min:'分前', ls_rel_hour:'時間前', ls_rel_day:'日前', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
     page_home:'ライブ', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
@@ -10181,7 +10213,7 @@ const I18N_INDEX = {
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_production:'Produktion', nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
-    nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', ls_eyebrow:'Diagnose', ls_sub_settings:'glog-Ausgabe, Schweregrad und Modulschalter.', ls_sub_files:'Geräte-Diagnosesitzungen', ls_badge_files:'Sitzungen', ls_badge_modules:'Module an', ls_stat_modules:'Module', ls_stat_modules_on:'Aktiv', ls_stat_level:'Stufe', ls_stat_files:'Dateien', ls_stat_live_foot:'Aktiv jetzt', ls_rel_just:'Gerade eben', ls_rel_min:' Min. her', ls_rel_hour:' Std. her', ls_rel_day:' T. her', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
+    nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', ls_tab_upload:'Logs hochladen', ls_sub_upload:'WAN kann /log nicht lesen — Logs in die Cloud-Diagnose hochladen.', ls_badge_upload:'Cloud-Upload', ls_upload_title:'Gerätelogs hochladen', ls_upload_desc:'Über MQTT sind Logdateien nicht lesbar. Konsolenlogs packen und zur Cloud-Diagnose senden.', ls_stat_upload:'S3', ls_stat_upload_foot:'In die Cloud', ls_eyebrow:'Diagnose', ls_sub_settings:'glog-Ausgabe, Schweregrad und Modulschalter.', ls_sub_files:'Geräte-Diagnosesitzungen', ls_badge_files:'Sitzungen', ls_badge_modules:'Module an', ls_stat_modules:'Module', ls_stat_modules_on:'Aktiv', ls_stat_level:'Stufe', ls_stat_files:'Dateien', ls_stat_live_foot:'Aktiv jetzt', ls_rel_just:'Gerade eben', ls_rel_min:' Min. her', ls_rel_hour:' Std. her', ls_rel_day:' T. her', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
@@ -10332,7 +10364,7 @@ const I18N_INDEX = {
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_production:'Production', nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
-    nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', ls_eyebrow:'Diagnostic', ls_sub_settings:'Configurer sortie glog, sévérité et modules.', ls_sub_files:'Sessions de diagnostic appareil', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Activés', ls_stat_level:'Niveau', ls_stat_files:'Fichiers', ls_stat_live_foot:'Actif', ls_rel_just:'À l\'instant', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' j', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
+    nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', ls_tab_upload:'Envoyer journaux', ls_sub_upload:'WAN ne peut pas lire /log — envoyer vers le diagnostic cloud.', ls_badge_upload:'Envoi cloud', ls_upload_title:'Envoyer les journaux', ls_upload_desc:'Impossible de parcourir les journaux via MQTT. Empaqueter et envoyer au diagnostic cloud.', ls_stat_upload:'S3', ls_stat_upload_foot:'Vers le cloud', ls_eyebrow:'Diagnostic', ls_sub_settings:'Configurer sortie glog, sévérité et modules.', ls_sub_files:'Sessions de diagnostic appareil', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Activés', ls_stat_level:'Niveau', ls_stat_files:'Fichiers', ls_stat_live_foot:'Actif', ls_rel_just:'À l\'instant', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' j', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
     page_home:'Direct', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
@@ -10484,7 +10516,7 @@ const I18N_INDEX = {
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_production:'Producción', nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
-    nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', ls_eyebrow:'Diagnóstico', ls_sub_settings:'Configurar glog, severidad y módulos.', ls_sub_files:'Sesiones de diagnóstico', ls_badge_files:'sesiones', ls_badge_modules:'módulos on', ls_stat_modules:'Módulos', ls_stat_modules_on:'Activos', ls_stat_level:'Nivel', ls_stat_files:'Archivos', ls_stat_live_foot:'Activo', ls_rel_just:'Ahora', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' d', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
+    nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', ls_tab_upload:'Subir registros', ls_sub_upload:'WAN no puede leer /log — subir a diagnóstico en la nube.', ls_badge_upload:'Subida cloud', ls_upload_title:'Subir registros del dispositivo', ls_upload_desc:'No se pueden listar logs por MQTT. Empaqueta y sube a diagnóstico en la nube.', ls_stat_upload:'S3', ls_stat_upload_foot:'A la nube', ls_eyebrow:'Diagnóstico', ls_sub_settings:'Configurar glog, severidad y módulos.', ls_sub_files:'Sesiones de diagnóstico', ls_badge_files:'sesiones', ls_badge_modules:'módulos on', ls_stat_modules:'Módulos', ls_stat_modules_on:'Activos', ls_stat_level:'Nivel', ls_stat_files:'Archivos', ls_stat_live_foot:'Activo', ls_rel_just:'Ahora', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' d', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
     page_home:'En vivo', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
@@ -10958,7 +10990,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!st) return false;
             st.logParamTab = tab;
             if (tab === 'viewer') {
-                if (typeof st.fetchLogs === 'function') st.fetchLogs();
+                const wan = typeof st.isWanLogMode === 'function' && st.isWanLogMode();
+                if (!wan && typeof st.fetchLogs === 'function') st.fetchLogs();
             } else if (typeof st.initLogInformation === 'function') {
                 st.initLogInformation();
             }
@@ -11827,8 +11860,18 @@ document.addEventListener('DOMContentLoaded', function() {
             isMainDisplayMode: true, //是否主显示
 
             //log 日志
-            logs: [],        // 日志文件列表
-            logContent: "",  // 当前日志内容
+            logs: [],        // 日志文件列表 [{name,size,mtime,level,label,current}]
+            logContent: "",  // 当前日志纯文本
+            logActiveFile: "",
+            logSearchQ: "",
+            logFindQ: "",
+            logFindIdx: -1,
+            logLevelFilter: "INFO",
+            logDateFilter: "all",
+            logSearchHits: [],
+            logShowSys: false,
+            logViewOpen: false,
+            logViewLoading: false,
 
 
             // ─────────────────────────────────────────────────────────────────────
@@ -11869,6 +11912,69 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
 
+            isWanLogMode() {
+                return !!(typeof window.isWanMediaMode === 'function' && window.isWanMediaMode());
+            },
+            get filteredLogs() {
+                const today = (() => {
+                    const d = new Date();
+                    const m = String(d.getMonth()+1).padStart(2,'0');
+                    const day = String(d.getDate()).padStart(2,'0');
+                    return `${d.getFullYear()}${m}${day}`;
+                })();
+                return (this.logs || []).filter((log) => {
+                    const kind = log.kind || 'glog';
+                    if (kind === 'orphan') return false;
+                    if (kind === 'sys' && !this.logShowSys && this.logLevelFilter !== 'ALL') return false;
+                    if (this.logLevelFilter && this.logLevelFilter !== 'ALL') {
+                        if (kind === 'crash') return true;
+                        if (log.current) return true;
+                        if ((log.level || 'OTHER') !== this.logLevelFilter) return false;
+                    }
+                    if (this.logDateFilter === 'today') {
+                        const name = log.name || '';
+                        if (log.current) return true;
+                        if (!name.includes(today) && !/20\d{6}/.test(name)) {
+                            if (name.includes('console') || name.includes('crash')) return true;
+                        }
+                        if (/20\d{6}/.test(name) && !name.includes(today)) return false;
+                    }
+                    return true;
+                });
+            },
+            formatLogSize(n) {
+                n = Number(n) || 0;
+                if (n < 1024) return n + ' B';
+                if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+                return (n/1024/1024).toFixed(1) + ' MB';
+            },
+            formatLogSessionTime(log) {
+                const name = (log && log.name) || '';
+                const m = /^(20\d{6})-(\d{6})\./.exec(name);
+                if (m) {
+                    const d = m[1], t = m[2];
+                    return d.slice(4, 6) + '-' + d.slice(6, 8) + ' ' + t.slice(0, 2) + ':' + t.slice(2, 4);
+                }
+                const label = (log && log.label) || '';
+                const lm = /(\d{2}-\d{2}\s+\d{2}:\d{2})/.exec(label);
+                if (lm) return lm[1];
+                if (log && log.mtime) {
+                    const dt = new Date(Number(log.mtime) * 1000);
+                    if (!isNaN(dt.getTime())) {
+                        const pad = (x) => String(x).padStart(2, '0');
+                        return pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()) + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+                    }
+                }
+                return name.slice(0, 16) || '—';
+            },
+            logLevelShort(log) {
+                const lv = ((log && log.level) || 'OTHER').toUpperCase();
+                if (lv === 'WARNING') return 'WARN';
+                if (lv === 'ERROR') return 'ERR';
+                if (lv === 'INFO') return 'INFO';
+                if ((log && log.kind) === 'crash') return 'CRASH';
+                return lv.slice(0, 4);
+            },
             logModuleKeys() {
                 return Object.keys(this.logInformation || {}).filter(k => k.startsWith('log') && k.endsWith('Enable'));
             },
