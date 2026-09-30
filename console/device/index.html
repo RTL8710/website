@@ -6326,10 +6326,13 @@ window.__presignThumbUrl = function (raw) {
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
                                                             <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
-                                                                   x-model.number="playbackPositionMs"
+                                                                   :value="playbackPositionMs"
                                                                    @pointerdown="_playbackProgressDragging=true; _stopPlaybackProgressTicker()"
-                                                                   @pointerup="_playbackProgressDragging=false"
-                                                                   @change="seekRemotePlayback($event)">
+                                                                   @touchstart.passive="_playbackProgressDragging=true; _stopPlaybackProgressTicker()"
+                                                                   @input="playbackPositionMs = parseInt($event.target.value, 10) || 0"
+                                                                   @change="seekRemotePlayback($event)"
+                                                                   @pointerup="seekRemotePlayback($event)"
+                                                                   @touchend="seekRemotePlayback($event)">
                                                             <span class="text-muted" style="font-size:11px;white-space:nowrap;"
                                                                   x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
                                                         </div>
@@ -19579,12 +19582,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             async seekRemotePlayback(ev) {
+                // 对齐 App：拖拽中 @input 只改本地秒数；松手/change 才下发 seek 并与设备同步
                 this._playbackProgressDragging = false;
-                let positionMs = parseInt((ev && ev.target) ? ev.target.value : this.playbackPositionMs, 10);
+                let positionMs = parseInt((ev && ev.target && ev.target.value != null) ? ev.target.value : this.playbackPositionMs, 10);
                 if (isNaN(positionMs) || positionMs < 0) positionMs = 0;
+                const dur = this.playbackDurationMs | 0;
+                if (dur > 0 && positionMs > dur) positionMs = dur;
+                // pointerup + change 可能连打两次，短窗口去重
+                const now = Date.now();
+                if (this._lastSeekMs === positionMs && (now - (this._lastSeekAt || 0)) < 400) {
+                    if (this.remotePlaybackActive) this._startPlaybackProgressTicker();
+                    return;
+                }
+                this._lastSeekMs = positionMs;
+                this._lastSeekAt = now;
                 this.playbackPositionMs = positionMs;
+                if (!this.remotePlaybackActive) return;
                 try {
-                    await fetch('/setDeviceCommand', {
+                    const response = await fetch('/setDeviceCommand', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -19592,6 +19607,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             params: { positionMs: positionMs },
                         }),
                     });
+                    const result = await response.json().catch(function () { return null; });
+                    if (result && result.params && typeof result.params.positionMs === 'number') {
+                        this.playbackPositionMs = result.params.positionMs | 0;
+                    }
+                    if (result && result.params && result.params.success === false) {
+                        console.warn('seekRemotePlayback failed', result.params);
+                    }
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
                 }
