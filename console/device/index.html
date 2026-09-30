@@ -90,6 +90,43 @@ window.isWanMediaMode = function () {
   if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
   return !!(window.isCloudOtaMode && window.isCloudOtaMode());
 };
+/* MQTT 列表投影：外网请求 slim=true，设备省略 Image/ImuPath/Description/events。 */
+window.wanListSlimParams = function (params) {
+  params = params || {};
+  if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) {
+    params.slim = true;
+  }
+  return params;
+};
+/* 跨 page-section 配置缓存（TTL），砍掉重复 getVideo/getAgora/getAlgorithm。 */
+window.__deviceCfgCache = window.__deviceCfgCache || {};
+window.__cfgCached = async function (key, ttlMs, loader) {
+  var e = window.__deviceCfgCache[key];
+  var now = Date.now();
+  if (e && (now - e.t) < ttlMs) return e.v;
+  var v = await loader();
+  window.__deviceCfgCache[key] = { t: now, v: v };
+  return v;
+};
+/* 仅当前 active 的 page-section 跑重 init；其它页等 pagechange。 */
+window.__runWhenPageActive = function (pageId, fn) {
+  var ran = false;
+  var go = function () {
+    if (ran) return;
+    ran = true;
+    try { fn(); } catch (e) { console.error('[pageInit]', pageId, e); }
+  };
+  var sec = document.getElementById(pageId);
+  if (sec && sec.classList.contains('active')) { go(); return; }
+  var handler = function (e) {
+    if (e && e.detail && e.detail.pageId === pageId) {
+      window.removeEventListener('pagechange', handler);
+      go();
+    }
+  };
+  window.addEventListener('pagechange', handler);
+};
+
 /* 声网会话单例：每个 page-section 各有一份 deviceSettings()，直播/回放不能各自 join。
  * 实时和回放共用同一个 channel=deviceUuid，靠 uid 前缀区分（1224 直播 / 1226 回放）。 */
 window.AhsAgoraRtc = window.AhsAgoraRtc || {
@@ -3376,7 +3413,7 @@ window.__presignThumbUrl = function (raw) {
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation()"
+                     x-init="window.__runWhenPageActive('home', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation(); })"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
                         <div class="row row-deck">
@@ -3645,7 +3682,7 @@ window.__presignThumbUrl = function (raw) {
                                             <!-- 视频设置页面 -->
                 
                 <div class="page-section " id="video-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="window.__runWhenPageActive('video-settings', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings(); })" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="Video/Audio settings groups" style="margin-bottom:14px;">
@@ -4549,7 +4586,7 @@ window.__presignThumbUrl = function (raw) {
 
 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } window.__runWhenPageActive('ai-detection', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); }); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="AI settings groups" style="margin-bottom:14px;">
@@ -5257,7 +5294,7 @@ window.__presignThumbUrl = function (raw) {
                 <!-- 录像设置页面 -->
                 
                 <div class="page-section " id="record-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initRecordSettings();initStorageInformation()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="window.__runWhenPageActive('record-settings', () => { initRecordSettings();initStorageInformation(); })">
                         <div class="page-body">
                             <div class="container-xl">
                         <div class="vs-param-tabs" role="tablist" aria-label="Record settings groups" style="margin-bottom:14px;">
@@ -5642,7 +5679,7 @@ window.__presignThumbUrl = function (raw) {
                     @media (max-width: 991px){#dashboard .dash-hero-viz{display:none}}
                 </style>
                 <div class="page-section active" id="dashboard" x-data="deviceSettings()"
-                     x-init="initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras()">
+                     x-init="window.__runWhenPageActive('dashboard', () => { initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras(); })">
                     <div class="page-wrapper">
                         <div class="page-body">
                             <div class="container-xl">
@@ -5801,7 +5838,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } initAgoraRtcService(); if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })()">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } window.__runWhenPageActive('playback', () => { initAgoraRtcService(); if (playbackTab==='image') { initTimeline(); /* 列表延后：点轴/展开再 fetchImages */ } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { initTimeline(); initVedioSettings(0); /* 默认只拉 slim 轴；列表延后到搜索/点轴 */ initPlaybackIdleThumbs(); } }); })()">
                     <div class="playback-inner">
                         <div class="vs-param-tabs" role="tablist" aria-label="Playback groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
@@ -6602,7 +6639,7 @@ window.__presignThumbUrl = function (raw) {
 
 
                                 <!-- Device Info：Info / OTA / Peripheral / Motor 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } window.__runWhenPageActive('device-information', () => { if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } }); })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Device info groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -7240,7 +7277,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="chatgpt-information"></div>
 
 <div class="page-section " id="chatdevice-information">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="loadAskHistory()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="window.__runWhenPageActive('chatdevice-information', () => { loadAskHistory(); })">
                         <div class="page-body">
                             <div class="container-xl">
                                 <div class="row">
@@ -7411,7 +7448,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
                                 <!-- Production：Provisioning / Factory Test 分段 Tab -->
-                <div class="page-section" id="production" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingProductionTab) { productionParamTab = window.__pendingProductionTab; delete window.__pendingProductionTab; } if (productionParamTab==='factory') { initFactoryTestServiceInformation(); } else { initProvisioningServiceInformation(); } })()">
+                <div class="page-section" id="production" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingProductionTab) { productionParamTab = window.__pendingProductionTab; delete window.__pendingProductionTab; } window.__runWhenPageActive('production', () => { if (productionParamTab==='factory') { initFactoryTestServiceInformation(); } else { initProvisioningServiceInformation(); } }); })()">
                         <div class="vs-param-tabs" role="tablist" aria-label="Production groups" style="margin-bottom:14px;">
                             <button type="button" class="btn btn-sm"
                                     role="tab"
@@ -8098,7 +8135,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="factoryTest-information"></div>
 
                 <!-- 设备网络页面 -->
-                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="initNetworkInformation();initRtspServerInformation();initWebserverService()">
+                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="window.__runWhenPageActive('network-information', () => { initNetworkInformation();initRtspServerInformation();initWebserverService(); })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
                     <!-- Network Settings：分段 Tab（仿 Cloud Settings / 视频 ISP/OSD），内容用原表单布局 -->
 
@@ -8249,15 +8286,16 @@ window.__presignThumbUrl = function (raw) {
                                     <label class="col-form-label col-12 col-md-6" data-i18n="nw_rtsp_port">RTSP Port</label>
                                     <input class="form-control" x-model.number="rtspServerService.rtsp_port" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <!-- 死字段：设备已单端口 liveN/subN，WAN/LAN 均隐藏勿回写脏拓扑 -->
+                                <div class="col-12 col-md-3" x-show="false" aria-hidden="true">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="nw_rtsp_sub_port">Sub Port</label>
                                     <input class="form-control" x-model.number="rtspServerService.rtsp_sub_port" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-12 col-md-3" x-show="false" aria-hidden="true">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="nw_rtsp_live_path">Live Path</label>
                                     <input class="form-control" x-model="rtspServerService.rtsp_live_path" />
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-12 col-md-3" x-show="false" aria-hidden="true">
                                     <label class="col-form-label col-12 col-md-6" data-i18n="nw_rtsp_sub_live">Sub Live Path</label>
                                     <input class="form-control" x-model="rtspServerService.rtsp_sub_live_path" />
                                 </div>
@@ -8409,7 +8447,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 <div class="page-section" id="cloud-information" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();getCloudRecordService();getCloudDataService();getS3UploadService()">
+                     x-init="window.__runWhenPageActive('cloud-information', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();getCloudRecordService();getCloudDataService();getS3UploadService(); })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
@@ -8714,8 +8752,8 @@ window.__presignThumbUrl = function (raw) {
                 
                 <!-- 系统：系统状态 / 系统管理 -->
                 <div class="page-section" id="system-service" x-data="deviceSettings()"
-                     x-init="(function(){ if (window.__pendingSystemTab) { systemParamTab = window.__pendingSystemTab; delete window.__pendingSystemTab; } refreshSystemService(); })()"
-                     @pagechange.window="if ($event.detail.pageId==='system-service') { refreshSystemService(); startSystemServicePoll(); } else { stopSystemServicePoll(); }">
+                     x-init="(function(){ if (window.__pendingSystemTab) { systemParamTab = window.__pendingSystemTab; delete window.__pendingSystemTab; } window.__runWhenPageActive('system-service', () => { refreshSystemService(); if (systemParamTab==='status') startSystemServicePoll(); }); })()"
+                     @pagechange.window="if ($event.detail.pageId==='system-service') { refreshSystemService(); if (systemParamTab==='status') startSystemServicePoll(); else stopSystemServicePoll(); } else { stopSystemServicePoll(); }">
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
                             <div class="log-eyebrow" data-i18n="ph_eyebrow_system">System</div>
@@ -8923,7 +8961,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 
-                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ initDeviceGeneralInformation(); if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
+                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } window.__runWhenPageActive('debug', () => { initDeviceGeneralInformation(); if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); }); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
 
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
@@ -9685,7 +9723,7 @@ const I18N_INDEX = {
     nav_storage:'Storage Settings', nav_network:'Network Settings', nav_cloud:'Cloud Settings',
     nav_device_info:'Device Info', nav_ota_upgrade:'OTA Upgrade',
     nav_production:'Production', nav_provisioning:'Provisioning', nav_factory_test:'Factory Test',
-    nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
+    nav_debug:'Log Settings', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'Enable, disable, start, stop or restart smart_robot.service.', ph_sub_sys_status:'CPU, memory and disk used by smart_robot.service.', sys_act_disable:'Disable', sys_act_enable:'Enable', sys_act_restart:'Restart', sys_act_start:'Start', sys_act_stop:'Stop', sys_col_mgmt:'Managed', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Running', sys_confirm_cancel:'Cancel', sys_confirm_msg_disable:'Disable only clears boot auto-start. The process keeps running until you stop or restart it.', sys_confirm_msg_restart:'The console will disconnect briefly while smart_robot.service restarts. Live video and settings may pause for a few seconds.', sys_confirm_msg_stop:'Stopping the service will take the device console offline until you start it again.', sys_confirm_ok:'Confirm', sys_confirm_title:'Confirm', sys_confirm_title_disable:'Disable auto-start?', sys_confirm_title_restart:'Restart service?', sys_confirm_title_stop:'Stop service?', sys_cpu:'CPU', sys_disabled:'Disabled', sys_disk:'Disk', sys_enabled:'Enabled', sys_mem:'Memory', sys_mgmt_hint:'Stop / Restart will briefly disconnect the console. Disable only clears auto-start on boot.', sys_mgmt_state:'Enabled', sys_mgmt_title:'System Service Management', sys_of_total:'of total', sys_refresh:'Refresh', sys_run_state:'Running', sys_running:'Running', sys_status_hint:'Process CPU/MEM plus per-thread usage (same as top -H -p).', sys_stopped:'Stopped', sys_tab_manage:'System Management', sys_tab_status:'System Status', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'No thread data (rebuild firmware to enable)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Log Settings', ls_tab_logfile:'Log File', ls_eyebrow:'Diagnostics', ls_sub_settings:'Configure glog output, severity and per-module switches.', ls_sub_files:'Device diagnostic sessions', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Enabled now', ls_stat_level:'Level', ls_stat_files:'Files', ls_stat_live_foot:'Active now', ls_rel_just:'Just now', ls_rel_min:' min ago', ls_rel_hour:' h ago', ls_rel_day:' d ago', nav_log:'Log', nav_user:'User', nav_help:'Help', nav_about:'About',
     page_title:'Device',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Playback', page_video_replay:'Video Playback', page_image_capture:'Image Playback',
     page_chatdevice_information:'Chat Device', page_video_settings:'Media Settings',
@@ -9816,7 +9854,7 @@ const I18N_INDEX = {
     db_module_switches:'Module Log Switches', db_log_all_on:'All ON', db_log_all_off:'All OFF', db_update_log:'Update Log',
     db_watchdog_title:'Watchdog Information', db_watchdog_enable:'Watchdog Enable',
     db_watchdog_timeout:'Watchdog Timeout', db_watchdog_update:'Update Watchdog',
-    lg_refresh:'Refresh', lg_clear:'Clear',
+    lg_refresh:'Refresh', lg_clear:'Clear', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
     lg_view:'View', lg_download:'Download', lg_delete:'Delete',
     ab_webserver:'Webserver', ab_root:'Root', ab_port:'Port',
     ab_https_port:'HTTPS Port', ab_log:'Log',
@@ -9838,7 +9876,7 @@ const I18N_INDEX = {
     nav_storage:'存储设置', nav_network:'网络设置', nav_cloud:'云端设置',
     nav_device_info:'设备信息', nav_ota_upgrade:'OTA 升级',
     nav_production:'生产', nav_provisioning:'配网', nav_factory_test:'工厂测试',
-    nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
+    nav_debug:'日志设置', nav_system_service:'系统', page_system_service:'系统', ph_eyebrow_system:'系统', ph_sub_sys_manage:'启用、禁用、启动、停止或重启 smart_robot.service。', ph_sub_sys_status:'smart_robot.service 的 CPU、内存与数据盘占用。', sys_act_disable:'禁用', sys_act_enable:'启用', sys_act_restart:'重启', sys_act_start:'运行', sys_act_stop:'停止', sys_col_mgmt:'管理状态', sys_col_name:'服务名称', sys_col_ops:'操作', sys_col_run:'运行状态', sys_confirm_cancel:'取消', sys_confirm_msg_disable:'禁用只影响开机自启；当前进程仍会继续运行，直到你停止或重启。', sys_confirm_msg_restart:'重启 smart_robot.service 期间控制台会短暂断开，实时预览与设置可能暂停数秒。', sys_confirm_msg_stop:'停止服务后设备控制台将离线，直到再次启动。', sys_confirm_ok:'确认', sys_confirm_title:'请确认', sys_confirm_title_disable:'禁用开机自启？', sys_confirm_title_restart:'重启服务？', sys_confirm_title_stop:'停止服务？', sys_cpu:'CPU', sys_disabled:'禁用', sys_disk:'硬盘', sys_enabled:'启用', sys_mem:'内存', sys_mgmt_hint:'停止/重启会短暂断开控制台；禁用只影响开机自启。', sys_mgmt_state:'管理状态', sys_mgmt_title:'系统服务管理', sys_of_total:'占总内存', sys_refresh:'刷新', sys_run_state:'运行状态', sys_running:'运行中', sys_status_hint:'进程 CPU/内存 + 各线程占用（对齐 top -H -p）。', sys_stopped:'已停止', sys_tab_manage:'系统管理', sys_tab_status:'系统状态', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'暂无线程数据（需重编固件）', sys_threads_title:'线程 (top -H)', sys_threads_unit:'个线程', ls_tab_settings:'日志设置', ls_tab_logfile:'日志文件', ls_eyebrow:'诊断', ls_sub_settings:'配置 glog 输出、级别与各模块开关。', ls_sub_files:'设备诊断会话', ls_badge_files:'个会话', ls_badge_modules:'模块开启', ls_stat_modules:'模块', ls_stat_modules_on:'当前开启', ls_stat_level:'级别', ls_stat_files:'文件', ls_stat_live_foot:'正在写入', ls_rel_just:'刚刚', ls_rel_min:' 分钟前', ls_rel_hour:' 小时前', ls_rel_day:' 天前', nav_log:'日志', nav_user:'用户', nav_help:'帮助', nav_about:'关于',
     page_title:'设备',
     page_home:'直播', page_dashboard:'仪表盘', page_playback:'回放', page_video_replay:'视频回放', page_image_capture:'图片回放',
     page_chatdevice_information:'设备对话', page_video_settings:'媒体设置',
@@ -9969,7 +10007,7 @@ const I18N_INDEX = {
     db_module_switches:'模块日志开关', db_log_all_on:'全开', db_log_all_off:'全关', db_update_log:'更新日志',
     db_watchdog_title:'看门狗信息', db_watchdog_enable:'看门狗启用',
     db_watchdog_timeout:'看门狗超时', db_watchdog_update:'更新看门狗',
-    lg_refresh:'刷新', lg_clear:'清除',
+    lg_refresh:'刷新', lg_clear:'清除', lg_live:'实时', lg_wan_use_upload:'外网请用「上传到云端」；本地 /log 浏览需连设备局域网。', lg_upload:'上传', lg_upload_title:'上传日志到云端', lg_upload_confirm_sub:'打包控制台日志并上传到云端诊断。', lg_upload_working:'上传中…', lg_upload_working_sub:'设备正在打包并上传日志。', lg_upload_ok:'已接受上传', lg_upload_ok_sub:'支持码已就绪，可发给售后。', lg_upload_fail:'上传失败', lg_upload_fail_sub:'无法上传日志。', lg_upload_busy:'设备忙，请稍后重试。', lg_upload_no_uuid:'未知设备 UUID — 请先打开设备信息。', lg_upload_target:'目标', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'设备 UUID', lg_upload_path:'路径', lg_upload_status:'状态', lg_upload_code:'支持码', lg_upload_copy:'复制', lg_upload_copied:'已复制', lg_upload_start:'上传', lg_upload_accepted:'已接受 — 后台上传中。',
     lg_view:'查看', lg_download:'下载', lg_delete:'删除',
     ab_webserver:'Web 服务器', ab_root:'根路径', ab_port:'端口',
     ab_https_port:'HTTPS 端口', ab_log:'日志',
@@ -9991,7 +10029,7 @@ const I18N_INDEX = {
     nav_storage:'ストレージ設定', nav_network:'ネットワーク設定', nav_cloud:'クラウド設定',
     nav_device_info:'デバイス情報', nav_ota_upgrade:'OTA アップデート',
     nav_production:'生産', nav_provisioning:'プロビジョニング', nav_factory_test:'工場テスト',
-    nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
+    nav_debug:'ログ設定', nav_system_service:'システム', page_system_service:'システム', ph_eyebrow_system:'システム', ph_sub_sys_manage:'smart_robot.service の有効化・無効化・起動・停止・再起動。', ph_sub_sys_status:'smart_robot.service の CPU/メモリ/ディスク。', sys_act_disable:'無効', sys_act_enable:'有効', sys_act_restart:'再起動', sys_act_start:'起動', sys_act_stop:'停止', sys_col_mgmt:'管理状態', sys_col_name:'サービス名', sys_col_ops:'操作', sys_col_run:'実行状態', sys_confirm_cancel:'キャンセル', sys_confirm_msg_disable:'無効化は起動時の自動開始のみ解除します。実行中のプロセスは停止/再起動するまで続きます。', sys_confirm_msg_restart:'再起動中はコンソールが一時切断され、ライブ映像と設定が数秒止まる場合があります。', sys_confirm_msg_stop:'停止すると、再起動するまでコンソールがオフラインになります。', sys_confirm_ok:'確認', sys_confirm_title:'確認', sys_confirm_title_disable:'自動起動を無効にしますか？', sys_confirm_title_restart:'サービスを再起動しますか？', sys_confirm_title_stop:'サービスを停止しますか？', sys_cpu:'CPU', sys_disabled:'無効', sys_disk:'ディスク', sys_enabled:'有効', sys_mem:'メモリ', sys_mgmt_hint:'停止/再起動で一時切断。無効は起動時自動開始のみ解除。', sys_mgmt_state:'管理状態', sys_mgmt_title:'システムサービス管理', sys_of_total:'全体比', sys_refresh:'更新', sys_run_state:'実行状態', sys_running:'実行中', sys_status_hint:'smart_robot.service の CPU/メモリと /mnt/sd/smartdevice 使用量。', sys_stopped:'停止', sys_tab_manage:'システム管理', sys_tab_status:'システム状態', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'スレッドデータなし（ファーム再ビルドが必要）', sys_threads_title:'スレッド (top -H)', sys_threads_unit:'スレッド', ls_tab_settings:'ログ設定', ls_tab_logfile:'ログファイル', ls_eyebrow:'診断', ls_sub_settings:'glog 出力・レベル・モジュール切替を設定。', ls_sub_files:'デバイス診断セッション', ls_badge_files:'件', ls_badge_modules:'モジュール ON', ls_stat_modules:'モジュール', ls_stat_modules_on:'有効', ls_stat_level:'レベル', ls_stat_files:'ファイル', ls_stat_live_foot:'書込中', ls_rel_just:'たった今', ls_rel_min:'分前', ls_rel_hour:'時間前', ls_rel_day:'日前', nav_log:'ログ', nav_user:'ユーザー', nav_help:'ヘルプ', nav_about:'バージョン情報',
     page_title:'デバイス',
     page_home:'ライブ', page_dashboard:'ダッシュボード', page_playback:'再生', page_video_replay:'動画再生', page_image_capture:'画像再生',
     page_chatdevice_information:'デバイス対話', page_video_settings:'メディア設定',
@@ -10121,7 +10159,7 @@ const I18N_INDEX = {
     db_module_switches:'モジュールログスイッチ', db_log_all_on:'全てON', db_log_all_off:'全てOFF', db_update_log:'ログ更新',
     db_watchdog_title:'ウォッチドッグ情報', db_watchdog_enable:'ウォッチドッグ有効',
     db_watchdog_timeout:'ウォッチドッグタイムアウト', db_watchdog_update:'ウォッチドッグ更新',
-    lg_refresh:'リフレッシュ', lg_clear:'クリア',
+    lg_refresh:'リフレッシュ', lg_clear:'クリア', lg_live:'ライブ', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
     lg_view:'表示', lg_download:'ダウンロード', lg_delete:'削除',
     ab_webserver:'Webサーバー', ab_root:'ルート', ab_port:'ポート',
     ab_https_port:'HTTPSポート', ab_log:'ログ',
@@ -10143,7 +10181,7 @@ const I18N_INDEX = {
     nav_storage:'Speichereinstellungen', nav_network:'Netzwerkeinstellungen', nav_cloud:'Cloud-Einstellungen',
     nav_device_info:'Geräteinformationen', nav_ota_upgrade:'OTA-Update',
     nav_production:'Produktion', nav_provisioning:'Bereitstellung', nav_factory_test:'Werkstest',
-    nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
+    nav_debug:'Log-Einstellungen', nav_system_service:'System', page_system_service:'System', ph_eyebrow_system:'System', ph_sub_sys_manage:'smart_robot.service aktivieren/deaktivieren/starten/stoppen/neu starten.', ph_sub_sys_status:'CPU, Speicher und Disk von smart_robot.service.', sys_act_disable:'Deaktivieren', sys_act_enable:'Aktivieren', sys_act_restart:'Neustart', sys_act_start:'Start', sys_act_stop:'Stopp', sys_col_mgmt:'Verwaltung', sys_col_name:'Dienst', sys_col_ops:'Aktionen', sys_col_run:'Laufstatus', sys_confirm_cancel:'Abbrechen', sys_confirm_msg_disable:'Deaktivieren betrifft nur den Autostart. Der Prozess läuft weiter, bis Sie stoppen oder neu starten.', sys_confirm_msg_restart:'Beim Neustart trennt die Konsole kurz. Live-Video und Einstellungen können einige Sekunden pausieren.', sys_confirm_msg_stop:'Nach dem Stopp bleibt die Konsole offline, bis der Dienst wieder gestartet wird.', sys_confirm_ok:'Bestätigen', sys_confirm_title:'Bestätigen', sys_confirm_title_disable:'Autostart deaktivieren?', sys_confirm_title_restart:'Dienst neu starten?', sys_confirm_title_stop:'Dienst stoppen?', sys_cpu:'CPU', sys_disabled:'Deaktiviert', sys_disk:'Disk', sys_enabled:'Aktiviert', sys_mem:'Speicher', sys_mgmt_hint:'Stopp/Neustart trennt kurz die Konsole. Deaktivieren betrifft nur Autostart.', sys_mgmt_state:'Verwaltung', sys_mgmt_title:'Systemdienstverwaltung', sys_of_total:'von Gesamt', sys_refresh:'Aktualisieren', sys_run_state:'Laufstatus', sys_running:'Läuft', sys_status_hint:'CPU/Speicher von smart_robot.service und /mnt/sd/smartdevice.', sys_stopped:'Gestoppt', sys_tab_manage:'Systemverwaltung', sys_tab_status:'Systemstatus', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Keine Threaddaten (Firmware neu bauen)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'Threads', ls_tab_settings:'Log-Einstellungen', ls_tab_logfile:'Protokolldatei', ls_eyebrow:'Diagnose', ls_sub_settings:'glog-Ausgabe, Schweregrad und Modulschalter.', ls_sub_files:'Geräte-Diagnosesitzungen', ls_badge_files:'Sitzungen', ls_badge_modules:'Module an', ls_stat_modules:'Module', ls_stat_modules_on:'Aktiv', ls_stat_level:'Stufe', ls_stat_files:'Dateien', ls_stat_live_foot:'Aktiv jetzt', ls_rel_just:'Gerade eben', ls_rel_min:' Min. her', ls_rel_hour:' Std. her', ls_rel_day:' T. her', nav_log:'Protokoll', nav_user:'Benutzer', nav_help:'Hilfe', nav_about:'Über',
     page_title:'Gerät',
     page_home:'Live', page_dashboard:'Dashboard', page_playback:'Wiedergabe', page_video_replay:'Videowiedergabe', page_image_capture:'Bildwiedergabe',
     page_chatdevice_information:'Gerät-Chat', page_video_settings:'Medieneinstellungen',
@@ -10272,7 +10310,7 @@ const I18N_INDEX = {
     db_module_switches:'Modul-Log-Schalter', db_log_all_on:'Alle AN', db_log_all_off:'Alle AUS', db_update_log:'Protokoll aktualisieren',
     db_watchdog_title:'Watchdog-Informationen', db_watchdog_enable:'Watchdog aktiv',
     db_watchdog_timeout:'Watchdog-Timeout', db_watchdog_update:'Watchdog aktualisieren',
-    lg_refresh:'Aktualisieren', lg_clear:'Leeren',
+    lg_refresh:'Aktualisieren', lg_clear:'Leeren', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
     lg_view:'Anzeigen', lg_download:'Herunterladen', lg_delete:'Löschen',
     ab_webserver:'Webserver', ab_root:'Stammverzeichnis', ab_port:'Port',
     ab_https_port:'HTTPS-Port', ab_log:'Protokoll',
@@ -10294,7 +10332,7 @@ const I18N_INDEX = {
     nav_storage:'Paramètres stockage', nav_network:'Paramètres réseau', nav_cloud:'Paramètres cloud',
     nav_device_info:'Infos appareil', nav_ota_upgrade:'Mise à jour OTA',
     nav_production:'Production', nav_provisioning:'Provisionnement', nav_factory_test:'Test usine',
-    nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
+    nav_debug:'Paramètres journal', nav_system_service:'Système', page_system_service:'Système', ph_eyebrow_system:'Système', ph_sub_sys_manage:'Activer, désactiver, démarrer, arrêter ou redémarrer smart_robot.service.', ph_sub_sys_status:'CPU, mémoire et disque de smart_robot.service.', sys_act_disable:'Désactiver', sys_act_enable:'Activer', sys_act_restart:'Redémarrer', sys_act_start:'Démarrer', sys_act_stop:'Arrêter', sys_col_mgmt:'Gestion', sys_col_name:'Service', sys_col_ops:'Actions', sys_col_run:'Exécution', sys_confirm_cancel:'Annuler', sys_confirm_msg_disable:'Désactiver n\'affecte que le démarrage auto. Le processus continue jusqu\'à un arrêt ou redémarrage.', sys_confirm_msg_restart:'La console se déconnecte brièvement pendant le redémarrage. La vidéo et les réglages peuvent pause quelques secondes.', sys_confirm_msg_stop:'Après l\'arrêt, la console reste hors ligne jusqu\'au prochain démarrage.', sys_confirm_ok:'Confirmer', sys_confirm_title:'Confirmer', sys_confirm_title_disable:'Désactiver le démarrage auto ?', sys_confirm_title_restart:'Redémarrer le service ?', sys_confirm_title_stop:'Arrêter le service ?', sys_cpu:'CPU', sys_disabled:'Désactivé', sys_disk:'Disque', sys_enabled:'Activé', sys_mem:'Mémoire', sys_mgmt_hint:'Arrêt/redémarrage coupe brièvement la console. Désactiver = pas d\'autodémarrage.', sys_mgmt_state:'Gestion', sys_mgmt_title:'Gestion des services système', sys_of_total:'du total', sys_refresh:'Actualiser', sys_run_state:'Exécution', sys_running:'En cours', sys_status_hint:'CPU/mémoire de smart_robot.service et /mnt/sd/smartdevice.', sys_stopped:'Arrêté', sys_tab_manage:'Gestion système', sys_tab_status:'État système', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Pas de données threads (recompiler le firmware)', sys_threads_title:'Threads (top -H)', sys_threads_unit:'threads', ls_tab_settings:'Paramètres journal', ls_tab_logfile:'Fichier journal', ls_eyebrow:'Diagnostic', ls_sub_settings:'Configurer sortie glog, sévérité et modules.', ls_sub_files:'Sessions de diagnostic appareil', ls_badge_files:'sessions', ls_badge_modules:'modules on', ls_stat_modules:'Modules', ls_stat_modules_on:'Activés', ls_stat_level:'Niveau', ls_stat_files:'Fichiers', ls_stat_live_foot:'Actif', ls_rel_just:'À l\'instant', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' j', nav_log:'Journal', nav_user:'Utilisateur', nav_help:'Aide', nav_about:'À propos',
     page_title:'Appareil',
     page_home:'Direct', page_dashboard:'Tableau de bord', page_playback:'Lecture', page_video_replay:'Lecture vidéo', page_image_capture:'Lecture image',
     page_chatdevice_information:'Chat appareil', page_video_settings:'Paramètres média',
@@ -10424,7 +10462,7 @@ const I18N_INDEX = {
     db_module_switches:'Commutateurs log module', db_log_all_on:'Tout ON', db_log_all_off:'Tout OFF', db_update_log:'Mettre à jour journal',
     db_watchdog_title:'Infos watchdog', db_watchdog_enable:'Watchdog activé',
     db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Mettre à jour watchdog',
-    lg_refresh:'Rafraîchir', lg_clear:'Effacer',
+    lg_refresh:'Rafraîchir', lg_clear:'Effacer', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
     lg_view:'Voir', lg_download:'Télécharger', lg_delete:'Supprimer',
     ab_webserver:'Serveur web', ab_root:'Racine', ab_port:'Port',
     ab_https_port:'Port HTTPS', ab_log:'Journal',
@@ -10446,7 +10484,7 @@ const I18N_INDEX = {
     nav_storage:'Ajustes de almacenamiento', nav_network:'Ajustes de red', nav_cloud:'Ajustes de nube',
     nav_device_info:'Info dispositivo', nav_ota_upgrade:'Actualización OTA',
     nav_production:'Producción', nav_provisioning:'Aprovisionamiento', nav_factory_test:'Test de fábrica',
-    nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
+    nav_debug:'Ajustes de registro', nav_system_service:'Sistema', page_system_service:'Sistema', ph_eyebrow_system:'Sistema', ph_sub_sys_manage:'Activar, desactivar, iniciar, detener o reiniciar smart_robot.service.', ph_sub_sys_status:'CPU, memoria y disco de smart_robot.service.', sys_act_disable:'Desactivar', sys_act_enable:'Activar', sys_act_restart:'Reiniciar', sys_act_start:'Iniciar', sys_act_stop:'Detener', sys_col_mgmt:'Gestión', sys_col_name:'Servicio', sys_col_ops:'Acciones', sys_col_run:'Ejecución', sys_confirm_cancel:'Cancelar', sys_confirm_msg_disable:'Desactivar solo quita el autoinicio. El proceso sigue hasta detener o reiniciar.', sys_confirm_msg_restart:'La consola se desconectará brevemente al reiniciar. El vídeo y los ajustes pueden pausar unos segundos.', sys_confirm_msg_stop:'Al detener, la consola quedará fuera de línea hasta volver a iniciar.', sys_confirm_ok:'Confirmar', sys_confirm_title:'Confirmar', sys_confirm_title_disable:'¿Desactivar el inicio automático?', sys_confirm_title_restart:'¿Reiniciar el servicio?', sys_confirm_title_stop:'¿Detener el servicio?', sys_cpu:'CPU', sys_disabled:'Desactivado', sys_disk:'Disco', sys_enabled:'Activado', sys_mem:'Memoria', sys_mgmt_hint:'Detener/reiniciar desconecta brevemente. Desactivar solo quita el autoinicio.', sys_mgmt_state:'Gestión', sys_mgmt_title:'Gestión de servicios del sistema', sys_of_total:'del total', sys_refresh:'Actualizar', sys_run_state:'Ejecución', sys_running:'En ejecución', sys_status_hint:'CPU/memoria de smart_robot.service y /mnt/sd/smartdevice.', sys_stopped:'Detenido', sys_tab_manage:'Gestión del sistema', sys_tab_status:'Estado del sistema', sys_th_cmd:'NAME', sys_th_cpu:'%CPU', sys_th_mem:'%MEM', sys_th_res:'RES', sys_th_state:'S', sys_th_tid:'PID', sys_threads_empty:'Sin datos de hilos (recompilar firmware)', sys_threads_title:'Hilos (top -H)', sys_threads_unit:'hilos', ls_tab_settings:'Ajustes de registro', ls_tab_logfile:'Archivo de registro', ls_eyebrow:'Diagnóstico', ls_sub_settings:'Configurar glog, severidad y módulos.', ls_sub_files:'Sesiones de diagnóstico', ls_badge_files:'sesiones', ls_badge_modules:'módulos on', ls_stat_modules:'Módulos', ls_stat_modules_on:'Activos', ls_stat_level:'Nivel', ls_stat_files:'Archivos', ls_stat_live_foot:'Activo', ls_rel_just:'Ahora', ls_rel_min:' min', ls_rel_hour:' h', ls_rel_day:' d', nav_log:'Registro', nav_user:'Usuario', nav_help:'Ayuda', nav_about:'Acerca de',
     page_title:'Dispositivo',
     page_home:'En vivo', page_dashboard:'Panel', page_playback:'Reproducción', page_video_replay:'Reproducción vídeo', page_image_capture:'Reproducción imagen',
     page_chatdevice_information:'Chat dispositivo', page_video_settings:'Ajustes de medios',
@@ -10576,7 +10614,7 @@ const I18N_INDEX = {
     db_module_switches:'Interruptores log módulo', db_log_all_on:'Todo ON', db_log_all_off:'Todo OFF', db_update_log:'Actualizar registro',
     db_watchdog_title:'Info watchdog', db_watchdog_enable:'Watchdog activo',
     db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Actualizar watchdog',
-    lg_refresh:'Refrescar', lg_clear:'Limpiar',
+    lg_refresh:'Refrescar', lg_clear:'Limpiar', lg_live:'En vivo', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.',
     lg_view:'Ver', lg_download:'Descargar', lg_delete:'Eliminar',
     ab_webserver:'Servidor web', ab_root:'Raíz', ab_port:'Puerto',
     ab_https_port:'Puerto HTTPS', ab_log:'Registro',
@@ -10644,6 +10682,7 @@ const STATUS = Object.freeze({
     GET_MODEL_LIST: 1083,   // 中间 1080-1082 为 login/user(不走 STATUS 数值判定)
     GENERATE_RECORD_DESCRIPTION: 1084, QUERY_RECORD_BY_DESCRIPTION: 1085,  // 云端多模态：录像 AI 描述 + 按描述检索
     OPENAI_ASK: 1086, QUERY_OPENAI_ASK: 1087,  // 实时拍问 + 拍问历史
+    UPLOAD_DEVICE_LOGS: 1107,
 });
 
 let _currentLang = localStorage.getItem('dv_lang') || 'en';
@@ -10899,6 +10938,53 @@ document.addEventListener('DOMContentLoaded', function() {
     console.disableLogging();
     // })();
 
+
+
+    function alpineComponentData(el) {
+        if (!el) return null;
+        try { if (el.__x && el.__x.$data) return el.__x.$data; } catch (e) {}
+        try { if (el._x_dataStack && el._x_dataStack[0]) return el._x_dataStack[0]; } catch (e) {}
+        try { if (window.Alpine && typeof Alpine.$data === 'function') return Alpine.$data(el); } catch (e) {}
+        return null;
+    }
+
+    function switchLogParamTab(tab) {
+        if (tab !== 'settings' && tab !== 'viewer') return;
+        window.__pendingLogParamTab = tab;
+        const root = document.getElementById('debug');
+        const nav = document.querySelector('.dv-nav-item[onclick*="debug"]');
+        const apply = function () {
+            const st = alpineComponentData(document.getElementById('debug'));
+            if (!st) return false;
+            st.logParamTab = tab;
+            if (tab === 'viewer') {
+                if (typeof st.fetchLogs === 'function') st.fetchLogs();
+            } else if (typeof st.initLogInformation === 'function') {
+                st.initLogInformation();
+            }
+            if (typeof st.syncTopbarLogSeg === 'function') st.syncTopbarLogSeg();
+            return true;
+        };
+        if (!root || !root.classList.contains('active')) {
+            if (typeof showPage === 'function') showPage('debug', nav);
+            setTimeout(function () { apply() || setTimeout(apply, 80); }, 40);
+            return;
+        }
+        if (!apply()) setTimeout(apply, 40);
+    }
+
+    (function bindTopbarLogSeg() {
+        const seg = document.getElementById('topbarLogSeg');
+        if (!seg || seg.dataset.bound === '1') return;
+        seg.dataset.bound = '1';
+        seg.addEventListener('click', function (ev) {
+            const btn = ev.target.closest('[data-log-tab]');
+            if (!btn) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            switchLogParamTab(btn.getAttribute('data-log-tab'));
+        });
+    })();
 
     // 通过 ID 显示相应页面
     function showPage(pageId, el) {
@@ -11219,6 +11305,14 @@ document.addEventListener('DOMContentLoaded', function() {
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
             logParamTab: 'settings', // Log Settings 分段: settings|viewer
+            logUploadOpen: false,
+            logUploadPhase: 'confirm',
+            logUploadMessage: '',
+            logUploadCode: '',
+            logUploadTicket: '',
+            logUploadDeviceId: '',
+            logUploadS3Key: '',
+            _logUploadAbort: null,
             systemParamTab: 'status',  // 系统页：'status' | 'manage'
             systemService: { unit: 'smart_robot.service', enabled: false, active: false, cpuPercent: 0, memoryRssMb: 0, memoryPercent: 0, diskUsedMb: 0, diskTotalMb: 0, diskPath: '/mnt/sd/smartdevice', pid: 0, comm: 'smart_robot_pro', threadCount: 0, threads: [] },
             systemServiceBusy: false,
@@ -11774,17 +11868,216 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
 
+
+            logModuleKeys() {
+                return Object.keys(this.logInformation || {}).filter(k => k.startsWith('log') && k.endsWith('Enable'));
+            },
+            logModuleTotal() { return this.logModuleKeys().length; },
+            logModuleOnCount() {
+                return this.logModuleKeys().filter(k => !!this.logInformation[k]).length;
+            },
+            formatLogAbsTime(log) {
+                if (!log || !log.mtime) return '';
+                const dt = new Date(Number(log.mtime) * 1000);
+                if (isNaN(dt.getTime())) return '';
+                const pad = (x) => String(x).padStart(2, '0');
+                return dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate())
+                    + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+            },
+            formatLogRelTime(log) {
+                if (!log || !log.mtime) return '';
+                const sec = Math.max(0, Math.floor(Date.now()/1000 - Number(log.mtime)));
+                if (sec < 60) return tIdx('ls_rel_just');
+                if (sec < 3600) return Math.floor(sec/60) + tIdx('ls_rel_min');
+                if (sec < 86400) return Math.floor(sec/3600) + tIdx('ls_rel_hour');
+                return Math.floor(sec/86400) + tIdx('ls_rel_day');
+            },
+            syncTopbarLogSeg() {
+                const seg = document.getElementById('topbarLogSeg');
+                if (!seg) return;
+                const onDebug = !!(document.getElementById('debug') && document.getElementById('debug').classList.contains('active'));
+                seg.style.display = onDebug ? 'inline-flex' : 'none';
+                seg.querySelectorAll('[data-log-tab]').forEach(btn => {
+                    btn.classList.toggle('active', btn.getAttribute('data-log-tab') === this.logParamTab);
+                });
+            },
+            resolveDeviceUuidForLogUpload() {
+                const pick = (v) => {
+                    const s = String(v || '').trim();
+                    if (!s || s === 'default' || s === 'unknown') return '';
+                    return s;
+                };
+                return pick(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                    || pick(this.webrtcInformation && this.webrtcInformation.awsIotCoreThingName)
+                    || pick(this.webrtcInformation && this.webrtcInformation.WEBRTCDeviceUuid)
+                    || pick(this.remoteDeviceUuid)
+                    || pick(window.DeviceTransport && window.DeviceTransport.remoteUuid)
+                    || pick((() => { try { return localStorage.getItem('lastDeviceUuid'); } catch (e) { return ''; } })());
+            },
+            async openLogUploadModal() {
+                if (this.logUploadPhase === 'uploading') return;
+                // 日志页原先不拉设备信息，deviceUuid 会停在默认 "default" → 云端列表只显示 default。
+                try {
+                    const cur = this.resolveDeviceUuidForLogUpload();
+                    if (!cur) await this.initDeviceGeneralInformation();
+                } catch (e) {}
+                const deviceId = this.resolveDeviceUuidForLogUpload();
+                if (!deviceId) {
+                    this.logUploadDeviceId = '';
+                    this.logUploadS3Key = '';
+                    this.logUploadTicket = '';
+                    this.logUploadCode = '';
+                    this.logUploadPhase = 'error';
+                    this.logUploadMessage = this.tIdx('lg_upload_no_uuid');
+                    this.logUploadOpen = true;
+                    return;
+                }
+                const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let code = '';
+                for (let i = 0; i < 8; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+                const kind = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceModelName)
+                    || (window.deviceModelName) || 'smartRobot';
+                const prefix = /robot/i.test(kind) ? 'ROBOT' : (/ipc|camera/i.test(kind) ? 'CAM' : 'DEV');
+                this.logUploadCode = code;
+                this.logUploadTicket = prefix + '-' + code;
+                this.logUploadDeviceId = deviceId;
+                // 与 App/云端控制台约定：device/{kind}/{deviceUuid}/{userId}/{code}/file
+                this.logUploadS3Key = 'public/diagnostics/device/' + kind + '/' + deviceId + '/web/' + code + '/console_systemd.out.gz';
+                this.logUploadMessage = '';
+                this.logUploadPhase = 'confirm';
+                this.logUploadOpen = true;
+            },
+            closeLogUploadModal() {
+                if (this.logUploadPhase === 'uploading' && this._logUploadAbort) {
+                    try { this._logUploadAbort.abort(); } catch (e) {}
+                    this._logUploadAbort = null;
+                }
+                this.logUploadOpen = false;
+                this.logUploadPhase = 'confirm';
+                this.logUploadMessage = '';
+            },
+            logUploadTitleText() {
+                const p = this.logUploadPhase;
+                if (p === 'uploading') return this.tIdx('lg_upload_working');
+                if (p === 'done') return this.tIdx('lg_upload_ok');
+                if (p === 'error') return this.tIdx('lg_upload_fail');
+                return this.tIdx('lg_upload_title');
+            },
+            logUploadSubText() {
+                const p = this.logUploadPhase;
+                if (p === 'uploading') return this.tIdx('lg_upload_working_sub');
+                if (p === 'done') return this.tIdx('lg_upload_ok_sub');
+                if (p === 'error') return this.logUploadMessage || this.tIdx('lg_upload_fail_sub');
+                return this.tIdx('lg_upload_confirm_sub');
+            },
+            shortLogUploadPath(key) {
+                const s = String(key || '');
+                if (s.length <= 42) return s;
+                return '…' + s.slice(-40);
+            },
+            async copyLogUploadCode() {
+                const t = this.logUploadTicket || this.logUploadCode || '';
+                if (!t) return;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(t);
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = t; document.body.appendChild(ta); ta.select();
+                        document.execCommand('copy'); document.body.removeChild(ta);
+                    }
+                    this.logUploadMessage = this.tIdx('lg_upload_copied');
+                } catch (e) {
+                    this.logUploadMessage = t;
+                }
+            },
+            async confirmLogUploadToCloud() {
+                if (this.logUploadPhase !== 'confirm') return;
+                const code = this.logUploadCode;
+                const kind = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceModelName)
+                    || (window.deviceModelName) || 'smartRobot';
+                let deviceId = this.logUploadDeviceId || this.resolveDeviceUuidForLogUpload();
+                if (!deviceId) {
+                    try { await this.initDeviceGeneralInformation(); } catch (e) {}
+                    deviceId = this.resolveDeviceUuidForLogUpload();
+                }
+                if (!deviceId) {
+                    this.logUploadPhase = 'error';
+                    this.logUploadMessage = this.tIdx('lg_upload_no_uuid');
+                    return;
+                }
+                this.logUploadDeviceId = deviceId;
+                const s3Key = 'public/diagnostics/device/' + kind + '/' + deviceId + '/web/' + code + '/console_systemd.out.gz';
+                this.logUploadS3Key = s3Key;
+                const body = {
+                    method: 'uploadDeviceLogsToS3',
+                    params: {
+                        deviceLogUpload: {
+                            supportCode: code,
+                            userId: 'web',
+                            deviceId: deviceId,
+                            deviceKind: kind,
+                            s3Key: s3Key
+                        }
+                    }
+                };
+                this.logUploadPhase = 'uploading';
+                this.logUploadMessage = this.tIdx('lg_upload_working_sub');
+                const ac = new AbortController();
+                this._logUploadAbort = ac;
+                try {
+                    const res = await fetch('/setDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                        signal: ac.signal
+                    });
+                    const json = await res.json();
+                    if (ac.signal.aborted) return;
+                    // 设备响应把 deviceLogUpload 放在顶层（与 params.xxx 信封不同），兼容两种形状。
+                    const params = (json && ((json.params && json.params.deviceLogUpload) || json.deviceLogUpload)) || {};
+                    const pending = params.pending === true || params.pending === 1 || params.pending === 'true';
+                    const msg = params.message || '';
+                    const okStatus = (json && Number(json.status) === 1107); // UPLOAD_DEVICE_LOGS_TO_S3_RESPONE_STATUS
+                    this.logUploadS3Key = params.s3Key || s3Key;
+                    if (pending || msg === 'accepted' || (okStatus && msg !== 'busy' && msg !== 'invalid params')) {
+                        this.logUploadPhase = 'done';
+                        this.logUploadMessage = this.tIdx('lg_upload_accepted');
+                    } else if (msg === 'busy') {
+                        this.logUploadPhase = 'error';
+                        this.logUploadMessage = this.tIdx('lg_upload_busy');
+                    } else {
+                        this.logUploadPhase = 'error';
+                        this.logUploadMessage = msg || this.tIdx('lg_upload_fail_sub');
+                    }
+                } catch (e) {
+                    if (e && e.name === 'AbortError') {
+                        this.logUploadPhase = 'confirm';
+                        this.logUploadMessage = '';
+                        return;
+                    }
+                    this.logUploadPhase = 'error';
+                    this.logUploadMessage = (e && e.message) ? e.message : this.tIdx('lg_upload_fail_sub');
+                } finally {
+                    this._logUploadAbort = null;
+                }
+            },
+            async uploadDeviceLogsToCloud() {
+                this.openLogUploadModal();
+            },
             async fetchLogs() {
-                // 先获取最新的 logDir
                 await this.initLogInformation();
-                // 获取日志文件列表
+                // 外网 MQTT 无 /log/* HTTP：勿假请求门户域名；引导走 S3 上传
+                if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) {
+                    this.logs = [];
+                    this.logContent = this.tIdx('lg_wan_use_upload') || 'WAN: use Upload to S3 (local /log/* unavailable over MQTT).';
+                    return;
+                }
                 fetch(`/log/log-list?dir=${this.logInformation.logDir}`)
                     .then((response) => response.json())
                     .then((data) => {
-                        // 设备端 log-list 已按修改时间倒序(最新在前)，直接用，不再 reverse
                         this.logs = Array.isArray(data) ? data : [];
                         if (this.logs.length) {
-                            //延时加载程序：默认打开最新那份(logs[0])
                             setTimeout(() => { this.viewLog(this.logs[0].name); }, 300);
                         }
                     });
@@ -12291,7 +12584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const today = new Date().toISOString().slice(0, 10);
                             const tr = await fetch('/getDeviceCommand', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ method: 'getRecordTimelineCommand', params: { date: today } })
+                                body: JSON.stringify({ method: 'getRecordTimelineCommand', params: { date: today, slim: true } })
                             });
                             const td = await tr.json();
                             const tl = (td && td.params && td.params.timeline) || [];
@@ -12310,10 +12603,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
                                     body: JSON.stringify({
                                         method: 'queryLocalRecordIndexInformationCommand',
-                                        params: {
+                                        params: window.wanListSlimParams({
                                             deviceID: uuid, startTime: start30, endTime: end,
                                             pageSize: 1, pageNumber: 1, recordType: 0
-                                        }
+                                        })
                                     })
                                 });
                                 const d = await resp.json();
@@ -13805,26 +14098,25 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             //设备基本参数
             async initDeviceGeneralInformation() {
+                const TTL = 15000;
+                const hit = window.__deviceCfgCache && window.__deviceCfgCache.deviceGeneral;
+                if (hit && (Date.now() - hit.t) < TTL && hit.v) {
+                    this.deviceGeneralInformation = hit.v;
+                    return;
+                }
                 const url = '/getDeviceCommand';
-                const data = {
-                    method: "getDeviceGeneralInformationCommand",
-                    params: {}
-                };
-
+                const data = { method: "getDeviceGeneralInformationCommand", params: {} };
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
                     });
                     const responseData = await response.json();
-                    console.log(responseData);
                     if (responseData.status === STATUS.GET_DEVICE_GENERAL_INFO) {
-                        // 获取并设置视频信息
                         this.deviceGeneralInformation = responseData.params.deviceGeneralInformation;
-                        console.log(this.deviceGeneralInformation);
+                        window.__deviceCfgCache = window.__deviceCfgCache || {};
+                        window.__deviceCfgCache.deviceGeneral = { t: Date.now(), v: this.deviceGeneralInformation };
                         const uuid = (this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid) || '';
                         if (uuid && uuid !== 'default' && window.DeviceTransport) {
                             window.DeviceTransport.rememberUuid(uuid);
@@ -14798,13 +15090,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             method: 'getCloudRecordListCommand',
-                            params: {
+                            params: window.wanListSlimParams({
                                 deviceID: deviceID,
                                 startTime: startTime,
                                 endTime: endTime,
                                 pageSize: this.cloudPlayback.pageSize,
                                 pageNumber: this.cloudPlayback.pageNumber,
-                            },
+                            }),
                             requestId: 'cloudRecList_' + Date.now(),
                         }),
                     });
@@ -15098,26 +15390,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             //mediaServer 基本信息
             async initMediaServerInformation() {
-                const url = '/getDeviceCommand';
-                const data = {
-                    method: "getWebrtcInformationCommand",
-                    params: {}
-                };
-
+                const TTL = 15000;
+                const hit = window.__deviceCfgCache && window.__deviceCfgCache.webrtc;
+                if (hit && (Date.now() - hit.t) < TTL && hit.v) {
+                    this.webrtcInformation = hit.v;
+                    this.syncPreviewTransportFromDevice();
+                    return;
+                }
                 try {
-                    const response = await fetch(url, {
+                    const response = await fetch('/getDeviceCommand', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(data)
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: "getWebrtcInformationCommand", params: {} })
                     });
                     const responseData = await response.json();
-                    console.log(responseData);
                     if (responseData.status === STATUS.GET_WEBRTC_INFO) {
                         this.webrtcInformation = responseData.params.webrtcInformation;
+                        window.__deviceCfgCache = window.__deviceCfgCache || {};
+                        window.__deviceCfgCache.webrtc = { t: Date.now(), v: this.webrtcInformation };
                         this.syncPreviewTransportFromDevice();
-                        console.log(this.webrtcInformation);
                     }
                 } catch (error) {
                     console.error('Error fetching ntpService settings: ', error);
@@ -15189,6 +15480,13 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             async initAgoraRtcService() {
+                const TTL = 15000;
+                const hit = window.__deviceCfgCache && window.__deviceCfgCache.agora;
+                if (hit && (Date.now() - hit.t) < TTL && hit.v) {
+                    this.agoraRtcService = hit.v;
+                    this.sanitizeAgoraRtcForm();
+                    return;
+                }
                 try {
                     const response = await fetch('/getDeviceCommand', {
                         method: 'POST',
@@ -15198,6 +15496,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const responseData = await response.json();
                     if (responseData.status === STATUS.GET_AGORA_RTC) {
                         this.agoraRtcService = responseData.params.agoraRtcService;
+                        window.__deviceCfgCache = window.__deviceCfgCache || {};
+                        window.__deviceCfgCache.agora = { t: Date.now(), v: this.agoraRtcService };
                         this.sanitizeAgoraRtcForm();
                     }
                 } catch (error) {
@@ -15241,7 +15541,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.stopSystemServicePoll();
                 this._systemServicePollTimer = setInterval(() => {
                     if (this.systemParamTab === 'status') this.refreshSystemService(true);
-                }, 5000);
+                }, 20000);
             },
             stopSystemServicePoll() {
                 if (this._systemServicePollTimer) {
@@ -15369,6 +15669,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const n = Number(v);
                 if (!isFinite(n)) return '—';
                 return n.toFixed(digits == null ? 1 : digits);
+            },
+            sysCpuBarPct(v) {
+                const n = Number(v);
+                if (!isFinite(n) || n <= 0) return 0;
+                return Math.max(4, Math.min(100, n));
             },
             fmtSysDisk(mb) {
                 const n = Number(mb);
@@ -16102,6 +16407,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (camIndex !== undefined) {
                     this.videoInformation.activeCameraIndex = camIndex;
                 }
+                const idx = this.videoInformation.activeCameraIndex || 0;
+                const cacheKey = 'video_' + idx;
                 const data = {
                     method: "getVideoInformationCommand",
                     params: {
@@ -16122,6 +16429,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log(responseData);
                     if (responseData.status === STATUS.GET_VIDEO_INFO) {
                         const info = responseData.params.videoInformation;
+                        window.__deviceCfgCache = window.__deviceCfgCache || {};
+                        window.__deviceCfgCache[cacheKey] = { t: Date.now(), v: info };
                         // Server response carries its own activeCameraIndex state,
                         // override it with the requested camera BEFORE assigning
                         // to the reactive object so Alpine picks up the correct value
@@ -16208,8 +16517,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // ===== AI 检测（算法）per-camera：本页独立摄像头选择 =====
             async initAlgorithmInformation() {
                 try {
-                    this.loadModelList();   // 拉可用模型清单填下拉（并行，不阻塞）
+                    this.loadModelList();
                     const idx = this.algorithmInformation.activeCameraIndex || 0;
+                    const cacheKey = 'algo_' + idx;
+                    const TTL = 15000;
+                    const hit = window.__deviceCfgCache && window.__deviceCfgCache[cacheKey];
+                    if (hit && (Date.now() - hit.t) < TTL && hit.v) {
+                        const a = hit.v;
+                        this.algorithmInformation.enable          = !!a.enable;
+                        this.algorithmInformation.osdDraw          = !!a.osdDraw;
+                        this.algorithmInformation.foxglovePublish  = !!a.foxglovePublish;
+                        this.algorithmInformation.cameraCounts     = a.cameraCounts || 1;
+                        this.algorithmInformation.cameraParams     = a.cameraParams || [];
+                        this.algorithmInformation.activeCameraIndex = (a.activeCameraIndex != null) ? a.activeCameraIndex : 0;
+                        this.loadAlgorithmParamsToFlat(this.algorithmInformation.activeCameraIndex);
+                        return;
+                    }
                     const r = await fetch('/getDeviceCommand', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ method: "getAlgorithmInformationCommand", params: { activeCameraIndex: idx } })
@@ -16217,6 +16540,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const d = await r.json();
                     if (d.status === STATUS.GET_ALGORITHM_INFORMATION && d.params && d.params.algorithmInformation) {
                         const a = d.params.algorithmInformation;
+                        window.__deviceCfgCache = window.__deviceCfgCache || {};
+                        window.__deviceCfgCache[cacheKey] = { t: Date.now(), v: a };
                         this.algorithmInformation.enable          = !!a.enable;
                         this.algorithmInformation.osdDraw          = !!a.osdDraw;
                         this.algorithmInformation.foxglovePublish  = !!a.foxglovePublish;
@@ -17223,7 +17548,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify({
                             method: 'queryLocalRecordIndexInformationCommand',
-                            params: {
+                            params: window.wanListSlimParams({
                                 deviceID: this.deviceGeneralInformation.deviceUuid
                                     || (window.DeviceTransport && DeviceTransport.remoteUuid)
                                     || '',
@@ -17232,7 +17557,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 pageSize: (opts && opts.pageSize > 0) ? opts.pageSize : this.pageSize,
                                 pageNumber: this.pageNumber,
                                 recordType: this.searchRecordType,
-                            },
+                            }),
                         }),
                     });
                     const result = await response.json();
@@ -17310,11 +17635,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
                             method: 'queryRecordByDescriptionCommand',
-                            params: {
+                            params: window.wanListSlimParams({
                                 keyword: this.descKeyword || '',
                                 pageSize: 50,
                                 pageNumber: 1,
-                            },
+                            }),
                         }),
                     });
                     const result = await response.json();
@@ -17418,7 +17743,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
                             method: 'queryOpenaiChatRecordIndexInformationCommand',
-                            params: {},
+                            params: {
+                                pageSize: this.openaiChatpageSize > 0 ? this.openaiChatpageSize : 20,
+                                pageNumber: 1,
+                            },
                         }),
                     });
                     const result = await response.json();
@@ -17843,11 +18171,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         method: 'queryLocalRecordIndexInformationCommand',
-                        params: {
+                        params: window.wanListSlimParams({
                             deviceID: this.deviceGeneralInformation.deviceUuid,
                             startTime: fmt(startS), endTime: fmt(endS),
                             pageSize: pageSize, pageNumber: 1, recordType: this.searchRecordType,
-                        },
+                        }),
                     }),
                 });
                 const result = await resp.json();
@@ -18245,13 +18573,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify({
                             method: 'queryLocalRecordIndexInformationCommand',
-                            params: {
+                            params: window.wanListSlimParams({
                                 deviceID: this.deviceGeneralInformation.deviceUuid,
                                 startTime: this.snapStartTime,
                                 endTime: this.snapEndTime,
                                 pageSize: this.snapPageSize,
                                 pageNumber: this.snapPageNumber,
-                            },
+                            }),
                         }),
                     });
                     const result = await response.json();
