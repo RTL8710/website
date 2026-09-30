@@ -1233,7 +1233,14 @@ async function openDevice(dev) {
       appsyncEndpoint: APPSYNC.endpoint, appsyncApiKey: APPSYNC.apiKey,
     }));
     sessionStorage.setItem('dv_auth', '1');
-    sessionStorage.setItem('dv_user', (state.session.userProp && state.session.userProp.awsUserName) || state.session.account || 'admin');
+    sessionStorage.setItem('dv_user', (function () {
+      const s = state.session || {};
+      const cands = [s.account, s.userProp && s.userProp.awsUserName, s.email].filter((x) => x != null && String(x).trim()).map((x) => String(x).trim());
+      const nonEmail = cands.find((x) => x.indexOf('@') < 0);
+      if (nonEmail) return nonEmail;
+      if (cands[0] && cands[0].indexOf('@') >= 0) return cands[0].split('@')[0];
+      return cands[0] || 'admin';
+    })());
     // 从管理后台进入：Logout 回到 admin，而不是用户控制台
     sessionStorage.setItem('dv_return', '../admin/');
     location.href = '../device/index.html?deviceId=' + encodeURIComponent(uuid);

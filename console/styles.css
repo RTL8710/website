@@ -88,6 +88,13 @@ a{color:var(--accent);text-decoration:none}
 
 /* ── 设备列表页(对齐设备端 log-page-hero / 管理台 studio)── */
 .devices-page{padding:18px 0 40px}
+.devices-head{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;
+  margin-bottom:14px;padding:4px 0 2px;
+}
+.devices-head-main{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-width:0}
+.devices-head-main .title{margin:0}
+.devices-head-main .meta{font-size:12.5px;color:var(--text-md)}
 .devices-hero{
   display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 20px;
   margin-bottom:18px;padding:20px 22px;position:relative;overflow:hidden;
@@ -178,23 +185,11 @@ html[data-theme="light"] .devices-hero h1{background:none;-webkit-background-cli
   background:rgba(7,9,13,.55);backdrop-filter:blur(4px);color:var(--text-hi);font-size:12.5px;font-weight:600;
 }
 .devcard .body{padding:14px 16px 15px;display:flex;flex-direction:column;gap:8px;flex:1}
-.devcard .body-top{display:flex;align-items:center;gap:10px}
 .devcard .name{
-  flex:1;min-width:0;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.02em;
+  min-width:0;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.02em;
   color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.devcard .enter-cta{
-  flex:none;width:28px;height:28px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;
-  color:var(--accent);background:var(--acc-soft);border:1px solid var(--acc-soft-bd);
-  transition:transform var(--fast),background var(--fast);
-}
-.devcard:hover .enter-cta{transform:translateX(2px);background:color-mix(in srgb, var(--accent) 20%, transparent)}
 .devcard .metaline{display:flex;flex-wrap:wrap;gap:6px;min-height:22px}
-.devcard .card-foot{
-  margin-top:auto;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  display:flex;align-items:center;justify-content:flex-end;
-}
-.devcard .enter-label{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--accent)}
 @media (max-width:560px){
   .devices-hero{padding:16px}
   .grid{grid-template-columns:1fr;gap:14px}

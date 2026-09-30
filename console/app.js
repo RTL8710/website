@@ -11,6 +11,17 @@ import { h, mount, icon, deviceCard, statusChip, loading, emptyState } from './l
 const app = document.getElementById('app');
 const state = { session: null, devices: null, current: null, deviceFilter: 'all', enteringId: null, enterError: null };
 
+// 顶栏/进设备页：优先 Cognito 用户名，避免把邮箱当展示名
+function sessionUsername(session) {
+  if (!session) return 'user';
+  const cands = [session.account, session.userProp && session.userProp.awsUserName, session.email]
+    .filter((x) => x != null && String(x).trim()).map((x) => String(x).trim());
+  const nonEmail = cands.find((x) => x.indexOf('@') < 0);
+  if (nonEmail) return nonEmail;
+  if (cands[0] && cands[0].indexOf('@') >= 0) return cands[0].split('@')[0];
+  return cands[0] || 'user';
+}
+
 // ── i18n + 主题(与设备端共用 localStorage dv_lang/dv_theme,进设备页同步)──────────
 const I18N = {
   en: { brandName:'Device Console', brandSub:'Device Management', heroTitle:'Robot Device Cloud Console', heroTagline:'Real-time monitoring, playback and full device control in one place.', featLive:'Live A/V monitoring', featPlayback:'Recording playback', featSettings:'A/V · Network · IoT settings', featCloud:'Cloud management', heroFoot:'Secure device access · LAN & WAN', title:'Welcome back', subtitle:'Sign in with your device account (username) to manage your devices', labelUser:'Username', labelPass:'Password', phUser:'Enter username', phPass:'Enter password', btnLogin:'Sign In', btnLoading:'Signing in…', errEmpty:'Please enter username and password', region:'Region', consoleTitle:'Device Console', myDevices:'My Devices', online:'Online', offline:'Offline', loadingDevices:'Loading devices…', noDevices:'No devices', enteringDevice:'Getting credentials, entering device…', devicesEyebrow:'Fleet', devicesSub:'Select a device to open live preview, playback and full settings.', filterAll:'All', filterOnline:'Online', filterOffline:'Offline', enter:'Enter', enteringShort:'Entering…', enterFailed:'Could not enter device', retry:'Retry' },
@@ -117,11 +128,11 @@ function topbar() {
       h('span', { class: 'spacer' }),
       // 顺序与设备页顶栏一致:用户(带图标) → 语言 → 主题 → 退出(设备页最后是返回)
       state.session ? h('span', { class: 'muted', style: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' } },
-        fa('fas fa-user-circle'), h('span', {}, state.session.account || (state.session.userRow && state.session.userRow.awsUserName) || state.session.email || ''),
+        fa('fas fa-user-circle'), h('span', {}, sessionUsername(state.session)),
         // 当前区域(东南亚/美洲/欧洲)显示在用户名旁,accent 小胶囊
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } }, regionLabel(getRegion()))) : null,
       ...switcherBar(true).reverse(),
-      state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, icon('logout')) : null,
+      state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, fa('fas fa-right-from-bracket')) : null,
     ),
   );
 }
@@ -252,7 +263,7 @@ async function enterDevice(dev) {
     }));
     sessionStorage.setItem('dv_auth', '1'); // 跳过设备本地登录
     sessionStorage.setItem('dv_return', '../index.html#/devices');
-    sessionStorage.setItem('dv_user', (state.session.userProp && state.session.userProp.awsUserName) || state.session.email || 'user');
+    sessionStorage.setItem('dv_user', sessionUsername(state.session));
     // 不覆盖 previewTransport：设备页 syncPreviewTransportFromDevice 跟 WEBRTCSolutionType（外网也支持声网预览/回放）
     localStorage.setItem('dv_lang', currentLang);   // 语言同步到设备页
     localStorage.setItem('dv_theme', currentTheme); // 主题同步到设备页
@@ -309,23 +320,16 @@ function renderDeviceGrid(list) {
     onclick: () => setFilter(key),
   }, label, h('span', { class: 'n' }, String(n)));
 
-  const hero = h('section', { class: 'glass devices-hero' },
-    h('div', { class: 'devices-hero-main' },
-      h('div', { class: 'devices-eyebrow' }, t('devicesEyebrow')),
-      h('h1', {}, t('myDevices')),
-      h('p', { class: 'devices-hero-sub' }, t('devicesSub')),
-      h('div', { class: 'devices-hero-meta' },
-        statusChip(true),
-        h('span', { class: 'chip count' }, `${onlineN}/${all.length}`),
-        h('span', { class: 'meta' }, t('offline') + ' ' + offlineN),
-      ),
+  const head = h('div', { class: 'devices-head' },
+    h('div', { class: 'devices-head-main' },
+      h('h1', { class: 'title' }, t('myDevices')),
+      h('span', { class: 'chip count' }, String(all.length)),
+      h('span', { class: 'meta' }, t('online') + ' ' + onlineN + ' · ' + t('offline') + ' ' + offlineN),
     ),
-    h('div', { class: 'devices-hero-actions' },
-      h('div', { class: 'devices-filter', role: 'tablist' },
-        filterBtn('all', t('filterAll'), all.length),
-        filterBtn('online', t('filterOnline'), onlineN),
-        filterBtn('offline', t('filterOffline'), offlineN),
-      ),
+    h('div', { class: 'devices-filter', role: 'tablist' },
+      filterBtn('all', t('filterAll'), all.length),
+      filterBtn('online', t('filterOnline'), onlineN),
+      filterBtn('offline', t('filterOffline'), offlineN),
     ),
   );
 
@@ -343,9 +347,8 @@ function renderDeviceGrid(list) {
       }))
     : emptyState(t('noDevices'));
 
-  shell(h('div', { class: 'devices-page' }, hero, banner, grid));
+  shell(h('div', { class: 'devices-page' }, head, banner, grid));
 }
-
 async function viewDevices() {
   // 1) 本地缓存优先:上次的设备列表立即渲染(秒显,不再干等 GraphQL)
   if (!state.devices) {

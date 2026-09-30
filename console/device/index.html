@@ -11719,9 +11719,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // 多标签页主题同步:其它标签页换主题时本页跟随
     window.addEventListener('storage', function (e) { if (e.key === 'dv_theme') applyTheme(e.newValue || 'dark'); });
 
-    // 显示当前登录用户
-    const currentUser = sessionStorage.getItem('dv_user') || 'admin';
-    document.getElementById('currentUserDisplay').textContent = currentUser;
+    // 显示当前登录用户(优先用户名；历史缓存若是邮箱则取 @ 前缀)
+    (function () {
+        var raw = (sessionStorage.getItem('dv_user') || 'admin').trim();
+        var show = (raw.indexOf('@') >= 0) ? raw.split('@')[0] : raw;
+        var el = document.getElementById('currentUserDisplay');
+        if (el) el.textContent = show || 'admin';
+    })();
 });
 
     // 设置全局变量

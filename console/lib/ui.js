@@ -75,14 +75,8 @@ export function deviceCard(dev, onOpen, opts = {}) {
   },
     h('div', { class: 'thumb' }, ...thumbKids),
     h('div', { class: 'body' },
-      h('div', { class: 'body-top' },
-        h('div', { class: 'name' }, dev.name || '—'),
-        h('span', { class: 'enter-cta', 'aria-hidden': 'true' }, icon('chevron', 16)),
-      ),
+      h('div', { class: 'name' }, dev.name || '—'),
       h('div', { class: 'metaline' }, ...metas),
-      h('div', { class: 'card-foot' },
-        h('span', { class: 'enter-label' }, tt ? tt('enter') : 'Enter'),
-      ),
     ),
   );
 }
