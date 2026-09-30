@@ -385,3 +385,9 @@ body:has(.login-shell) #app{min-height:100vh}
 @media (max-width:720px){
   .ota-page .logs-card{grid-template-columns:auto auto minmax(0,1fr);gap:12px}
 }
+
+/* Logs multi-select (reuse ota-check) */
+.logs-page .logs-card{grid-template-columns:auto auto minmax(0,1fr) auto}
+@media (max-width:720px){
+  .logs-page .logs-card{grid-template-columns:auto auto minmax(0,1fr);gap:12px}
+}

@@ -54,6 +54,7 @@ const state = {
   otaPickOpen: '',
   otaPickQ: '',
   otaSelected: {}, // pkg.id -> true，OTA 多选批量删除
+  logsSelected: {}, // diagLog.key -> true，日志多选批量删除
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -2638,26 +2639,114 @@ async function downloadDiagLog(item) {
 }
 
 function askDeleteDiagLog(item) {
+  askDeleteDiagLogs([item]);
+}
+function logsSelectedKeys() {
+  return Object.keys(state.logsSelected || {}).filter((k) => state.logsSelected[k]);
+}
+function logsSelectedCount() { return logsSelectedKeys().length; }
+function toggleLogsSelected(key, on) {
+  const next = Object.assign({}, state.logsSelected || {});
+  if (on) next[key] = true;
+  else delete next[key];
+  state.logsSelected = next;
+}
+function setLogsSelectedMany(keys, on) {
+  const next = Object.assign({}, state.logsSelected || {});
+  (keys || []).forEach((k) => {
+    if (!k) return;
+    if (on) next[k] = true;
+    else delete next[k];
+  });
+  state.logsSelected = next;
+}
+async function deleteOneDiagLog(item, creds) {
+  await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key: item.key });
+  DIAG_ZIP_CACHE.delete(item.key);
+  if (state.logView && state.logView.key === item.key) state.logView = null;
+}
+function askDeleteDiagLogs(items) {
+  const list = (items || []).filter((x) => x && x.key);
+  if (!list.length) { toast(t('logsBatchNone'), 'err'); return; }
+  const preview = list.slice(0, 8).map((item) =>
+    `${item.supportCode || item.code || shortId(item.key)} · ${item.fileName || item.key}`
+  ).join('\n');
+  const more = list.length > 8 ? `\n… (+${list.length - 8})` : '';
   state.confirm = {
-    title: t('confirmDelLog'),
-    body: (item.supportCode || item.code || item.key) + '\n' + (item.fileName || item.key),
+    title: list.length === 1 ? t('confirmDelLog') : t('confirmDelLogs'),
+    body: `${preview}${more}\n\n${t('logsBatchDelHint')}`,
     okText: t('confirmDelOk'),
     onOk: async () => {
-      state.confirm = null; render();
-      try {
-        const creds = await resolvedCreds();
-        await deleteS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key: item.key });
-        state.diagLogs = (state.diagLogs || []).filter((x) => x.key !== item.key);
-        DIAG_ZIP_CACHE.delete(item.key);
-        if (state.logView && state.logView.key === item.key) state.logView = null;
-        toast(t('dataRefreshed'));
-      } catch (e) {
+      const total = list.length;
+      let ok = 0, fail = 0;
+      const left = Object.assign({}, state.logsSelected || {});
+      let creds = null;
+      const paintProgress = (i, item) => {
+        const name = (item && (item.supportCode || item.code || item.fileName)) || shortId(item && item.key);
+        const pct = total ? Math.round((i / total) * 100) : 0;
+        state.confirm = {
+          kind: 'progress',
+          hideCancel: true,
+          busy: true,
+          title: t('logsBatchDelWorking'),
+          body: t('logsBatchDelProgress')
+            .replace('{i}', String(Math.min(i + 1, total)))
+            .replace('{n}', String(total))
+            .replace('{name}', name),
+          progress: pct,
+          progressText: `${Math.min(i, total)} / ${total} · ${pct}%`,
+        };
+        render();
+      };
+      paintProgress(0, list[0]);
+      try { creds = await resolvedCreds(); }
+      catch (e) {
+        state.confirm = null;
         toast((e && e.message) || String(e), 'err');
+        render();
+        return;
       }
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        paintProgress(i, item);
+        try {
+          await deleteOneDiagLog(item, creds);
+          ok++;
+          delete left[item.key];
+          state.diagLogs = (state.diagLogs || []).filter((x) => x.key !== item.key);
+        } catch (e) {
+          fail++;
+          console.error('[admin] delete diag log', item && item.key, e);
+        }
+        paintProgress(i + 1, item);
+      }
+      state.logsSelected = left;
+      const summary = t('logsBatchDelSummary')
+        .replace('{ok}', String(ok))
+        .replace('{fail}', String(fail))
+        .replace('{n}', String(total));
+      state.confirm = {
+        kind: fail ? 'progress' : 'success',
+        hideCancel: true,
+        busy: false,
+        title: t('logsBatchDelDone'),
+        body: summary,
+        progress: 100,
+        progressText: `${ok + fail} / ${total} · 100%`,
+        okText: t('gotIt'),
+        onOk: () => { state.confirm = null; render(); },
+      };
       render();
+      if (fail) toast(`${t('logsBatchDelDone')}: ${ok} OK / ${fail} fail`, 'err');
+      else toast(`${t('logsBatchDelDone')}: ${ok}`);
     },
   };
   render();
+}
+function askDeleteSelectedDiagLogs(visibleList) {
+  const keys = new Set(logsSelectedKeys());
+  const items = (visibleList || state.diagLogs || []).filter((x) => keys.has(x.key));
+  askDeleteDiagLogs(items);
 }
 
 function logsRelTime(iso) {
@@ -2710,7 +2799,7 @@ function logsSourceCard(id, count, latestIso) {
   return h('button', {
     type: 'button',
     class: 'logs-source' + (isDev ? ' is-device' : '') + (on ? ' on' : ''),
-    onclick: () => { state.logsSource = id; state.q = ''; render(); },
+    onclick: () => { state.logsSource = id; state.q = ''; state.logsSelected = {}; render(); },
   },
     h('span', { class: 'logs-source-ico' }, fa(isDev ? 'fa-robot' : 'fa-mobile-alt')),
     h('span', { class: 'k' }, isDev ? t('logsTabDevice') : t('logsTabApp')),
@@ -2769,10 +2858,25 @@ function logsUserChips(r) {
 function logsPackCard(r) {
   const isDev = (r.source || 'app') === 'device';
   const code = r.supportCode || r.code || '—';
+  const checked = !!(state.logsSelected && state.logsSelected[r.key]);
+  const check = h('label', {
+    class: 'ota-check',
+    title: t('logsSelect'),
+    onclick: (e) => e.stopPropagation(),
+  }, h('input', {
+    type: 'checkbox',
+    checked: checked ? true : false,
+    onchange: (e) => {
+      e.stopPropagation();
+      toggleLogsSelected(r.key, !!e.target.checked);
+      render();
+    },
+  }));
   return h('article', {
-    class: 'glass logs-card' + (isDev ? ' is-device' : ''),
+    class: 'glass logs-card' + (isDev ? ' is-device' : '') + (checked ? ' is-checked' : ''),
     onclick: () => openDiagLogView(r),
   },
+    check,
     h('div', { class: 'logs-card-mark' }, fa(logsKindIcon(r))),
     h('div', { class: 'logs-card-body' },
       h('button', {
@@ -2845,6 +2949,29 @@ function viewLogs() {
           )),
         ));
 
+  const visibleKeys = rows.slice(0, 500).map((r) => r.key).filter(Boolean);
+  const selN = logsSelectedCount();
+  const allVisibleChecked = visibleKeys.length > 0 && visibleKeys.every((k) => state.logsSelected && state.logsSelected[k]);
+  const batchBar = h('div', { class: 'ota-batch' },
+    h('label', { class: 'ota-check dock' },
+      h('input', {
+        type: 'checkbox',
+        checked: allVisibleChecked ? true : false,
+        onchange: (e) => {
+          setLogsSelectedMany(visibleKeys, !!e.target.checked);
+          render();
+        },
+      }),
+      h('span', {}, allVisibleChecked ? t('logsClearSel') : t('logsSelectAll')),
+    ),
+    selN ? h('span', { class: 'logs-chip' }, t('logsSelectedN').replace('{n}', String(selN))) : null,
+    h('button', {
+      class: 'gbtn btn-sm danger',
+      disabled: selN ? false : true,
+      onclick: () => askDeleteSelectedDiagLogs(rows.slice(0, 500)),
+    }, fa('fa-trash'), ' ' + t('logsBatchDel')),
+  );
+
   return h('div', { class: 'logs-page' },
     h('div', { class: 'glass logs-hero' },
       h('div', {},
@@ -2862,9 +2989,9 @@ function viewLogs() {
       ),
     ),
     h('div', { class: 'glass logs-dock' },
-      logsSearchBox(),
+      logsSearchBox(), batchBar,
       h('button', { class: 'gbtn btn-sm', onclick: async () => {
-        state.diagLogs = null; state.diagLogsMeta = null; render();
+        state.diagLogs = null; state.diagLogsMeta = null; state.logsSelected = {}; render();
         try { await loadDiagLogs(); await hydrateLogUsers(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
