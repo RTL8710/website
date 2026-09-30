@@ -10119,6 +10119,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // agoraRTC.js(1.5MB)懒加载:仅实时预览/对讲用,首屏不背。首次 startPreview 时注入并建 client。
             async ensureRtcSdk() {
+                if (!window.AhsAgoraToken) await this._loadScriptOnce('agora-token.js');
+                let waits = 0;
+                while ((!window.CryptoJS || !window.CryptoJS.HmacSHA256) && waits < 30) {
+                    await new Promise(r => setTimeout(r, 100));
+                    waits++;
+                }
                 if (window.AgoraRTC) return;
                 await this._loadScriptOnce('agoraRTC.js');
             },
@@ -10788,8 +10794,73 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (maybe && typeof maybe.then === 'function') await maybe;
                     console.log('[AHS][Agora] Cloud Proxy mode=5 before join');
                 }
-                console.log('[AHS][Agora] join channel=', this.options.channel, 'appid=', this.options.appid, 'proxy=', this._agoraProxy);
+                console.log('[AHS][Agora] join channel=', this.options.channel, 'appid=', this.options.appid, 'proxy=', this._agoraProxy, 'token=', !!(this.options && this.options.token));
                 this.options.uid = await this.client.join(this.options.appid, this.options.channel, this.options.token || null, null);
+            },
+            async _teardownAgoraClient() {
+                if (!this.client) return;
+                try { this.client.removeAllListeners && this.client.removeAllListeners(); } catch (e) {}
+                try { await this.client.leave(); } catch (e) {}
+                try { if (this.client && typeof this.client.stopProxyServer === 'function') this.client.stopProxyServer(); } catch (e) {}
+                this.client = null;
+                this.isStreaming = false;
+            },
+            prepareAgoraJoinToken(channel) {
+                const appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || (this.options && this.options.appid) || '').trim();
+                const cert = ((this.options && this.options.appCertificate) || '').trim();
+                let tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                if (tok && (tok.indexOf('006') === 0 || tok.indexOf('007') === 0) && tok.length > 40) {
+                    this.options.token = tok;
+                    return tok;
+                }
+                if (appId && cert && channel && window.AhsAgoraToken && typeof window.AhsAgoraToken.buildRtcToken === 'function') {
+                    try {
+                        tok = window.AhsAgoraToken.buildRtcToken(appId, cert, channel, 0) || '';
+                    } catch (e) {
+                        console.warn('[AHS][Agora] token build failed', e);
+                        tok = '';
+                    }
+                    this.options.token = tok || null;
+                    return this.options.token;
+                }
+                this.options.token = tok || null;
+                return this.options.token;
+            },
+            async _joinAgoraWithFallback(channel, wan) {
+                this.prepareAgoraJoinToken(channel);
+                const tokens = [];
+                if (this.options && this.options.token) tokens.push(this.options.token);
+                tokens.push(null);
+                const seen = {};
+                const unique = tokens.filter(function (t) {
+                    const k = t ? String(t) : '';
+                    if (seen[k]) return false;
+                    seen[k] = true;
+                    return true;
+                });
+                const attempts = [];
+                unique.forEach(function (tok) { attempts.push({ tok: tok, proxy: false }); });
+                if (wan) unique.forEach(function (tok) { attempts.push({ tok: tok, proxy: true }); });
+                let lastErr = null;
+                for (let i = 0; i < attempts.length; i++) {
+                    const a = attempts[i];
+                    this.options.token = a.tok;
+                    try { await this._teardownAgoraClient(); } catch (e) {}
+                    this._setupAgoraClient(channel);
+                    this.options.token = a.tok;
+                    try {
+                        await this._joinAgoraClient(a.proxy);
+                        this._agoraLastErr = '';
+                        this.refreshAgoraDebug();
+                        return;
+                    } catch (e) {
+                        lastErr = e;
+                        console.warn('[AHS][Agora] join fail token=' + !!a.tok + ' proxy=' + a.proxy, e);
+                    }
+                }
+                this._agoraLastErr = 'join ' + ((lastErr && lastErr.message) || lastErr);
+                this.refreshAgoraDebug();
+                throw lastErr;
             },
             async startPreview(mode){
                 // mode: true/'main'=主页; false/'setting'=视频设置; 'ai'=AI 检测页（三套独立视频元素）
@@ -10829,32 +10900,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.client = null;
                     this.isStreaming = false;
                 }
-                // 对齐 App：先直连（本机探测已通）。Cloud Proxy WS 常失败，只在直连 join 失败后整客户端重建再开。
-                this._setupAgoraClient(channel);
+                // 先签发 RTC Token（有 App Certificate 时），再直连；失败才重建 + Cloud Proxy。
                 const wanAgora = !(window.isLanDeviceOrigin && window.isLanDeviceOrigin());
-                try {
-                    await this._joinAgoraClient(false);
-                    this._agoraLastErr = '';
-                } catch (e) {
-                    if (!wanAgora) {
-                        this._agoraLastErr = 'join ' + ((e && e.message) || e);
-                        this.refreshAgoraDebug();
-                        throw e;
-                    }
-                    console.warn('[AHS][Agora] direct join failed, recreate+proxy', e);
-                    try { await this.client.leave(); } catch (e2) {}
-                    try { if (this.client && this.client.stopProxyServer) this.client.stopProxyServer(); } catch (e2) {}
-                    this.client = null;
-                    this._setupAgoraClient(channel);
-                    try {
-                        await this._joinAgoraClient(true);
-                        this._agoraLastErr = '';
-                    } catch (e3) {
-                        this._agoraLastErr = 'join ' + ((e3 && e3.message) || e3);
-                        this.refreshAgoraDebug();
-                        throw e3;
-                    }
-                }
+                await this._joinAgoraWithFallback(channel, wanAgora);
                 this.isStreaming = true;
                 if (m === 'replay') await this.syncExistingPlaybackUsers();
             },
