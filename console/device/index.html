@@ -781,6 +781,20 @@ window.__presignThumbUrl = function (raw) {
             bottom: 6px; left: 6px; font-size: 10px; padding: 3px 7px;
         }
 
+        /* 回放 PiP 小窗：无描边，CAM 标签叠在画面内 */
+        .pb-pip-cam-tag {
+            position: absolute; left: 6px; bottom: 6px; z-index: 4;
+            font-size: 10px; font-weight: 720; letter-spacing: .06em;
+            color: #edf7ff; line-height: 1;
+            padding: 3px 8px; border-radius: 999px;
+            background: rgba(6, 12, 24, .62);
+            border: 1px solid rgba(255,255,255,.18);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 2px 10px rgba(0,0,0,.35);
+            pointer-events: none;
+        }
+
+
         /* 实时预览多路布局(对齐 App LiveLayoutMode)：pip / stackV / stackH / grid / single */
         .rtc-hidden { display:none !important; }
         .rtc-tile { position:relative; width:100%; aspect-ratio:16/9; display:block; cursor:pointer;
@@ -6255,7 +6269,7 @@ window.__presignThumbUrl = function (raw) {
                                                                     <div x-show="!pbCamUids[pi-1]" class="pb-remote-loading" style="position:absolute;inset:0;z-index:2;pointer-events:none;background:rgba(0,0,0,0.28);">
                                                                         <i class="fa-solid fa-circle-notch fa-spin" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;color:#fff;opacity:0.92;"></i>
                                                                     </div>
-                                                                    <div style="position:absolute;top:4px;left:6px;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 6px;border-radius:4px;z-index:3;pointer-events:none;" x-text="'CAM'+pi"></div>
+                                                                    <div class="pb-pip-cam-tag" x-text="'CAM'+pi"></div>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -6302,7 +6316,7 @@ window.__presignThumbUrl = function (raw) {
                                                                     <span class="badge bg-warning text-dark" style="font-size:10px;"><i class="fa fa-stopwatch me-1"></i><span x-text="rec.RecordIndexInformationDuration + 's'"></span></span>
                                                                 </div>
                                                                 <!-- 非聚焦路（单画面/画中画）小标签：标明是哪一路 -->
-                                                                <div x-show="!isPlaybackFocused(idx)" style="position:absolute;top:2px;left:4px;font-size:9px;color:#fff;background:rgba(0,0,0,0.6);padding:0 5px;border-radius:3px;pointer-events:none;z-index:2;"
+                                                                <div class="pb-pip-cam-tag" x-show="!isPlaybackFocused(idx)"
                                                                      x-text="'CAM'+(tlCamOf(rec.RecordIndexInformationPath)+1)"></div>
                                                             </div>
                                                         </template>
@@ -18660,7 +18674,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pos = this._pipPos(idx, n);
                 return 'position:absolute;z-index:5;left:' + pos.left + '%;top:' + pos.top + '%;width:22%;'
                      + 'cursor:grab;touch-action:none;user-select:none;'
-                     + 'border:2px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);';
+                     + 'border:none;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.5);';
             },
             _pipPos(idx, n) {
                 const key = String(idx);
