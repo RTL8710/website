@@ -9729,6 +9729,14 @@ window.__presignThumbUrl = function (raw) {
                 x-show="logActiveFile" :disabled="logViewLoading" :title="tIdx('lg_view_refresh')">
           <i class="fa-solid fa-rotate-right" :class="logViewLoading && 'fa-spin'"></i>
         </button>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                @click="copyCurrentLogView()"
+                x-show="logActiveFile"
+                :disabled="logViewLoading || !logContent"
+                :title="tIdx('lg_copy_view')">
+          <i class="fa-solid fa-copy"></i>
+          <span x-text="logCopyFlash ? tIdx('lg_copy_view_ok') : tIdx('lg_copy_view')"></span>
+        </button>
         <button type="button" class="btn btn-sm btn-outline-secondary"
                 @click="_cloudDiagKey ? downloadCloudDiagByKey(_cloudDiagKey) : downloadLog(logActiveFile)"
                 x-show="logActiveFile" :title="tIdx('lg_download')">
@@ -10417,7 +10425,7 @@ const I18N_INDEX = {
  db_watchdog_title:'Watchdog Information', db_watchdog_enable:'Watchdog Enable',
  db_watchdog_timeout:'Watchdog Timeout', db_watchdog_update:'Update Watchdog',
  lg_refresh:'Refresh', lg_clear:'Clear', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
- lg_view:'View', lg_search_ph:'Keyword…', lg_search_btn:'Search history', lg_find_ph:'Find in view', lg_to_head:'Top', lg_to_tail:'End', lg_find_prev:'Previous', lg_find_next:'Next', lg_find_match:'Matches', lg_view_hint:'Scroll inside dialog · Esc closes', lg_view_loading:'Loading…', lg_view_refresh:'Refresh log', lg_hits:'Hits', lg_hits_clear:'Clear hits', lg_sessions:'Sessions', lg_no_files:'No log files', lg_level_all:'All', lg_date_all:'All dates', lg_date_today:'Today', lg_delete:'Delete', lg_download:'Download', lg_delete:'Delete',
+ lg_view:'View', lg_search_ph:'Keyword…', lg_search_btn:'Search history', lg_find_ph:'Find in view', lg_to_head:'Top', lg_to_tail:'End', lg_find_prev:'Previous', lg_find_next:'Next', lg_find_match:'Matches', lg_view_hint:'Scroll inside dialog · Esc closes', lg_view_loading:'Loading…', lg_view_refresh:'Refresh log', lg_copy_view:'Copy view', lg_copy_view_ok:'Copied', lg_copy_view_fail:'Copy failed', lg_copy_view_empty:'No log to copy', lg_hits:'Hits', lg_hits_clear:'Clear hits', lg_sessions:'Sessions', lg_no_files:'No log files', lg_level_all:'All', lg_date_all:'All dates', lg_date_today:'Today', lg_delete:'Delete', lg_download:'Download', lg_delete:'Delete',
  ab_webserver:'Webserver', ab_root:'Root', ab_port:'Port',
  ab_https_port:'HTTPS Port', ab_log:'Log',
  ab_theme:'Theme Style', ab_language:'Language', ab_version:'Version',
@@ -10569,7 +10577,7 @@ const I18N_INDEX = {
  db_watchdog_title:'看门狗信息', db_watchdog_enable:'看门狗启用',
  db_watchdog_timeout:'看门狗超时', db_watchdog_update:'更新看门狗',
  lg_refresh:'刷新', lg_clear:'清除', lg_live:'实时', lg_wan_use_upload:'外网请用「上传到云端」；本地 /log 浏览需连设备局域网。', lg_upload:'上传', lg_upload_title:'上传日志到云端', lg_upload_confirm_sub:'打包控制台日志并上传到云端诊断。', lg_upload_working:'上传中…', lg_upload_working_sub:'设备正在打包并上传日志。', lg_upload_ok:'已接受上传', lg_upload_ok_sub:'支持码已就绪，可发给售后。', lg_upload_fail:'上传失败', lg_upload_fail_sub:'无法上传日志。', lg_upload_busy:'设备忙，请稍后重试。', lg_upload_no_uuid:'未知设备 UUID — 请先打开设备信息。', lg_upload_target:'目标', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'设备 UUID', lg_upload_path:'路径', lg_upload_status:'状态', lg_upload_code:'支持码', lg_upload_copy:'复制', lg_upload_copied:'已复制', lg_upload_start:'上传', lg_upload_accepted:'已接受 — 后台上传中。', lg_cloud_packs:'云端诊断包', lg_cloud_empty:'暂无上传记录 — 点「上传」', lg_cloud_hint:'上传会把设备日志打包到 S3；点列表项可在此解压查看，体验类似本地日志文件。', lg_cloud_search_ph:'搜索短码 / 文件名…', lg_cloud_new:'新', lg_cloud_no_creds:'无云端凭证 — 请从门户重新进入', lg_cloud_view_fail:'打开云端日志失败', ls_badge_cloud:'个包', ls_stat_cloud_foot:'已在 S3', ls_tab_upload:'云端日志', ls_sub_upload:'上传到云端 · 解压查看', ls_badge_upload:'云端', ls_upload_desc:'将设备日志上传到云端诊断，并在此浏览、解压查看。',
- lg_view:'查看', lg_search_ph:'关键字…', lg_search_btn:'搜索历史', lg_find_ph:'页内查找', lg_to_head:'到头', lg_to_tail:'到尾', lg_find_prev:'上一处', lg_find_next:'下一处', lg_find_match:'命中', lg_view_hint:'仅弹框内滚动 · Esc 关闭', lg_view_loading:'加载中…', lg_view_refresh:'刷新日志', lg_hits:'命中', lg_hits_clear:'清除命中', lg_sessions:'会话', lg_no_files:'无日志文件', lg_level_all:'全部', lg_date_all:'全部日期', lg_date_today:'今天', lg_delete:'删除', lg_download:'下载', lg_delete:'删除',
+ lg_view:'查看', lg_search_ph:'关键字…', lg_search_btn:'搜索历史', lg_find_ph:'页内查找', lg_to_head:'到头', lg_to_tail:'到尾', lg_find_prev:'上一处', lg_find_next:'下一处', lg_find_match:'命中', lg_view_hint:'仅弹框内滚动 · Esc 关闭', lg_view_loading:'加载中…', lg_view_refresh:'刷新日志', lg_copy_view:'复制当前视图', lg_copy_view_ok:'已复制', lg_copy_view_fail:'复制失败', lg_copy_view_empty:'暂无日志可复制', lg_hits:'命中', lg_hits_clear:'清除命中', lg_sessions:'会话', lg_no_files:'无日志文件', lg_level_all:'全部', lg_date_all:'全部日期', lg_date_today:'今天', lg_delete:'删除', lg_download:'下载', lg_delete:'删除',
  ab_webserver:'Web 服务器', ab_root:'根路径', ab_port:'端口',
  ab_https_port:'HTTPS 端口', ab_log:'日志',
  ab_theme:'主题样式', ab_language:'语言', ab_version:'版本',
@@ -10720,7 +10728,7 @@ const I18N_INDEX = {
  db_watchdog_title:'ウォッチドッグ情報', db_watchdog_enable:'ウォッチドッグ有効',
  db_watchdog_timeout:'ウォッチドッグタイムアウト', db_watchdog_update:'ウォッチドッグ更新',
  lg_refresh:'リフレッシュ', lg_clear:'クリア', lg_live:'ライブ', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
- lg_view:'表示', lg_search_ph:'キーワード…', lg_search_btn:'履歴検索', lg_find_ph:'表示内検索', lg_to_head:'先頭', lg_to_tail:'末尾', lg_find_prev:'前へ', lg_find_next:'次へ', lg_find_match:'一致', lg_view_hint:'ダイアログ内でスクロール · Esc で閉じる', lg_view_loading:'読込中…', lg_view_refresh:'ログ更新', lg_hits:'ヒット', lg_hits_clear:'クリア', lg_sessions:'セッション', lg_no_files:'ログなし', lg_level_all:'すべて', lg_date_all:'全日付', lg_date_today:'今日', lg_delete:'削除', lg_download:'ダウンロード', lg_delete:'削除',
+ lg_view:'表示', lg_search_ph:'キーワード…', lg_search_btn:'履歴検索', lg_find_ph:'表示内検索', lg_to_head:'先頭', lg_to_tail:'末尾', lg_find_prev:'前へ', lg_find_next:'次へ', lg_find_match:'一致', lg_view_hint:'ダイアログ内でスクロール · Esc で閉じる', lg_view_loading:'読込中…', lg_view_refresh:'ログ更新', lg_copy_view:'表示をコピー', lg_copy_view_ok:'コピー済み', lg_copy_view_fail:'コピー失敗', lg_copy_view_empty:'コピーするログがありません', lg_hits:'ヒット', lg_hits_clear:'クリア', lg_sessions:'セッション', lg_no_files:'ログなし', lg_level_all:'すべて', lg_date_all:'全日付', lg_date_today:'今日', lg_delete:'削除', lg_download:'ダウンロード', lg_delete:'削除',
  ab_webserver:'Webサーバー', ab_root:'ルート', ab_port:'ポート',
  ab_https_port:'HTTPSポート', ab_log:'ログ',
  ab_theme:'テーマスタイル', ab_language:'言語', ab_version:'バージョン',
@@ -10870,7 +10878,7 @@ const I18N_INDEX = {
  db_watchdog_title:'Watchdog-Informationen', db_watchdog_enable:'Watchdog aktiv',
  db_watchdog_timeout:'Watchdog-Timeout', db_watchdog_update:'Watchdog aktualisieren',
  lg_refresh:'Aktualisieren', lg_clear:'Leeren', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
- lg_view:'Anzeigen', lg_search_ph:'Stichwort…', lg_search_btn:'Verlauf suchen', lg_find_ph:'In Ansicht finden', lg_to_head:'Anfang', lg_to_tail:'Ende', lg_find_prev:'Zurück', lg_find_next:'Weiter', lg_find_match:'Treffer', lg_view_hint:'Nur im Dialog scrollen · Esc schließt', lg_view_loading:'Laden…', lg_view_refresh:'Log aktualisieren', lg_hits:'Treffer', lg_hits_clear:'Treffer löschen', lg_sessions:'Sitzungen', lg_no_files:'Keine Logdateien', lg_level_all:'Alle', lg_date_all:'Alle Daten', lg_date_today:'Heute', lg_delete:'Löschen', lg_download:'Herunterladen', lg_delete:'Löschen',
+ lg_view:'Anzeigen', lg_search_ph:'Stichwort…', lg_search_btn:'Verlauf suchen', lg_find_ph:'In Ansicht finden', lg_to_head:'Anfang', lg_to_tail:'Ende', lg_find_prev:'Zurück', lg_find_next:'Weiter', lg_find_match:'Treffer', lg_view_hint:'Nur im Dialog scrollen · Esc schließt', lg_view_loading:'Laden…', lg_view_refresh:'Log aktualisieren', lg_copy_view:'Ansicht kopieren', lg_copy_view_ok:'Kopiert', lg_copy_view_fail:'Kopieren fehlgeschlagen', lg_copy_view_empty:'Kein Log zum Kopieren', lg_hits:'Treffer', lg_hits_clear:'Treffer löschen', lg_sessions:'Sitzungen', lg_no_files:'Keine Logdateien', lg_level_all:'Alle', lg_date_all:'Alle Daten', lg_date_today:'Heute', lg_delete:'Löschen', lg_download:'Herunterladen', lg_delete:'Löschen',
  ab_webserver:'Webserver', ab_root:'Stammverzeichnis', ab_port:'Port',
  ab_https_port:'HTTPS-Port', ab_log:'Protokoll',
  ab_theme:'Designstil', ab_language:'Sprache', ab_version:'Version',
@@ -11021,7 +11029,7 @@ const I18N_INDEX = {
  db_watchdog_title:'Infos watchdog', db_watchdog_enable:'Watchdog activé',
  db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Mettre à jour watchdog',
  lg_refresh:'Rafraîchir', lg_clear:'Effacer', lg_live:'Live', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
- lg_view:'Voir', lg_search_ph:'Mot-clé…', lg_search_btn:'Chercher historique', lg_find_ph:'Chercher ici', lg_to_head:'Début', lg_to_tail:'Fin', lg_find_prev:'Préc.', lg_find_next:'Suiv.', lg_find_match:'Occurrences', lg_view_hint:'Défiler dans la boîte · Esc ferme', lg_view_loading:'Chargement…', lg_view_refresh:'Rafraîchir le journal', lg_hits:'Résultats', lg_hits_clear:'Effacer', lg_sessions:'Sessions', lg_no_files:'Aucun fichier journal', lg_level_all:'Tout', lg_date_all:'Toutes dates', lg_date_today:'Aujourd\'hui', lg_delete:'Supprimer', lg_download:'Télécharger', lg_delete:'Supprimer',
+ lg_view:'Voir', lg_search_ph:'Mot-clé…', lg_search_btn:'Chercher historique', lg_find_ph:'Chercher ici', lg_to_head:'Début', lg_to_tail:'Fin', lg_find_prev:'Préc.', lg_find_next:'Suiv.', lg_find_match:'Occurrences', lg_view_hint:'Défiler dans la boîte · Esc ferme', lg_view_loading:'Chargement…', lg_view_refresh:'Rafraîchir le journal', lg_copy_view:'Copier la vue', lg_copy_view_ok:'Copié', lg_copy_view_fail:'Échec de la copie', lg_copy_view_empty:'Aucun journal à copier', lg_hits:'Résultats', lg_hits_clear:'Effacer', lg_sessions:'Sessions', lg_no_files:'Aucun fichier journal', lg_level_all:'Tout', lg_date_all:'Toutes dates', lg_date_today:'Aujourd\'hui', lg_delete:'Supprimer', lg_download:'Télécharger', lg_delete:'Supprimer',
  ab_webserver:'Serveur web', ab_root:'Racine', ab_port:'Port',
  ab_https_port:'Port HTTPS', ab_log:'Journal',
  ab_theme:'Style thème', ab_language:'Langue', ab_version:'Version',
@@ -11172,7 +11180,7 @@ const I18N_INDEX = {
  db_watchdog_title:'Info watchdog', db_watchdog_enable:'Watchdog activo',
  db_watchdog_timeout:'Timeout watchdog', db_watchdog_update:'Actualizar watchdog',
  lg_refresh:'Refrescar', lg_clear:'Limpiar', lg_live:'En vivo', lg_wan_use_upload:'WAN: use Upload to S3 — local /log viewer needs device LAN.', lg_upload:'Upload', lg_upload_title:'Upload logs to cloud', lg_upload_confirm_sub:'Package console logs and send to cloud diagnostics.', lg_upload_working:'Uploading…', lg_upload_working_sub:'Device is packaging and uploading logs.', lg_upload_ok:'Upload accepted', lg_upload_ok_sub:'Support code ready — share with support.', lg_upload_fail:'Upload failed', lg_upload_fail_sub:'Could not upload logs.', lg_upload_busy:'Device busy, retry later.', lg_upload_no_uuid:'Device UUID unknown — open Device Info first.', lg_upload_target:'Target', lg_upload_target_val:'console_systemd.out → S3', lg_upload_uuid:'Device UUID', lg_upload_path:'Path', lg_upload_status:'Status', lg_upload_code:'Support code', lg_upload_copy:'Copy', lg_upload_copied:'Copied', lg_upload_start:'Upload', lg_upload_accepted:'Accepted — uploading in background.', lg_cloud_packs:'Cloud packs', lg_cloud_empty:'No uploaded packs yet — tap Upload', lg_cloud_hint:'Upload packages console logs to S3; tap a pack to decompress and view here.', lg_cloud_search_ph:'Search code / file…', lg_cloud_new:'New', lg_cloud_no_creds:'No cloud credentials — re-enter from portal', lg_cloud_view_fail:'Failed to open cloud log', ls_badge_cloud:'packs', ls_stat_cloud_foot:'On S3', ls_tab_upload:'Cloud logs', ls_sub_upload:'Upload to S3 · decompress & view', ls_badge_upload:'Cloud', ls_upload_desc:'Upload device logs to cloud diagnostics, then browse and decompress packs here.',
- lg_view:'Ver', lg_search_ph:'Palabra clave…', lg_search_btn:'Buscar historial', lg_find_ph:'Buscar en vista', lg_to_head:'Inicio', lg_to_tail:'Final', lg_find_prev:'Anterior', lg_find_next:'Siguiente', lg_find_match:'Coincidencias', lg_view_hint:'Desplaza solo el diálogo · Esc cierra', lg_view_loading:'Cargando…', lg_view_refresh:'Actualizar log', lg_hits:'Coincidencias', lg_hits_clear:'Borrar', lg_sessions:'Sesiones', lg_no_files:'Sin archivos de log', lg_level_all:'Todos', lg_date_all:'Todas las fechas', lg_date_today:'Hoy', lg_delete:'Eliminar', lg_download:'Descargar', lg_delete:'Eliminar',
+ lg_view:'Ver', lg_search_ph:'Palabra clave…', lg_search_btn:'Buscar historial', lg_find_ph:'Buscar en vista', lg_to_head:'Inicio', lg_to_tail:'Final', lg_find_prev:'Anterior', lg_find_next:'Siguiente', lg_find_match:'Coincidencias', lg_view_hint:'Desplaza solo el diálogo · Esc cierra', lg_view_loading:'Cargando…', lg_view_refresh:'Actualizar log', lg_copy_view:'Copiar vista', lg_copy_view_ok:'Copiado', lg_copy_view_fail:'Error al copiar', lg_copy_view_empty:'No hay log para copiar', lg_hits:'Coincidencias', lg_hits_clear:'Borrar', lg_sessions:'Sesiones', lg_no_files:'Sin archivos de log', lg_level_all:'Todos', lg_date_all:'Todas las fechas', lg_date_today:'Hoy', lg_delete:'Eliminar', lg_download:'Descargar', lg_delete:'Eliminar',
  ab_webserver:'Servidor web', ab_root:'Raíz', ab_port:'Puerto',
  ab_https_port:'Puerto HTTPS', ab_log:'Registro',
  ab_theme:'Estilo tema', ab_language:'Idioma', ab_version:'Versión',
@@ -12676,6 +12684,8 @@ document.addEventListener('DOMContentLoaded', function() {
             logShowSys: false,
             logViewOpen: false,
             logViewLoading: false,
+            logCopyFlash: false,
+            _logCopyFlashT: null,
             cloudDiagLogs: [],
             cloudDiagLoading: false,
             cloudDiagErr: '',
@@ -12940,6 +12950,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.logUploadMessage = this.tIdx('lg_upload_copied');
                 } catch (e) {
                     this.logUploadMessage = t;
+                }
+            },
+
+            async copyCurrentLogView() {
+                const text = this.logContent || '';
+                if (!text) {
+                    this.showAlert('warning', 'Notice', this.tIdx('lg_copy_view_empty') || 'No log to copy');
+                    return;
+                }
+                const flashOk = () => {
+                    this.logCopyFlash = true;
+                    if (this._logCopyFlashT) clearTimeout(this._logCopyFlashT);
+                    this._logCopyFlashT = setTimeout(() => { this.logCopyFlash = false; }, 1400);
+                };
+                const fallbackCopy = () => {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    const done = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    if (!done) throw new Error('execCommand copy failed');
+                };
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try { await navigator.clipboard.writeText(text); }
+                        catch (e) { fallbackCopy(); }
+                    } else {
+                        fallbackCopy();
+                    }
+                    flashOk();
+                } catch (e) {
+                    console.error('copyCurrentLogView', e);
+                    this.showAlert('warning', 'Notice', this.tIdx('lg_copy_view_fail') || 'Copy failed');
                 }
             },
             async confirmLogUploadToCloud() {

@@ -214,8 +214,28 @@ function toast(msg, type = 'ok') {
 }
 function copyText(t) {
   const s = String(t || '');
-  if (!s) return;
-  navigator.clipboard.writeText(s).then(() => toast(t('copied'))).catch(() => toast(t('copyFail'), 'err'));
+  if (!s) { toast(t('copyFail'), 'err'); return; }
+  const ok = () => toast(t('copied'));
+  const fail = () => toast(t('copyFail'), 'err');
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = s;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const done = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done ? ok() : fail();
+    } catch (_) { fail(); }
+  };
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(s).then(ok).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 function mediaThumb(raw, opts) {
   const o = opts || {};
@@ -2353,9 +2373,11 @@ function renderLogView() {
                   ? h('button', { class: 'gbtn btn-sm', onclick: () => { v.showAll = true; render(); } }, t('showAllLog'))
                   : null,
                 h('button', {
-                  class: 'gbtn btn-sm',
-                  onclick: () => copyText(pre.textContent || ''),
-                }, t('copyView')),
+                  class: 'gbtn btn-sm primary',
+                  title: t('copyView'),
+                  disabled: v.busy || !(view && view.text),
+                  onclick: () => copyText((view && view.text) || pre.textContent || ''),
+                }, fa('fa-copy'), ' ' + t('copyView')),
               ),
               metaEl,
               pre,
