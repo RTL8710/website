@@ -42,19 +42,47 @@ export function statusChip(online) {
     h('span', { class: 'dot' }), label);
 }
 
-export function deviceCard(dev, onOpen) {
-  const thumb = h('div', { class: 'thumb' },
-    dev.picture ? h('img', { src: dev.picture, alt: '', onerror: function () { this.style.display = 'none'; } }) : null,
-    h('span', { class: 'badge' }, statusChip(dev.online === 1)),
-  );
+export function deviceCard(dev, onOpen, opts = {}) {
+  const tt = (typeof window !== 'undefined' && window.__t) ? window.__t : null;
+  const entering = !!(opts.entering);
+  const online = dev.online === 1 || dev.online === true;
+  const thumbKids = [];
+  if (dev.picture) {
+    thumbKids.push(h('img', {
+      src: dev.picture, alt: '',
+      onerror: function () { this.style.display = 'none'; const ph = this.parentNode && this.parentNode.querySelector('.thumb-ph'); if (ph) ph.hidden = false; },
+    }));
+  }
+  thumbKids.push(h('div', { class: 'thumb-ph', hidden: !!dev.picture }, icon('video', 36)));
+  thumbKids.push(h('div', { class: 'thumb-fade' }));
+  thumbKids.push(h('span', { class: 'badge' }, statusChip(online)));
+  if (entering) {
+    thumbKids.push(h('div', { class: 'enter-overlay' },
+      h('div', { class: 'spinner' }),
+      h('span', {}, tt ? tt('enteringShort') : 'Entering…'),
+    ));
+  }
   const metas = [];
   if (dev.model) metas.push(h('span', { class: 'meta' }, dev.model));
-  if (dev.firmware) metas.push(h('span', { class: 'meta' }, 'v' + dev.firmware));
-  return h('div', { class: 'glass devcard reveal', onclick: () => onOpen(dev) },
-    thumb,
+  if (dev.firmware) metas.push(h('span', { class: 'meta' }, 'v' + String(dev.firmware).replace(/^v/i, '')));
+  return h('article', {
+    class: 'glass devcard reveal' + (online ? '' : ' is-off') + (entering ? ' is-entering' : ''),
+    role: 'button',
+    tabindex: entering ? '-1' : '0',
+    'aria-busy': entering ? 'true' : 'false',
+    onclick: () => { if (!entering) onOpen(dev); },
+    onkeydown: (e) => { if (!entering && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(dev); } },
+  },
+    h('div', { class: 'thumb' }, ...thumbKids),
     h('div', { class: 'body' },
-      h('div', { class: 'name' }, dev.name),
+      h('div', { class: 'body-top' },
+        h('div', { class: 'name' }, dev.name || '—'),
+        h('span', { class: 'enter-cta', 'aria-hidden': 'true' }, icon('chevron', 16)),
+      ),
       h('div', { class: 'metaline' }, ...metas),
+      h('div', { class: 'card-foot' },
+        h('span', { class: 'enter-label' }, tt ? tt('enter') : 'Enter'),
+      ),
     ),
   );
 }
