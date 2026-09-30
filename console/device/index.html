@@ -18519,6 +18519,17 @@ document.addEventListener('DOMContentLoaded', function() {
             focusCamera(camIndex) {
                 const want = camIndex + 1;                       // 0->CAM1, 1->CAM2 …
                 if (want !== 1 && !this.camUids[camIndex]) return; // 该路未发布则不切，避免大窗空
+                const prev = this.focusCam | 0;
+                // 大小图对调时：小窗屏幕位置跟着“窗口”走，不跟摄像头走，避免跳到顶部居中
+                if (prev && want !== prev && this.liveLayout !== 'grid') {
+                    const fromKey = String(want); // 当前小窗（被点击升为大图）
+                    const toKey = String(prev);   // 原大图 → 新小窗
+                    const pos = (this.livePipPos && this.livePipPos[fromKey]) || this.livePipDefaultPos(want);
+                    this.livePipPos = Object.assign({}, this.livePipPos || {}, {
+                        [toKey]: { left: pos.left, top: pos.top }
+                    });
+                    try { localStorage.setItem('dv_live_pip_pos', JSON.stringify(this.livePipPos)); } catch (e) {}
+                }
                 this.focusCam = want;                     // CSS(:class) 自动切大小，无需重渲染
                 // 点击小框同步切换 Camera Select，让设置参数跟随大图。
                 // persist=false：只让参数面板跟随显示，绝不回写设备（否则触发 pipeline 重配 → 卡顿）。
