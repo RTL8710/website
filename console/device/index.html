@@ -13756,7 +13756,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.options.appCertificate = cert;
                 }
             },
-            /** 只用机器人下发的 App ID + App Certificate 现签；无证书则空 token（与设备一致） */
+            /**
+             * 网页/Console 观众端进房 token：
+             * 1) 有 App Certificate → 本地现签 uid=0（勿复用设备推流 rtcToken，uid 绑定会 CAN_NOT_GET_GATEWAY_SERVER）
+             * 2) 无证书再回落设备 rtcToken（仅适合未开 Certificate 的项目）
+             */
             async ensureAgoraJoinToken(){
                 this.sanitizeAgoraRtcForm();
                 const appId = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || '').trim();
@@ -13768,22 +13772,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (this.agoraRtcService) this.agoraRtcService.rtcAppCertificate = '';
                 }
                 const channel = ((this.options && this.options.channel) || this.resolveAgoraChannelName() || '').trim();
-                let tok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
-                if (tok && tok.length === 32 && /^[0-9a-fA-F]+$/.test(tok)) tok = '';
-                if (this.options) this.options.appid = appId;
-                if (tok) {
-                    this.options.token = tok;
-                    console.log('[AHS][Agora] using device rtcToken');
-                    return tok;
+                let deviceTok = (this.agoraRtcService && this.agoraRtcService.rtcToken) ? String(this.agoraRtcService.rtcToken).trim() : '';
+                if (deviceTok && (deviceTok === cert || deviceTok === appId || (deviceTok.length === 32 && /^[0-9a-fA-F]+$/.test(deviceTok)))) {
+                    deviceTok = '';
                 }
-                // 等 crypto + token 脚本；兼容 AgoraRtcToken（agora-rtc-token.js）与 AhsAgoraToken（agora-token.js）
+                if (this.options) this.options.appid = appId;
+
+                // 等 crypto + token 脚本；兼容 AgoraRtcToken / AhsAgoraToken
                 for (let i = 0; i < 30 && !(window.CryptoJS && (window.AgoraRtcToken || window.AhsAgoraToken)); i++) {
                     await new Promise(r => setTimeout(r, 100));
                 }
                 if (cert && appId && channel) {
                     try {
+                        let tok = '';
+                        // 回放/观众必须 SUBSCRIBER；直播 host 用 PUBLISHER
+                        const asAudience = !!(this.options && this.options.role === 'audience');
                         if (window.AgoraRtcToken && window.CryptoJS) {
-                            const role = (this.options && this.options.role === 'audience')
+                            const role = asAudience
                                 ? window.AgoraRtcToken.Role.SUBSCRIBER
                                 : window.AgoraRtcToken.Role.PUBLISHER;
                             tok = window.AgoraRtcToken.buildTokenWithUid(appId, cert, channel, 0, role, 24 * 3600);
@@ -13792,15 +13797,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         if (tok) {
                             this.options.token = tok;
-                            console.log('[AHS][Agora] minted token from device rtcAppCertificate, appId=', appId.slice(0, 8), 'len=', tok.length);
+                            console.log('[AHS][Agora] minted viewer token appId=', appId.slice(0, 8),
+                                'len=', tok.length, 'audience=', asAudience);
                             return tok;
                         }
                     } catch (e) {
                         console.warn('[AHS][Agora] token mint failed', e);
                     }
                 }
-                console.log('[AHS][Agora] join empty token; device appId=', (appId || '').slice(0, 8),
-                    'cert?', !!cert, 'AgoraRtcToken?', !!window.AgoraRtcToken, 'AhsAgoraToken?', !!window.AhsAgoraToken);
+                if (deviceTok) {
+                    this.options.token = deviceTok;
+                    console.warn('[AHS][Agora] fallback device rtcToken (no cert mint); may fail if uid-bound');
+                    return deviceTok;
+                }
+                console.warn('[AHS][Agora] join empty token; appId=', (appId || '').slice(0, 8),
+                    'cert?', !!cert, 'channel?', !!channel,
+                    'AgoraRtcToken?', !!window.AgoraRtcToken, 'AhsAgoraToken?', !!window.AhsAgoraToken);
                 this.options.token = null;
                 return null;
             },
@@ -14705,11 +14717,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 // 对齐 App：回放不离房重建。设备 1226 常驻同频道，反复 leave/join 会掐 Cloud Proxy WS
                 const wantMode = (m === 'replay') ? 'rtc' : 'live';
+                // 须在 ensureAgoraJoinToken 之前定 role（现签 SUBSCRIBER/PUBLISHER）
+                this.options.role = (m === 'replay') ? 'audience' : 'host';
                 const reuse = !!(this.client && this.isStreaming && this._agoraJoinMode === wantMode
                     && this.options && this.options.channel === channel);
                 if (reuse) {
                     console.log('[AHS][Agora] reuse client', wantMode, channel);
-                    this.options.role = (m === 'replay') ? 'audience' : 'host';
                     return;
                 }
                 if (this.client) {
@@ -14727,6 +14740,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.options.appid = this.agoraRtcService.rtcAppId;
                 }
                 await this.ensureAgoraJoinToken();
+                if (!this.options.token) {
+                    console.error('[AHS][Agora] no join token — set App Certificate on device or mint will fail');
+                    this.showAlert('warning', 'Notice',
+                        'Agora token missing: set App Certificate on device (Media → Agora), then retry');
+                }
                 this.client.on("user-published", this.handleUserPublished.bind(this));
                 this.client.on("user-unpublished", this.handleUserUnpublished.bind(this));
                 const self = this;
@@ -14756,7 +14774,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     try { await startProxy(); } catch (e) { console.warn('[AHS][Agora] proxy', e); }
                 }
                 // 回放只订不推（rtc 无 host/audience）；直播 live 才设 role
-                this.options.role = (m === 'replay') ? 'audience' : 'host';
                 if (m !== 'replay') {
                     this.client.setClientRole(this.options.role);
                 }
