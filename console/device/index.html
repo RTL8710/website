@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <!--    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!--    <link rel="icon" type="image/x-icon" href="/favicon.ico">-->
+<link rel="icon" type="image/x-icon" href="favicon.ico">
         <title data-i18n="page_title">Device</title>
     <link rel="stylesheet" href="tabler.min.css">
     <link href="dropzone.css" rel="stylesheet"/>
@@ -13421,11 +13421,33 @@ document.addEventListener('DOMContentLoaded', function() {
             async uploadDeviceLogsToCloud() {
                 this.openLogUploadModal();
             },
+            /** 设备本地 HTTP /log/* 仅局域网可用；云端 Pages 会 404 返回 HTML。 */
+            _canUseDeviceLogHttp() {
+                if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return true;
+                if (typeof window.isWanMediaMode === 'function' && window.isWanMediaMode()) return false;
+                try {
+                    const t = window.DeviceTransport && DeviceTransport.active;
+                    if (t && t !== 'http') return false;
+                } catch (e) {}
+                return false;
+            },
             async fetchLogs() {
                 await this.initLogInformation();
+                if (!this._canUseDeviceLogHttp()) {
+                    this.logs = [];
+                    this.logContent = '';
+                    this.logActiveFile = '';
+                    return;
+                }
                 const dir = encodeURIComponent(this.logInformation.logDir || '');
                 fetch(`/log/log-list?dir=${dir}`)
-                    .then((response) => response.json())
+                    .then(async (response) => {
+                        const ct = (response.headers.get('content-type') || '').toLowerCase();
+                        if (!response.ok || !ct.includes('json')) {
+                            throw new Error('log-list unavailable (' + response.status + ')');
+                        }
+                        return response.json();
+                    })
                     .then((data) => {
                         this.logs = Array.isArray(data) ? data : [];
                         if (this.logs.length) {
@@ -13433,23 +13455,31 @@ document.addEventListener('DOMContentLoaded', function() {
                                 || this.logs.find(l => l.current)
                                 || this.logs[0];
                             this.logActiveFile = prefer.name;
-                            // 不自动弹框，避免列表页被内容撑出整页滚动；点击会话再打开。
                         } else {
                             this.logContent = '';
                             this.logActiveFile = '';
                             this.logViewOpen = false;
                         }
                     })
-                    .catch((e) => console.error('fetchLogs', e));
+                    .catch((e) => {
+                        this.logs = [];
+                        // 云端/非设备源上属预期，不刷红字
+                        if (this._canUseDeviceLogHttp()) console.warn('fetchLogs', e);
+                    });
             },
             clearLogs(filename = null) {
+                if (!this._canUseDeviceLogHttp()) return;
                 let url = `/log/log-clear?dir=${encodeURIComponent(this.logInformation.logDir || '')}`;
                 if (filename) url += `&file=${encodeURIComponent(filename)}`;
                 fetch(url)
-                    .then((response) => response.json())
+                    .then(async (response) => {
+                        const ct = (response.headers.get('content-type') || '').toLowerCase();
+                        if (!response.ok || !ct.includes('json')) return null;
+                        return response.json();
+                    })
                     .then(() => this.fetchLogs())
                     .catch((error) => {
-                        console.error('clearLogs', error);
+                        console.warn('clearLogs', error);
                         this.fetchLogs();
                     });
             },
@@ -13462,6 +13492,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.logViewLoading = true;
                 this.logContent = '';
                 try { document.body.style.overflow = 'hidden'; } catch (e) {}
+                if (!this._canUseDeviceLogHttp()) {
+                    this.logContent = '';
+                    this.logViewLoading = false;
+                    return;
+                }
                 const dir = encodeURIComponent(this.logInformation.logDir || '');
                 fetch(`/log/log-content?dir=${dir}&file=${encodeURIComponent(fileName)}`)
                     .then((response) => response.text())
@@ -13479,6 +13514,10 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshLogView() {
                 const fileName = this.logActiveFile;
                 if (!fileName || this.logViewLoading) return;
+                if (!this._canUseDeviceLogHttp()) {
+                    this.logViewLoading = false;
+                    return;
+                }
                 this.logViewLoading = true;
                 const dir = encodeURIComponent(this.logInformation.logDir || '');
                 fetch(`/log/log-content?dir=${dir}&file=${encodeURIComponent(fileName)}`)
