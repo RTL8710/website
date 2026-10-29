@@ -12761,7 +12761,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             agoraRtcService: {
-                rtcAppId: "289f22d97eab4db98e53af72edbef3b7",
+                // 禁止填仓库默认 AppId：否则 ensureLivePreviewIdentity 会以为已配置而跳过 get，云端回放空 token
+                rtcAppId: "",
                 rtcAppCertificate: "",
                 rtcToken: "",
                 rtcChannelName: "",
@@ -13858,20 +13859,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         await this.initMediaServerInformation();
                     }
                 } catch (e) {}
+                // 每次进预览/回放都强制 get Agora：页面默认 AppId 非空时旧逻辑会跳过，云端一直用错 appId+空 cert
                 try {
-                    if (!this.agoraRtcService || !this.agoraRtcService.rtcAppId) {
-                        await this.initAgoraRtcService();
-                    } else {
-                        this.sanitizeAgoraRtcForm();
-                    }
-                } catch (e) {}
+                    await this.initAgoraRtcService();
+                } catch (e) {
+                    console.warn('[AHS][Agora] ensureLivePreviewIdentity get failed', e);
+                    try { this.sanitizeAgoraRtcForm(); } catch (e2) {}
+                }
                 const ch = this.resolveAgoraChannelName();
                 if (ch && window.DeviceTransport) window.DeviceTransport.rememberUuid(ch);
-                // 同步网页 RTC AppId（跟设备 agora 配置）
+                // 只同步 AppId；token 一律留给 ensureAgoraJoinToken 现签（勿把设备推流 token 塞给观众端）
                 if (this.agoraRtcService && this.agoraRtcService.rtcAppId && this.options) {
                     this.options.appid = this.agoraRtcService.rtcAppId;
-                    const tok = (this.agoraRtcService.rtcToken || '').trim();
-                    this.options.token = tok || null;
                 }
                 if (window.DeviceTransport && this.options && this.options.appid) {
                     window.DeviceTransport.appId = this.options.appid;
@@ -17299,15 +17298,25 @@ async _execSystemServiceAction(action) {
                         body: JSON.stringify({method: "getAgoraRtcServiceCommand", params: {}})
                     });
                     const responseData = await response.json();
-                    if (responseData.status === STATUS.GET_AGORA_RTC) {
-                        const a = responseData.params.agoraRtcService || {};
+                    const st = responseData && responseData.status;
+                    const a = (responseData && responseData.params && responseData.params.agoraRtcService) || null;
+                    if ((st === STATUS.GET_AGORA_RTC || st === 1064) && a) {
                         if (a.rtcAppCertificate == null) a.rtcAppCertificate = '';
                         if (a.rtmServiceEnable == null) a.rtmServiceEnable = false;
                         this.agoraRtcService = a;
                         this.sanitizeAgoraRtcForm();
+                        const app = (a.rtcAppId || '').trim();
+                        const cert = (this.agoraRtcService.rtcAppCertificate || '').trim();
+                        console.log('[AHS][Agora] get ok appId=', app.slice(0, 8),
+                            'certLen=', cert.length, 'tokenLen=', String(a.rtcToken || '').length);
+                        return true;
                     }
+                    console.warn('[AHS][Agora] get unexpected', 'status=', st, 'want=', STATUS.GET_AGORA_RTC,
+                        'hasParams=', !!a);
+                    return false;
                 } catch (error) {
                     console.error('Error fetching agoraRtcService: ', error);
+                    return false;
                 }
             },
             async submitAgoraRtcService(opts) {
