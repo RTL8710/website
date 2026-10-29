@@ -13004,8 +13004,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // appid/certificate 以设备 getAgoraRtcService 为准（见 sanitizeAgoraRtcForm）
                 appid:"",
                 appCertificate:"",
-                // 默认 audience：只收设备流，不推本地摄像头/麦克风（设备侧也不消费网页上行）
-                role: "audience", // host or audience
+                // 直播默认 host（不推本地轨）；开本地摄像头/麦时才 publish
+                role: "host", // host or audience
                 audienceLatency: 2,
                 uid:"888888"
             },
@@ -14717,9 +14717,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 // 对齐 App：回放不离房重建。设备 1226 常驻同频道，反复 leave/join 会掐 Cloud Proxy WS
                 const wantMode = (m === 'replay') ? 'rtc' : 'live';
-                // 直播/回放默认 audience：只订设备视频，不推本地摄像头（省上行；设备不消费网页视频）
-                // 须在 ensureAgoraJoinToken 之前定 role（现签 SUBSCRIBER）
-                this.options.role = 'audience';
+                // 直播用 host 角色（与设备推流兼容；token 现签 PUBLISHER）。
+                // 回放用 audience。本地摄像头/麦克风默认仍不创建、不 publish（省上行）。
+                this.options.role = (m === 'replay') ? 'audience' : 'host';
                 const reuse = !!(this.client && this.isStreaming && this._agoraJoinMode === wantMode
                     && this.options && this.options.channel === channel);
                 if (reuse) {
@@ -14810,6 +14810,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.isStreaming = true;
                 if (m === 'replay') {
                     await this.syncExistingPlaybackUsers();
+                } else {
+                    // 设备常已在频道推流：补订已有远端，避免只等后续 user-published 一直「等待远程画面」
+                    await this.syncExistingLiveUsers();
                 }
                 this.updateLocalAudioIndicator(false);
             },
