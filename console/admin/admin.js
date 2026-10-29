@@ -3252,10 +3252,6 @@ function agoraLineChart(daily, days = 7) {
   });
 
   return h('div', { class: 'agora-chart-wrap' },
-    h('div', { class: 'agora-chart-legend' },
-      ...AGORA_SERIES.map((s) => h('span', { class: 'agora-leg' },
-        h('i', { style: { background: s.color } }), t(s.labelKey))),
-    ),
     svgEl('svg', { class: 'agora-chart-svg', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' },
       ...kids),
   );
@@ -3264,7 +3260,7 @@ function agoraLineChart(daily, days = 7) {
 function agoraDailyTable(daily, days = 7) {
   const rows = (daily || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, days);
   if (!rows.length) return null;
-  return h('div', { class: 'glass admin-table-wrap agora-daily-table' },
+  return h('div', { class: 'agora-daily-table' },
     h('table', { class: 'admin-table' },
       h('thead', {}, h('tr', {},
         h('th', {}, t('agoraColDate')),
@@ -3304,7 +3300,6 @@ function viewAgora() {
     sec = a.byProject[pid].totals;
     daily = a.byProject[pid].daily || [];
   } else if (a && !pid) {
-    // merge daily across projects by date (keep per-type seconds for chart)
     const map = {};
     for (const p of (a.projects || [])) {
       for (const d of ((a.byProject[p.id] && a.byProject[p.id].daily) || [])) {
@@ -3324,161 +3319,187 @@ function viewAgora() {
     daily = Object.keys(map).sort().map((k) => map[k]);
   }
   const remaining = Math.max(0, quota - used);
-  const pct = quota > 0 ? (used / quota) * 100 : 0;
+  const pct = quota > 0 ? Math.min(100, (used / quota) * 100) : 0;
   const risk = agoraRisk(pct);
   const projects = (a && a.projects) || [];
-
   const fmtMin = (n) => (Math.round((n || 0) * 100) / 100).toLocaleString();
-  const fmtSec = (n) => Math.round(n || 0).toLocaleString() + 's';
+  const chartDays = Number(state.agoraChartDays) || 7;
+  const cost = agoraCostFromSeconds(sec);
+  const billableStd = Math.max(0, used - quota);
+  const dueUsd = (billableStd / 1000) * 0.99;
+  const coveredUsd = Math.max(0, cost.listUsd - dueUsd);
+  const seriesMins = [
+    ['agoraAudio', minOfSec(secOf(sec, ['audio'])), '#F59E0B'],
+    ['agoraHd', minOfSec(secOf(sec, ['hd', 'hdp'])), '#3B82F6'],
+    ['agoraFullHd', minOfSec(secOf(sec, ['fullHd'])), '#22C55E'],
+    ['agoraVideo2k', minOfSec(secOf(sec, ['video2k'])), '#EC4899'],
+    ['agoraVideo2kPlus', minOfSec(secOf(sec, ['video2kPlus'])), '#A855F7'],
+  ];
+  const rangeLabel = (a && a.range) ? (a.range.fromDate.slice(5) + ' → ' + a.range.toDate.slice(5)) : '—';
+  const showDaily = !!state.agoraShowDaily;
+  const showCostDetail = !!state.agoraShowCostDetail;
 
-  return h('div', { class: 'overview-page logs-page agora-page' },
+  const refreshBtn = h('button', {
+    class: 'gbtn btn-sm agora-icon-btn', type: 'button', title: t('refresh'),
+    onclick: async () => {
+      state.loadingTab = true; render();
+      try { await loadAgora(); toast(t('dataRefreshed')); }
+      catch (e) { toast((e && e.message) || t('agoraLoadFail'), 'err'); }
+      finally { state.loadingTab = false; render(); }
+    },
+  }, fa('fa-rotate'));
+
+  return h('div', { class: 'agora-page' },
     state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
-    h('div', { class: 'glass logs-hero agora-hero' },
-      h('div', {},
-        h('div', { class: 'logs-kicker' }, t('agoraEyebrow')),
-        h('h1', {}, t('agora')),
-        h('div', { class: 'logs-hero-sub' }, t('agoraSub')),
-        h('div', { class: 'logs-hero-meta' },
-          chip(t('agoraPackage')),
-          chip((a && a.range) ? (a.range.fromDate + ' → ' + a.range.toDate) : '—'),
-          chip(t(risk.key), risk.cls === 'ok' ? 'stat-online' : ''),
+
+    h('header', { class: 'agora-head' },
+      h('div', { class: 'agora-head-left' },
+        h('div', { class: 'agora-kicker' }, t('agoraEyebrow')),
+        h('div', { class: 'agora-title-row' },
+          h('h1', {}, t('agora')),
+          h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
+          h('span', { class: 'agora-pill muted' }, t('agoraPackage')),
+          h('span', { class: 'agora-pill muted' }, rangeLabel),
         ),
       ),
-      h('div', { class: 'agora-hero-right' },
-        agoraRing(pct),
-        h('div', { class: 'agora-hero-stats' },
-          h('div', { class: 'agora-kpi' },
-            h('span', { class: 'k' }, t('agoraRemaining')),
-            h('span', { class: 'v' }, fmtMin(remaining)),
-            h('span', { class: 'u' }, t('agoraMinutes')),
-          ),
-          h('div', { class: 'agora-kpi' },
-            h('span', { class: 'k' }, t('agoraUsed')),
-            h('span', { class: 'v' }, fmtMin(used)),
-            h('span', { class: 'u' }, '/ ' + fmtMin(quota)),
-          ),
-        ),
-      ),
-    ),
-    h('div', { class: 'admin-msg ' + (risk.cls === 'ok' ? 'info' : risk.cls) },
-      t('agoraHintFree') + ' · ' + t('agoraRefreshHint'),
-    ),
-    h('div', { class: 'logs-dock agora-dock' },
-      h('label', { class: 'admin-field', style: { minWidth: '220px' } },
-        h('span', {}, t('agoraSelectProject')),
+      h('div', { class: 'agora-head-actions' },
         h('select', {
+          class: 'agora-select',
           value: pid,
           onchange: (e) => { state.agoraProjectId = e.target.value; render(); },
         },
           h('option', { value: '' }, t('agoraAllProjects')),
-          ...projects.map((p) => h('option', { value: p.id }, `${p.name} (${p.id})`)),
+          ...projects.map((p) => h('option', { value: p.id }, p.name || p.id)),
+        ),
+        refreshBtn,
+        a && a.refreshedAt
+          ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+          : null,
+      ),
+    ),
+
+    h('section', { class: 'agora-quota' },
+      h('div', { class: 'agora-quota-nums' },
+        h('div', { class: 'agora-q' },
+          h('span', { class: 'k' }, t('agoraUsed')),
+          h('span', { class: 'v' }, fmtMin(used)),
+          h('span', { class: 'u' }, '/ ' + fmtMin(quota) + ' ' + t('agoraMinutes')),
+        ),
+        h('div', { class: 'agora-q accent' },
+          h('span', { class: 'k' }, t('agoraRemaining')),
+          h('span', { class: 'v' }, fmtMin(remaining)),
+          h('span', { class: 'u' }, t('agoraMinutes')),
+        ),
+        h('div', { class: 'agora-q' },
+          h('span', { class: 'k' }, t('agoraPercent')),
+          h('span', { class: 'v' }, (pct < 1 ? pct.toFixed(2) : pct.toFixed(1)) + '%'),
+          h('span', { class: 'u' }, t(risk.key)),
         ),
       ),
-      h('button', {
-        class: 'gbtn primary btn-sm', type: 'button',
-        onclick: async () => {
-          state.loadingTab = true; render();
-          try { await loadAgora(); toast(t('dataRefreshed')); }
-          catch (e) { toast((e && e.message) || t('agoraLoadFail'), 'err'); }
-          finally { state.loadingTab = false; render(); }
-        },
-      }, fa('fa-rotate'), ' ' + t('refresh')),
-      a && a.refreshedAt ? h('span', { class: 'faint', style: { fontSize: '11px' } },
-        '↻ ' + new Date(a.refreshedAt).toLocaleString()) : null,
+      h('div', { class: 'agora-bar-track', 'data-risk': risk.level },
+        h('i', { style: { width: Math.max(pct, pct > 0 ? 0.8 : 0) + '%' } }),
+      ),
+      h('p', { class: 'agora-footnote' }, t('agoraHintFree') + ' · ' + t('agoraRefreshHint')),
     ),
-    (() => {
-      const chartDays = Number(state.agoraChartDays) || 7;
-      const cost = agoraCostFromSeconds(sec);
-      const billableStd = Math.max(0, used - quota);
-      const dueUsd = (billableStd / 1000) * 0.99;
-      const coveredUsd = Math.max(0, cost.listUsd - dueUsd);
-      const audioMin = minOfSec(secOf(sec, ['audio']));
-      const hdMin = minOfSec(secOf(sec, ['hd', 'hdp']));
-      const fhdMin = minOfSec(secOf(sec, ['fullHd']));
-      const k2Min = minOfSec(secOf(sec, ['video2k']));
-      const k2pMin = minOfSec(secOf(sec, ['video2kPlus']));
-      return h('div', { class: 'agora-stack' },
-        h('div', { class: 'glass admin-panel agora-panel' },
-          h('div', { class: 'agora-panel-head' },
-            h('div', { class: 'agora-panel-title' }, t('agoraBreakdown')),
-            h('div', { class: 'seg' },
-              ...[7, 14, 30].map((n) => h('button', {
-                type: 'button', class: chartDays === n ? 'on' : '',
-                onclick: () => { state.agoraChartDays = n; render(); },
-              }, t('agoraLastNDays').replace('{n}', String(n)))),
-            ),
+
+    h('div', { class: 'agora-grid' },
+      h('section', { class: 'glass agora-card' },
+        h('div', { class: 'agora-card-head' },
+          h('h2', {}, t('agoraBreakdown')),
+          h('div', { class: 'seg' },
+            ...[7, 14, 30].map((n) => h('button', {
+              type: 'button', class: chartDays === n ? 'on' : '',
+              onclick: () => { state.agoraChartDays = n; render(); },
+            }, String(n) + 'd')),
           ),
-          h('div', { class: 'agora-metric-row' },
-            ...[
-              ['agoraAudio', audioMin, '#F59E0B'],
-              ['agoraHd', hdMin, '#3B82F6'],
-              ['agoraFullHd', fhdMin, '#22C55E'],
-              ['agoraVideo2k', k2Min, '#EC4899'],
-              ['agoraVideo2kPlus', k2pMin, '#A855F7'],
-            ].map(([k, m, c]) => h('div', { class: 'agora-metric' },
-              h('span', { class: 'dot', style: { background: c } }),
-              h('span', { class: 'k' }, t(k)),
-              h('span', { class: 'v' }, fmtMin1(m) + ' ' + t('agoraMinUnit')),
-            )),
-          ),
-          agoraLineChart(daily, chartDays),
-          agoraDailyTable(daily, chartDays),
         ),
-        h('div', { class: 'glass admin-panel agora-panel' },
-          h('div', { class: 'agora-panel-title' }, t('agoraCost')),
-          h('div', { class: 'agora-cost-kpis' },
-            h('div', { class: 'agora-kpi' },
-              h('span', { class: 'k' }, t('agoraListCost')),
-              h('span', { class: 'v' }, fmtUsd(cost.listUsd)),
-              h('span', { class: 'u' }, t('agoraListCostHint')),
-            ),
-            h('div', { class: 'agora-kpi' },
-              h('span', { class: 'k' }, t('agoraFreeCovered')),
-              h('span', { class: 'v' }, fmtUsd(coveredUsd)),
-              h('span', { class: 'u' }, t('agoraFreeCoveredHint')),
-            ),
-            h('div', { class: 'agora-kpi' },
-              h('span', { class: 'k' }, t('agoraDueCost')),
-              h('span', { class: 'v' }, fmtUsd(dueUsd)),
-              h('span', { class: 'u' }, billableStd > 0
-                ? t('agoraOverageMin').replace('{n}', fmtMin1(billableStd))
-                : t('agoraWithinFree')),
-            ),
+        h('div', { class: 'agora-series' },
+          ...seriesMins.map(([k, m, c]) => h('div', { class: 'agora-series-item' },
+            h('i', { style: { background: c } }),
+            h('span', { class: 'n' }, t(k)),
+            h('b', {}, fmtMin1(m)),
+            h('em', {}, t('agoraMinUnit')),
+          )),
+        ),
+        agoraLineChart(daily, chartDays),
+        h('div', { class: 'agora-card-foot' },
+          h('button', {
+            type: 'button', class: 'agora-link',
+            onclick: () => { state.agoraShowDaily = !state.agoraShowDaily; render(); },
+          }, showDaily ? t('agoraHideDaily') : t('agoraShowDaily')),
+        ),
+        showDaily ? agoraDailyTable(daily, chartDays) : null,
+      ),
+
+      h('section', { class: 'glass agora-card agora-cost-card' },
+        h('div', { class: 'agora-card-head' },
+          h('h2', {}, t('agoraCost')),
+        ),
+        h('div', { class: 'agora-due' },
+          h('span', { class: 'k' }, t('agoraDueCost')),
+          h('span', { class: 'v' }, fmtUsd(dueUsd)),
+          h('span', { class: 'u' }, billableStd > 0
+            ? t('agoraOverageMin').replace('{n}', fmtMin1(billableStd))
+            : t('agoraWithinFree')),
+        ),
+        h('div', { class: 'agora-cost-split' },
+          h('div', {},
+            h('span', { class: 'k' }, t('agoraListCost')),
+            h('span', { class: 'v' }, fmtUsd(cost.listUsd)),
           ),
-          h('div', { class: 'admin-msg info', style: { marginTop: '10px' } }, t('agoraCostDisclaimer')),
-          h('div', { class: 'glass admin-table-wrap', style: { marginTop: '10px' } },
-            h('table', { class: 'admin-table' },
-              h('thead', {}, h('tr', {},
-                h('th', {}, t('agoraCostType')),
-                h('th', {}, t('agoraMinUnit')),
-                h('th', {}, t('agoraRate')),
-                h('th', {}, t('agoraListCost')),
-              )),
-              h('tbody', {}, ...cost.lines.map((line) => h('tr', {},
-                h('td', {}, h('span', { class: 'agora-leg' },
-                  h('i', { style: { background: line.color } }), t(line.key))),
-                h('td', {}, fmtMin1(line.min)),
-                h('td', { class: 'mono' }, '$' + line.rate.toFixed(2) + ' / 1k'),
-                h('td', {}, fmtUsd(line.usd)),
-              )),
-                h('tr', {},
-                  h('td', {}, h('strong', {}, t('agoraTotal'))),
-                  h('td', {}, fmtMin1(used) + ' ' + t('agoraMinutes')),
-                  h('td', {}, '—'),
-                  h('td', {}, h('strong', {}, fmtUsd(cost.listUsd))),
-                ),
+          h('div', {},
+            h('span', { class: 'k' }, t('agoraFreeCovered')),
+            h('span', { class: 'v' }, fmtUsd(coveredUsd)),
+          ),
+        ),
+        h('ul', { class: 'agora-rate-list' },
+          ...cost.lines.map((line) => h('li', {},
+            h('span', { class: 'agora-leg' },
+              h('i', { style: { background: line.color } }), t(line.key)),
+            h('span', { class: 'm' }, fmtMin1(line.min)),
+            h('span', { class: 'c' }, fmtUsd(line.usd)),
+          )),
+        ),
+        h('button', {
+          type: 'button', class: 'agora-link',
+          onclick: () => { state.agoraShowCostDetail = !state.agoraShowCostDetail; render(); },
+        }, showCostDetail ? t('agoraHideRates') : t('agoraShowRates')),
+        showCostDetail ? h('div', { class: 'agora-rate-detail' },
+          h('table', { class: 'admin-table' },
+            h('thead', {}, h('tr', {},
+              h('th', {}, t('agoraCostType')),
+              h('th', {}, t('agoraMinUnit')),
+              h('th', {}, t('agoraRate')),
+              h('th', {}, t('agoraListCost')),
+            )),
+            h('tbody', {}, ...cost.lines.map((line) => h('tr', {},
+              h('td', {}, t(line.key)),
+              h('td', {}, fmtMin1(line.min)),
+              h('td', { class: 'mono' }, '$' + line.rate.toFixed(2)),
+              h('td', {}, fmtUsd(line.usd)),
+            )),
+              h('tr', {},
+                h('td', {}, h('strong', {}, t('agoraTotal'))),
+                h('td', {}, fmtMin1(used)),
+                h('td', {}, '—'),
+                h('td', {}, h('strong', {}, fmtUsd(cost.listUsd))),
               ),
             ),
           ),
-        ),
-      );
-    })(),
-    h('div', { class: 'glass admin-panel' },
-      h('div', { class: 'agora-panel-title' }, t('agoraProjects')),
+        ) : null,
+        h('p', { class: 'agora-footnote' }, t('agoraCostDisclaimer')),
+      ),
+    ),
+
+    h('section', { class: 'glass agora-card' },
+      h('div', { class: 'agora-card-head' },
+        h('h2', {}, t('agoraProjects')),
+        h('span', { class: 'agora-count' }, String(projects.length)),
+      ),
       !projects.length
-        ? emptyState(t('agoraEmpty') + ' — ' + t('agoraEmptyHint'))
-        : h('div', { class: 'glass admin-table-wrap' },
-          h('table', { class: 'admin-table' },
+        ? emptyState(t('agoraEmpty'))
+        : h('div', { class: 'agora-table-wrap' },
+          h('table', { class: 'admin-table agora-proj-table' },
             h('thead', {}, h('tr', {},
               h('th', {}, t('colName')),
               h('th', {}, t('agoraProjectId')),
@@ -3491,15 +3512,14 @@ function viewAgora() {
               return h('tr', {
                 class: pid === p.id ? 'is-active-row' : '',
                 onclick: () => { state.agoraProjectId = p.id; render(); },
-                style: { cursor: 'pointer' },
               },
-                h('td', {}, p.name || '—'),
+                h('td', {}, h('strong', {}, p.name || '—')),
                 h('td', { class: 'mono' }, p.id),
-                h('td', { class: 'mono' }, p.appId || '—'),
+                h('td', { class: 'mono agora-trunc' }, p.appId || '—'),
                 h('td', {}, p.status === 1
-                  ? h('span', { class: 'chip stat-online' }, t('agoraEnabled'))
-                  : h('span', { class: 'chip' }, t('agoraDisabled'))),
-                h('td', {}, fmtMin(m) + ' ' + t('agoraMinutes')),
+                  ? h('span', { class: 'agora-dot-on' }, t('agoraEnabled'))
+                  : h('span', { class: 'agora-dot-off' }, t('agoraDisabled'))),
+                h('td', {}, h('b', {}, fmtMin(m))),
               );
             })),
           ),
@@ -3507,6 +3527,7 @@ function viewAgora() {
     ),
   );
 }
+
 
 
 function render() {

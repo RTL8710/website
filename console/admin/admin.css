@@ -454,60 +454,142 @@ body:has(.login-shell) #app{min-height:100vh}
 }
 
 
-/* ── Agora quota studio ── */
-.agora-hero{position:relative}
-.agora-ring-wrap{display:flex;align-items:center;justify-content:center;min-height:120px}
-.agora-ring{
-  width:118px;height:118px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--sh-glow), inset 0 0 0 1px rgba(255,255,255,.06);
+/* ── Agora studio (compact) ── */
+.agora-page{display:flex;flex-direction:column;gap:14px;max-width:1180px}
+.agora-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:4px 2px 2px;
 }
-.agora-ring-inner{
-  width:86px;height:86px;border-radius:50%;background:rgba(7,9,13,.92);
-  border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;
+.agora-kicker{
+  font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);opacity:.9;margin-bottom:4px;
 }
-.agora-ring-pct{font-family:var(--font-display);font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1}
-.agora-ring-label{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo);margin-top:4px}
-.agora-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important;margin-top:2px}
-.agora-break-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
-.agora-break-card{
-  padding:10px 12px;border-radius:12px;border:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+.agora-title-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.agora-title-row h1{
+  margin:0;font-family:var(--font-display);font-size:clamp(22px,2.4vw,28px);font-weight:800;
+  letter-spacing:-.03em;line-height:1.1;color:var(--text-hi);
 }
-.agora-break-card .k{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-lo)}
-.agora-break-card .v{font-family:var(--font-display);font-size:18px;font-weight:800;margin-top:4px;letter-spacing:-.02em}
-.agora-stack{display:flex;flex-direction:column;gap:14px;margin-top:12px}
-.agora-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
-.agora-panel-title{font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text-hi)}
-.agora-metric-row{display:flex;flex-wrap:wrap;gap:10px 18px;margin:6px 0 12px}
-.agora-metric{display:inline-flex;align-items:center;gap:8px;min-width:110px}
-.agora-metric .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.agora-metric .k{font-size:11px;font-weight:700;color:var(--text-lo)}
-.agora-metric .v{font-family:var(--font-display);font-size:15px;font-weight:800;letter-spacing:-.02em}
-.agora-chart-wrap{margin-top:4px}
-.agora-chart-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:8px}
-.agora-leg{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-md)}
-.agora-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
-.agora-chart-svg{width:100%;height:220px;display:block}
-.agora-chart-grid{stroke:rgba(255,255,255,.08);stroke-width:1}
+.agora-pill{
+  display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;
+  font-size:10.5px;font-weight:750;letter-spacing:.02em;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-md);
+}
+.agora-pill.muted{color:var(--text-lo);font-weight:650}
+.agora-pill-ok{border-color:rgba(52,211,153,.35);color:#6ee7b7;background:rgba(52,211,153,.08)}
+.agora-pill-warn{border-color:rgba(251,191,36,.35);color:#fcd34d;background:rgba(251,191,36,.08)}
+.agora-pill-err{border-color:rgba(248,113,113,.4);color:#fca5a5;background:rgba(248,113,113,.08)}
+.agora-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.agora-select{
+  height:34px;min-width:160px;max-width:240px;padding:0 12px;border-radius:10px;
+  background:var(--input-bg);border:1px solid var(--border);color:var(--text-hi);
+  font:inherit;font-size:12.5px;font-weight:650;
+}
+.agora-icon-btn{width:34px!important;padding:0!important;justify-content:center}
+.agora-fresh{font-size:11px;color:var(--text-lo);font-variant-numeric:tabular-nums}
+
+.agora-quota{
+  padding:14px 16px 12px;border-radius:16px;border:1px solid var(--border);
+  background:
+    radial-gradient(120% 80% at 100% 0%,rgba(45,212,191,.08),transparent 55%),
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+}
+.agora-quota-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.agora-q .k{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo)}
+.agora-q .v{display:block;margin-top:4px;font-family:var(--font-display);font-size:clamp(20px,2.2vw,26px);font-weight:800;letter-spacing:-.035em;line-height:1.05;color:var(--text-hi)}
+.agora-q .u{display:block;margin-top:3px;font-size:11px;color:var(--text-lo)}
+.agora-q.accent .v{color:var(--accent)}
+.agora-bar-track{
+  margin-top:12px;height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;
+}
+.agora-bar-track>i{
+  display:block;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,var(--accent),#5eead4);
+  box-shadow:0 0 12px rgba(45,212,191,.35);
+  transition:width .45s cubic-bezier(.2,.8,.2,1);
+}
+.agora-bar-track[data-risk="warn"]>i{background:linear-gradient(90deg,#F59E0B,#FBBF24);box-shadow:0 0 12px rgba(245,158,11,.3)}
+.agora-bar-track[data-risk="critical"]>i,.agora-bar-track[data-risk="exhausted"]>i{
+  background:linear-gradient(90deg,#EF4444,#F87171);box-shadow:0 0 12px rgba(239,68,68,.3)
+}
+.agora-footnote{margin:10px 0 0;font-size:11px;line-height:1.45;color:var(--text-lo);opacity:.85}
+
+.agora-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.85fr);gap:14px;align-items:start}
+.agora-card{
+  padding:16px 16px 14px;border-radius:16px;margin:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+}
+.agora-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.agora-card-head h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text-hi)}
+.agora-count{
+  min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;background:var(--acc-soft);color:var(--accent);border:1px solid var(--acc-soft-bd);
+}
+.agora-series{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.agora-series-item{
+  display:inline-flex;align-items:baseline;gap:6px;padding:6px 10px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(0,0,0,.16);
+}
+.agora-series-item i{width:7px;height:7px;border-radius:50%;align-self:center;flex:none}
+.agora-series-item .n{font-size:11px;font-weight:700;color:var(--text-lo)}
+.agora-series-item b{font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-.02em;color:var(--text-hi)}
+.agora-series-item em{font-style:normal;font-size:10px;color:var(--text-lo)}
+.agora-chart-wrap{margin-top:2px}
+.agora-chart-svg{width:100%;height:210px;display:block}
+.agora-chart-grid{stroke:rgba(255,255,255,.06);stroke-width:1}
 .agora-chart-axis{fill:var(--text-lo);font-size:10px;font-weight:600}
-.agora-daily-table{margin-top:12px}
-.agora-cost-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px}
-.agora-kpi{padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
-.agora-kpi .k{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-lo)}
-.agora-kpi .v{display:block;font-family:var(--font-display);font-size:22px;font-weight:800;margin-top:6px;letter-spacing:-.03em}
-.agora-kpi .u{display:block;font-size:11px;color:var(--text-lo);margin-top:4px}
-.agora-ring-svg{position:absolute;inset:0;width:100%;height:100%}
-.agora-ring{position:relative}
-.agora-ring-track{stroke:rgba(255,255,255,.08);stroke-width:10}
-.agora-ring-bar{stroke:var(--accent);stroke-width:10;stroke-linecap:round;transition:stroke-dasharray .4s ease}
-.agora-ring[data-risk="warn"] .agora-ring-bar{stroke:#F59E0B}
-.agora-ring[data-risk="critical"] .agora-ring-bar,.agora-ring[data-risk="exhausted"] .agora-ring-bar{stroke:#EF4444}
-.agora-ring-label{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:86px;height:86px;border-radius:50%;background:rgba(7,9,13,.92);border:1px solid var(--border)}
-.agora-ring-cap{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo);margin-top:4px}
-@media (max-width:820px){
-  .agora-stats,.agora-break-grid,.agora-cost-kpis{grid-template-columns:1fr 1fr!important}
-  .agora-chart-svg{height:180px}
+.agora-card-foot{display:flex;justify-content:flex-end;margin-top:8px}
+.agora-link{
+  appearance:none;border:0;background:transparent;cursor:pointer;padding:4px 0;
+  font:inherit;font-size:11.5px;font-weight:700;color:var(--accent);opacity:.9;
+}
+.agora-link:hover{opacity:1;text-decoration:underline}
+.agora-daily-table{margin-top:8px;max-height:220px;overflow:auto;border-radius:12px;border:1px solid var(--border)}
+
+.agora-cost-card .agora-due{margin-bottom:14px}
+.agora-due .k{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo)}
+.agora-due .v{display:block;margin-top:6px;font-family:var(--font-display);font-size:34px;font-weight:800;letter-spacing:-.04em;color:var(--accent);line-height:1}
+.agora-due .u{display:block;margin-top:6px;font-size:12px;color:var(--text-md)}
+.agora-cost-split{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 0 12px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:10px;
+}
+.agora-cost-split .k{display:block;font-size:10px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:var(--text-lo)}
+.agora-cost-split .v{display:block;margin-top:4px;font-family:var(--font-display);font-size:18px;font-weight:800;letter-spacing:-.02em}
+.agora-rate-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+.agora-rate-list li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;font-size:12px}
+.agora-rate-list .m{color:var(--text-lo);font-variant-numeric:tabular-nums}
+.agora-rate-list .c{font-weight:800;font-variant-numeric:tabular-nums;min-width:3.2em;text-align:right}
+.agora-leg{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--text-md)}
+.agora-leg i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+.agora-rate-detail{margin:8px 0;border-radius:12px;border:1px solid var(--border);overflow:auto;max-height:240px}
+.agora-table-wrap{overflow:auto;border-radius:12px;border:1px solid var(--border);max-height:min(42vh,360px)}
+.agora-proj-table tr{cursor:pointer}
+.agora-proj-table tr.is-active-row td{background:var(--acc-soft)}
+.agora-trunc{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agora-dot-on,.agora-dot-off{
+  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+}
+.agora-dot-on::before,.agora-dot-off::before{
+  content:"";width:7px;height:7px;border-radius:50%;
+}
+.agora-dot-on{color:#6ee7b7}.agora-dot-on::before{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.agora-dot-off{color:var(--text-lo)}.agora-dot-off::before{background:rgba(255,255,255,.25)}
+
+html[data-theme="light"] .agora-quota{
+  background:radial-gradient(120% 80% at 100% 0%,rgba(14,165,233,.08),transparent 55%),
+    linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,.4));
+}
+html[data-theme="light"] .agora-series-item{background:rgba(15,23,42,.03)}
+html[data-theme="light"] .agora-chart-grid{stroke:rgba(15,23,42,.08)}
+
+@media (max-width:960px){
+  .agora-grid{grid-template-columns:1fr}
+  .agora-quota-nums{grid-template-columns:1fr 1fr}
+  .agora-q:last-child{grid-column:1/-1}
 }
 @media (max-width:560px){
-  .agora-cost-kpis{grid-template-columns:1fr!important}
+  .agora-quota-nums{grid-template-columns:1fr}
+  .agora-q:last-child{grid-column:auto}
+  .agora-chart-svg{height:170px}
+  .agora-due .v{font-size:28px}
 }
