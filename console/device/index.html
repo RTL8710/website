@@ -14662,23 +14662,27 @@ document.addEventListener('DOMContentLoaded', function() {
             },
 
             async handleUserUnpublished(user, mediaType) {
-                if (mediaType === 'video') {
-                    const id = user.uid;
-                    delete this.remoteUsers[id];
-                    const ci = this.camUids.indexOf(id);
-                    if (ci >= 0) {
-                        this.setCamUid(ci, null);
-                        if (ci === 0) { this.cam1Uid = null; this.currentMainViewUid = null; }
-                        else if (ci === 1) this.cam2Uid = null;
-                        else if (ci === 2) this.cam3Uid = null;
-                    }
-                    const pi = this.pbCamUids.indexOf(id);
-                    if (pi >= 0) this.setPbCamUid(pi, null);               // 某路回放流停止
-                    if (id === this.playbackUid) this.playbackUid = null;  // 回放流停止发布
-                    if (this.focusCam !== 1 && !this.camUids[this.focusCam - 1]) this.focusCam = 1;  // 聚焦那路没了→回 CAM1
-                    $(`#player-wrapper-${id}`).remove();
-                    this.renderRemoteVideos();
+                if (mediaType !== 'video') return;
+                const id = user.uid;
+                delete this.remoteUsers[id];
+                const ci = this.camUids.indexOf(id);
+                if (ci >= 0) {
+                    this.setCamUid(ci, null);
+                    if (ci === 0) { this.cam1Uid = null; this.currentMainViewUid = null; }
+                    else if (ci === 1) this.cam2Uid = null;
+                    else if (ci === 2) this.cam3Uid = null;
                 }
+                const pi = (this.pbCamUids || []).indexOf(id);
+                if (pi >= 0) this.setPbCamUid(pi, null);
+                if (id === this.playbackUid) this.playbackUid = null;
+                if (this.focusCam !== 1 && !this.camUids[this.focusCam - 1]) this.focusCam = 1;
+                // 不用 jQuery；旧 player-wrapper 节点若存在则清掉
+                try {
+                    const wrap = document.getElementById('player-wrapper-' + id);
+                    if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                } catch (e) {}
+                if (this.viewMode === 'replay') this.renderPlaybackVideo();
+                else this.renderRemoteVideos();
             },
 
             async ensureDeviceLivePreviewSession(action) {
@@ -18595,11 +18599,13 @@ async _execSystemServiceAction(action) {
                     if (camIdx === 0) { this.cam1Uid = id; this.currentMainViewUid = id; }
                     else if (camIdx === 1) this.cam2Uid = id;
                     else if (camIdx === 2) this.cam3Uid = id;
-                    if (user.hasVideo || user.videoTrack == null) {
-                        try {
-                            await this.client.subscribe(user, 'video');
-                            console.log('[AHS][Agora] synced live video uid', id, 'cam', camIdx);
-                        } catch (e) {
+                    if (!user.hasVideo) continue;
+                    try {
+                        await this.client.subscribe(user, 'video');
+                        console.log('[AHS][Agora] synced live video uid', id, 'cam', camIdx);
+                    } catch (e) {
+                        const msg = String((e && e.message) || e);
+                        if (!/not published|INVALID_REMOTE_USER/i.test(msg)) {
                             console.warn('[AHS][Agora] sync live subscribe', id, e);
                         }
                     }
@@ -18620,13 +18626,19 @@ async _execSystemServiceAction(action) {
                     this.remoteUsers[id] = user;
                     this.setPbCamUid(pbIdx, id);
                     if (pbIdx === 0) this.playbackUid = id;
-                    if (user.hasVideo || (user.videoTrack == null)) {
-                        try { await this.client.subscribe(user, 'video'); } catch (e) { console.warn('[AHS][Agora] subscribe', id, e); }
+                    // 仅已 publish 的视频才 subscribe；未推流时强订会 INVALID_REMOTE_USER
+                    if (!user.hasVideo) continue;
+                    try {
+                        await this.client.subscribe(user, 'video');
+                    } catch (e) {
+                        const msg = String((e && e.message) || e);
+                        if (!/not published|INVALID_REMOTE_USER/i.test(msg)) {
+                            console.warn('[AHS][Agora] subscribe', id, e);
+                        }
                     }
-                    // 不订音频（与 App livePreviewJoinOptions.subscribeAudio=false 对齐）
                 }
                 this.renderPlaybackVideo();
-                this.refreshAgoraDebug();
+                this.refreshAgoraDebug && this.refreshAgoraDebug();
             },
             setPbCamUid(idx, val) {
                 const a = this.pbCamUids.slice();
