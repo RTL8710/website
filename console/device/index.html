@@ -13004,16 +13004,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // appid/certificate 以设备 getAgoraRtcService 为准（见 sanitizeAgoraRtcForm）
                 appid:"",
                 appCertificate:"",
-                // role: "audience", // host or audience
-                role: "host", // host or audience
+                // 默认 audience：只收设备流，不推本地摄像头/麦克风（设备侧也不消费网页上行）
+                role: "audience", // host or audience
                 audienceLatency: 2,
                 uid:"888888"
             },
             localTrackState :{
-                videoTrackMuted: false,
-                videoTrackEnabled: true,
-                audioTrackMuted: false,
-                audioTrackEnabled: true
+                videoTrackMuted: true,
+                videoTrackEnabled: false,
+                audioTrackMuted: true,
+                audioTrackEnabled: false
             },
             remoteTrackState :{
                 videoTrackMuted: false,
@@ -13026,7 +13026,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 实时预览传输方案: 先读缓存，进页/开预览后由 WEBRTCSolutionType 覆盖。
             previewTransport: (function(){ try { return localStorage.getItem('previewTransport') || 'agora'; } catch(e){ return 'agora'; } })(),
             activeTransport: null,   // 当前正在预览的方案,用于停止时调用对应 teardown
-            isMainShowLocalVideo: true,      // 是否显示本地预览
+            isMainShowLocalVideo: false,     // 默认不显示本地预览（不推本地摄像头）
             isShowLocalVideo: true,      // 是否显示本地预览
             isFullScreenVideo: false,      // 是否显示本地预览
             isTalking: false,        // 是否正在对讲
@@ -14700,8 +14700,8 @@ document.addEventListener('DOMContentLoaded', function() {
                              : (m === 'ai')   ? { cam1:'remoteViewAi', cam2:'remoteViewAi2', cam3:'remoteViewAi3', local:'localAiView', localWrapper:'localAiVideoWrapper', audioIndicator:'localAiVideoAudioIndicator' }
                              : (m === 'replay')? { cam1:'remotePlaybackView', cam2:'remotePlaybackView2', cam3:'remotePlaybackView3', local:'localPlaybackView', localWrapper:'localPlaybackVideoWrapper', audioIndicator:'localPlaybackVideoAudioIndicator' }
                              :                  { cam1:'remoteViewSetting', cam2:'remoteViewSetting2', cam3:'remoteViewSetting3', local:'localSettingView', localWrapper:'localSettingVideoWrapper', audioIndicator:'localSettingVideoAudioIndicator' };
-                this.isShowLocalVideo = true;
-                this.isMainShowLocalVideo = true;
+                this.isShowLocalVideo = false;
+                this.isMainShowLocalVideo = false;
                 this.isMainDisplayMode = (m === 'main');
                 this.viewMode = m;
                 console.log("startPreview mode:", m);
@@ -14717,8 +14717,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 // 对齐 App：回放不离房重建。设备 1226 常驻同频道，反复 leave/join 会掐 Cloud Proxy WS
                 const wantMode = (m === 'replay') ? 'rtc' : 'live';
-                // 须在 ensureAgoraJoinToken 之前定 role（现签 SUBSCRIBER/PUBLISHER）
-                this.options.role = (m === 'replay') ? 'audience' : 'host';
+                // 直播/回放默认 audience：只订设备视频，不推本地摄像头（省上行；设备不消费网页视频）
+                // 须在 ensureAgoraJoinToken 之前定 role（现签 SUBSCRIBER）
+                this.options.role = 'audience';
                 const reuse = !!(this.client && this.isStreaming && this._agoraJoinMode === wantMode
                     && this.options && this.options.channel === channel);
                 if (reuse) {
@@ -14805,38 +14806,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         throw e;
                     }
                 }
+                // 默认不创建/不推本地音视频（省流量；设备不处理网页上行）。用户点开摄像头/麦克风再按需 publish。
+                this.isStreaming = true;
                 if (m === 'replay') {
-                    this.isStreaming = true;
                     await this.syncExistingPlaybackUsers();
-                } else if (this.options.role === "audience") {
-                    this.isStreaming = true;
-                } else if (this.options.role === "host") {
-                    // create local audio and video tracks
-                    this.localTracks.audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
-                        encoderConfig: "music_standard"
-                    });
-
-                    this.localTracks.videoTrack = await AgoraRTC.createCameraVideoTrack();
-
-                    // 根据当前状态设置轨道
-                    if (!this.localTrackState.videoTrackEnabled) {
-                        this.localTracks.videoTrack.setEnabled(false);
-                    }
-                    if (this.localTrackState.audioTrackMuted) {
-                        this.localTracks.audioTrack.setEnabled(false);
-                    }
-                    // 获取本地视频容器（按当前模式取对应元素；AI 页可能无本地 PIP，做空保护）
-                    localView = document.getElementById((this.viewIds && this.viewIds.local) ||
-                                                        (this.isMainDisplayMode ? 'localView' : 'localSettingView'));
-                    if (localView) this.localTracks.videoTrack.play(localView);
-
-                    // publish local tracks to channel
-                    await this.client.publish(Object.values(this.localTracks));
-                    // 更新音频指示器
-                    this.updateLocalAudioIndicator(!this.localTrackState.audioTrackMuted);
-
-                   this.isStreaming = true;
                 }
+                this.updateLocalAudioIndicator(false);
             },
 
             async stopPreview(){
@@ -14845,10 +14820,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 try { await this.ensureDeviceLivePreviewSession('stop'); } catch (e) {}
                 // 重置状态
                 this.localTrackState = {
-                    videoTrackMuted: false,
-                    videoTrackEnabled: true,
-                    audioTrackMuted: false,
-                    audioTrackEnabled: true
+                    videoTrackMuted: true,
+                    videoTrackEnabled: false,
+                    audioTrackMuted: true,
+                    audioTrackEnabled: false
                 };
                 this.updateLocalAudioIndicator(!this.localTrackState.audioTrackMuted);
 
@@ -14914,34 +14889,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
             },
 
-            toggleLocalVideo() {
-                if (this.localTracks.videoTrack) {
-                    if (this.localTrackState.videoTrackEnabled) {
-                        this.localTracks.videoTrack.setEnabled(false);
-                        this.localTrackState.videoTrackEnabled = false;
-                        this.localTrackState.videoTrackMuted = true;
-                    } else {
-                        this.localTracks.videoTrack.setEnabled(true);
-                        this.localTrackState.videoTrackEnabled = true;
-                        this.localTrackState.videoTrackMuted = false;
-                    }
+            async ensureLocalPublisherRole() {
+                if (!this.client) return;
+                if (this.options.role === 'host') return;
+                this.options.role = 'host';
+                try {
+                    await this.ensureAgoraJoinToken();
+                    if (this.options.token) await this.client.renewToken(this.options.token);
+                } catch (e) { console.warn('[AHS][Agora] remint publisher token', e); }
+                try { await this.client.setClientRole('host'); } catch (e) { console.warn('[AHS][Agora] setClientRole host', e); }
+            },
+
+            async toggleLocalVideo() {
+                if (!this.client || !this.isStreaming) return;
+                // 关：unpublish + 释放摄像头
+                if (this.localTrackState.videoTrackEnabled && this.localTracks.videoTrack) {
+                    try { await this.client.unpublish(this.localTracks.videoTrack); } catch (e) {}
+                    try { this.localTracks.videoTrack.stop(); this.localTracks.videoTrack.close(); } catch (e) {}
+                    this.localTracks.videoTrack = null;
+                    this.localTrackState.videoTrackEnabled = false;
+                    this.localTrackState.videoTrackMuted = true;
+                    this.isShowLocalVideo = false;
+                    this.isMainShowLocalVideo = false;
+                    return;
+                }
+                // 开：升 host + 建轨推流（设备不消费，仅调试/对讲画面时手动开）
+                try {
+                    await this.ensureLocalPublisherRole();
+                    const track = await AgoraRTC.createCameraVideoTrack();
+                    this.localTracks.videoTrack = track;
+                    const localView = document.getElementById((this.viewIds && this.viewIds.local) ||
+                        (this.isMainDisplayMode ? 'localView' : 'localSettingView'));
+                    if (localView) track.play(localView);
+                    await this.client.publish([track]);
+                    this.localTrackState.videoTrackEnabled = true;
+                    this.localTrackState.videoTrackMuted = false;
+                    this.isShowLocalVideo = true;
+                    this.isMainShowLocalVideo = true;
+                } catch (e) {
+                    console.warn('[AHS][Agora] enable local video failed', e);
+                    this.showAlert && this.showAlert('warning', 'Notice', '无法打开本地摄像头: ' + ((e && e.message) || e));
                 }
             },
 
-            toggleLocalAudio() {
-                if (this.localTracks.audioTrack) {
-                    if (this.localTrackState.audioTrackMuted) {
-                        this.localTracks.audioTrack.setEnabled(true);
-                        this.localTrackState.audioTrackMuted = false;
-                        this.localTrackState.audioTrackEnabled = true;
-                    } else {
-                        this.localTracks.audioTrack.setEnabled(false);
-                        this.localTrackState.audioTrackMuted = true;
-                        this.localTrackState.audioTrackEnabled = false;
-                    }
+            async toggleLocalAudio() {
+                if (!this.client || !this.isStreaming) return;
+                if (!this.localTrackState.audioTrackMuted && this.localTracks.audioTrack) {
+                    try { await this.client.unpublish(this.localTracks.audioTrack); } catch (e) {}
+                    try { this.localTracks.audioTrack.stop(); this.localTracks.audioTrack.close(); } catch (e) {}
+                    this.localTracks.audioTrack = null;
+                    this.localTrackState.audioTrackMuted = true;
+                    this.localTrackState.audioTrackEnabled = false;
+                    this.updateLocalAudioIndicator(false);
+                    return;
                 }
-                this.updateLocalAudioIndicator(!this.localTrackState.audioTrackMuted);
-
+                try {
+                    await this.ensureLocalPublisherRole();
+                    const track = await AgoraRTC.createMicrophoneAudioTrack({ encoderConfig: 'music_standard' });
+                    this.localTracks.audioTrack = track;
+                    await this.client.publish([track]);
+                    this.localTrackState.audioTrackMuted = false;
+                    this.localTrackState.audioTrackEnabled = true;
+                    this.updateLocalAudioIndicator(true);
+                } catch (e) {
+                    console.warn('[AHS][Agora] enable local mic failed', e);
+                    this.showAlert && this.showAlert('warning', 'Notice', '无法打开麦克风: ' + ((e && e.message) || e));
+                }
             },
 
 
