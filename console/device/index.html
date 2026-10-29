@@ -9157,6 +9157,16 @@ window.__presignThumbUrl = function (raw) {
                                     <div class="form-text" data-i18n="cl_agora_token_hint">Leave empty. Do not paste App Certificate here.</div>
                                 </div>
                             </div>
+                            <div class="mb-4 row">
+                                <div class="col-12 col-md-4">
+                                    <label class="col-form-label" data-i18n="cl_agora_rtm_enable">Device RTM</label>
+                                    <select class="form-control" x-model="agoraRtcService.rtmServiceEnable">
+                                        <option :value="false">false</option>
+                                        <option :value="true">true</option>
+                                    </select>
+                                    <div class="form-text" data-i18n="cl_agora_rtm_enable_hint">Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.</div>
+                                </div>
+                            </div>
                             </div>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-2 mt-3">
@@ -10533,6 +10543,7 @@ const I18N_INDEX = {
     cl_update:'Update WebRTC',
     cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
     cl_agora_enable:'RTC Enable', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate (secret) stored on device with App ID; webpage mints token from it.', cl_agora_token:'Token', cl_agora_token_hint:'Leave empty. Do not paste App Certificate here.', cl_agora_log_level:'Log Level',
+    cl_agora_rtm_enable:'Device RTM', cl_agora_rtm_enable_hint:'Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.',
     cl_agora_update:'Update Agora RTC', cl_agora_refresh:'Refresh Agora RTC',
     cl_transport_title:'Remote Connection', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'Device UUID', cl_transport_need_uuid:'Please fill in the device UUID first',
@@ -10701,6 +10712,7 @@ const I18N_INDEX = {
     cl_update:'更新 WebRTC',
     cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
     cl_agora_enable:'RTC 启用', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate（Secret）随设备 App ID 下发并写回；网页用它签发进房 Token。', cl_agora_token:'Token', cl_agora_token_hint:'默认留空。勿把 App Certificate 填进 Token。', cl_agora_log_level:'日志级别',
+    cl_agora_rtm_enable:'设备 RTM', cl_agora_rtm_enable_hint:'默认关闭。仅 RTC 预览无需 RTM；外网命令走 AWS IoT 时请保持关闭。',
     cl_agora_update:'更新 Agora RTC', cl_agora_refresh:'刷新 Agora RTC',
     cl_transport_title:'远程连接', cl_transport_link_http:'局域网 · HTTP', cl_transport_link_rtm:'外网 · RTM',
     cl_transport_remote_uuid:'设备 UUID', cl_transport_need_uuid:'请先填写设备 UUID',
@@ -10868,6 +10880,7 @@ const I18N_INDEX = {
     cl_update:'WebRTC 更新',
     cl_agora_title:'Agora RTC サービス', cl_agora_app_id:'アプリ ID', cl_agora_channel:'チャンネル名',
     cl_agora_enable:'RTC 有効', cl_agora_token:'トークン', cl_agora_log_level:'ログレベル',
+    cl_agora_rtm_enable:'デバイス RTM', cl_agora_rtm_enable_hint:'既定オフ。RTC プレビューのみなら不要。',
     cl_agora_update:'Agora RTC 更新', cl_agora_refresh:'Agora RTC リフレッシュ',
     cl_transport_title:'リモート接続', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'デバイス UUID', cl_transport_need_uuid:'先にデバイス UUID を入力してください',
@@ -11034,6 +11047,7 @@ const I18N_INDEX = {
     cl_update:'WebRTC aktualisieren',
     cl_agora_title:'Agora RTC Dienst', cl_agora_app_id:'App-ID', cl_agora_channel:'Kanalname',
     cl_agora_enable:'RTC aktiviert', cl_agora_token:'Token', cl_agora_log_level:'Log-Level',
+    cl_agora_rtm_enable:'Gerät-RTM', cl_agora_rtm_enable_hint:'Standard aus. Für nur RTC-Vorschau nicht nötig.',
     cl_agora_update:'Agora RTC aktualisieren', cl_agora_refresh:'Agora RTC aktualisieren',
     cl_transport_title:'Remote-Verbindung', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'Geräte-UUID', cl_transport_need_uuid:'Bitte zuerst die Geräte-UUID eingeben',
@@ -11201,6 +11215,7 @@ const I18N_INDEX = {
     cl_update:'Mettre à jour WebRTC',
     cl_agora_title:'Service Agora RTC', cl_agora_app_id:'ID App', cl_agora_channel:'Nom du canal',
     cl_agora_enable:'RTC activé', cl_agora_token:'Jeton', cl_agora_log_level:'Niveau log',
+    cl_agora_rtm_enable:'RTM appareil', cl_agora_rtm_enable_hint:'Désactivé par défaut. Inutile pour l’aperçu RTC seul.',
     cl_agora_update:'Mettre à jour Agora RTC', cl_agora_refresh:'Actualiser Agora RTC',
     cl_transport_title:'Connexion distante', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'UUID appareil', cl_transport_need_uuid:'Veuillez d’abord saisir l’UUID de l’appareil',
@@ -11368,6 +11383,7 @@ const I18N_INDEX = {
     cl_update:'Actualizar WebRTC',
     cl_agora_title:'Servicio Agora RTC', cl_agora_app_id:'ID de App', cl_agora_channel:'Nombre canal',
     cl_agora_enable:'RTC habilitado', cl_agora_token:'Token', cl_agora_log_level:'Nivel log',
+    cl_agora_rtm_enable:'RTM del dispositivo', cl_agora_rtm_enable_hint:'Desactivado por defecto. No hace falta solo para vista previa RTC.',
     cl_agora_update:'Actualizar Agora RTC', cl_agora_refresh:'Refrescar Agora RTC',
     cl_transport_title:'Conexión remota', cl_transport_link_http:'LAN · HTTP', cl_transport_link_rtm:'WAN · RTM',
     cl_transport_remote_uuid:'UUID del dispositivo', cl_transport_need_uuid:'Primero introduzca el UUID del dispositivo',
@@ -11465,6 +11481,7 @@ const STATUS = Object.freeze({
     GET_SYSTEM_SERVICE: 1109, CONTROL_SYSTEM_SERVICE: 1110,  // smart_robot.service 状态/控制
     GET_MEMORY_GUARD: 1112, SET_MEMORY_GUARD: 1113,  // SystemControl 内存守护
     GET_SYSTEM_CRASH: 1114,  // 系统 Crash / 重启事件
+    GET_LIVE_PREVIEW_SESSION: 1115, SET_LIVE_PREVIEW_SESSION: 1116,  // Agora 按需推流会话
     REINDEX_LOCAL_RECORD_INDEX: 1111,  // 回放页一键补回丢失索引
 });
 
@@ -12749,7 +12766,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 rtcToken: "",
                 rtcChannelName: "",
                 rtcLogLevel: 0,
-                rtcServiceEnable: true
+                rtcServiceEnable: true,
+                rtmServiceEnable: false
             },
 
             provisioningService: {
@@ -14606,6 +14624,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
 
+            async ensureDeviceLivePreviewSession(action) {
+                // Agora 按需推流：join 前 start，离开后 stop（多端引用计数在设备侧）
+                const transport = ((this.webrtcInformation && this.webrtcInformation.livePreviewTransport) ||
+                    (this.activeTransport || '') || '').toLowerCase();
+                const sol = ((this.webrtcInformation && this.webrtcInformation.wEBRTCSolutionType) || '').toLowerCase();
+                const isAgora = transport === 'agora' || sol === 'agora' || this.activeTransport === 'agora';
+                if (!isAgora) return true;
+                try {
+                    const body = {
+                        method: 'setLivePreviewSessionCommand',
+                        params: { livePreviewSession: { action: action } },
+                        requestId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))
+                    };
+                    const resp = await fetch('/setDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await resp.json();
+                    if (data.status !== STATUS.SET_LIVE_PREVIEW_SESSION) {
+                        console.warn('[AHS][LivePreviewSession] unexpected status', data.status, action);
+                    }
+                    if (action === 'start') {
+                        // 短轮询等设备 active
+                        for (let i = 0; i < 15; i++) {
+                            const g = await fetch('/getDeviceCommand', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    method: 'getLivePreviewSessionCommand',
+                                    params: {},
+                                    requestId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+i))
+                                })
+                            });
+                            const gd = await g.json();
+                            const sess = gd && gd.params && gd.params.livePreviewSession;
+                            if (sess && sess.active) {
+                                console.log('[AHS][LivePreviewSession] device active after', i, 'polls');
+                                return true;
+                            }
+                            await new Promise(r => setTimeout(r, 200));
+                        }
+                        console.warn('[AHS][LivePreviewSession] device not active after start polls');
+                    }
+                    return true;
+                } catch (e) {
+                    console.warn('[AHS][LivePreviewSession]', action, e);
+                    return action !== 'start'; // start 失败仍尝试 join（兼容旧固件）
+                }
+            },
+
             async startPreview(mode){
                 // mode: true/'main'=主页; false/'setting'=视频设置; 'ai'=AI 检测页（三套独立视频元素）
                 const m = (mode === true || mode === 'main') ? 'main' : (mode === 'ai' ? 'ai' : (mode === 'replay' ? 'replay' : 'setting'));
@@ -14622,6 +14691,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // agoraRTC.js 懒加载:首屏不背 1.5MB,首次预览时按需注入并创建 client
                 await this.ensureRtcSdk();
                 await this.ensureLivePreviewIdentity();
+                await this.ensureDeviceLivePreviewSession('start');
                 const channel = this.resolveAgoraChannelName();
                 if (!channel) {
                     this.showAlert('warning', 'Notice', 'Missing device UUID for Agora channel');
@@ -14749,6 +14819,7 @@ document.addEventListener('DOMContentLoaded', function() {
             async stopPreview(){
                 this.isStreaming = false;
                 this.isTalking = false;
+                try { await this.ensureDeviceLivePreviewSession('stop'); } catch (e) {}
                 // 重置状态
                 this.localTrackState = {
                     videoTrackMuted: false,
@@ -17208,6 +17279,7 @@ async _execSystemServiceAction(action) {
                     if (responseData.status === STATUS.GET_AGORA_RTC) {
                         const a = responseData.params.agoraRtcService || {};
                         if (a.rtcAppCertificate == null) a.rtcAppCertificate = '';
+                        if (a.rtmServiceEnable == null) a.rtmServiceEnable = false;
                         this.agoraRtcService = a;
                         this.sanitizeAgoraRtcForm();
                     }
@@ -17225,7 +17297,9 @@ async _execSystemServiceAction(action) {
                         rtcAppCertificate: this.agoraRtcService.rtcAppCertificate || '',
                         rtcToken: this.agoraRtcService.rtcToken || '',
                         rtcChannelName: this.resolveAgoraChannelName(),
-                        rtcLogLevel: this.agoraRtcService.rtcLogLevel|0
+                        rtcLogLevel: this.agoraRtcService.rtcLogLevel|0,
+                        rtmServiceEnable: !!(this.agoraRtcService.rtmServiceEnable === true
+                            || this.agoraRtcService.rtmServiceEnable === 'true')
                     };
                     // 仅改凭证时不带 rtcServiceEnable，避免触发二次热切
                     if (!opts.credentialsOnly) {
@@ -19403,6 +19477,48 @@ async _execSystemServiceAction(action) {
                 };
                 window.addEventListener('pagehide', this._pbPageHideHandler);
                 window.addEventListener('beforeunload', this._pbPageHideHandler);
+
+                this._livePreviewUnloadHandler = () => {
+                    try {
+                        if (this.isStreaming || (this.activeTransport === 'agora')) {
+                            const body = JSON.stringify({
+                                method: 'setLivePreviewSessionCommand',
+                                params: { livePreviewSession: { action: 'stop' } },
+                                requestId: 'unload-' + Date.now()
+                            });
+                            if (navigator.sendBeacon) {
+                                const blob = new Blob([body], { type: 'application/json' });
+                                navigator.sendBeacon('/setDeviceCommand', blob);
+                            } else {
+                                fetch('/setDeviceCommand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true });
+                            }
+                        }
+                    } catch (e) {}
+                };
+                window.addEventListener('pagehide', this._livePreviewUnloadHandler);
+                window.addEventListener('beforeunload', this._livePreviewUnloadHandler);
+
+
+                this._livePreviewUnloadHandler = () => {
+                    try {
+                        if (this.isStreaming || (this.activeTransport === 'agora')) {
+                            // sync beacon-style best effort
+                            const body = JSON.stringify({
+                                method: 'setLivePreviewSessionCommand',
+                                params: { livePreviewSession: { action: 'stop' } },
+                                requestId: 'unload-' + Date.now()
+                            });
+                            if (navigator.sendBeacon) {
+                                const blob = new Blob([body], { type: 'application/json' });
+                                navigator.sendBeacon('/setDeviceCommand', blob);
+                            } else {
+                                fetch('/setDeviceCommand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true });
+                            }
+                        }
+                    } catch (e) {}
+                };
+                window.addEventListener('pagehide', this._livePreviewUnloadHandler);
+                window.addEventListener('beforeunload', this._livePreviewUnloadHandler);
             },
             onPlaybackPageChange(activePageId) {
                 if (activePageId === 'playback') return;
