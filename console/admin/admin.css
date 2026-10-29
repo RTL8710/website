@@ -187,7 +187,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .th-sort:hover{color:var(--accent)}
 .th-sort.on{color:var(--accent)}
 
-.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page),.admin-main:has(.overview-page){max-width:1360px}
+.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page),.admin-main:has(.overview-page),.admin-main:has(.agora-page){max-width:1360px}
 
 /* ── Logs page: command studio ── */
 .logs-page{display:flex;flex-direction:column;gap:12px}
@@ -451,4 +451,38 @@ body:has(.login-shell) #app{min-height:100vh}
 .logs-page .logs-card{grid-template-columns:auto auto minmax(0,1fr) auto}
 @media (max-width:720px){
   .logs-page .logs-card{grid-template-columns:auto auto minmax(0,1fr);gap:12px}
+}
+
+
+/* ── Agora quota studio ── */
+.agora-hero{position:relative}
+.agora-ring-wrap{display:flex;align-items:center;justify-content:center;min-height:120px}
+.agora-ring{
+  width:118px;height:118px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--sh-glow), inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.agora-ring-inner{
+  width:86px;height:86px;border-radius:50%;background:rgba(7,9,13,.92);
+  border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.agora-ring-pct{font-family:var(--font-display);font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.agora-ring-label{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo);margin-top:4px}
+.agora-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important;margin-top:2px}
+.agora-break-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.agora-break-card{
+  padding:10px 12px;border-radius:12px;border:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+}
+.agora-break-card .k{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-lo)}
+.agora-break-card .v{font-family:var(--font-display);font-size:18px;font-weight:800;margin-top:4px;letter-spacing:-.02em}
+.agora-bars{display:flex;align-items:flex-end;gap:6px;min-height:96px;padding:8px 4px 0}
+.agora-bar-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.agora-bar{
+  width:100%;max-width:28px;border-radius:8px 8px 4px 4px;
+  background:linear-gradient(180deg,var(--accent),rgba(45,212,191,.25));
+  box-shadow:0 0 12px rgba(45,212,191,.18);
+}
+.agora-bar-d{font-size:9px;color:var(--text-lo);font-weight:700;letter-spacing:.02em}
+@media (max-width:820px){
+  .agora-stats,.agora-break-grid{grid-template-columns:1fr 1fr!important}
 }

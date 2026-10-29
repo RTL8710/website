@@ -8,6 +8,7 @@ import {
   listCloudRecordsAdmin, createDeviceUpgrade, updateDeviceUpgrade, deleteDeviceUpgrade,
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
+  getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
@@ -55,6 +56,9 @@ const state = {
   otaPickQ: '',
   otaSelected: {}, // pkg.id -> true，OTA 多选批量删除
   logsSelected: {}, // diagLog.key -> true，日志多选批量删除
+  agora: null, // { projects, byProject, totals, range, refreshedAt, err }
+  agoraProjectId: '', // '' = all
+  agoraQuotaMinutes: 10000,
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -563,6 +567,8 @@ async function loadTab(id) {
       try { await ensure('users'); } catch (_) { if (!state.users) state.users = []; }
       await ensure('diagLogs');
       await hydrateLogUsers();
+    } else if (id === 'agora') {
+      await loadAgora();
     }
   } catch (e) {
     console.error('[admin]', id, e);
@@ -3042,6 +3048,252 @@ function viewLogs() {
   );
 }
 
+
+const AGORA_QUOTA_DEFAULT = 10000;
+
+function agoraRisk(pct) {
+  if (pct >= 100) return { level: 'exhausted', key: 'agoraRiskExhausted', cls: 'err' };
+  if (pct >= 90) return { level: 'critical', key: 'agoraRiskCritical', cls: 'err' };
+  if (pct >= 70) return { level: 'warn', key: 'agoraRiskWarn', cls: 'warn' };
+  return { level: 'ok', key: 'agoraRiskOk', cls: 'ok' };
+}
+
+function sumUsageDays(usages) {
+  const totals = { audio: 0, hd: 0, hdp: 0, fullHd: 0, video2k: 0, video2kPlus: 0 };
+  let minutes = 0;
+  const daily = [];
+  for (const row of (usages || [])) {
+    const u = row.usage || {};
+    const got = agoraStandardMinutesFromUsage(u);
+    minutes += got.standardMinutes;
+    for (const k of Object.keys(totals)) totals[k] += got.seconds[k] || 0;
+    const date = typeof row.date === 'string' ? row.date.slice(0, 10)
+      : (row.date ? new Date(row.date).toISOString().slice(0, 10) : '');
+    daily.push({ date, standardMinutes: got.standardMinutes, seconds: got.seconds });
+  }
+  return { totals, minutes, daily };
+}
+
+async function loadAgora() {
+  const range = agoraMonthUtcRange();
+  const quota = Number(state.agoraQuotaMinutes) || AGORA_QUOTA_DEFAULT;
+  try {
+    const projects = await getAgoraProjects();
+    const byProject = {};
+    let accountMinutes = 0;
+    const accountSec = { audio: 0, hd: 0, hdp: 0, fullHd: 0, video2k: 0, video2kPlus: 0 };
+    for (const p of projects) {
+      try {
+        const raw = await getAgoraUsage({
+          projectId: p.id, fromDate: range.fromDate, toDate: range.toDate, business: 'default',
+        });
+        const summed = sumUsageDays(raw.usages || []);
+        byProject[p.id] = summed;
+        accountMinutes += summed.minutes;
+        for (const k of Object.keys(accountSec)) accountSec[k] += summed.totals[k] || 0;
+      } catch (e) {
+        console.warn('[agora] usage', p.id, e);
+        byProject[p.id] = { totals: {}, minutes: 0, daily: [], err: (e && e.message) || String(e) };
+      }
+    }
+    if (!state.agoraProjectId && projects.length) {
+      const robot = projects.find((x) => /robot/i.test(x.name || ''));
+      state.agoraProjectId = robot ? robot.id : '';
+    }
+    state.agora = {
+      projects, byProject, range, quota,
+      accountMinutes, accountSec,
+      refreshedAt: new Date().toISOString(),
+      err: '',
+    };
+  } catch (e) {
+    console.error('[agora]', e);
+    state.agora = {
+      projects: [], byProject: {}, range, quota,
+      accountMinutes: 0, accountSec: {},
+      refreshedAt: new Date().toISOString(),
+      err: (e && e.message) || String(e),
+    };
+    throw e;
+  }
+}
+
+function agoraRing(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const dash = (p / 100) * c;
+  const risk = agoraRisk(p);
+  return h('div', { class: 'agora-ring', 'data-risk': risk.level },
+    h('svg', { viewBox: '0 0 120 120', class: 'agora-ring-svg' },
+      h('circle', { class: 'agora-ring-track', cx: '60', cy: '60', r: String(r), fill: 'none' }),
+      h('circle', {
+        class: 'agora-ring-bar', cx: '60', cy: '60', r: String(r), fill: 'none',
+        'stroke-dasharray': `${dash} ${c}`,
+        transform: 'rotate(-90 60 60)',
+      }),
+    ),
+    h('div', { class: 'agora-ring-label' },
+      h('div', { class: 'agora-ring-pct' }, p.toFixed(p >= 10 ? 0 : 1) + '%'),
+      h('div', { class: 'agora-ring-cap' }, t('agoraPercent')),
+    ),
+  );
+}
+
+function agoraBars(daily) {
+  const rows = (daily || []).filter((d) => d.standardMinutes > 0 || d.date);
+  const max = Math.max(0.01, ...rows.map((d) => d.standardMinutes));
+  const last = rows.slice(-14);
+  if (!last.length) return h('div', { class: 'faint', style: { fontSize: '12px' } }, '—');
+  return h('div', { class: 'agora-bars' },
+    ...last.map((d) => {
+      const hgt = Math.max(3, Math.round((d.standardMinutes / max) * 72));
+      return h('div', { class: 'agora-bar', title: `${d.date}: ${d.standardMinutes.toFixed(2)}` },
+        h('i', { style: { height: hgt + 'px' } }),
+        h('span', {}, (d.date || '').slice(5)),
+      );
+    }),
+  );
+}
+
+function viewAgora() {
+  const a = state.agora;
+  const quota = (a && a.quota) || AGORA_QUOTA_DEFAULT;
+  const pid = state.agoraProjectId || '';
+  let used = a ? a.accountMinutes : 0;
+  let sec = a ? a.accountSec : {};
+  let daily = [];
+  if (a && pid && a.byProject[pid]) {
+    used = a.byProject[pid].minutes;
+    sec = a.byProject[pid].totals;
+    daily = a.byProject[pid].daily || [];
+  } else if (a && !pid) {
+    // merge daily across projects by date
+    const map = {};
+    for (const p of (a.projects || [])) {
+      for (const d of ((a.byProject[p.id] && a.byProject[p.id].daily) || [])) {
+        if (!map[d.date]) map[d.date] = 0;
+        map[d.date] += d.standardMinutes;
+      }
+    }
+    daily = Object.keys(map).sort().map((date) => ({ date, standardMinutes: map[date] }));
+  }
+  const remaining = Math.max(0, quota - used);
+  const pct = quota > 0 ? (used / quota) * 100 : 0;
+  const risk = agoraRisk(pct);
+  const projects = (a && a.projects) || [];
+
+  const fmtMin = (n) => (Math.round((n || 0) * 100) / 100).toLocaleString();
+  const fmtSec = (n) => Math.round(n || 0).toLocaleString() + 's';
+
+  return h('div', { class: 'overview-page logs-page agora-page' },
+    state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
+    h('div', { class: 'glass logs-hero agora-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('agoraEyebrow')),
+        h('h1', {}, t('agora')),
+        h('div', { class: 'logs-hero-sub' }, t('agoraSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(t('agoraPackage')),
+          chip((a && a.range) ? (a.range.fromDate + ' → ' + a.range.toDate) : '—'),
+          chip(t(risk.key), risk.cls === 'ok' ? 'stat-online' : ''),
+        ),
+      ),
+      h('div', { class: 'agora-hero-right' },
+        agoraRing(pct),
+        h('div', { class: 'agora-hero-stats' },
+          h('div', { class: 'agora-kpi' },
+            h('span', { class: 'k' }, t('agoraRemaining')),
+            h('span', { class: 'v' }, fmtMin(remaining)),
+            h('span', { class: 'u' }, t('agoraMinutes')),
+          ),
+          h('div', { class: 'agora-kpi' },
+            h('span', { class: 'k' }, t('agoraUsed')),
+            h('span', { class: 'v' }, fmtMin(used)),
+            h('span', { class: 'u' }, '/ ' + fmtMin(quota)),
+          ),
+        ),
+      ),
+    ),
+    h('div', { class: 'admin-msg ' + (risk.cls === 'ok' ? 'info' : risk.cls) },
+      t('agoraHintFree') + ' · ' + t('agoraRefreshHint'),
+    ),
+    h('div', { class: 'logs-dock agora-dock' },
+      h('label', { class: 'admin-field', style: { minWidth: '220px' } },
+        h('span', {}, t('agoraSelectProject')),
+        h('select', {
+          value: pid,
+          onchange: (e) => { state.agoraProjectId = e.target.value; render(); },
+        },
+          h('option', { value: '' }, t('agoraAllProjects')),
+          ...projects.map((p) => h('option', { value: p.id }, `${p.name} (${p.id})`)),
+        ),
+      ),
+      h('button', {
+        class: 'gbtn primary btn-sm', type: 'button',
+        onclick: async () => {
+          state.loadingTab = true; render();
+          try { await loadAgora(); toast(t('dataRefreshed')); }
+          catch (e) { toast((e && e.message) || t('agoraLoadFail'), 'err'); }
+          finally { state.loadingTab = false; render(); }
+        },
+      }, fa('fa-rotate'), ' ' + t('refresh')),
+      a && a.refreshedAt ? h('span', { class: 'faint', style: { fontSize: '11px' } },
+        '↻ ' + new Date(a.refreshedAt).toLocaleString()) : null,
+    ),
+    h('div', { class: 'agora-grid' },
+      h('div', { class: 'glass admin-panel agora-panel' },
+        h('div', { class: 'agora-panel-title' }, t('agoraBreakdown')),
+        h('div', { class: 'agora-break-grid' },
+          [['agoraAudio', sec.audio], ['agoraHd', (sec.hd || 0) + (sec.hdp || 0)],
+           ['agoraFullHd', sec.fullHd], ['agora2k', (sec.video2k || 0) + (sec.video2kPlus || 0)]]
+            .map(([k, v]) => h('div', { class: 'agora-break' },
+              h('span', { class: 'k' }, t(k)),
+              h('span', { class: 'v' }, fmtSec(v)),
+            )),
+        ),
+      ),
+      h('div', { class: 'glass admin-panel agora-panel' },
+        h('div', { class: 'agora-panel-title' }, t('agoraDaily')),
+        agoraBars(daily),
+      ),
+    ),
+    h('div', { class: 'glass admin-panel' },
+      h('div', { class: 'agora-panel-title' }, t('agoraProjects')),
+      !projects.length
+        ? emptyState(t('agoraEmpty') + ' — ' + t('agoraEmptyHint'))
+        : h('div', { class: 'glass admin-table-wrap' },
+          h('table', { class: 'admin-table' },
+            h('thead', {}, h('tr', {},
+              h('th', {}, t('colName')),
+              h('th', {}, t('agoraProjectId')),
+              h('th', {}, t('agoraAppId')),
+              h('th', {}, t('agoraStatus')),
+              h('th', {}, t('agoraUsed')),
+            )),
+            h('tbody', {}, ...projects.map((p) => {
+              const m = (a.byProject[p.id] && a.byProject[p.id].minutes) || 0;
+              return h('tr', {
+                class: pid === p.id ? 'is-active-row' : '',
+                onclick: () => { state.agoraProjectId = p.id; render(); },
+                style: { cursor: 'pointer' },
+              },
+                h('td', {}, p.name || '—'),
+                h('td', { class: 'mono' }, p.id),
+                h('td', { class: 'mono' }, p.appId || '—'),
+                h('td', {}, p.status === 1
+                  ? h('span', { class: 'chip stat-online' }, t('agoraEnabled'))
+                  : h('span', { class: 'chip' }, t('agoraDisabled'))),
+                h('td', {}, fmtMin(m) + ' ' + t('agoraMinutes')),
+              );
+            })),
+          ),
+        ),
+    ),
+  );
+}
+
+
 function render() {
   let body;
   if (state.tab === 'overview') body = viewOverview();
@@ -3049,6 +3301,7 @@ function render() {
   else if (state.tab === 'devices') body = viewDevices();
   else if (state.tab === 'records') body = viewRecords();
   else if (state.tab === 'logs') body = viewLogs();
+  else if (state.tab === 'agora') body = viewAgora();
   else body = viewOta();
   shell(body);
 }

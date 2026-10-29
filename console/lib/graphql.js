@@ -364,3 +364,75 @@ export async function deleteDeviceCompletely(deviceId) {
   }
   return { binds: binds.length, bindFails: fail };
 }
+
+// ── Agora Console REST（AppSync HTTP → api.agora.io；密钥只在云端）────────
+const Q_AGORA_PROJECTS = /* GraphQL */ `
+  query GetAgoraProjects {
+    getAgoraProjects
+  }`;
+const Q_AGORA_USAGE = /* GraphQL */ `
+  query GetAgoraUsage($projectId: String!, $fromDate: String!, $toDate: String!, $business: String) {
+    getAgoraUsage(projectId: $projectId, fromDate: $fromDate, toDate: $toDate, business: $business)
+  }`;
+
+function parseAwsJson(v) {
+  if (v == null) return null;
+  if (typeof v === 'object') return v;
+  if (typeof v === 'string') {
+    try { return JSON.parse(v); } catch (_) { return null; }
+  }
+  return null;
+}
+
+/** 列出 Agora 账号下全部项目（不含 certificate） */
+export async function getAgoraProjects() {
+  const data = await gql(Q_AGORA_PROJECTS, {});
+  const raw = parseAwsJson(data && data.getAgoraProjects);
+  const projects = (raw && raw.projects) || [];
+  return projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    appId: p.vendor_key || p.appId || '',
+    status: Number(p.status),
+    created: p.created,
+  }));
+}
+
+/**
+ * 拉取项目用量（秒）。fromDate/toDate: UTC YYYY-MM-DD
+ * business 默认 default（音视频）
+ */
+export async function getAgoraUsage({ projectId, fromDate, toDate, business = 'default' }) {
+  if (!projectId) throw new Error('缺少 projectId');
+  const data = await gql(Q_AGORA_USAGE, {
+    projectId, fromDate, toDate, business: business || 'default',
+  });
+  return parseAwsJson(data && data.getAgoraUsage) || { usages: [] };
+}
+
+/** 标准分钟换算（音频×1 / HD×4 / HDP×4 / FHD×9 / 2K×16 / 2K+×36） */
+export function agoraStandardMinutesFromUsage(usageObj) {
+  const u = usageObj || {};
+  const audio = Number(u.durationAudioAll || 0);
+  const hd = Number(u.durationVideoHd || 0);
+  const hdp = Number(u.durationVideoHdp || 0);
+  const fhd = Number(u.durationVideo1080P || 0);
+  const v2k = Number(u.durationVideo2K || 0);
+  const v4k = Number(u.durationVideo4K || 0);
+  const sec = { audio, hd, hdp, fullHd: fhd, video2k: v2k, video2kPlus: v4k };
+  const minutes = audio / 60
+    + (hd / 60) * 4
+    + (hdp / 60) * 4
+    + (fhd / 60) * 9
+    + (v2k / 60) * 16
+    + (v4k / 60) * 36;
+  return { seconds: sec, standardMinutes: minutes };
+}
+
+export function agoraMonthUtcRange(now = new Date()) {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const fromDate = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  const toDate = now.toISOString().slice(0, 10);
+  return { fromDate, toDate };
+}
