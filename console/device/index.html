@@ -18543,6 +18543,33 @@ async _execSystemServiceAction(action) {
                 this.agoraDebugText = lines.join('\n');
                 try { window.__agoraDebug = { text: this.agoraDebugText, users: users.map(function (u) { return { uid: u.uid, hasVideo: u.hasVideo }; }), pb: this.pbCamUids }; } catch (e) {}
             },
+            async syncExistingLiveUsers() {
+                const users = (this.client && this.client.remoteUsers) || [];
+                console.log('[AHS][Agora] syncExistingLiveUsers count=', users.length);
+                for (let i = 0; i < users.length; i++) {
+                    const user = users[i];
+                    const id = user.uid;
+                    const camIdx = this.camIndexFromUid(String(id));
+                    if (camIdx < 0) continue; // 忽略回放 uid
+                    this.remoteUsers[id] = user;
+                    this.setCamUid(camIdx, id);
+                    if (camIdx === 0) { this.cam1Uid = id; this.currentMainViewUid = id; }
+                    else if (camIdx === 1) this.cam2Uid = id;
+                    else if (camIdx === 2) this.cam3Uid = id;
+                    if (user.hasVideo || user.videoTrack == null) {
+                        try {
+                            await this.client.subscribe(user, 'video');
+                            console.log('[AHS][Agora] synced live video uid', id, 'cam', camIdx);
+                        } catch (e) {
+                            console.warn('[AHS][Agora] sync live subscribe', id, e);
+                        }
+                    }
+                    // 不订音频（计费）
+                }
+                this.renderRemoteVideos();
+                this.refreshAgoraDebug && this.refreshAgoraDebug();
+            },
+
             async syncExistingPlaybackUsers() {
                 const users = (this.client && this.client.remoteUsers) || [];
                 for (let i = 0; i < users.length; i++) {
