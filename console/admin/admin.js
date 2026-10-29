@@ -59,6 +59,7 @@ const state = {
   agora: null, // { projects, byProject, totals, range, refreshedAt, err }
   agoraProjectId: '', // '' = all
   agoraQuotaMinutes: 10000,
+  agoraChartDays: 7,
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -3118,6 +3119,20 @@ async function loadAgora() {
   }
 }
 
+/** SVG via createElementNS — plain h() breaks polyline/circle rendering. */
+function svgEl(tag, props = {}, ...kids) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.setAttribute('class', v);
+    else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? '' : String(v));
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    e.appendChild(typeof kid === 'string' ? document.createTextNode(kid) : kid);
+  }
+  return e;
+}
+
 function agoraRing(pct) {
   const p = Math.max(0, Math.min(100, pct));
   const r = 52;
@@ -3125,9 +3140,9 @@ function agoraRing(pct) {
   const dash = (p / 100) * c;
   const risk = agoraRisk(p);
   return h('div', { class: 'agora-ring', 'data-risk': risk.level },
-    h('svg', { viewBox: '0 0 120 120', class: 'agora-ring-svg' },
-      h('circle', { class: 'agora-ring-track', cx: '60', cy: '60', r: String(r), fill: 'none' }),
-      h('circle', {
+    svgEl('svg', { viewBox: '0 0 120 120', class: 'agora-ring-svg' },
+      svgEl('circle', { class: 'agora-ring-track', cx: '60', cy: '60', r: String(r), fill: 'none' }),
+      svgEl('circle', {
         class: 'agora-ring-bar', cx: '60', cy: '60', r: String(r), fill: 'none',
         'stroke-dasharray': `${dash} ${c}`,
         transform: 'rotate(-90 60 60)',
@@ -3140,21 +3155,142 @@ function agoraRing(pct) {
   );
 }
 
-function agoraBars(daily) {
-  const rows = (daily || []).filter((d) => d.standardMinutes > 0 || d.date);
-  const max = Math.max(0.01, ...rows.map((d) => d.standardMinutes));
-  const last = rows.slice(-14);
-  if (!last.length) return h('div', { class: 'faint', style: { fontSize: '12px' } }, '—');
-  return h('div', { class: 'agora-bars' },
-    ...last.map((d) => {
-      const hgt = Math.max(3, Math.round((d.standardMinutes / max) * 72));
-      return h('div', { class: 'agora-bar', title: `${d.date}: ${d.standardMinutes.toFixed(2)}` },
-        h('i', { style: { height: hgt + 'px' } }),
-        h('span', {}, (d.date || '').slice(5)),
-      );
+/** Agora list price USD / 1000 minutes of that media type (Console pricing). */
+const AGORA_PRICE_PER_1K = {
+  audio: 0.99,
+  hd: 3.99,
+  fullHd: 8.99,
+  video2k: 15.99,
+  video2kPlus: 35.99,
+};
+const AGORA_SERIES = [
+  { key: 'audio', labelKey: 'agoraAudio', color: '#F59E0B', priceKey: 'audio' },
+  { key: 'hd', labelKey: 'agoraHd', color: '#3B82F6', priceKey: 'hd', merge: ['hd', 'hdp'] },
+  { key: 'fullHd', labelKey: 'agoraFullHd', color: '#22C55E', priceKey: 'fullHd' },
+  { key: 'video2k', labelKey: 'agoraVideo2k', color: '#EC4899', priceKey: 'video2k' },
+  { key: 'video2kPlus', labelKey: 'agoraVideo2kPlus', color: '#A855F7', priceKey: 'video2kPlus' },
+];
+
+function secOf(sec, keys) {
+  const s = sec || {};
+  return keys.reduce((n, k) => n + (Number(s[k]) || 0), 0);
+}
+function minOfSec(sec) { return (Number(sec) || 0) / 60; }
+
+function agoraCostFromSeconds(sec) {
+  const audioMin = minOfSec(secOf(sec, ['audio']));
+  const hdMin = minOfSec(secOf(sec, ['hd', 'hdp']));
+  const fhdMin = minOfSec(secOf(sec, ['fullHd']));
+  const k2Min = minOfSec(secOf(sec, ['video2k']));
+  const k2pMin = minOfSec(secOf(sec, ['video2kPlus']));
+  const lines = [
+    { key: 'agoraAudio', min: audioMin, rate: AGORA_PRICE_PER_1K.audio, color: '#F59E0B' },
+    { key: 'agoraHd', min: hdMin, rate: AGORA_PRICE_PER_1K.hd, color: '#3B82F6' },
+    { key: 'agoraFullHd', min: fhdMin, rate: AGORA_PRICE_PER_1K.fullHd, color: '#22C55E' },
+    { key: 'agoraVideo2k', min: k2Min, rate: AGORA_PRICE_PER_1K.video2k, color: '#EC4899' },
+    { key: 'agoraVideo2kPlus', min: k2pMin, rate: AGORA_PRICE_PER_1K.video2kPlus, color: '#A855F7' },
+  ].map((x) => ({ ...x, usd: (x.min / 1000) * x.rate }));
+  const listUsd = lines.reduce((n, x) => n + x.usd, 0);
+  return { lines, listUsd };
+}
+
+function fmtUsd(n) {
+  const x = Number(n) || 0;
+  if (x > 0 && x < 0.01) return '<$0.01';
+  return '$' + x.toFixed(2);
+}
+function fmtMin1(n) {
+  const x = Number(n) || 0;
+  if (x >= 100) return String(Math.round(x));
+  if (x >= 10) return x.toFixed(1);
+  return x.toFixed(2);
+}
+
+/** Multi-series SVG line chart (Agora Console Usage style). */
+function agoraLineChart(daily, days = 7) {
+  const rowsIn = (daily || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const rows = rowsIn.slice(-(Math.max(1, days)));
+  if (!rows.length) return h('div', { class: 'faint', style: { fontSize: '12px' } }, '—');
+
+  const series = AGORA_SERIES.map((s) => ({
+    ...s,
+    values: rows.map((d) => {
+      const sec = d.seconds || {};
+      const keys = s.merge || [s.key];
+      return minOfSec(secOf(sec, keys));
     }),
+  }));
+  const ymax = Math.max(1, ...series.flatMap((s) => s.values));
+  const W = 720, H = 220, padL = 40, padR = 16, padT = 18, padB = 30;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const xAt = (i) => padL + (rows.length <= 1 ? iw / 2 : (i / (rows.length - 1)) * iw);
+  const yAt = (v) => padT + ih - (v / ymax) * ih;
+
+  const kids = [];
+  for (let g = 0; g <= 4; g++) {
+    const y = padT + (ih * g) / 4;
+    const val = ymax * (1 - g / 4);
+    kids.push(svgEl('line', { x1: padL, x2: W - padR, y1: y, y2: y, class: 'agora-chart-grid' }));
+    kids.push(svgEl('text', { x: padL - 8, y: y + 4, class: 'agora-chart-axis', 'text-anchor': 'end' },
+      fmtMin1(val)));
+  }
+  for (const s of series) {
+    const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(' ');
+    kids.push(svgEl('polyline', {
+      points: pts, fill: 'none', stroke: s.color, 'stroke-width': '2.25',
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'agora-chart-line',
+    }));
+    s.values.forEach((v, i) => {
+      if (v <= 0) return;
+      kids.push(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: '3.2', fill: s.color, class: 'agora-chart-dot' }));
+    });
+  }
+  rows.forEach((d, i) => {
+    if (rows.length > 12 && i !== 0 && i !== rows.length - 1 && i % 2) return;
+    kids.push(svgEl('text', { x: xAt(i), y: H - 8, class: 'agora-chart-axis', 'text-anchor': 'middle' },
+      (d.date || '').slice(5)));
+  });
+
+  return h('div', { class: 'agora-chart-wrap' },
+    h('div', { class: 'agora-chart-legend' },
+      ...AGORA_SERIES.map((s) => h('span', { class: 'agora-leg' },
+        h('i', { style: { background: s.color } }), t(s.labelKey))),
+    ),
+    svgEl('svg', { class: 'agora-chart-svg', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' },
+      ...kids),
   );
 }
+
+function agoraDailyTable(daily, days = 7) {
+  const rows = (daily || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, days);
+  if (!rows.length) return null;
+  return h('div', { class: 'glass admin-table-wrap agora-daily-table' },
+    h('table', { class: 'admin-table' },
+      h('thead', {}, h('tr', {},
+        h('th', {}, t('agoraColDate')),
+        h('th', {}, t('agoraAudio')),
+        h('th', {}, t('agoraHd')),
+        h('th', {}, t('agoraFullHd')),
+        h('th', {}, t('agoraVideo2k')),
+        h('th', {}, t('agoraVideo2kPlus')),
+        h('th', {}, t('agoraStdMin')),
+      )),
+      h('tbody', {}, ...rows.map((d) => {
+        const s = d.seconds || {};
+        return h('tr', {},
+          h('td', { class: 'mono' }, d.date || '—'),
+          h('td', {}, fmtMin1(minOfSec(s.audio)) + ' ' + t('agoraMinUnit')),
+          h('td', {}, fmtMin1(minOfSec(secOf(s, ['hd', 'hdp']))) + ' ' + t('agoraMinUnit')),
+          h('td', {}, fmtMin1(minOfSec(s.fullHd)) + ' ' + t('agoraMinUnit')),
+          h('td', {}, fmtMin1(minOfSec(s.video2k)) + ' ' + t('agoraMinUnit')),
+          h('td', {}, fmtMin1(minOfSec(s.video2kPlus)) + ' ' + t('agoraMinUnit')),
+          h('td', {}, fmtMin1(d.standardMinutes)),
+        );
+      })),
+    ),
+  );
+}
+
 
 function viewAgora() {
   const a = state.agora;
@@ -3168,15 +3304,24 @@ function viewAgora() {
     sec = a.byProject[pid].totals;
     daily = a.byProject[pid].daily || [];
   } else if (a && !pid) {
-    // merge daily across projects by date
+    // merge daily across projects by date (keep per-type seconds for chart)
     const map = {};
     for (const p of (a.projects || [])) {
       for (const d of ((a.byProject[p.id] && a.byProject[p.id].daily) || [])) {
-        if (!map[d.date]) map[d.date] = 0;
-        map[d.date] += d.standardMinutes;
+        if (!map[d.date]) {
+          map[d.date] = {
+            date: d.date, standardMinutes: 0,
+            seconds: { audio: 0, hd: 0, hdp: 0, fullHd: 0, video2k: 0, video2kPlus: 0 },
+          };
+        }
+        map[d.date].standardMinutes += d.standardMinutes || 0;
+        const s = d.seconds || {};
+        for (const k of Object.keys(map[d.date].seconds)) {
+          map[d.date].seconds[k] += Number(s[k]) || 0;
+        }
       }
     }
-    daily = Object.keys(map).sort().map((date) => ({ date, standardMinutes: map[date] }));
+    daily = Object.keys(map).sort().map((k) => map[k]);
   }
   const remaining = Math.max(0, quota - used);
   const pct = quota > 0 ? (used / quota) * 100 : 0;
@@ -3241,23 +3386,93 @@ function viewAgora() {
       a && a.refreshedAt ? h('span', { class: 'faint', style: { fontSize: '11px' } },
         '↻ ' + new Date(a.refreshedAt).toLocaleString()) : null,
     ),
-    h('div', { class: 'agora-grid' },
-      h('div', { class: 'glass admin-panel agora-panel' },
-        h('div', { class: 'agora-panel-title' }, t('agoraBreakdown')),
-        h('div', { class: 'agora-break-grid' },
-          [['agoraAudio', sec.audio], ['agoraHd', (sec.hd || 0) + (sec.hdp || 0)],
-           ['agoraFullHd', sec.fullHd], ['agora2k', (sec.video2k || 0) + (sec.video2kPlus || 0)]]
-            .map(([k, v]) => h('div', { class: 'agora-break' },
+    (() => {
+      const chartDays = Number(state.agoraChartDays) || 7;
+      const cost = agoraCostFromSeconds(sec);
+      const billableStd = Math.max(0, used - quota);
+      const dueUsd = (billableStd / 1000) * 0.99;
+      const coveredUsd = Math.max(0, cost.listUsd - dueUsd);
+      const audioMin = minOfSec(secOf(sec, ['audio']));
+      const hdMin = minOfSec(secOf(sec, ['hd', 'hdp']));
+      const fhdMin = minOfSec(secOf(sec, ['fullHd']));
+      const k2Min = minOfSec(secOf(sec, ['video2k']));
+      const k2pMin = minOfSec(secOf(sec, ['video2kPlus']));
+      return h('div', { class: 'agora-stack' },
+        h('div', { class: 'glass admin-panel agora-panel' },
+          h('div', { class: 'agora-panel-head' },
+            h('div', { class: 'agora-panel-title' }, t('agoraBreakdown')),
+            h('div', { class: 'seg' },
+              ...[7, 14, 30].map((n) => h('button', {
+                type: 'button', class: chartDays === n ? 'on' : '',
+                onclick: () => { state.agoraChartDays = n; render(); },
+              }, t('agoraLastNDays').replace('{n}', String(n)))),
+            ),
+          ),
+          h('div', { class: 'agora-metric-row' },
+            ...[
+              ['agoraAudio', audioMin, '#F59E0B'],
+              ['agoraHd', hdMin, '#3B82F6'],
+              ['agoraFullHd', fhdMin, '#22C55E'],
+              ['agoraVideo2k', k2Min, '#EC4899'],
+              ['agoraVideo2kPlus', k2pMin, '#A855F7'],
+            ].map(([k, m, c]) => h('div', { class: 'agora-metric' },
+              h('span', { class: 'dot', style: { background: c } }),
               h('span', { class: 'k' }, t(k)),
-              h('span', { class: 'v' }, fmtSec(v)),
+              h('span', { class: 'v' }, fmtMin1(m) + ' ' + t('agoraMinUnit')),
             )),
+          ),
+          agoraLineChart(daily, chartDays),
+          agoraDailyTable(daily, chartDays),
         ),
-      ),
-      h('div', { class: 'glass admin-panel agora-panel' },
-        h('div', { class: 'agora-panel-title' }, t('agoraDaily')),
-        agoraBars(daily),
-      ),
-    ),
+        h('div', { class: 'glass admin-panel agora-panel' },
+          h('div', { class: 'agora-panel-title' }, t('agoraCost')),
+          h('div', { class: 'agora-cost-kpis' },
+            h('div', { class: 'agora-kpi' },
+              h('span', { class: 'k' }, t('agoraListCost')),
+              h('span', { class: 'v' }, fmtUsd(cost.listUsd)),
+              h('span', { class: 'u' }, t('agoraListCostHint')),
+            ),
+            h('div', { class: 'agora-kpi' },
+              h('span', { class: 'k' }, t('agoraFreeCovered')),
+              h('span', { class: 'v' }, fmtUsd(coveredUsd)),
+              h('span', { class: 'u' }, t('agoraFreeCoveredHint')),
+            ),
+            h('div', { class: 'agora-kpi' },
+              h('span', { class: 'k' }, t('agoraDueCost')),
+              h('span', { class: 'v' }, fmtUsd(dueUsd)),
+              h('span', { class: 'u' }, billableStd > 0
+                ? t('agoraOverageMin').replace('{n}', fmtMin1(billableStd))
+                : t('agoraWithinFree')),
+            ),
+          ),
+          h('div', { class: 'admin-msg info', style: { marginTop: '10px' } }, t('agoraCostDisclaimer')),
+          h('div', { class: 'glass admin-table-wrap', style: { marginTop: '10px' } },
+            h('table', { class: 'admin-table' },
+              h('thead', {}, h('tr', {},
+                h('th', {}, t('agoraCostType')),
+                h('th', {}, t('agoraMinUnit')),
+                h('th', {}, t('agoraRate')),
+                h('th', {}, t('agoraListCost')),
+              )),
+              h('tbody', {}, ...cost.lines.map((line) => h('tr', {},
+                h('td', {}, h('span', { class: 'agora-leg' },
+                  h('i', { style: { background: line.color } }), t(line.key))),
+                h('td', {}, fmtMin1(line.min)),
+                h('td', { class: 'mono' }, '$' + line.rate.toFixed(2) + ' / 1k'),
+                h('td', {}, fmtUsd(line.usd)),
+              )),
+                h('tr', {},
+                  h('td', {}, h('strong', {}, t('agoraTotal'))),
+                  h('td', {}, fmtMin1(used) + ' ' + t('agoraMinutes')),
+                  h('td', {}, '—'),
+                  h('td', {}, h('strong', {}, fmtUsd(cost.listUsd))),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    })(),
     h('div', { class: 'glass admin-panel' },
       h('div', { class: 'agora-panel-title' }, t('agoraProjects')),
       !projects.length
