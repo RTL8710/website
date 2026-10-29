@@ -13776,25 +13776,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('[AHS][Agora] using device rtcToken');
                     return tok;
                 }
-                for (let i = 0; i < 30 && !(window.CryptoJS && window.AgoraRtcToken); i++) {
+                // 等 crypto + token 脚本；兼容 AgoraRtcToken（agora-rtc-token.js）与 AhsAgoraToken（agora-token.js）
+                for (let i = 0; i < 30 && !(window.CryptoJS && (window.AgoraRtcToken || window.AhsAgoraToken)); i++) {
                     await new Promise(r => setTimeout(r, 100));
                 }
-                if (cert && appId && channel && window.AgoraRtcToken && window.CryptoJS) {
+                if (cert && appId && channel) {
                     try {
-                        const role = (this.options && this.options.role === 'audience')
-                            ? window.AgoraRtcToken.Role.SUBSCRIBER
-                            : window.AgoraRtcToken.Role.PUBLISHER;
-                        tok = window.AgoraRtcToken.buildTokenWithUid(appId, cert, channel, 0, role, 24 * 3600);
-                        this.options.token = tok;
-                        console.log('[AHS][Agora] minted token from device rtcAppCertificate, appId=', appId.slice(0, 8), 'len=', tok.length);
-                        return tok;
+                        if (window.AgoraRtcToken && window.CryptoJS) {
+                            const role = (this.options && this.options.role === 'audience')
+                                ? window.AgoraRtcToken.Role.SUBSCRIBER
+                                : window.AgoraRtcToken.Role.PUBLISHER;
+                            tok = window.AgoraRtcToken.buildTokenWithUid(appId, cert, channel, 0, role, 24 * 3600);
+                        } else if (window.AhsAgoraToken && window.AhsAgoraToken.buildRtcToken) {
+                            tok = window.AhsAgoraToken.buildRtcToken(appId, cert, channel, 0, Math.floor(Date.now() / 1000) + 24 * 3600);
+                        }
+                        if (tok) {
+                            this.options.token = tok;
+                            console.log('[AHS][Agora] minted token from device rtcAppCertificate, appId=', appId.slice(0, 8), 'len=', tok.length);
+                            return tok;
+                        }
                     } catch (e) {
                         console.warn('[AHS][Agora] token mint failed', e);
                     }
-                } else {
-                    console.log('[AHS][Agora] join empty token; device appId=', (appId || '').slice(0, 8),
-                        'cert?', !!cert);
                 }
+                console.log('[AHS][Agora] join empty token; device appId=', (appId || '').slice(0, 8),
+                    'cert?', !!cert, 'AgoraRtcToken?', !!window.AgoraRtcToken, 'AhsAgoraToken?', !!window.AhsAgoraToken);
                 this.options.token = null;
                 return null;
             },
