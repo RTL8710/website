@@ -14596,14 +14596,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (pbIdx >= 0) { this.setPbCamUid(pbIdx, id); if (pbIdx === 0) this.playbackUid = id; }
 
+                // 预览不订音频：设备不推 Agora 音频时订了也会按「在房音频」计费；视频足够
+                if (mediaType === 'audio') {
+                    console.log('[AHS][Agora] skip audio subscribe (billing)', id);
+                    return;
+                }
                 await this.client.subscribe(user, mediaType);
                 if (mediaType === 'video') {
-                    if (pbIdx >= 0) this.renderPlaybackVideo();  // 回放各路 → remotePlaybackView{i}
-                    else this.renderRemoteVideos();              // N 路实时 → 各自画面框
-                }
-                if (mediaType === 'audio') {
-                    // 仅 cam0 连接推音频（其余仅视频）→ 只播 cam0 音频，避免叠音
-                    if (camIdx === 0 && user.audioTrack) user.audioTrack.play();
+                    if (pbIdx >= 0) this.renderPlaybackVideo();
+                    else this.renderRemoteVideos();
                 }
             },
 
@@ -18540,9 +18541,7 @@ async _execSystemServiceAction(action) {
                     if (user.hasVideo || (user.videoTrack == null)) {
                         try { await this.client.subscribe(user, 'video'); } catch (e) { console.warn('[AHS][Agora] subscribe', id, e); }
                     }
-                    if (user.hasAudio) {
-                        try { await this.client.subscribe(user, 'audio'); } catch (e) {}
-                    }
+                    // 不订音频（与 App livePreviewJoinOptions.subscribeAudio=false 对齐）
                 }
                 this.renderPlaybackVideo();
                 this.refreshAgoraDebug();
