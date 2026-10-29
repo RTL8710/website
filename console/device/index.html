@@ -6295,7 +6295,9 @@ window.__presignThumbUrl = function (raw) {
                                                         </div>
                                                         <div class="d-flex align-items-center mt-2" style="gap:8px;" x-show="playbackDurationMs>0">
                                                             <input type="range" class="form-range flex-fill" min="0" :max="playbackDurationMs" step="1000"
-                                                                   x-model.number="playbackPositionMs" @change="seekRemotePlayback($event)">
+                                                                   x-model.number="playbackPositionMs"
+                                                                   @pointerdown="stopPlaybackProgressTicker()"
+                                                                   @change="seekRemotePlayback($event)">
                                                             <span class="text-muted" style="font-size:11px;white-space:nowrap;"
                                                                   x-text="Math.floor(playbackPositionMs/1000)+'s / '+Math.floor(playbackDurationMs/1000)+'s'"></span>
                                                         </div>
@@ -12896,6 +12898,8 @@ document.addEventListener('DOMContentLoaded', function() {
             kvsPlaybackViewers: [],       // 多路 KVS 回放 viewer 列表(逐路 -playback/-playback2/…)
             playbackDurationMs: 0,        // 总时长（start 响应回传，进度条 max）
             playbackPositionMs: 0,        // 云端回放进度（拖动 → seek）
+            _playbackProgressTimer: null, // 设备不推送进度：1s 本地推进（对齐 App _progressTimer）
+            _remotePbSegStart: -1,        // 当前远程回放段墙钟起点（当天秒），驱动时间轴白线
             tlPlaySecs: -1,               // 时间轴白线：当前播放墙钟（与绿线点击分离）
             showPbDebugWallClock: false,   // 回放画面墙钟角标（调试用，默认隐藏）
             localPbSec: 0,                // 进度条：master 片内绝对秒（= video.currentTime）
@@ -14597,8 +14601,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.remotePlaybackActive = true;
                         this.remotePlaybackPath = record.RecordIndexInformationPath;
                         this.playbackDurationMs = result.params.durationMs || 0;
-                        this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
+                        this._armRemotePlaybackProgress(record);
                         // 不弹「远程回放已开始」：切段频繁，弹框干扰；失败仍提示
                     } else {
                         this.showAlert('error', tIdx('rp_failed'), tIdx('vp_remote_playback'));
@@ -19689,6 +19693,49 @@ async _execSystemServiceAction(action) {
                 if (this.syncRecords && this.syncRecords.length) this.syncRecords = [];
             },
 
+            // 设备不推送回放进度：本地 1s 推进进度条 + 时间轴白线（对齐 App _startProgressTicker）
+            stopPlaybackProgressTicker() {
+                if (this._playbackProgressTimer) {
+                    clearInterval(this._playbackProgressTimer);
+                    this._playbackProgressTimer = null;
+                }
+            },
+            _syncRemoteTlPlaySecs() {
+                if (this._remotePbSegStart != null && this._remotePbSegStart >= 0) {
+                    this.tlPlaySecs = this._remotePbSegStart + Math.floor((this.playbackPositionMs || 0) / 1000);
+                }
+            },
+            startPlaybackProgressTicker() {
+                this.stopPlaybackProgressTicker();
+                const self = this;
+                this._playbackProgressTimer = setInterval(function () {
+                    if (!self.remotePlaybackActive) {
+                        self.stopPlaybackProgressTicker();
+                        return;
+                    }
+                    const dur = self.playbackDurationMs || 0;
+                    if (dur <= 0) return;
+                    if (self.playbackPositionMs + 1000 <= dur) {
+                        self.playbackPositionMs += 1000;
+                    } else {
+                        self.playbackPositionMs = dur;
+                        self.stopPlaybackProgressTicker();
+                    }
+                    self._syncRemoteTlPlaySecs();
+                }, 1000);
+            },
+            _armRemotePlaybackProgress(record) {
+                const r = this._ensureRecSegStart(Object.assign({}, record || {}));
+                const seg = (r && r._segStart != null) ? Number(r._segStart) : -1;
+                this._remotePbSegStart = (isFinite(seg) && seg >= 0) ? seg : -1;
+                this.playbackPositionMs = 0;
+                if (this._remotePbSegStart >= 0) {
+                    this.tlPlaySecs = this._remotePbSegStart;
+                    if (this.tlClickSecs == null || this.tlClickSecs < 0) this.tlClickSecs = this._remotePbSegStart;
+                }
+                this.startPlaybackProgressTicker();
+            },
+
             // ===== 云端远程回放（设备 demux 本地 MP4 → 独立 Agora 回放通道 uid 1226）=====
             // 由 playRecord 在非局域网时自动调用（无单独按钮）。回放流独立于实时直播：
             // 回放期间看实时直播的人不被打断。
@@ -19729,8 +19776,8 @@ async _execSystemServiceAction(action) {
                     this.refreshAgoraDebug();
                     if (result && result.params && result.params.success) {
                         this.playbackDurationMs = result.params.durationMs || 0;
-                        this.playbackPositionMs = 0;
                         this.playbackCodec = result.params.codec || '';
+                        this._armRemotePlaybackProgress(record);
                         await this.syncExistingPlaybackUsers();
                         this.renderPlaybackVideo();
                         setTimeout(() => { this.syncExistingPlaybackUsers(); }, 400);
@@ -19787,6 +19834,8 @@ async _execSystemServiceAction(action) {
                 }
             },
             async stopRemotePlayback(keepAgora) {
+                this.stopPlaybackProgressTicker();
+                this._remotePbSegStart = -1;
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -19843,6 +19892,7 @@ async _execSystemServiceAction(action) {
                 let positionMs = parseInt((ev && ev.target) ? ev.target.value : this.playbackPositionMs, 10);
                 if (isNaN(positionMs) || positionMs < 0) positionMs = 0;
                 this.playbackPositionMs = positionMs;
+                this._syncRemoteTlPlaySecs();
                 try {
                     await fetch('/setDeviceCommand', {
                         method: 'POST',
@@ -19854,6 +19904,10 @@ async _execSystemServiceAction(action) {
                     });
                 } catch (error) {
                     console.error('seekRemotePlayback error:', error);
+                }
+                if (this.remotePlaybackActive && (this.playbackDurationMs || 0) > 0
+                    && this.playbackPositionMs < this.playbackDurationMs) {
+                    this.startPlaybackProgressTicker();
                 }
             },
 
