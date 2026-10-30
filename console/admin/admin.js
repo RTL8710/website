@@ -64,6 +64,7 @@ const state = {
   agoraChartDays: 7,
   awsCost: null, // { month, months, monthRange, monthsRange, refreshedAt, err }
   awsCostChartDays: 30,
+  awsCostMonthsChart: 'bar', // bar | line
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -3597,7 +3598,7 @@ async function writeAwsCostS3Cache(payload) {
 function applyAwsCostCache(cache, note) {
   const empty = { totalUsd: 0, byService: [], daily: [] };
   const monthRange = (cache && cache.monthRange) || awsCostMonthUtcRange();
-  const monthsRange = (cache && cache.monthsRange) || awsCostLastMonthsUtcRange(3);
+  const monthsRange = (cache && cache.monthsRange) || awsCostLastMonthsUtcRange(12);
   state.awsCost = {
     monthRange,
     monthsRange,
@@ -3612,7 +3613,7 @@ function applyAwsCostCache(cache, note) {
 async function loadAwsCost(opts = {}) {
   const force = !!(opts && opts.force);
   const month = awsCostMonthUtcRange();
-  const months = awsCostLastMonthsUtcRange(3);
+  const months = awsCostLastMonthsUtcRange(12);
   const empty = { totalUsd: 0, byService: [], daily: [] };
 
   // 默认：S3 缓存优先，避免每次进 Tab 都打 CE 限流 → 页面假 $0
@@ -3690,10 +3691,23 @@ async function loadAwsCost(opts = {}) {
 
 function awsCostLineChart(daily, days) {
   const rows = (daily || []).slice(-Math.max(1, days || 30));
-  if (!rows.length) return h('div', { class: 'agora-empty-chart' }, t('awsEmpty'));
-  const W = 640, H = 180, padL = 44, padR = 12, padT = 12, padB = 28;
-  const maxV = Math.max(...rows.map((d) => d.total || 0), 0.01);
-  const xAt = (i) => padL + (i / Math.max(rows.length - 1, 1)) * (W - padL - padR);
+  return awsCostSeriesChart(rows, {
+    type: 'line',
+    xLabel: (r) => String(r.date || '').slice(5),
+  });
+}
+
+/** 近月 / 日花费通用：type = line | bar */
+function awsCostSeriesChart(rows, opts = {}) {
+  const list = rows || [];
+  if (!list.length) return h('div', { class: 'agora-empty-chart' }, t('awsEmpty'));
+  const type = opts.type === 'bar' ? 'bar' : 'line';
+  const xLabel = opts.xLabel || ((r) => String(r.date || '').slice(0, 7));
+  const W = 720, H = 200, padL = 48, padR = 14, padT = 14, padB = 32;
+  const maxV = Math.max(...list.map((d) => d.total || 0), 0.01);
+  const n = list.length;
+  const plotW = W - padL - padR;
+  const xAt = (i) => padL + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yAt = (v) => padT + (1 - (v / maxV)) * (H - padT - padB);
   const kids = [];
   for (let g = 0; g <= 4; g++) {
@@ -3703,16 +3717,35 @@ function awsCostLineChart(daily, days) {
     kids.push(svgEl('text', { x: padL - 8, y: y + 4, class: 'agora-chart-axis', 'text-anchor': 'end' },
       '$' + (val >= 10 ? val.toFixed(0) : val.toFixed(2))));
   }
-  let d = '';
-  rows.forEach((r, i) => {
-    const x = xAt(i), y = yAt(r.total || 0);
-    d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
-  });
-  kids.push(svgEl('path', { d: d.trim(), fill: 'none', stroke: '#38BDF8', 'stroke-width': '2.2', class: 'agora-chart-line' }));
-  rows.forEach((r, i) => {
-    if (i % Math.ceil(rows.length / 6) !== 0 && i !== rows.length - 1) return;
+  if (type === 'bar') {
+    const gap = Math.min(10, plotW / Math.max(n, 1) * 0.28);
+    const bw = Math.max(6, (plotW / Math.max(n, 1)) - gap);
+    list.forEach((r, i) => {
+      const cx = n <= 1 ? padL + plotW / 2 : xAt(i);
+      const x = cx - bw / 2;
+      const y = yAt(r.total || 0);
+      const hBar = Math.max(1, (H - padB) - y);
+      kids.push(svgEl('rect', {
+        x, y, width: bw, height: hBar, rx: 3,
+        fill: '#38BDF8', opacity: '0.85', class: 'agora-chart-bar',
+      }));
+    });
+  } else {
+    let d = '';
+    list.forEach((r, i) => {
+      const x = xAt(i), y = yAt(r.total || 0);
+      d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+    });
+    kids.push(svgEl('path', { d: d.trim(), fill: 'none', stroke: '#38BDF8', 'stroke-width': '2.2', class: 'agora-chart-line' }));
+    list.forEach((r, i) => {
+      kids.push(svgEl('circle', { cx: xAt(i), cy: yAt(r.total || 0), r: 3, fill: '#38BDF8' }));
+    });
+  }
+  const labelStep = Math.max(1, Math.ceil(n / 8));
+  list.forEach((r, i) => {
+    if (i % labelStep !== 0 && i !== n - 1) return;
     kids.push(svgEl('text', { x: xAt(i), y: H - 8, class: 'agora-chart-axis', 'text-anchor': 'middle' },
-      String(r.date || '').slice(5)));
+      xLabel(r)));
   });
   return h('div', { class: 'agora-chart-wrap' },
     svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'agora-chart' }, ...kids));
@@ -3827,20 +3860,32 @@ function viewAws() {
     h('section', { class: 'glass agora-card' },
       h('div', { class: 'agora-card-head' },
         h('h2', {}, t('awsMonths')),
+        h('div', { class: 'seg' },
+          ...[['bar', 'awsChartBar'], ['line', 'awsChartLine']].map(([k, ik]) => h('button', {
+            type: 'button', class: (state.awsCostMonthsChart || 'bar') === k ? 'on' : '',
+            onclick: () => { state.awsCostMonthsChart = k; render(); },
+          }, t(ik))),
+        ),
       ),
       (a && a.errMonths) ? h('div', { class: 'admin-msg err' }, a.errMonths) : null,
       !(months.daily || []).length
         ? h('div', { class: 'agora-empty-chart' }, (a && a.errMonths) ? a.errMonths : t('awsEmpty'))
-        : h('div', { class: 'agora-table-wrap' },
-          h('table', { class: 'admin-table' },
-            h('thead', {}, h('tr', {},
-              h('th', {}, 'Month'),
-              h('th', {}, 'USD'),
-            )),
-            h('tbody', {}, ...(months.daily || []).map((d) => h('tr', {},
-              h('td', { class: 'mono' }, String(d.date || '').slice(0, 7)),
-              h('td', {}, h('b', {}, fmtUsd(d.total || 0))),
-            ))),
+        : h('div', {},
+          awsCostSeriesChart(months.daily, {
+            type: state.awsCostMonthsChart || 'bar',
+            xLabel: (r) => String(r.date || '').slice(0, 7),
+          }),
+          h('div', { class: 'agora-table-wrap', style: { marginTop: '12px' } },
+            h('table', { class: 'admin-table' },
+              h('thead', {}, h('tr', {},
+                h('th', {}, t('awsMonthCol')),
+                h('th', {}, 'USD'),
+              )),
+              h('tbody', {}, ...(months.daily || []).map((d) => h('tr', {},
+                h('td', { class: 'mono' }, String(d.date || '').slice(0, 7)),
+                h('td', {}, h('b', {}, fmtUsd(d.total || 0))),
+              ))),
+            ),
           ),
         ),
     ),
