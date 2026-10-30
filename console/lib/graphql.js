@@ -451,7 +451,8 @@ const Q_AWS_COST = /* GraphQL */ `
  * 注意：不能走通用 gql()——CE 失败时 AppSync 常返回 data.getAwsCostSummary=null + errors，
  * 通用路径只 warn「partial errors」不抛错，页面会误显示 $0。
  */
-const AWS_CE_CACHE_TTL_MS = 20 * 60 * 1000;
+// 浏览器侧短缓存；权威缓存在 S3 public/admin/aws-cost-cache.json
+const AWS_CE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function awsCeCacheKey(start, end, granularity) {
   return 'aws_ce_v1_' + start + '_' + end + '_' + (granularity || 'DAILY');
@@ -493,6 +494,10 @@ async function fetchAwsCostSummaryOnce({ start, end, granularity }) {
   return parsed;
 }
 
+/**
+ * 直连 AppSync→Cost Explorer（易限流）。管理页默认应先读 S3 缓存，仅 force 刷新时调用。
+ * 最多 2 次尝试，避免把账号 CE 配额打爆后页面一直显示 $0。
+ */
 export async function getAwsCostSummary({ start, end, granularity = 'DAILY', bypassCache = false }) {
   if (!start || !end) throw new Error('缺少 start/end');
   const g = granularity || 'DAILY';
@@ -502,7 +507,7 @@ export async function getAwsCostSummary({ start, end, granularity = 'DAILY', byp
     if (hit) return hit;
   }
   let lastErr;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 2; i++) {
     try {
       const body = await fetchAwsCostSummaryOnce({ start, end, granularity: g });
       writeAwsCeCache(key, body);
@@ -510,13 +515,15 @@ export async function getAwsCostSummary({ start, end, granularity = 'DAILY', byp
     } catch (e) {
       lastErr = e;
       const msg = (e && e.message) || String(e);
-      if (!/Rate limit|LimitExceeded|Throttl/i.test(msg) || i === 4) throw e;
-      // CE 账号级限流很严：退避 3s / 8s / 18s / 35s
-      await new Promise((r) => setTimeout(r, 3000 + i * i * 5000));
+      if (!/Rate limit|LimitExceeded|Throttl/i.test(msg) || i === 1) throw e;
+      await new Promise((r) => setTimeout(r, 8000));
     }
   }
   throw lastErr;
 }
+
+/** S3 费用缓存对象 key（各区域桶各一份，内容账号级相同） */
+export const AWS_COST_S3_CACHE_KEY = 'public/admin/aws-cost-cache.json';
 
 export function isAwsCostRateLimitedError(err) {
   const msg = (err && err.message) || String(err || '');

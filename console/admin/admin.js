@@ -10,7 +10,7 @@ import {
   updateDeviceAdmin, deleteDeviceCompletely,
   getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
   getAwsCostSummary, summarizeAwsCost, awsCostMonthUtcRange, awsCostLastMonthsUtcRange,
-  isAwsCostRateLimitedError,
+  isAwsCostRateLimitedError, AWS_COST_S3_CACHE_KEY,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
@@ -3568,47 +3568,113 @@ function awsFocusOf(name) {
   return null;
 }
 
+async function readAwsCostS3Cache() {
+  const creds = await resolvedCreds();
+  if (!creds || !creds.accessKeyId) return null;
+  const buf = await getS3Object(creds, {
+    bucket: S3_BUCKET, region: COGNITO.region, key: AWS_COST_S3_CACHE_KEY,
+  });
+  const text = new TextDecoder('utf-8').decode(new Uint8Array(buf));
+  const o = JSON.parse(text);
+  if (!o || !o.monthRaw) return null;
+  return o;
+}
+
+async function writeAwsCostS3Cache(payload) {
+  try {
+    const creds = await resolvedCreds();
+    if (!creds || !creds.accessKeyId) return;
+    const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    await putS3Object(creds, {
+      bucket: S3_BUCKET, region: COGNITO.region, key: AWS_COST_S3_CACHE_KEY,
+      body, contentType: 'application/json',
+    });
+  } catch (e) {
+    console.warn('[aws-cost] write S3 cache', e);
+  }
+}
+
+function applyAwsCostCache(cache, note) {
+  const empty = { totalUsd: 0, byService: [], daily: [] };
+  const monthRange = (cache && cache.monthRange) || awsCostMonthUtcRange();
+  const monthsRange = (cache && cache.monthsRange) || awsCostLastMonthsUtcRange(3);
+  state.awsCost = {
+    monthRange,
+    monthsRange,
+    month: cache && cache.monthRaw ? summarizeAwsCost(cache.monthRaw) : empty,
+    months: cache && cache.monthsRaw ? summarizeAwsCost(cache.monthsRaw) : empty,
+    refreshedAt: (cache && cache.refreshedAt) || new Date().toISOString(),
+    source: 's3',
+    err: note || '',
+  };
+}
+
 async function loadAwsCost(opts = {}) {
   const force = !!(opts && opts.force);
   const month = awsCostMonthUtcRange();
   const months = awsCostLastMonthsUtcRange(3);
   const empty = { totalUsd: 0, byService: [], daily: [] };
+
+  // 默认：S3 缓存优先，避免每次进 Tab 都打 CE 限流 → 页面假 $0
+  if (!force) {
+    try {
+      const cache = await readAwsCostS3Cache();
+      if (cache) {
+        applyAwsCostCache(cache, '');
+        if (state.tab === 'aws') render();
+        return;
+      }
+    } catch (e) {
+      console.warn('[aws-cost] S3 cache miss', e);
+    }
+  }
+
   try {
-    // 先拉本月 DAILY（一张图够用）；近月 MONTHLY 延后，降低 CE 限流
     const rawMonth = await getAwsCostSummary({
       start: month.start, end: month.end, granularity: 'DAILY', bypassCache: force,
     });
-    const monthSum = summarizeAwsCost(rawMonth);
+    let rawMonths = null;
+    await new Promise((r) => setTimeout(r, 2500));
+    try {
+      rawMonths = await getAwsCostSummary({
+        start: months.start, end: months.end, granularity: 'MONTHLY', bypassCache: force,
+      });
+    } catch (e2) {
+      console.warn('[aws-cost] months', e2);
+    }
+    const refreshedAt = new Date().toISOString();
     state.awsCost = {
       monthRange: month,
       monthsRange: months,
-      month: monthSum,
-      months: (state.awsCost && state.awsCost.months) || empty,
-      refreshedAt: new Date().toISOString(),
+      month: summarizeAwsCost(rawMonth),
+      months: rawMonths ? summarizeAwsCost(rawMonths) : ((state.awsCost && state.awsCost.months) || empty),
+      refreshedAt,
+      source: 'ce',
       err: '',
+      errMonths: rawMonths ? '' : t('awsRateLimited'),
     };
+    await writeAwsCostS3Cache({
+      version: 1,
+      refreshedAt,
+      monthRange: month,
+      monthsRange: months,
+      monthRaw: rawMonth,
+      monthsRaw: rawMonths || null,
+    });
     if (state.tab === 'aws') render();
-
-    await new Promise((r) => setTimeout(r, 2500));
-    try {
-      const rawMonths = await getAwsCostSummary({
-        start: months.start, end: months.end, granularity: 'MONTHLY', bypassCache: force,
-      });
-      if (state.awsCost) {
-        state.awsCost.months = summarizeAwsCost(rawMonths);
-        state.awsCost.refreshedAt = new Date().toISOString();
-      }
-    } catch (e2) {
-      // 近月失败不抹掉本月已成功数据
-      console.warn('[aws-cost] months', e2);
-      if (state.awsCost) {
-        state.awsCost.errMonths = isAwsCostRateLimitedError(e2)
-          ? t('awsRateLimited')
-          : ((e2 && e2.message) || String(e2));
-      }
-    }
   } catch (e) {
     console.error('[aws-cost]', e);
+    try {
+      const cache = await readAwsCostS3Cache();
+      if (cache) {
+        const note = isAwsCostRateLimitedError(e)
+          ? t('awsRateLimited')
+          : ((e && e.message) || String(e));
+        applyAwsCostCache(cache, note);
+        if (state.tab === 'aws') render();
+        return;
+      }
+    } catch (_) {}
     const nice = isAwsCostRateLimitedError(e) ? t('awsRateLimited') : ((e && e.message) || String(e));
     state.awsCost = {
       monthRange: month,
@@ -3653,6 +3719,9 @@ function awsCostLineChart(daily, days) {
 }
 
 function viewAws() {
+  if (state.loadingTab && !state.awsCost) {
+    return h('div', { class: 'agora-page aws-page' }, loading(t('restoring')));
+  }
   const a = state.awsCost;
   const month = (a && a.month) || { totalUsd: 0, byService: [], daily: [] };
   const months = (a && a.months) || { totalUsd: 0, byService: [], daily: [] };
