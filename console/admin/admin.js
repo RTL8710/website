@@ -577,21 +577,19 @@ async function loadTab(id) {
       await ensure('diagLogs');
       await hydrateLogUsers();
     } else if (id === 'cloudsub' || id === 'agora' || id === 'aws') {
-      // 兼容旧 hash；统一走云订阅
+      // 兼容旧 hash；统一走云订阅。进入即并行拉声网 + 亚马逊，页内显示 loading
       if (id === 'agora') state.cloudSubScope = 'agora';
       if (id === 'aws') state.cloudSubScope = 'amazon';
       if (state.tab !== 'cloudsub') state.tab = 'cloudsub';
-      if (state.cloudSubScope === 'amazon') {
-        const had = !!state.awsCost;
-        state.loadingTab = !had;
-        if (had) render();
-        await loadAwsCost();
-      } else {
-        const had = !!state.agora;
-        state.loadingTab = !had;
-        if (had) render();
-        await loadAgora();
+      state.loadingTab = true;
+      render();
+      const settled = await Promise.allSettled([loadAgora(), loadAwsCost()]);
+      const fails = settled.filter((r) => r.status === 'rejected');
+      if (fails.length === settled.length) {
+        const msg = (fails[0].reason && fails[0].reason.message) || String(fails[0].reason || 'load fail');
+        throw new Error(msg);
       }
+      for (const r of fails) console.warn('[cloudsub]', r.reason);
     }
   } catch (e) {
     console.error('[admin]', id, e);
@@ -3327,30 +3325,42 @@ function switchCloudSubScope(k) {
   state.cloudSubScope = next;
   state._err = '';
   render();
-  loadTab('cloudsub');
+  // 两侧数据在进入云订阅时已并行拉取；仅缺一侧时补拉
+  if (next === 'amazon' && !state.awsCost) {
+    state.loadingTab = true; render();
+    loadAwsCost().catch((e) => toast((e && e.message) || t('awsLoadFail'), 'err'))
+      .finally(() => { state.loadingTab = false; render(); });
+  } else if (next === 'agora' && !state.agora) {
+    state.loadingTab = true; render();
+    loadAgora().catch((e) => toast((e && e.message) || t('agoraLoadFail'), 'err'))
+      .finally(() => { state.loadingTab = false; render(); });
+  }
 }
 
 function cloudSubSourceCard(id) {
   const on = (state.cloudSubScope === 'amazon' ? 'amazon' : 'agora') === id;
   const isAmz = id === 'amazon';
-  let count = '—';
-  let sub = '—';
-  if (isAmz) {
-    const m = state.awsCost && state.awsCost.month;
-    count = m ? fmtUsd(m.totalUsd || 0) : '—';
-    sub = m ? t('awsMonthTotal') : t('awsEmpty');
-  } else {
-    const a = state.agora;
-    if (a && a.accountMinutes != null) {
-      count = String(Math.round(a.accountMinutes));
-      sub = t('agoraMinutes');
+  const pending = !!state.loadingTab && (isAmz ? !state.awsCost : !state.agora);
+  let count = pending ? '…' : '—';
+  let sub = pending ? '…' : '—';
+  if (!pending) {
+    if (isAmz) {
+      const m = state.awsCost && state.awsCost.month;
+      count = m ? fmtUsd(m.totalUsd || 0) : '—';
+      sub = m ? t('awsMonthTotal') : t('awsEmpty');
     } else {
-      sub = t('agoraEmpty');
+      const a = state.agora;
+      if (a && a.accountMinutes != null) {
+        count = String(Math.round(a.accountMinutes));
+        sub = t('agoraMinutes');
+      } else {
+        sub = t('agoraEmpty');
+      }
     }
   }
   return h('button', {
     type: 'button',
-    class: 'logs-source' + (isAmz ? ' is-device' : '') + (on ? ' on' : ''),
+    class: 'logs-source' + (isAmz ? ' is-device' : '') + (on ? ' on' : '') + (pending ? ' is-loading' : ''),
     onclick: () => switchCloudSubScope(id),
   },
     h('span', { class: 'logs-source-ico' }, fa(isAmz ? 'fa-dollar-sign' : 'fa-tower-broadcast')),
@@ -3362,6 +3372,7 @@ function cloudSubSourceCard(id) {
 
 function viewCloudSub() {
   const isAmz = state.cloudSubScope === 'amazon';
+  const bodyLoading = !!state.loadingTab && (isAmz ? !state.awsCost : !state.agora);
   return h('div', { class: 'cloudsub-page logs-page' },
     h('div', { class: 'glass logs-hero' },
       h('div', {},
@@ -3371,6 +3382,7 @@ function viewCloudSub() {
         h('div', { class: 'logs-hero-meta' },
           chip(t('tabCloudSub')),
           chip(isAmz ? t('cloudSubAmazon') : t('cloudSubAgora')),
+          state.loadingTab ? chip('…') : null,
         ),
       ),
       h('div', { class: 'logs-source-grid' },
@@ -3378,7 +3390,9 @@ function viewCloudSub() {
         cloudSubSourceCard('amazon'),
       ),
     ),
-    isAmz ? viewAws({ embedded: true }) : viewAgora({ embedded: true }),
+    bodyLoading
+      ? loading('…')
+      : (isAmz ? viewAws({ embedded: true }) : viewAgora({ embedded: true })),
   );
 }
 

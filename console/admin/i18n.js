@@ -137,9 +137,9 @@ export function tabDefs() {
     { id: 'overview', icon: 'fa-gauge-high', labelKey: 'tabOverview' },
     { id: 'users', icon: 'fa-users', labelKey: 'tabUsers' },
     { id: 'devices', icon: 'fa-robot', labelKey: 'tabDevices' },
+    { id: 'cloudsub', icon: 'fa-cloud-sun', labelKey: 'tabCloudSub' },
     { id: 'records', icon: 'fa-cloud', labelKey: 'tabRecords' },
     { id: 'ota', icon: 'fa-rocket', labelKey: 'tabOta' },
     { id: 'logs', icon: 'fa-file-lines', labelKey: 'tabLogs' },
-    { id: 'cloudsub', icon: 'fa-cloud-sun', labelKey: 'tabCloudSub' },
   ];
 }
