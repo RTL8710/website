@@ -436,3 +436,92 @@ export function agoraMonthUtcRange(now = new Date()) {
   const toDate = now.toISOString().slice(0, 10);
   return { fromDate, toDate };
 }
+
+// ── AWS Cost Explorer（AppSync HTTP → ce.us-east-1；金额为付款账号级）────────
+const Q_AWS_COST = /* GraphQL */ `
+  query GetAwsCostSummary($start: String!, $end: String!, $granularity: String) {
+    getAwsCostSummary(start: $start, end: $end, granularity: $granularity)
+  }`;
+
+/**
+ * Cost Explorer GetCostAndUsage 原始结果。
+ * start/end: UTC YYYY-MM-DD，end 为开区间（不含当日）。
+ * granularity: DAILY | MONTHLY
+ */
+export async function getAwsCostSummary({ start, end, granularity = 'DAILY' }) {
+  if (!start || !end) throw new Error('缺少 start/end');
+  let lastErr;
+  for (let i = 0; i < 4; i++) {
+    try {
+      const data = await gql(Q_AWS_COST, {
+        start, end, granularity: granularity || 'DAILY',
+      });
+      return parseAwsJson(data && data.getAwsCostSummary) || {};
+    } catch (e) {
+      lastErr = e;
+      const msg = (e && e.message) || String(e);
+      if (!/Rate limit|LimitExceeded|Throttl/i.test(msg) || i === 3) throw e;
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1) * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+/** 本月 UTC：[月初, 明天) —— CE end 不含当天，用明天可盖住今天已出账数据 */
+export function awsCostMonthUtcRange(now = new Date()) {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const end = tomorrow.toISOString().slice(0, 10);
+  return { start, end };
+}
+
+/** 近 N 个自然月月初 → 明天（开区间） */
+export function awsCostLastMonthsUtcRange(months = 3, now = new Date()) {
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+  return {
+    start: startDate.toISOString().slice(0, 10),
+    end: endDate.toISOString().slice(0, 10),
+  };
+}
+
+/**
+ * 把 CE ResultsByTime 收成 { totalUsd, byService:[{name,usd}], daily:[{date,total,byService}] }
+ */
+export function summarizeAwsCost(raw) {
+  const rows = (raw && raw.ResultsByTime) || [];
+  const byServiceMap = {};
+  const daily = [];
+  let totalUsd = 0;
+  for (const row of rows) {
+    const date = (row.TimePeriod && row.TimePeriod.Start) || '';
+    const dayMap = {};
+    let dayTotal = 0;
+    for (const g of (row.Groups || [])) {
+      const name = (g.Keys && g.Keys[0]) || 'Unknown';
+      const amt = Number((g.Metrics && g.Metrics.UnblendedCost && g.Metrics.UnblendedCost.Amount) || 0);
+      if (!isFinite(amt) || amt === 0) continue;
+      byServiceMap[name] = (byServiceMap[name] || 0) + amt;
+      dayMap[name] = (dayMap[name] || 0) + amt;
+      dayTotal += amt;
+      totalUsd += amt;
+    }
+    // 无 Groups 时看 Total
+    if (!(row.Groups || []).length && row.Total && row.Total.UnblendedCost) {
+      const amt = Number(row.Total.UnblendedCost.Amount || 0);
+      if (isFinite(amt) && amt !== 0) {
+        dayTotal += amt;
+        totalUsd += amt;
+        byServiceMap['(unallocated)'] = (byServiceMap['(unallocated)'] || 0) + amt;
+      }
+    }
+    daily.push({ date, total: dayTotal, byService: dayMap });
+  }
+  const byService = Object.keys(byServiceMap)
+    .map((name) => ({ name, usd: byServiceMap[name] }))
+    .sort((a, b) => b.usd - a.usd);
+  return { totalUsd, byService, daily };
+}
+

@@ -187,6 +187,13 @@ window.__fetchLatestDeviceUpgrade = async function (deviceType) {
   return items[0] || null;
 };
 
+window.cloudRecordStreamName = function (deviceId, channel) {
+  var id = String(deviceId || '');
+  var cam = (channel == null || channel === '') ? 0 : (parseInt(channel, 10) || 0);
+  if (cam <= 0) return id;
+  if (cam === 1) return id + '-cam2';
+  return id + '-cam' + (cam + 1);
+};
 window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso) {
   var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
   if (!creds.appsyncEndpoint || !creds.appsyncApiKey || !deviceId) return [];
@@ -6808,12 +6815,13 @@ window.__presignThumbUrl = function (raw) {
                                             <span :style="'position:absolute;white-space:nowrap;left:'+t.pct+'%;transform:translateX('+(t.pct<2?'0%':t.pct>98?'-100%':'-50%')+');'" x-text="t.label"></span>
                                         </template>
                                     </div>
-                                    <!-- 云端单轨（滚轮缩放、点击定位）-->
-                                    <div style="position:relative;height:24px;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
+                                    <!-- 云端多轨（按 cam 分行；滚轮缩放、点击定位）-->
+                                    <div style="position:relative;background:var(--bg-card2,#e9ecef);border-radius:3px;cursor:grab;overflow:hidden;user-select:none;margin-top:4px;"
+                                         :style="'height:'+timelineLanesHeight()+'px;'"
                                          :class="{'tl-grabbing': tlDrag.active}"
                                          @click="onCloudTimelineClick($event)" @wheel.prevent="onTimelineWheel($event)" @mousedown.prevent="onTimelineMouseDown($event)" :title="tIdx('tl_click_hint')">
-                                        <template x-for="(b,i) in timelineBlocks(0)" :key="'cc0-'+i">
-                                            <div :style="'position:absolute;top:0;height:100%;left:'+b.left+'%;width:'+b.width+'%;background:'+b.color+';'"></div>
+                                        <template x-for="(b,i) in timelineBlocksByLane()" :key="'ccl'+i">
+                                            <div :style="'position:absolute;left:'+b.left+'%;width:'+b.width+'%;top:'+b.top+'px;height:'+b.height+'px;background:'+b.color+';'"></div>
                                         </template>
                                         <div x-show="tlClickPct()>=0" :style="'position:absolute;top:0;height:100%;width:3px;background:#2fbf71;box-shadow:0 0 5px #2fbf71;left:'+tlClickPct()+'%;'"></div>
                                     </div>
@@ -12730,7 +12738,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             s3UploadResult: { uploading: false, url: '', error: '' },
 
-            cloudPlayback: { streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, loading: false, selected: null, posterThumb: '' },
+            cloudPlayback: {
+                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, loading: false, selected: null, posterThumb: '' },
 
             scanService:  {
                 scan_service_enable:  false,
@@ -16892,7 +16901,10 @@ async _execSystemServiceAction(action) {
             async playCloudRecording() {
                 this.cloudPlayback.error = '';
                 try {
-                    const streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName;
+                    const streamName = this.cloudPlayback.streamName
+                        || (window.cloudRecordStreamName
+                            ? window.cloudRecordStreamName(this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName, this.cloudPlayback.channel)
+                            : (this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName));
                     const region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion;
                     if (!streamName) throw new Error('Stream name unavailable');
                     if (!region) throw new Error('Region unavailable');
@@ -17008,9 +17020,13 @@ async _execSystemServiceAction(action) {
                     for (const r of list) {
                         if (r._thumb) continue;
                         const t0 = msOf(r.RecordIndexInformationDateTime);
+                        const rCam = (r.channel != null) ? Number(r.channel)
+                            : (r.RecordIndexInformationCameraIndex != null) ? Number(r.RecordIndexInformationCameraIndex) : 0;
                         let best = null, bestDist = Infinity;
                         for (const c of cloud) {
                             if (!c.thumbnailUrl) continue;
+                            const cCam = (c.channel != null) ? Number(c.channel) : 0;
+                            if (cCam !== rCam) continue;
                             const dist = Math.abs(msOf(c.dateTime) - t0);
                             if (dist < bestDist) { bestDist = dist; best = c; }
                         }
@@ -17070,6 +17086,14 @@ async _execSystemServiceAction(action) {
             },
             // 点击列表项播放：把记录时间换算为 datetime-local 本地字符串后复用 DASH 播放流程
             async playCloudRecord(r) {
+                const uuid = (r && (r.deviceID || r.deviceId)) || this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                // AppSync CloudRecord.channel；本地云段索引用 CameraIndex
+                const ch = (r && (r.channel != null)) ? r.channel
+                    : (r && r.RecordIndexInformationCameraIndex != null) ? r.RecordIndexInformationCameraIndex
+                    : 0;
+                this.cloudPlayback.channel = ch;
+                this.cloudPlayback.streamName = (window.cloudRecordStreamName ? window.cloudRecordStreamName(uuid, ch) : uuid);
+
                 this.cloudPlayback.selected = r;
                 if (r && r._thumb) this.cloudPlayback.posterThumb = r._thumb;   // 选中段封面作播放器 poster
                 // r.RecordIndexInformationDateTime 为设备本地时间 "YYYY-MM-DD HH:MM:SS"
@@ -17095,19 +17119,25 @@ async _execSystemServiceAction(action) {
                 if (r && Number.isFinite(r.RecordIndexInformationType)) return r.RecordIndexInformationType;
                 return (r && r.RecordIndexInformationDescription === 'EMR') ? 2 : 1;
             },
-            // 把云列表合成时间轴段（云端单 KVS 流 → 单轨；p='cloud' 非空→不被 timelineBlocks 过滤，且映射 CAM0）
+            // 把云列表合成时间轴段：按 channel/CameraIndex 分轨（多路同时上云）
             buildCloudTimeline() {
                 const secOfDay = (dt) => {
                     const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/);
                     return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : 0;
                 };
-                this.recordTimeline = (this.cloudPlayback.records || []).map(r => ({
-                    s: secOfDay(r.RecordIndexInformationDateTime),
-                    d: (r.RecordIndexInformationDuration || 0),
-                    ty: this.cloudTypeOf(r),
-                    p: 'cloud',
-                    i: ''
-                }));
+                this.recordTimeline = (this.cloudPlayback.records || []).map(r => {
+                    const cam = (r.channel != null) ? Number(r.channel)
+                        : (r.RecordIndexInformationCameraIndex != null) ? Number(r.RecordIndexInformationCameraIndex)
+                        : 0;
+                    return {
+                        s: secOfDay(r.RecordIndexInformationDateTime),
+                        d: (r.RecordIndexInformationDuration || 0),
+                        ty: this.cloudTypeOf(r),
+                        p: 'cloud',
+                        cam: isFinite(cam) ? cam : 0,
+                        i: ''
+                    };
+                });
             },
             // 进页面：定位到今天并拉当天云列表
             initCloudPlayback() {
@@ -17136,7 +17166,7 @@ async _execSystemServiceAction(action) {
                 this.timelineDate = new Date(base.getTime() - tz).toISOString().slice(0, 10);
                 this.fetchCloudDay();
             },
-            // 点击云时间轴：换算当天秒 → 找覆盖该秒(否则最近≤120s)的云记录 → DASH 播放
+            // 点击云时间轴：按 Y 选 cam 轨 → 找覆盖该秒(否则最近≤120s)的该路云记录 → DASH 播放
             onCloudTimelineClick(event) {
                 if (this._tlDragConsumedClick()) return;
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -17144,12 +17174,23 @@ async _execSystemServiceAction(action) {
                 const v = this.timelineView;
                 const secs = Math.round(v.start + pct * (v.end - v.start));
                 this.tlClickSecs = secs;
+                const ncam = Math.max(1, (typeof this.timelineCamCount === 'function') ? this.timelineCamCount() : 1);
+                const rowH = 20;
+                let cam = Math.floor((event.clientY - rect.top) / rowH);
+                if (cam < 0) cam = 0;
+                if (cam >= ncam) cam = ncam - 1;
                 const secOfDay = (dt) => {
                     const m = String(dt || '').match(/(\d{2}):(\d{2}):(\d{2})/);
                     return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : 0;
                 };
+                const camOf = (r) => {
+                    if (r && r.channel != null) return Number(r.channel) || 0;
+                    if (r && r.RecordIndexInformationCameraIndex != null) return Number(r.RecordIndexInformationCameraIndex) || 0;
+                    return 0;
+                };
                 let hit = null, best = null, bestDist = Infinity;
                 for (const r of (this.cloudPlayback.records || [])) {
+                    if (camOf(r) !== cam) continue;
                     const s = secOfDay(r.RecordIndexInformationDateTime);
                     const d = (r.RecordIndexInformationDuration || 0);
                     if (secs >= s && secs <= s + d) { hit = r; break; }

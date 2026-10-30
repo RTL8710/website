@@ -9,6 +9,7 @@ import {
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
   getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
+  getAwsCostSummary, summarizeAwsCost, awsCostMonthUtcRange, awsCostLastMonthsUtcRange,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
@@ -60,6 +61,8 @@ const state = {
   agoraProjectId: '', // '' = all
   agoraQuotaMinutes: 10000,
   agoraChartDays: 7,
+  awsCost: null, // { month, months, monthRange, monthsRange, refreshedAt, err }
+  awsCostChartDays: 30,
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -560,6 +563,10 @@ async function loadTab(id) {
       state.packages = packages;
       persistAdminSnap();
       refreshOverviewSecondary();
+      // 费用卡：后台懒加载，失败不挡总览
+      if (!state.awsCost) {
+        loadAwsCost().catch(() => {}).then(() => { if (state.tab === 'overview') render(); });
+      }
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
@@ -570,6 +577,8 @@ async function loadTab(id) {
       await hydrateLogUsers();
     } else if (id === 'agora') {
       await loadAgora();
+    } else if (id === 'aws') {
+      await loadAwsCost();
     }
   } catch (e) {
     console.error('[admin]', id, e);
@@ -660,6 +669,16 @@ function viewOverview() {
       mod('fa-mobile-alt', '', t('otaScopeApp'),
         appN,
         t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'app'; goTab('ota'); }),
+    ),
+    h('div', { class: 'logs-source-grid' },
+      mod('fa-dollar-sign', ' on', t('overviewAwsCost'),
+        (state.awsCost && state.awsCost.month) ? fmtUsd(state.awsCost.month.totalUsd) : '—',
+        t('tabAws'), () => goTab('aws')),
+      mod('fa-tower-broadcast', '', t('overviewAgoraCost'),
+        (state.agora && state.agora.accountSec)
+          ? fmtUsd(((Math.max(0, (state.agora.accountMinutes || 0) - (state.agora.quota || AGORA_QUOTA_DEFAULT))) / 1000) * 0.99)
+          : '—',
+        t('tabAgora'), () => goTab('agora')),
     ),
     h('div', { class: 'glass ota-panel' },
       h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-bolt')), t('commonOps')),
@@ -3530,6 +3549,212 @@ function viewAgora() {
 
 
 
+
+/** 产品相关服务名（Cost Explorer SERVICE 维度，子串匹配） */
+const AWS_FOCUS_SERVICES = [
+  { match: /Kinesis Video/i, label: 'Kinesis Video Streams', color: '#38BDF8' },
+  { match: /Simple Storage|Amazon S3/i, label: 'Amazon S3', color: '#F97316' },
+  { match: /IoT/i, label: 'AWS IoT', color: '#A78BFA' },
+  { match: /AppSync/i, label: 'AWS AppSync', color: '#F472B6' },
+  { match: /DynamoDB/i, label: 'Amazon DynamoDB', color: '#34D399' },
+  { match: /Cognito/i, label: 'Amazon Cognito', color: '#FBBF24' },
+  { match: /Lambda/i, label: 'AWS Lambda', color: '#FB7185' },
+  { match: /CloudWatch/i, label: 'Amazon CloudWatch', color: '#94A3B8' },
+];
+
+function awsFocusOf(name) {
+  for (const f of AWS_FOCUS_SERVICES) {
+    if (f.match.test(name || '')) return f;
+  }
+  return null;
+}
+
+async function loadAwsCost() {
+  const month = awsCostMonthUtcRange();
+  const months = awsCostLastMonthsUtcRange(3);
+  try {
+    // 串行：Cost Explorer 账号级限流，并行易 LimitExceeded
+    const rawMonth = await getAwsCostSummary({ start: month.start, end: month.end, granularity: 'DAILY' });
+    await new Promise((r) => setTimeout(r, 400));
+    const rawMonths = await getAwsCostSummary({ start: months.start, end: months.end, granularity: 'MONTHLY' });
+    state.awsCost = {
+      monthRange: month,
+      monthsRange: months,
+      month: summarizeAwsCost(rawMonth),
+      months: summarizeAwsCost(rawMonths),
+      refreshedAt: new Date().toISOString(),
+      err: '',
+    };
+  } catch (e) {
+    console.error('[aws-cost]', e);
+    state.awsCost = {
+      monthRange: month,
+      monthsRange: months,
+      month: { totalUsd: 0, byService: [], daily: [] },
+      months: { totalUsd: 0, byService: [], daily: [] },
+      refreshedAt: new Date().toISOString(),
+      err: (e && e.message) || String(e),
+    };
+    throw e;
+  }
+}
+
+function awsCostLineChart(daily, days) {
+  const rows = (daily || []).slice(-Math.max(1, days || 30));
+  if (!rows.length) return h('div', { class: 'agora-empty-chart' }, t('awsEmpty'));
+  const W = 640, H = 180, padL = 44, padR = 12, padT = 12, padB = 28;
+  const maxV = Math.max(...rows.map((d) => d.total || 0), 0.01);
+  const xAt = (i) => padL + (i / Math.max(rows.length - 1, 1)) * (W - padL - padR);
+  const yAt = (v) => padT + (1 - (v / maxV)) * (H - padT - padB);
+  const kids = [];
+  for (let g = 0; g <= 4; g++) {
+    const y = padT + (g / 4) * (H - padT - padB);
+    kids.push(svgEl('line', { x1: padL, x2: W - padR, y1: y, y2: y, class: 'agora-chart-grid' }));
+    const val = maxV * (1 - g / 4);
+    kids.push(svgEl('text', { x: padL - 8, y: y + 4, class: 'agora-chart-axis', 'text-anchor': 'end' },
+      '$' + (val >= 10 ? val.toFixed(0) : val.toFixed(2))));
+  }
+  let d = '';
+  rows.forEach((r, i) => {
+    const x = xAt(i), y = yAt(r.total || 0);
+    d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+  });
+  kids.push(svgEl('path', { d: d.trim(), fill: 'none', stroke: '#38BDF8', 'stroke-width': '2.2', class: 'agora-chart-line' }));
+  rows.forEach((r, i) => {
+    if (i % Math.ceil(rows.length / 6) !== 0 && i !== rows.length - 1) return;
+    kids.push(svgEl('text', { x: xAt(i), y: H - 8, class: 'agora-chart-axis', 'text-anchor': 'middle' },
+      String(r.date || '').slice(5)));
+  });
+  return h('div', { class: 'agora-chart-wrap' },
+    svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'agora-chart' }, ...kids));
+}
+
+function viewAws() {
+  const a = state.awsCost;
+  const month = (a && a.month) || { totalUsd: 0, byService: [], daily: [] };
+  const months = (a && a.months) || { totalUsd: 0, byService: [], daily: [] };
+  const chartDays = Number(state.awsCostChartDays) || 30;
+  const rangeLabel = (a && a.monthRange)
+    ? (a.monthRange.start.slice(5) + ' → ' + a.monthRange.end.slice(5))
+    : '—';
+  const focus = [];
+  const other = [];
+  for (const s of (month.byService || [])) {
+    const f = awsFocusOf(s.name);
+    if (f) focus.push({ ...s, label: f.label, color: f.color });
+    else other.push(s);
+  }
+  const topOther = other.slice(0, 8);
+  const refreshBtn = h('button', {
+    class: 'gbtn btn-sm agora-icon-btn', type: 'button', title: t('refresh'),
+    onclick: async () => {
+      state.loadingTab = true; render();
+      try { await loadAwsCost(); toast(t('dataRefreshed')); }
+      catch (e) { toast((e && e.message) || t('awsLoadFail'), 'err'); }
+      finally { state.loadingTab = false; render(); }
+    },
+  }, fa('fa-rotate'));
+
+  return h('div', { class: 'agora-page aws-page' },
+    state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
+
+    h('header', { class: 'agora-head' },
+      h('div', { class: 'agora-head-left' },
+        h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
+        h('div', { class: 'agora-title-row' },
+          h('h1', {}, t('aws')),
+          h('span', { class: 'agora-pill muted' }, rangeLabel),
+          h('span', { class: 'agora-pill muted' }, 'Unblended'),
+        ),
+        h('p', { class: 'agora-footnote', style: { marginTop: '6px' } }, t('awsSub')),
+      ),
+      h('div', { class: 'agora-head-actions' },
+        refreshBtn,
+        a && a.refreshedAt
+          ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+          : null,
+      ),
+    ),
+
+    h('section', { class: 'agora-quota' },
+      h('div', { class: 'agora-quota-nums' },
+        h('div', { class: 'agora-q accent' },
+          h('span', { class: 'k' }, t('awsMonthTotal')),
+          h('span', { class: 'v' }, fmtUsd(month.totalUsd || 0)),
+          h('span', { class: 'u' }, 'USD'),
+        ),
+        h('div', { class: 'agora-q' },
+          h('span', { class: 'k' }, t('awsFocus')),
+          h('span', { class: 'v' }, fmtUsd(focus.reduce((s, x) => s + x.usd, 0))),
+          h('span', { class: 'u' }, focus.length + ' svc'),
+        ),
+        h('div', { class: 'agora-q' },
+          h('span', { class: 'k' }, t('awsOther')),
+          h('span', { class: 'v' }, fmtUsd(other.reduce((s, x) => s + x.usd, 0))),
+          h('span', { class: 'u' }, other.length + ' svc'),
+        ),
+      ),
+      h('p', { class: 'agora-footnote' }, t('awsDisclaimer') + ' · ' + t('awsRefreshHint')),
+    ),
+
+    h('div', { class: 'agora-grid' },
+      h('section', { class: 'glass agora-card' },
+        h('div', { class: 'agora-card-head' },
+          h('h2', {}, t('awsDaily')),
+          h('div', { class: 'seg' },
+            ...[14, 30, 90].map((n) => h('button', {
+              type: 'button', class: chartDays === n ? 'on' : '',
+              onclick: () => { state.awsCostChartDays = n; render(); },
+            }, String(n) + 'd')),
+          ),
+        ),
+        awsCostLineChart(month.daily, chartDays),
+      ),
+
+      h('section', { class: 'glass agora-card agora-cost-card' },
+        h('div', { class: 'agora-card-head' },
+          h('h2', {}, t('awsTopServices')),
+        ),
+        !(focus.length || topOther.length)
+          ? h('div', { class: 'agora-empty-chart' }, t('awsEmpty'))
+          : h('ul', { class: 'agora-rate-list' },
+            ...focus.map((s) => h('li', {},
+              h('span', { class: 'agora-leg' },
+                h('i', { style: { background: s.color } }), s.label),
+              h('span', { class: 'c' }, fmtUsd(s.usd)),
+            )),
+            ...topOther.map((s) => h('li', {},
+              h('span', { class: 'agora-leg' },
+                h('i', { style: { background: '#64748B' } }), s.name),
+              h('span', { class: 'c' }, fmtUsd(s.usd)),
+            )),
+          ),
+      ),
+    ),
+
+    h('section', { class: 'glass agora-card' },
+      h('div', { class: 'agora-card-head' },
+        h('h2', {}, t('awsMonths')),
+      ),
+      !(months.daily || []).length
+        ? h('div', { class: 'agora-empty-chart' }, t('awsEmpty'))
+        : h('div', { class: 'agora-table-wrap' },
+          h('table', { class: 'admin-table' },
+            h('thead', {}, h('tr', {},
+              h('th', {}, 'Month'),
+              h('th', {}, 'USD'),
+            )),
+            h('tbody', {}, ...(months.daily || []).map((d) => h('tr', {},
+              h('td', { class: 'mono' }, String(d.date || '').slice(0, 7)),
+              h('td', {}, h('b', {}, fmtUsd(d.total || 0))),
+            ))),
+          ),
+        ),
+    ),
+  );
+}
+
+
 function render() {
   let body;
   if (state.tab === 'overview') body = viewOverview();
@@ -3538,6 +3763,7 @@ function render() {
   else if (state.tab === 'records') body = viewRecords();
   else if (state.tab === 'logs') body = viewLogs();
   else if (state.tab === 'agora') body = viewAgora();
+  else if (state.tab === 'aws') body = viewAws();
   else body = viewOta();
   shell(body);
 }

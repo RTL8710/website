@@ -187,7 +187,7 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .th-sort:hover{color:var(--accent)}
 .th-sort.on{color:var(--accent)}
 
-.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page),.admin-main:has(.overview-page),.admin-main:has(.agora-page){max-width:1360px}
+.admin-main:has(.logs-page),.admin-main:has(.ota-page),.admin-main:has(.users-page),.admin-main:has(.devices-page),.admin-main:has(.records-page),.admin-main:has(.overview-page),.admin-main:has(.agora-page),.admin-main:has(.aws-page){max-width:1360px}
 
 /* ── Logs page: command studio ── */
 .logs-page{display:flex;flex-direction:column;gap:12px}
