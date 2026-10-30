@@ -42,6 +42,7 @@ const state = {
   recDays: 7,
   pkgFilterType: '',
   otaScope: 'device', // device | app
+  cloudSubScope: 'agora', // agora | amazon
   toast: null,
   confirm: null,
   upload: {
@@ -79,16 +80,7 @@ document.addEventListener('click', () => {
 });
 
 function tabs() {
-  // 扁平化供 goTab / 其它逻辑；侧栏用 tabDefs() 原结构渲染分组
-  const out = [];
-  for (const x of tabDefs()) {
-    if (x.group && x.children) {
-      for (const c of x.children) out.push({ id: c.id, icon: c.icon, label: t(c.labelKey) });
-    } else {
-      out.push({ id: x.id, icon: x.icon, label: t(x.labelKey) });
-    }
-  }
-  return out;
+  return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
 }
 
 
@@ -478,37 +470,12 @@ function toggleSide() {
 
 function shell(body) {
   const collapsed = !!state.sideCollapsed;
-  const navKids = [];
-  for (const x of tabDefs()) {
-    if (x.group && x.children) {
-      const childActive = x.children.some((c) => c.id === state.tab);
-      navKids.push(h('div', {
-        class: 'nav-group' + (childActive ? ' is-open' : ''),
-        title: t(x.labelKey),
-      },
-        h('div', { class: 'nav-group-label' },
-          fa(x.icon || 'fa-folder'),
-          h('span', { class: 'nav-label' }, t(x.labelKey)),
-        ),
-        h('div', { class: 'nav-group-items' },
-          ...x.children.map((c) => h('button', {
-            class: state.tab === c.id ? 'active' : '',
-            title: t(c.labelKey),
-            'aria-label': t(c.labelKey),
-            onclick: () => goTab(c.id),
-          }, fa(c.icon), h('span', { class: 'nav-label' }, t(c.labelKey)))),
-        ),
-      ));
-    } else {
-      navKids.push(h('button', {
-        class: state.tab === x.id ? 'active' : '',
-        title: t(x.labelKey),
-        'aria-label': t(x.labelKey),
-        onclick: () => goTab(x.id),
-      }, fa(x.icon), h('span', { class: 'nav-label' }, t(x.labelKey))));
-    }
-  }
-  const nav = h('div', { class: 'admin-nav' }, ...navKids);
+  const nav = h('div', { class: 'admin-nav' }, ...tabs().map((tb) => h('button', {
+    class: state.tab === tb.id ? 'active' : '',
+    title: tb.label,
+    'aria-label': tb.label,
+    onclick: () => goTab(tb.id),
+  }, fa(tb.icon), h('span', { class: 'nav-label' }, tb.label))));
   const side = h('aside', { class: 'admin-side' }, nav);
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
@@ -609,17 +576,22 @@ async function loadTab(id) {
       try { await ensure('users'); } catch (_) { if (!state.users) state.users = []; }
       await ensure('diagLogs');
       await hydrateLogUsers();
-    } else if (id === 'agora') {
-      const had = !!state.agora;
-      state.loadingTab = !had;
-      if (had) render();
-      await loadAgora();
-    } else if (id === 'aws') {
-      // 有缓存则不挡页面；避免整页「恢复会话…」闪一下
-      const had = !!state.awsCost;
-      state.loadingTab = !had;
-      if (had) render();
-      await loadAwsCost();
+    } else if (id === 'cloudsub' || id === 'agora' || id === 'aws') {
+      // 兼容旧 hash；统一走云订阅
+      if (id === 'agora') state.cloudSubScope = 'agora';
+      if (id === 'aws') state.cloudSubScope = 'amazon';
+      if (state.tab !== 'cloudsub') state.tab = 'cloudsub';
+      if (state.cloudSubScope === 'amazon') {
+        const had = !!state.awsCost;
+        state.loadingTab = !had;
+        if (had) render();
+        await loadAwsCost();
+      } else {
+        const had = !!state.agora;
+        state.loadingTab = !had;
+        if (had) render();
+        await loadAgora();
+      }
     }
   } catch (e) {
     console.error('[admin]', id, e);
@@ -714,12 +686,12 @@ function viewOverview() {
     h('div', { class: 'logs-source-grid' },
       mod('fa-dollar-sign', ' on', t('overviewAwsCost'),
         (state.awsCost && state.awsCost.month) ? fmtUsd(state.awsCost.month.totalUsd) : '—',
-        t('tabAws'), () => goTab('aws')),
+        t('tabAws'), () => { state.cloudSubScope = 'amazon'; goTab('cloudsub'); }),
       mod('fa-tower-broadcast', '', t('overviewAgoraCost'),
         (state.agora && state.agora.accountSec)
           ? fmtUsd(((Math.max(0, (state.agora.accountMinutes || 0) - (state.agora.quota || AGORA_QUOTA_DEFAULT))) / 1000) * 0.99)
           : '—',
-        t('tabAgora'), () => goTab('agora')),
+        t('tabAgora'), () => { state.cloudSubScope = 'agora'; goTab('cloudsub'); }),
     ),
     h('div', { class: 'glass ota-panel' },
       h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-bolt')), t('commonOps')),
@@ -3348,7 +3320,71 @@ function agoraDailyTable(daily, days = 7) {
 }
 
 
-function viewAgora() {
+
+function switchCloudSubScope(k) {
+  const next = k === 'amazon' ? 'amazon' : 'agora';
+  if ((state.cloudSubScope === 'amazon' ? 'amazon' : 'agora') === next) return;
+  state.cloudSubScope = next;
+  state._err = '';
+  render();
+  loadTab('cloudsub');
+}
+
+function cloudSubSourceCard(id) {
+  const on = (state.cloudSubScope === 'amazon' ? 'amazon' : 'agora') === id;
+  const isAmz = id === 'amazon';
+  let count = '—';
+  let sub = '—';
+  if (isAmz) {
+    const m = state.awsCost && state.awsCost.month;
+    count = m ? fmtUsd(m.totalUsd || 0) : '—';
+    sub = m ? t('awsMonthTotal') : t('awsEmpty');
+  } else {
+    const a = state.agora;
+    if (a && a.accountMinutes != null) {
+      count = String(Math.round(a.accountMinutes));
+      sub = t('agoraMinutes');
+    } else {
+      sub = t('agoraEmpty');
+    }
+  }
+  return h('button', {
+    type: 'button',
+    class: 'logs-source' + (isAmz ? ' is-device' : '') + (on ? ' on' : ''),
+    onclick: () => switchCloudSubScope(id),
+  },
+    h('span', { class: 'logs-source-ico' }, fa(isAmz ? 'fa-dollar-sign' : 'fa-tower-broadcast')),
+    h('span', { class: 'k' }, isAmz ? t('cloudSubAmazon') : t('cloudSubAgora')),
+    h('span', { class: 'v num' }, count),
+    h('span', { class: 's' }, sub),
+  );
+}
+
+function viewCloudSub() {
+  const isAmz = state.cloudSubScope === 'amazon';
+  return h('div', { class: 'cloudsub-page logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('cloudSubEyebrow')),
+        h('h1', {}, isAmz ? t('aws') : t('agora')),
+        h('div', { class: 'logs-hero-sub' }, t('cloudSubSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(t('tabCloudSub')),
+          chip(isAmz ? t('cloudSubAmazon') : t('cloudSubAgora')),
+        ),
+      ),
+      h('div', { class: 'logs-source-grid' },
+        cloudSubSourceCard('agora'),
+        cloudSubSourceCard('amazon'),
+      ),
+    ),
+    isAmz ? viewAws({ embedded: true }) : viewAgora({ embedded: true }),
+  );
+}
+
+function viewAgora(opts) {
+  const embedded = !!(opts && opts.embedded);
+
   const a = state.agora;
   const quota = (a && a.quota) || AGORA_QUOTA_DEFAULT;
   const pid = state.agoraProjectId || '';
@@ -3409,34 +3445,37 @@ function viewAgora() {
     },
   }, fa('fa-rotate'));
 
-  return h('div', { class: 'agora-page' },
+  const agoraActions = h('div', { class: 'agora-head-actions' },
+    h('select', {
+      class: 'agora-select',
+      value: pid,
+      onchange: (e) => { state.agoraProjectId = e.target.value; render(); },
+    },
+      h('option', { value: '' }, t('agoraAllProjects')),
+      ...projects.map((p) => h('option', { value: p.id }, p.name || p.id)),
+    ),
+    refreshBtn,
+    a && a.refreshedAt
+      ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+      : null,
+  );
+  return h('div', { class: 'agora-page' + (embedded ? ' is-embedded' : '') },
     state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
 
-    h('header', { class: 'agora-head' },
-      h('div', { class: 'agora-head-left' },
-        h('div', { class: 'agora-kicker' }, t('agoraEyebrow')),
-        h('div', { class: 'agora-title-row' },
-          h('h1', {}, t('agora')),
-          h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
-          h('span', { class: 'agora-pill muted' }, t('agoraPackage')),
-          h('span', { class: 'agora-pill muted' }, rangeLabel),
+    embedded
+      ? h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' } }, agoraActions)
+      : h('header', { class: 'agora-head' },
+          h('div', { class: 'agora-head-left' },
+            h('div', { class: 'agora-kicker' }, t('agoraEyebrow')),
+            h('div', { class: 'agora-title-row' },
+              h('h1', {}, t('agora')),
+              h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
+              h('span', { class: 'agora-pill muted' }, t('agoraPackage')),
+              h('span', { class: 'agora-pill muted' }, rangeLabel),
+            ),
+          ),
+          agoraActions,
         ),
-      ),
-      h('div', { class: 'agora-head-actions' },
-        h('select', {
-          class: 'agora-select',
-          value: pid,
-          onchange: (e) => { state.agoraProjectId = e.target.value; render(); },
-        },
-          h('option', { value: '' }, t('agoraAllProjects')),
-          ...projects.map((p) => h('option', { value: p.id }, p.name || p.id)),
-        ),
-        refreshBtn,
-        a && a.refreshedAt
-          ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
-          : null,
-      ),
-    ),
 
     h('section', { class: 'agora-quota' },
       h('div', { class: 'agora-quota-nums' },
@@ -3663,7 +3702,7 @@ async function loadAwsCost(opts = {}) {
       const cache = await readAwsCostS3Cache();
       if (cache) {
         applyAwsCostCache(cache, '');
-        if (state.tab === 'aws') render();
+        if (state.tab === 'cloudsub') render();
         return;
       }
     } catch (e) {
@@ -3703,7 +3742,7 @@ async function loadAwsCost(opts = {}) {
       monthRaw: rawMonth,
       monthsRaw: rawMonths || null,
     });
-    if (state.tab === 'aws') render();
+    if (state.tab === 'cloudsub') render();
   } catch (e) {
     console.error('[aws-cost]', e);
     try {
@@ -3713,7 +3752,7 @@ async function loadAwsCost(opts = {}) {
           ? t('awsRateLimited')
           : ((e && e.message) || String(e));
         applyAwsCostCache(cache, note);
-        if (state.tab === 'aws') render();
+        if (state.tab === 'cloudsub') render();
         return;
       }
     } catch (_) {}
@@ -3792,11 +3831,12 @@ function awsCostSeriesChart(rows, opts = {}) {
     svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'agora-chart' }, ...kids));
 }
 
-function viewAws() {
-  // 首次无缓存时仅在正文区轻量 loading，不用「恢复会话」文案
+function viewAws(opts) {
+  const embedded = !!(opts && opts.embedded);
+
   if (state.loadingTab && !state.awsCost) {
-    return h('div', { class: 'agora-page aws-page' },
-      h('header', { class: 'agora-head' },
+    return h('div', { class: 'agora-page aws-page' + (embedded ? ' is-embedded' : '') },
+      embedded ? null : h('header', { class: 'agora-head' },
         h('div', { class: 'agora-head-left' },
           h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
           h('h1', {}, t('aws')),
@@ -3830,26 +3870,33 @@ function viewAws() {
     },
   }, fa('fa-rotate'));
 
-  return h('div', { class: 'agora-page aws-page' },
-    state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
-
-    h('header', { class: 'agora-head' },
-      h('div', { class: 'agora-head-left' },
-        h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
-        h('div', { class: 'agora-title-row' },
-          h('h1', {}, t('aws')),
-          h('span', { class: 'agora-pill muted' }, rangeLabel),
-          h('span', { class: 'agora-pill muted' }, 'Unblended'),
-        ),
-        h('p', { class: 'agora-footnote', style: { marginTop: '6px' } }, t('awsSub')),
+  const awsHead = h('header', { class: 'agora-head' },
+    h('div', { class: 'agora-head-left' },
+      h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
+      h('div', { class: 'agora-title-row' },
+        h('h1', {}, t('aws')),
+        h('span', { class: 'agora-pill muted' }, rangeLabel),
+        h('span', { class: 'agora-pill muted' }, 'Unblended'),
       ),
-      h('div', { class: 'agora-head-actions' },
-        refreshBtn,
-        a && a.refreshedAt
-          ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
-          : null,
-      ),
+      h('p', { class: 'agora-footnote', style: { marginTop: '6px' } }, t('awsSub')),
     ),
+    h('div', { class: 'agora-head-actions' },
+      refreshBtn,
+      a && a.refreshedAt
+        ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+        : null,
+    ),
+  );
+  return h('div', { class: 'agora-page aws-page' + (embedded ? ' is-embedded' : '') },
+    state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
+    embedded
+      ? h('div', { class: 'agora-head-actions', style: { justifyContent: 'flex-end', marginBottom: '10px' } },
+          refreshBtn,
+          a && a.refreshedAt
+            ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+            : null,
+        )
+      : awsHead,
 
     h('section', { class: 'agora-quota' },
       h('div', { class: 'agora-quota-nums' },
@@ -3950,8 +3997,7 @@ function render() {
   else if (state.tab === 'devices') body = viewDevices();
   else if (state.tab === 'records') body = viewRecords();
   else if (state.tab === 'logs') body = viewLogs();
-  else if (state.tab === 'agora') body = viewAgora();
-  else if (state.tab === 'aws') body = viewAws();
+  else if (state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') body = viewCloudSub();
   else body = viewOta();
   shell(body);
 }
