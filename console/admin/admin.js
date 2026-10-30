@@ -10,6 +10,7 @@ import {
   updateDeviceAdmin, deleteDeviceCompletely,
   getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
   getAwsCostSummary, summarizeAwsCost, awsCostMonthUtcRange, awsCostLastMonthsUtcRange,
+  isAwsCostRateLimitedError,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
@@ -564,9 +565,7 @@ async function loadTab(id) {
       persistAdminSnap();
       refreshOverviewSecondary();
       // 费用卡：后台懒加载，失败不挡总览
-      if (!state.awsCost) {
-        loadAwsCost().catch(() => {}).then(() => { if (state.tab === 'overview') render(); });
-      }
+      // 不在总览自动打 CE（易限流）；点「AWS 费用」Tab / 总览卡再拉
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
@@ -3569,33 +3568,57 @@ function awsFocusOf(name) {
   return null;
 }
 
-async function loadAwsCost() {
+async function loadAwsCost(opts = {}) {
+  const force = !!(opts && opts.force);
   const month = awsCostMonthUtcRange();
   const months = awsCostLastMonthsUtcRange(3);
+  const empty = { totalUsd: 0, byService: [], daily: [] };
   try {
-    // 串行：Cost Explorer 账号级限流，并行易 LimitExceeded
-    const rawMonth = await getAwsCostSummary({ start: month.start, end: month.end, granularity: 'DAILY' });
-    await new Promise((r) => setTimeout(r, 400));
-    const rawMonths = await getAwsCostSummary({ start: months.start, end: months.end, granularity: 'MONTHLY' });
+    // 先拉本月 DAILY（一张图够用）；近月 MONTHLY 延后，降低 CE 限流
+    const rawMonth = await getAwsCostSummary({
+      start: month.start, end: month.end, granularity: 'DAILY', bypassCache: force,
+    });
+    const monthSum = summarizeAwsCost(rawMonth);
     state.awsCost = {
       monthRange: month,
       monthsRange: months,
-      month: summarizeAwsCost(rawMonth),
-      months: summarizeAwsCost(rawMonths),
+      month: monthSum,
+      months: (state.awsCost && state.awsCost.months) || empty,
       refreshedAt: new Date().toISOString(),
       err: '',
     };
+    if (state.tab === 'aws') render();
+
+    await new Promise((r) => setTimeout(r, 2500));
+    try {
+      const rawMonths = await getAwsCostSummary({
+        start: months.start, end: months.end, granularity: 'MONTHLY', bypassCache: force,
+      });
+      if (state.awsCost) {
+        state.awsCost.months = summarizeAwsCost(rawMonths);
+        state.awsCost.refreshedAt = new Date().toISOString();
+      }
+    } catch (e2) {
+      // 近月失败不抹掉本月已成功数据
+      console.warn('[aws-cost] months', e2);
+      if (state.awsCost) {
+        state.awsCost.errMonths = isAwsCostRateLimitedError(e2)
+          ? t('awsRateLimited')
+          : ((e2 && e2.message) || String(e2));
+      }
+    }
   } catch (e) {
     console.error('[aws-cost]', e);
+    const nice = isAwsCostRateLimitedError(e) ? t('awsRateLimited') : ((e && e.message) || String(e));
     state.awsCost = {
       monthRange: month,
       monthsRange: months,
-      month: { totalUsd: 0, byService: [], daily: [] },
-      months: { totalUsd: 0, byService: [], daily: [] },
+      month: (state.awsCost && state.awsCost.month) || empty,
+      months: (state.awsCost && state.awsCost.months) || empty,
       refreshedAt: new Date().toISOString(),
-      err: (e && e.message) || String(e),
+      err: nice,
     };
-    throw e;
+    throw new Error(nice);
   }
 }
 
@@ -3649,7 +3672,7 @@ function viewAws() {
     class: 'gbtn btn-sm agora-icon-btn', type: 'button', title: t('refresh'),
     onclick: async () => {
       state.loadingTab = true; render();
-      try { await loadAwsCost(); toast(t('dataRefreshed')); }
+      try { await loadAwsCost({ force: true }); toast(t('dataRefreshed')); }
       catch (e) { toast((e && e.message) || t('awsLoadFail'), 'err'); }
       finally { state.loadingTab = false; render(); }
     },
@@ -3736,8 +3759,9 @@ function viewAws() {
       h('div', { class: 'agora-card-head' },
         h('h2', {}, t('awsMonths')),
       ),
+      (a && a.errMonths) ? h('div', { class: 'admin-msg err' }, a.errMonths) : null,
       !(months.daily || []).length
-        ? h('div', { class: 'agora-empty-chart' }, t('awsEmpty'))
+        ? h('div', { class: 'agora-empty-chart' }, (a && a.errMonths) ? a.errMonths : t('awsEmpty'))
         : h('div', { class: 'agora-table-wrap' },
           h('table', { class: 'admin-table' },
             h('thead', {}, h('tr', {},

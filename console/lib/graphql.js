@@ -447,24 +447,80 @@ const Q_AWS_COST = /* GraphQL */ `
  * Cost Explorer GetCostAndUsage 原始结果。
  * start/end: UTC YYYY-MM-DD，end 为开区间（不含当日）。
  * granularity: DAILY | MONTHLY
+ *
+ * 注意：不能走通用 gql()——CE 失败时 AppSync 常返回 data.getAwsCostSummary=null + errors，
+ * 通用路径只 warn「partial errors」不抛错，页面会误显示 $0。
  */
-export async function getAwsCostSummary({ start, end, granularity = 'DAILY' }) {
+const AWS_CE_CACHE_TTL_MS = 20 * 60 * 1000;
+
+function awsCeCacheKey(start, end, granularity) {
+  return 'aws_ce_v1_' + start + '_' + end + '_' + (granularity || 'DAILY');
+}
+
+function readAwsCeCache(key) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || !o.at || (Date.now() - o.at) > AWS_CE_CACHE_TTL_MS) return null;
+    return o.body;
+  } catch (_) { return null; }
+}
+
+function writeAwsCeCache(key, body) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), body }));
+  } catch (_) {}
+}
+
+async function fetchAwsCostSummaryOnce({ start, end, granularity }) {
+  const res = await fetch(APPSYNC.endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': APPSYNC.apiKey },
+    body: JSON.stringify({
+      query: Q_AWS_COST,
+      variables: { start, end, granularity: granularity || 'DAILY' },
+    }),
+  });
+  const json = await res.json();
+  if (json.errors && json.errors.length) {
+    throw new Error(json.errors.map((e) => e.message).join('; '));
+  }
+  const parsed = parseAwsJson(json.data && json.data.getAwsCostSummary);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('getAwsCostSummary empty response');
+  }
+  return parsed;
+}
+
+export async function getAwsCostSummary({ start, end, granularity = 'DAILY', bypassCache = false }) {
   if (!start || !end) throw new Error('缺少 start/end');
+  const g = granularity || 'DAILY';
+  const key = awsCeCacheKey(start, end, g);
+  if (!bypassCache) {
+    const hit = readAwsCeCache(key);
+    if (hit) return hit;
+  }
   let lastErr;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
-      const data = await gql(Q_AWS_COST, {
-        start, end, granularity: granularity || 'DAILY',
-      });
-      return parseAwsJson(data && data.getAwsCostSummary) || {};
+      const body = await fetchAwsCostSummaryOnce({ start, end, granularity: g });
+      writeAwsCeCache(key, body);
+      return body;
     } catch (e) {
       lastErr = e;
       const msg = (e && e.message) || String(e);
-      if (!/Rate limit|LimitExceeded|Throttl/i.test(msg) || i === 3) throw e;
-      await new Promise((r) => setTimeout(r, 1500 * (i + 1) * (i + 1)));
+      if (!/Rate limit|LimitExceeded|Throttl/i.test(msg) || i === 4) throw e;
+      // CE 账号级限流很严：退避 3s / 8s / 18s / 35s
+      await new Promise((r) => setTimeout(r, 3000 + i * i * 5000));
     }
   }
   throw lastErr;
+}
+
+export function isAwsCostRateLimitedError(err) {
+  const msg = (err && err.message) || String(err || '');
+  return /Rate limit|LimitExceeded|Throttl/i.test(msg);
 }
 
 /** 本月 UTC：[月初, 明天) —— CE end 不含当天，用明天可盖住今天已出账数据 */
