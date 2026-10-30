@@ -79,7 +79,16 @@ document.addEventListener('click', () => {
 });
 
 function tabs() {
-  return tabDefs().map((x) => ({ id: x.id, icon: x.icon, label: t(x.labelKey) }));
+  // 扁平化供 goTab / 其它逻辑；侧栏用 tabDefs() 原结构渲染分组
+  const out = [];
+  for (const x of tabDefs()) {
+    if (x.group && x.children) {
+      for (const c of x.children) out.push({ id: c.id, icon: c.icon, label: t(c.labelKey) });
+    } else {
+      out.push({ id: x.id, icon: x.icon, label: t(x.labelKey) });
+    }
+  }
+  return out;
 }
 
 
@@ -469,12 +478,37 @@ function toggleSide() {
 
 function shell(body) {
   const collapsed = !!state.sideCollapsed;
-  const nav = h('div', { class: 'admin-nav' }, ...tabs().map((tb) => h('button', {
-    class: state.tab === tb.id ? 'active' : '',
-    title: tb.label,
-    'aria-label': tb.label,
-    onclick: () => goTab(tb.id),
-  }, fa(tb.icon), h('span', { class: 'nav-label' }, tb.label))));
+  const navKids = [];
+  for (const x of tabDefs()) {
+    if (x.group && x.children) {
+      const childActive = x.children.some((c) => c.id === state.tab);
+      navKids.push(h('div', {
+        class: 'nav-group' + (childActive ? ' is-open' : ''),
+        title: t(x.labelKey),
+      },
+        h('div', { class: 'nav-group-label' },
+          fa(x.icon || 'fa-folder'),
+          h('span', { class: 'nav-label' }, t(x.labelKey)),
+        ),
+        h('div', { class: 'nav-group-items' },
+          ...x.children.map((c) => h('button', {
+            class: state.tab === c.id ? 'active' : '',
+            title: t(c.labelKey),
+            'aria-label': t(c.labelKey),
+            onclick: () => goTab(c.id),
+          }, fa(c.icon), h('span', { class: 'nav-label' }, t(c.labelKey)))),
+        ),
+      ));
+    } else {
+      navKids.push(h('button', {
+        class: state.tab === x.id ? 'active' : '',
+        title: t(x.labelKey),
+        'aria-label': t(x.labelKey),
+        onclick: () => goTab(x.id),
+      }, fa(x.icon), h('span', { class: 'nav-label' }, t(x.labelKey))));
+    }
+  }
+  const nav = h('div', { class: 'admin-nav' }, ...navKids);
   const side = h('aside', { class: 'admin-side' }, nav);
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
@@ -576,8 +610,15 @@ async function loadTab(id) {
       await ensure('diagLogs');
       await hydrateLogUsers();
     } else if (id === 'agora') {
+      const had = !!state.agora;
+      state.loadingTab = !had;
+      if (had) render();
       await loadAgora();
     } else if (id === 'aws') {
+      // 有缓存则不挡页面；避免整页「恢复会话…」闪一下
+      const had = !!state.awsCost;
+      state.loadingTab = !had;
+      if (had) render();
       await loadAwsCost();
     }
   } catch (e) {
@@ -3752,8 +3793,17 @@ function awsCostSeriesChart(rows, opts = {}) {
 }
 
 function viewAws() {
+  // 首次无缓存时仅在正文区轻量 loading，不用「恢复会话」文案
   if (state.loadingTab && !state.awsCost) {
-    return h('div', { class: 'agora-page aws-page' }, loading(t('restoring')));
+    return h('div', { class: 'agora-page aws-page' },
+      h('header', { class: 'agora-head' },
+        h('div', { class: 'agora-head-left' },
+          h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
+          h('h1', {}, t('aws')),
+        ),
+      ),
+      loading('…'),
+    );
   }
   const a = state.awsCost;
   const month = (a && a.month) || { totalUsd: 0, byService: [], daily: [] };
