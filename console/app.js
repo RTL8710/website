@@ -133,7 +133,7 @@ function topbar() {
         h('span', { class: 'chip', style: { fontSize: '10.5px', padding: '2px 8px', background: 'var(--acc-soft)', color: 'var(--accent)', border: '1px solid var(--acc-soft-bd)' } }, regionLabel(getRegion()))) : null,
       ...switcherBar(true).reverse(),
       state.session ? h('a', { class: 'gbtn btn-sm', href: './admin/', style: { textDecoration: 'none' }, title: t('adminLinkHint') },
-        fa('fas fa-shield-halved'), ' ', t('adminLink')) : null,
+        fa('fas fa-shield-alt'), ' ', t('adminLink')) : null,
       state.session ? h('button', { class: 'gbtn icon', title: '退出', onclick: doSignOut }, fa('fas fa-right-from-bracket')) : null,
     ),
   );
@@ -215,7 +215,7 @@ function viewLogin() {
           href: './admin/',
           title: t('adminLinkHint'),
         },
-          fa('fas fa-shield-halved'),
+          fa('fas fa-shield-alt'),
           h('span', { class: 'admin-entry-txt' },
             h('strong', {}, t('adminLink')),
             h('em', {}, t('adminLinkHint')),

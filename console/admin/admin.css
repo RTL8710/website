@@ -342,6 +342,145 @@ html[data-theme="light"] .confirm-modal.is-success{border-color:rgba(16,185,129,
   width:100%;flex:1 1 auto;min-height:0;height:100%;
   border:0;background:#070b10;display:block
 }
+/* SSH boot / connecting overlay — teal ops, staged handshake */
+.ssh-frame-wrap{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;background:#070b10}
+.ssh-frame-wrap .ssh-frame{flex:1 1 auto}
+.ssh-chrome-live.is-boot{
+  background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.32);
+  animation:sshBootLive 1.2s ease-in-out infinite
+}
+@keyframes sshBootLive{0%,100%{opacity:1}50%{opacity:.55}}
+.ssh-boot{
+  position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;
+  padding:24px 18px;overflow:hidden;
+  background:
+    radial-gradient(80% 70% at 50% 35%,rgba(45,212,191,.14),transparent 55%),
+    linear-gradient(180deg,rgba(7,11,16,.55),rgba(7,11,16,.92));
+  backdrop-filter:blur(2px);
+  animation:sshBootIn .35s var(--ease,cubic-bezier(.22,1,.36,1)) both
+}
+@keyframes sshBootIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ssh-boot.is-out{animation:sshBootOut .3s ease forwards;pointer-events:none}
+@keyframes sshBootOut{to{opacity:0;transform:scale(1.02)}}
+.ssh-boot-scan{
+  pointer-events:none;position:absolute;inset:0;opacity:.35;
+  background:repeating-linear-gradient(
+    0deg,transparent,transparent 2px,rgba(94,234,212,.035) 2px,rgba(94,234,212,.035) 3px
+  );
+  animation:sshBootScan 7s linear infinite
+}
+@keyframes sshBootScan{from{transform:translateY(0)}to{transform:translateY(12px)}}
+.ssh-boot-grid{
+  pointer-events:none;position:absolute;inset:-20%;opacity:.22;
+  background-image:
+    linear-gradient(rgba(45,212,191,.09) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(45,212,191,.09) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:radial-gradient(circle at 50% 40%,#000 20%,transparent 72%);
+  animation:sshBootGrid 18s linear infinite
+}
+@keyframes sshBootGrid{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,42px,0)}}
+.ssh-boot-core{
+  position:relative;z-index:1;width:min(380px,100%);
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px
+}
+.ssh-boot-orbit{
+  width:88px;height:88px;position:relative;margin-bottom:6px;
+  display:grid;place-items:center
+}
+.ssh-boot-orbit-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(45,212,191,.22);
+  border-top-color:#5eead4;border-right-color:rgba(94,234,212,.55);
+  animation:sshBootSpin 1.15s linear infinite
+}
+.ssh-boot-orbit-ring.delay{
+  inset:10px;border-top-color:transparent;border-left-color:#67e8f9;
+  border-right-color:rgba(103,232,249,.2);border-bottom-color:rgba(103,232,249,.35);
+  animation-duration:1.7s;animation-direction:reverse;opacity:.85
+}
+.ssh-boot-orbit-dot{
+  width:10px;height:10px;border-radius:50%;background:#5eead4;
+  box-shadow:0 0 16px rgba(94,234,212,.85);z-index:1
+}
+.ssh-boot-orbit-pulse{
+  position:absolute;inset:22px;border-radius:50%;
+  background:radial-gradient(circle,rgba(94,234,212,.28),transparent 70%);
+  animation:sshBootPulse 1.6s ease-in-out infinite
+}
+@keyframes sshBootSpin{to{transform:rotate(360deg)}}
+@keyframes sshBootPulse{0%,100%{transform:scale(.85);opacity:.55}50%{transform:scale(1.15);opacity:1}}
+.ssh-boot-kicker{
+  font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)
+}
+.ssh-boot-title{
+  font-family:var(--font-display);font-size:20px;font-weight:800;letter-spacing:-.03em;
+  color:var(--text-hi);line-height:1.2
+}
+.ssh-boot-target{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;
+  padding:7px 12px;border-radius:999px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(94,234,212,.18)
+}
+.ssh-boot-target-label{
+  font-size:10px;font-weight:800;letter-spacing:.08em;color:#5eead4
+}
+.ssh-boot-target code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12.5px;color:#cffff0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42vw
+}
+.ssh-boot-steps{
+  list-style:none;margin:8px 0 0;padding:0;width:100%;
+  display:flex;flex-direction:column;gap:8px;text-align:left
+}
+.ssh-boot-step{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);
+  color:var(--text-lo);transition:border-color .25s,background .25s,color .25s,transform .25s
+}
+.ssh-boot-step.is-on{
+  color:var(--text-hi);border-color:rgba(45,212,191,.32);
+  background:rgba(45,212,191,.08);transform:translateX(2px)
+}
+.ssh-boot-step.is-done{color:#99f6e4;border-color:rgba(52,211,153,.22);background:rgba(52,211,153,.06)}
+.ssh-boot-step-mark{
+  width:22px;height:22px;border-radius:50%;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);font-size:10px
+}
+.ssh-boot-step.is-on .ssh-boot-step-mark{
+  border-color:rgba(45,212,191,.45);box-shadow:0 0 0 3px rgba(45,212,191,.12)
+}
+.ssh-boot-step.is-done .ssh-boot-step-mark{
+  background:rgba(52,211,153,.18);border-color:rgba(52,211,153,.4);color:#6ee7b7
+}
+.ssh-boot-step-dot{
+  width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55
+}
+.ssh-boot-step.is-on .ssh-boot-step-dot{
+  background:#5eead4;opacity:1;animation:sshBootPulse 1s ease-in-out infinite
+}
+.ssh-boot-step-txt{font-size:13px;font-weight:650;letter-spacing:.01em}
+.ssh-boot-meter{
+  width:100%;height:3px;margin-top:6px;border-radius:999px;overflow:hidden;
+  background:rgba(255,255,255,.06)
+}
+.ssh-boot-meter i{
+  display:block;height:100%;width:38%;border-radius:inherit;
+  background:linear-gradient(90deg,transparent,#5eead4,transparent);
+  animation:sshBootMeter 1.35s ease-in-out infinite
+}
+@keyframes sshBootMeter{from{transform:translateX(-120%)}to{transform:translateX(280%)}}
+.ssh-boot-hint{margin:2px 0 0;font-size:12px;color:var(--text-lo);line-height:1.4}
+.ssh-boot-enter{
+  appearance:none;margin-top:4px;cursor:pointer;
+  height:36px;padding:0 16px;border-radius:11px;
+  border:1px solid rgba(45,212,191,.28);background:rgba(45,212,191,.1);
+  color:#99f6e4;font:inherit;font-size:12.5px;font-weight:700;
+  transition:background .15s,border-color .15s,color .15s
+}
+.ssh-boot-enter:hover{background:rgba(45,212,191,.18);border-color:rgba(45,212,191,.45);color:#ecfdf5}
+
 .ssh-cmd{
   background:#0b1418;border-color:rgba(94,234,212,.16);color:#7ee7c5
 }
@@ -424,7 +563,8 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 }
 .logs-search{position:relative;flex:1;min-width:min(220px,100%)}
 .logs-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-lo);pointer-events:none;font-size:13px}
-.logs-dock input[type="search"]{
+.logs-dock input[type="search"],
+.logs-search input[type="search"]{
   width:100%;min-width:0!important;height:42px;padding:0 14px 0 40px;border-radius:12px;
   background:var(--input-bg);border:1px solid var(--border);color:var(--text-hi);font:inherit;font-size:14px;
 }
@@ -851,3 +991,11 @@ html[data-theme="light"] .agora-chart-grid{stroke:rgba(15,23,42,.08)}
   .agora-chart-svg{height:170px}
   .agora-due .v{font-size:28px}
 }
+
+/* 远程模块：筛选收进卡片内，不单独占一行玻璃条 */
+.remote-panel-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;
+}
+.remote-panel-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.remote-panel-filter{margin-top:12px}
+.remote-panel-filter .logs-search{width:100%}

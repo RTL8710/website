@@ -195,7 +195,10 @@ function ensureDataRegionFresh() {
   state.dataRegion = r;
 }
 function fa(cls) { return h('i', { class: 'fa-solid ' + cls }); }
-function chip(text, cls) { return h('span', { class: 'chip ' + (cls || 'count') }, text); }
+function chip(text, cls, attrs) {
+  const props = Object.assign({ class: 'chip ' + (cls || 'count') }, attrs || {});
+  return h('span', props, text);
+}
 function statusTag(online) {
   return h('span', { class: 'status-tag ' + (online ? 'is-online' : 'is-offline') },
     h('span', { class: 'dot' }),
@@ -506,14 +509,111 @@ function shell(body) {
 function goTab(id) {
   state.tab = id;
   state.q = '';
+  state._searchKeep = null;
   render();
   loadTab(id);
 }
 
+function remoteDeviceRows() {
+  const all = (state.devices || []).filter(Boolean);
+  const q = String(state.q || '').trim().toLowerCase();
+  let rows = all.filter((d) => d && d.remoteHost);
+  if (q) {
+    rows = rows.filter((d) => {
+      const hay = [d.name, d.id, d.uuid, d.remoteHost, d.model, d.firmware]
+        .map((x) => String(x || '').toLowerCase());
+      return hay.some((s) => s.includes(q));
+    });
+  }
+  return rows;
+}
+
+function remoteDeviceCard(d) {
+  return h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+    h('div', { class: 'logs-card-body' },
+      h('div', { class: 'logs-card-code' }, d.name || shortId(d.id)),
+      h('div', { class: 'logs-card-meta' },
+        statusTag(!!d.online),
+        h('span', {
+          class: 'logs-chip', title: t('remoteSshOpenHint'),
+          style: { cursor: 'pointer' },
+          onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'ssh', name: d.name || d.id, host: d.remoteHost, port: d.remoteSshPort || 22, user: 'root' }); },
+        }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22))),
+        d.remoteHttpPort
+          ? h('span', {
+              class: 'logs-chip', title: t('remoteHttpOpenHint'),
+              style: { cursor: 'pointer' },
+              onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, d.remoteHttpPort, false); },
+            }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
+          : null,
+        ...remoteHttpsPorts(d).map((hp) => h('span', {
+          class: 'logs-chip', title: t('remoteHttpsOpenHint'),
+          style: { cursor: 'pointer' },
+          onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, hp, true); },
+        }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))),
+        h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
+      ),
+    ),
+  );
+}
+
+/** 远程页筛选：只重绘列表，不销毁输入框（避免整页 render 丢焦点）。 */
+function paintRemoteDeviceList(rows) {
+  const list = document.getElementById('remote-device-list');
+  if (!list) return false;
+  while (list.firstChild) list.removeChild(list.firstChild);
+  if (!rows.length) {
+    list.appendChild(h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteDevicesEmpty')));
+  } else {
+    rows.forEach((d) => list.appendChild(remoteDeviceCard(d)));
+  }
+  const count = document.getElementById('remote-device-count');
+  if (count) count.textContent = t('remoteDeviceCount') + ' ' + rows.length;
+  const heroCount = document.getElementById('remote-hero-count');
+  if (heroCount) heroCount.textContent = String(rows.length) + ' ' + t('remoteDeviceCount');
+  const heroOnline = document.getElementById('remote-hero-online');
+  if (heroOnline) {
+    const onlineN = rows.filter((d) => d.online).length;
+    heroOnline.textContent = onlineN + ' ' + t('online');
+  }
+  return true;
+}
+
 function searchBox(ph) {
-  const inp = h('input', { type: 'search', placeholder: ph || '搜索…', value: state.q, style: { minWidth: '200px', flex: '1' } });
-  inp.addEventListener('input', () => { state.q = inp.value; render(); });
+  // 用原生 input + .value，避免 h() setAttribute('value') 与受控重建打架。
+  // 远程页走 paintRemoteDeviceList，其它页仍 render 但恢复焦点。
+  const inp = document.createElement('input');
+  inp.type = 'search';
+  inp.className = 'admin-search-q';
+  inp.placeholder = ph || '搜索…';
+  inp.value = state.q || '';
+  inp.autocomplete = 'off';
+  inp.spellcheck = false;
+  inp.style.minWidth = '200px';
+  inp.style.flex = '1';
+  let composing = false;
+  const apply = () => {
+    state.q = inp.value;
+    if (state.tab === 'remote' && paintRemoteDeviceList(remoteDeviceRows())) return;
+    state._searchKeep = { pos: inp.selectionStart ?? inp.value.length };
+    render();
+  };
+  inp.addEventListener('compositionstart', () => { composing = true; });
+  inp.addEventListener('compositionend', () => { composing = false; apply(); });
+  inp.addEventListener('input', () => {
+    if (composing) { state.q = inp.value; return; }
+    apply();
+  });
   return inp;
+}
+
+function restoreSearchFocus() {
+  if (!state._searchKeep) return;
+  const el = document.querySelector('input.admin-search-q');
+  if (!el) return;
+  el.focus();
+  const pos = Math.min(state._searchKeep.pos ?? el.value.length, el.value.length);
+  try { el.setSelectionRange(pos, pos); } catch (_) {}
 }
 
 async function refreshAll() {
@@ -891,8 +991,130 @@ function openVpnModal(opts) {
     session: 1,
     fullscreen: false,
     liveUrl: kind === 'ssh' ? buildWebSshUrl(user, host, port) : '',
+    boot: kind === 'ssh' ? 'connecting' : 'ready',
+    bootStep: 0,
+    _frameLoaded: false,
+    _bootArmed: 0,
   };
   render();
+}
+
+
+function paintSshBootSteps(step) {
+  document.querySelectorAll('.ssh-boot-step').forEach((li, i) => {
+    li.classList.toggle('is-done', step > i);
+    li.classList.toggle('is-on', step === i);
+    const mark = li.querySelector('.ssh-boot-step-mark');
+    if (!mark) return;
+    if (step > i) {
+      mark.innerHTML = '<i class="fa-solid fa-check"></i>';
+    } else if (!mark.querySelector('.ssh-boot-step-dot') && !mark.querySelector('.fa-check')) {
+      mark.innerHTML = '<span class="ssh-boot-step-dot"></span>';
+    } else if (step <= i && mark.querySelector('.fa-check')) {
+      mark.innerHTML = '<span class="ssh-boot-step-dot"></span>';
+    }
+  });
+  const live = document.querySelector('.ssh-chrome-live');
+  if (live) {
+    live.classList.add('is-boot');
+    live.textContent = t('remoteSshBootTitle');
+  }
+}
+
+function finishSshBoot(sess) {
+  if (!state.vpnModal || state.vpnModal.session !== sess) return;
+  if (state.vpnModal.boot === 'ready') return;
+  state.vpnModal.boot = 'ready';
+  const el = document.querySelector('.ssh-boot');
+  const live = document.querySelector('.ssh-chrome-live');
+  if (live) {
+    live.classList.remove('is-boot');
+    live.textContent = t('tabRemote');
+  }
+  if (el) {
+    el.classList.add('is-out');
+    setTimeout(() => {
+      if (!state.vpnModal || state.vpnModal.session !== sess) return;
+      // 只拆遮罩，避免 render() 重建 iframe 打断已连上的 SSH
+      el.remove();
+    }, 320);
+  }
+}
+
+function armSshBoot(m) {
+  // 步进只改遮罩 DOM，禁止 render()——否则 iframe 重挂载会反复重连。
+  if (!m || m.boot === 'ready' || m._bootArmed === m.session) return;
+  m._bootArmed = m.session;
+  const sess = m.session;
+  setTimeout(() => {
+    if (!state.vpnModal || state.vpnModal.session !== sess || state.vpnModal.boot === 'ready') return;
+    state.vpnModal.bootStep = 1;
+    paintSshBootSteps(1);
+  }, 650);
+  setTimeout(() => {
+    if (!state.vpnModal || state.vpnModal.session !== sess || state.vpnModal.boot === 'ready') return;
+    state.vpnModal.bootStep = 2;
+    paintSshBootSteps(2);
+  }, 1600);
+  setTimeout(() => {
+    if (!state.vpnModal || state.vpnModal.session !== sess) return;
+    if (state.vpnModal.boot === 'ready') return;
+    if (state.vpnModal._frameLoaded) finishSshBoot(sess);
+  }, 5200);
+  setTimeout(() => finishSshBoot(sess), 14000);
+}
+
+function sshBootOverlay(m, target) {
+  if (!m || m.boot === 'ready') return null;
+  const step = Number(m.bootStep) || 0;
+  const items = [
+    t('remoteSshBootRelay'),
+    t('remoteSshBootTunnel'),
+    t('remoteSshBootAuth'),
+  ];
+  return h('div', {
+    class: 'ssh-boot',
+    role: 'status',
+    'aria-live': 'polite',
+    'aria-busy': 'true',
+  },
+    h('div', { class: 'ssh-boot-scan', 'aria-hidden': 'true' }),
+    h('div', { class: 'ssh-boot-grid', 'aria-hidden': 'true' }),
+    h('div', { class: 'ssh-boot-core' },
+      h('div', { class: 'ssh-boot-orbit', 'aria-hidden': 'true' },
+        h('span', { class: 'ssh-boot-orbit-ring' }),
+        h('span', { class: 'ssh-boot-orbit-ring delay' }),
+        h('span', { class: 'ssh-boot-orbit-dot' }),
+        h('span', { class: 'ssh-boot-orbit-pulse' }),
+      ),
+      h('div', { class: 'ssh-boot-kicker' }, t('tabRemote')),
+      h('div', { class: 'ssh-boot-title' }, t('remoteSshBootTitle')),
+      h('div', { class: 'ssh-boot-target' },
+        h('span', { class: 'ssh-boot-target-label' }, 'SSH'),
+        h('code', {}, target || '—'),
+      ),
+      h('ul', { class: 'ssh-boot-steps' },
+        ...items.map((label, i) => {
+          const done = step > i;
+          const on = step === i;
+          return h('li', {
+            class: 'ssh-boot-step' + (done ? ' is-done' : '') + (on ? ' is-on' : ''),
+          },
+            h('span', { class: 'ssh-boot-step-mark', 'aria-hidden': 'true' },
+              done ? h('i', { class: 'fa-solid fa-check' }) : h('span', { class: 'ssh-boot-step-dot' })),
+            h('span', { class: 'ssh-boot-step-txt' }, label),
+          );
+        }),
+      ),
+      h('div', { class: 'ssh-boot-meter', 'aria-hidden': 'true' }, h('i')),
+      h('p', { class: 'ssh-boot-hint' }, t('remoteSshBootWait')),
+      h('button', {
+        type: 'button',
+        class: 'ssh-boot-enter',
+        onclick: () => finishSshBoot(m.session),
+      }, t('remoteSshBootEnter')),
+    ),
+  );
 }
 
 function renderVpnModal() {
@@ -947,6 +1169,10 @@ function renderVpnModal() {
     if (!host) { toast(t('remoteNeedHost'), 'err'); return; }
     m.liveUrl = buildWebSshUrl(m.user, host, m.port);
     m.session = (m.session || 0) + 1;
+    m.boot = 'connecting';
+    m.bootStep = 0;
+    m._frameLoaded = false;
+    m._bootArmed = 0;
     render();
   };
   const frameSrc = m.liveUrl || webssh;
@@ -964,6 +1190,7 @@ function renderVpnModal() {
     }, 50);
   };
 
+  armSshBoot(m);
   return h('div', {
     class: 'modal-mask ssh-mask' + (isFs ? ' is-fullscreen' : ''),
     onclick: (ev) => { if (ev.target === ev.currentTarget && !isFs) close(); },
@@ -1008,14 +1235,27 @@ function renderVpnModal() {
             class: 'ssh-chrome-btn', type: 'button', title: t('remoteSshReconnect'),
             onclick: connect,
           }, h('i', { class: 'fa-solid fa-rotate-right' })),
-          h('span', { class: 'ssh-chrome-live' }, t('tabRemote')),
+          h('span', { class: 'ssh-chrome-live' + (m.boot === 'ready' ? '' : ' is-boot') },
+            m.boot === 'ready' ? t('tabRemote') : t('remoteSshBootTitle')),
         ),
-        h('iframe', {
-          class: 'ssh-frame',
-          src: host ? (frameSrc + (frameSrc.indexOf('?') >= 0 ? '&' : '?') + '_s=' + (m.session || 0)) : 'about:blank',
-          title: 'webssh',
-          allow: 'clipboard-read; clipboard-write',
-        }),
+        h('div', { class: 'ssh-frame-wrap' },
+          h('iframe', {
+            class: 'ssh-frame',
+            src: host ? (frameSrc + (frameSrc.indexOf('?') >= 0 ? '&' : '?') + '_s=' + (m.session || 0)) : 'about:blank',
+            title: 'webssh',
+            allow: 'clipboard-read; clipboard-write',
+            onload: () => {
+              if (!state.vpnModal || state.vpnModal.session !== m.session) return;
+              state.vpnModal._frameLoaded = true;
+              if ((state.vpnModal.bootStep || 0) < 2) {
+                state.vpnModal.bootStep = 2;
+                paintSshBootSteps(2);
+              }
+              setTimeout(() => finishSshBoot(m.session), 1400);
+            },
+          }),
+          sshBootOverlay(m, target),
+        ),
       ),
     ),
   );
@@ -1024,32 +1264,7 @@ function renderVpnModal() {
 function viewVpnPanel(devices) {
   const rows = (devices || []).filter((d) => d && d.remoteHost);
   const deviceCards = rows.length
-    ? rows.map((d) => h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
-        h('div', { class: 'logs-card-body' },
-          h('div', { class: 'logs-card-code' }, d.name || shortId(d.id)),
-          h('div', { class: 'logs-card-meta' },
-            statusTag(!!d.online),
-            h('span', {
-              class: 'logs-chip', title: t('remoteSshOpenHint'),
-              style: { cursor: 'pointer' },
-              onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'ssh', name: d.name || d.id, host: d.remoteHost, port: d.remoteSshPort || 22, user: 'root' }); },
-            }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22))),
-            d.remoteHttpPort
-              ? h('span', {
-                  class: 'logs-chip', title: t('remoteHttpOpenHint'),
-                  style: { cursor: 'pointer' },
-                  onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, d.remoteHttpPort, false); },
-                }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
-              : null,
-            ...remoteHttpsPorts(d).map((hp) => h('span', {
-              class: 'logs-chip', title: t('remoteHttpsOpenHint'),
-              style: { cursor: 'pointer' },
-              onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, hp, true); },
-            }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))),
-            h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
-          ),
-        ),
-      ))
+    ? rows.map((d) => remoteDeviceCard(d))
     : [h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteDevicesEmpty'))];
 
   const opsCards = OPS_VPN_PEERS.map((p) => h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
@@ -1066,16 +1281,20 @@ function viewVpnPanel(devices) {
     ),
   ));
 
-  return h('div', { class: 'glass', style: { padding: '16px', marginBottom: '16px' } },
-    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' } },
+  return h('div', { class: 'glass remote-panel', style: { padding: '16px', marginBottom: '16px' } },
+    h('div', { class: 'remote-panel-head' },
       h('div', {},
         h('h2', { style: { margin: '0 0 4px', fontSize: '18px' } }, t('remoteAccessTitle')),
         h('p', { class: 'muted', style: { margin: 0 } }, t('remoteAccessSub') + ' · ' + t('remoteRelay') + ' ' + WG_RELAY.host + ':' + WG_RELAY.port),
       ),
-      h('span', { class: 'logs-chip' }, t('remoteDeviceCount') + ' ' + rows.length),
+      h('div', { class: 'remote-panel-head-actions' },
+        h('span', { class: 'logs-chip', id: 'remote-device-count' }, t('remoteDeviceCount') + ' ' + rows.length),
+        h('button', { class: 'gbtn', onclick: () => loadTab('remote') }, fa('fa-rotate'), ' ' + t('refresh')),
+      ),
     ),
+    h('div', { class: 'remote-panel-filter' }, studioSearch(t('searchRemote'))),
     h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteDevicesTitle')),
-    ...deviceCards,
+    h('div', { id: 'remote-device-list' }, ...deviceCards),
     h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteOpsTitle')),
     ...opsCards,
   );
@@ -1083,16 +1302,7 @@ function viewVpnPanel(devices) {
 
 
 function viewRemote() {
-  const all = (state.devices || []).filter(Boolean);
-  const q = String(state.q || '').trim().toLowerCase();
-  let rows = all.filter((d) => d && d.remoteHost);
-  if (q) {
-    rows = rows.filter((d) => {
-      const hay = [d.name, d.id, d.uuid, d.remoteHost, d.model, d.firmware]
-        .map((x) => String(x || '').toLowerCase());
-      return hay.some((s) => s.includes(q));
-    });
-  }
+  const rows = remoteDeviceRows();
   const onlineN = rows.filter((d) => d.online).length;
 
   return h('div', { class: 'remote-page logs-page' },
@@ -1103,15 +1313,11 @@ function viewRemote() {
         h('h1', {}, t('tabRemote')),
         h('div', { class: 'logs-hero-sub' }, t('remotePageSub')),
         h('div', { class: 'logs-hero-meta' },
-          chip(String(rows.length) + ' ' + t('remoteDeviceCount')),
-          chip(onlineN + ' ' + t('online'), 'stat-online'),
+          chip(String(rows.length) + ' ' + t('remoteDeviceCount'), null, { id: 'remote-hero-count' }),
+          chip(onlineN + ' ' + t('online'), 'stat-online', { id: 'remote-hero-online' }),
           chip(t('remoteRelay') + ' ' + WG_RELAY.host + ':' + WG_RELAY.port),
         ),
       ),
-    ),
-    h('div', { class: 'admin-toolbar' },
-      searchBox(t('searchRemote')),
-      h('button', { class: 'gbtn', onclick: () => loadTab('remote') }, fa('fa-rotate'), ' ' + t('refresh')),
     ),
     viewVpnPanel(rows),
   );
@@ -4397,6 +4603,7 @@ function render() {
   else if (state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') body = viewCloudSub();
   else body = viewOta();
   shell(body);
+  restoreSearchFocus();
 }
 
 function mapAuthError(e) {
@@ -4484,7 +4691,7 @@ function viewLogin(preErr) {
       btn.textContent = t('loginBtn');
     }
   }
-  const badge = () => h('div', { class: 'brand-badge' }, fa('fa-shield-halved'));
+  const badge = () => h('div', { class: 'brand-badge' }, fa('fa-shield-alt'));
   const feat = (ic, tx) => h('div', { class: 'feature-item' },
     h('div', { class: 'feature-ic' }, fa(ic)),
     h('div', { class: 'feature-tx' }, tx),
