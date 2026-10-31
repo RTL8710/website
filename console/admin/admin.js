@@ -21,9 +21,9 @@ import {
 } from './i18n.js';
 
 
-// 运维侧 WireGuard 客户端（跳板分配；与设备 VPN 分列展示）
+// 运维侧远程客户端（跳板分配；与设备远程分列展示）
 const OPS_VPN_PEERS = [
-  { name: 'ops-admin', host: '10.66.0.2', role: 'ops', note: '运维本机 WireGuard' },
+  { name: 'ops-admin', host: '10.66.0.2', role: 'ops', note: '运维本机' },
 ];
 const WG_RELAY = { host: '38.179.64.41', port: 51820 };
 const WG_WEBSSH = 'http://10.66.0.1:7681'; // 仅 VPN 可达；ttyd 跑 ssh，URL ?arg=user@host
@@ -589,6 +589,7 @@ async function loadTab(id) {
       // 不在总览自动打 CE（易限流）；点「AWS 费用」Tab / 总览卡再拉
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
+    else if (id === 'remote') { await ensure('devices', { lite: true }); }
     else if (id === 'records') { await ensure('devices'); await ensure('records'); }
     else if (id === 'ota') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'logs') {
@@ -955,7 +956,7 @@ function renderVpnModal() {
         h('div', { class: 'ssh-console-brand' },
           h('span', { class: 'ssh-console-orb', 'aria-hidden': 'true' }),
           h('div', { class: 'ssh-console-headtxt' },
-            h('div', { class: 'ssh-console-kicker' }, 'WireGuard · ' + WG_RELAY.host),
+            h('div', { class: 'ssh-console-kicker' }, t('remoteRelay') + ' · ' + WG_RELAY.host),
             h('h3', { class: 'ssh-console-title' }, t('remoteSshOpenTitle')),
             h('p', { class: 'ssh-console-sub' },
               (m.name ? m.name + ' · ' : '') + t('remoteSshWebHint')),
@@ -1047,7 +1048,7 @@ function viewVpnPanel(devices) {
     h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' } },
       h('div', {},
         h('h2', { style: { margin: '0 0 4px', fontSize: '18px' } }, t('remoteAccessTitle')),
-        h('p', { class: 'muted', style: { margin: 0 } }, t('remoteAccessSub') + ' · ' + WG_RELAY.host + ':' + WG_RELAY.port),
+        h('p', { class: 'muted', style: { margin: 0 } }, t('remoteAccessSub') + ' · ' + t('remoteRelay') + ' ' + WG_RELAY.host + ':' + WG_RELAY.port),
       ),
       h('span', { class: 'logs-chip' }, t('remoteDeviceCount') + ' ' + rows.length),
     ),
@@ -1055,6 +1056,42 @@ function viewVpnPanel(devices) {
     ...deviceCards,
     h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteOpsTitle')),
     ...opsCards,
+  );
+}
+
+
+function viewRemote() {
+  const all = (state.devices || []).filter(Boolean);
+  const q = String(state.q || '').trim().toLowerCase();
+  let rows = all.filter((d) => d && d.remoteHost);
+  if (q) {
+    rows = rows.filter((d) => {
+      const hay = [d.name, d.id, d.uuid, d.remoteHost, d.model, d.firmware]
+        .map((x) => String(x || '').toLowerCase());
+      return hay.some((s) => s.includes(q));
+    });
+  }
+  const onlineN = rows.filter((d) => d.online).length;
+
+  return h('div', { class: 'remote-page logs-page' },
+    state._err ? h('div', { class: 'admin-msg err' }, state._err) : null,
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('remoteEyebrow')),
+        h('h1', {}, t('tabRemote')),
+        h('div', { class: 'logs-hero-sub' }, t('remotePageSub')),
+        h('div', { class: 'logs-hero-meta' },
+          chip(String(rows.length) + ' ' + t('remoteDeviceCount')),
+          chip(onlineN + ' ' + t('online'), 'stat-online'),
+          chip(t('remoteRelay') + ' ' + WG_RELAY.host + ':' + WG_RELAY.port),
+        ),
+      ),
+    ),
+    h('div', { class: 'admin-toolbar' },
+      searchBox(t('searchRemote')),
+      h('button', { class: 'gbtn', onclick: () => loadTab('remote') }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    viewVpnPanel(rows),
   );
 }
 
@@ -1130,32 +1167,10 @@ function viewDevices() {
                 (d.remoteHost
                   ? h('span', {
                       class: 'logs-chip',
-                      title: t('remoteAccessHint'),
-                      onclick: (e) => {
-                        e.stopPropagation();
-                        const s = d.remoteHost + (d.remoteSshPort ? (':' + d.remoteSshPort) : '');
-                        copyText(s);
-                      },
-                    }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22)))
-                  : h('span', { class: 'logs-chip mute' }, t('remoteAccessOff'))),
-                (d.remoteHost && d.remoteHttpPort
-                  ? h('span', {
-                      class: 'logs-chip',
-                      title: t('remoteHttpOpenHint'),
-                      onclick: (e) => {
-                        e.stopPropagation();
-                        openRemoteWeb(d.remoteHost, d.remoteHttpPort, false);
-                      },
-                    }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
+                      title: t('tabRemote'),
+                      onclick: (e) => { e.stopPropagation(); const q = d.name || d.id || ''; state.tab = 'remote'; state.q = q; render(); loadTab('remote'); },
+                    }, t('tabRemote'), h('span', { class: 'clip' }, d.remoteHost))
                   : null),
-                ...(d.remoteHost ? remoteHttpsPorts(d).map((hp) => h('span', {
-                  class: 'logs-chip',
-                  title: t('remoteHttpsOpenHint'),
-                  onclick: (e) => {
-                    e.stopPropagation();
-                    openRemoteWeb(d.remoteHost, hp, true);
-                  },
-                }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))) : []),
               ),
             ),
             h('div', { class: 'logs-card-side' },
@@ -1184,7 +1199,6 @@ function viewDevices() {
   }
 
   return h('div', { class: 'devices-page logs-page' },
-    viewVpnPanel(all),
     h('div', { class: 'glass logs-hero' },
       h('div', {},
         h('div', { class: 'logs-kicker' }, t('devicesEyebrow')),
@@ -4355,6 +4369,7 @@ function render() {
   if (state.tab === 'overview') body = viewOverview();
   else if (state.tab === 'users') body = viewUsers();
   else if (state.tab === 'devices') body = viewDevices();
+  else if (state.tab === 'remote') body = viewRemote();
   else if (state.tab === 'records') body = viewRecords();
   else if (state.tab === 'logs') body = viewLogs();
   else if (state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') body = viewCloudSub();
