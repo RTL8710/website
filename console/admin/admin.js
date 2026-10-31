@@ -11,6 +11,8 @@ import {
   getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
   getAwsCostSummary, summarizeAwsCost, awsCostMonthUtcRange, awsCostLastMonthsUtcRange,
   isAwsCostRateLimitedError, AWS_COST_S3_CACHE_KEY,
+  listAllLicenseBatches, createLicenseBatch, updateLicenseBatch,
+  listDeviceLicensesByBatch, activateDeviceLicense,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
 import { signS3MediaUrl } from '../lib/s3-media.js';
@@ -78,6 +80,11 @@ const state = {
   awsCostChartDays: 30,
   awsCostDailyChart: 'line', // line | bar
   awsCostMonthsChart: 'bar', // bar | line
+  licenseBatches: null,
+  licenseSelectedId: '',
+  licenseDevices: null,
+  licenseDevicesBusy: false,
+  licenseActivate: { deviceUid: '', code: '', busy: false },
 };
 try {
   const v = localStorage.getItem('admin_side_collapsed');
@@ -691,6 +698,9 @@ async function ensure(kind, opts) {
   if (kind === 'packages' && !state.packages) state.packages = await listDeviceUpgrades();
   if (kind === 'records' && state.records == null) await loadRecords();
   if (kind === 'diagLogs' && state.diagLogs == null) await loadDiagLogs();
+  if (kind === 'licenseBatches' && !state.licenseBatches) {
+    state.licenseBatches = await listAllLicenseBatches();
+  }
 }
 
 async function loadRecords() {
@@ -741,6 +751,9 @@ async function loadTab(id) {
       try { await ensure('users'); } catch (_) { if (!state.users) state.users = []; }
       await ensure('diagLogs');
       await hydrateLogUsers();
+    } else if (id === 'license') {
+      await ensure('licenseBatches');
+      if (state.licenseSelectedId) await loadLicenseDevices(state.licenseSelectedId);
     } else if (id === 'cloudsub' || id === 'agora' || id === 'aws') {
       // 兼容旧 hash；统一走云订阅。进入即并行拉声网 + 亚马逊，页内显示 loading
       if (id === 'agora') state.cloudSubScope = 'agora';
@@ -1685,8 +1698,21 @@ function renderEdit() {
   if (!e) return null;
   const isUser = e.type === 'user';
   const isPkg = e.type === 'upgrade';
-  const title = isUser ? t('editUser') : (isPkg ? t('editPkg') : t('editDevice'));
-  const fields = isUser
+  const isLic = e.type === 'licenseBatch';
+  const isLicNew = isLic && e.id === 'new';
+  const title = isLic
+    ? (isLicNew ? t('licenseCreate') : t('licenseEdit'))
+    : (isUser ? t('editUser') : (isPkg ? t('editPkg') : t('editDevice')));
+  const fields = isLic
+    ? [
+        fieldInput(e, 'batchCode', t('licenseCode'), { ph: 'AHSDEMO001' }),
+        fieldInput(e, 'customerName', t('licenseCustomer')),
+        fieldInput(e, 'productSku', t('licenseSku'), { ph: 'robot / cardv' }),
+        fieldInput(e, 'maxDevices', t('licenseMaxDevices'), { ph: '100' }),
+        fieldInput(e, 'note', t('licenseNote'), { textarea: true, span2: true }),
+        ...(isLicNew ? [] : [fieldInput(e, 'status', t('licenseStatus'), { ph: 'active / revoked / exhausted' })]),
+      ]
+    : isUser
     ? [
         fieldInput(e, 'awsUserName', '用户名'),
         fieldInput(e, 'email', '邮箱'),
@@ -1715,7 +1741,38 @@ function renderEdit() {
   async function save() {
     e.err = ''; e.busy = true; render();
     try {
-      if (isUser) {
+      if (isLic) {
+        const code = (e.values.batchCode || '').trim();
+        const max = parseInt(String(e.values.maxDevices || '').trim(), 10);
+        if (!code) throw new Error(t('licenseNeedCode'));
+        if (!Number.isFinite(max) || max <= 0) throw new Error(t('licenseNeedMax'));
+        if (isLicNew) {
+          await createLicenseBatch({
+            id: code,
+            batchCode: code,
+            customerName: (e.values.customerName || '').trim() || null,
+            productSku: (e.values.productSku || '').trim() || null,
+            maxDevices: max,
+            usedCount: 0,
+            status: 'active',
+            note: (e.values.note || '').trim() || null,
+          });
+          toast(t('licenseCreated'));
+        } else {
+          await updateLicenseBatch({
+            id: e.id,
+            customerName: (e.values.customerName || '').trim() || null,
+            productSku: (e.values.productSku || '').trim() || null,
+            maxDevices: max,
+            note: (e.values.note || '').trim() || null,
+            status: (e.values.status || '').trim() || 'active',
+          });
+          toast(t('licenseUpdated'));
+        }
+        state.edit = null;
+        state.licenseBatches = null;
+        await loadTab('license');
+      } else if (isUser) {
         await updateUserAdmin({
           id: e.id,
           awsUserName: (e.values.awsUserName || '').trim() || null,
@@ -4628,12 +4685,240 @@ function viewAws(opts) {
 }
 
 
+
+async function loadLicenseDevices(batchId) {
+  if (!batchId) { state.licenseDevices = []; return; }
+  state.licenseDevicesBusy = true;
+  render();
+  try {
+    state.licenseDevices = await listDeviceLicensesByBatch(batchId);
+  } catch (e) {
+    console.error('[admin] license devices', e);
+    state.licenseDevices = [];
+    toast((e && e.message) || String(e), 'err');
+  } finally {
+    state.licenseDevicesBusy = false;
+    render();
+  }
+}
+
+function openCreateLicenseBatch() {
+  state.edit = {
+    type: 'licenseBatch',
+    id: 'new',
+    busy: false,
+    err: '',
+    values: {
+      batchCode: '',
+      customerName: '',
+      productSku: 'robot',
+      maxDevices: '100',
+      note: '',
+    },
+  };
+  render();
+}
+
+function openEditLicenseBatch(b) {
+  state.edit = {
+    type: 'licenseBatch',
+    id: b.id,
+    busy: false,
+    err: '',
+    values: {
+      batchCode: b.batchCode || b.id || '',
+      customerName: b.customerName || '',
+      productSku: b.productSku || '',
+      maxDevices: String(b.maxDevices != null ? b.maxDevices : ''),
+      note: b.note || '',
+      status: b.status || 'active',
+    },
+  };
+  render();
+}
+
+async function selectLicenseBatch(b) {
+  state.licenseSelectedId = b.id;
+  state.licenseActivate.code = b.batchCode || b.id || '';
+  await loadLicenseDevices(b.id);
+}
+
+function askRevokeLicenseBatch(b) {
+  state.confirm = {
+    title: t('licenseRevokeTitle'),
+    body: t('licenseRevokeBody') + '\n' + (b.batchCode || b.id),
+    okText: t('licenseRevokeOk'),
+    onOk: async () => {
+      state.confirm = null;
+      render();
+      try {
+        await updateLicenseBatch({ id: b.id, status: 'revoked' });
+        toast(t('licenseRevoked'));
+        state.licenseBatches = null;
+        await loadTab('license');
+      } catch (e) {
+        toast((e && e.message) || String(e), 'err');
+      }
+    },
+  };
+  render();
+}
+
+async function runLicenseActivate() {
+  const a = state.licenseActivate;
+  const uid = (a.deviceUid || '').trim();
+  const code = (a.code || '').trim();
+  if (!uid || !code) { toast(t('licenseActivateNeed'), 'err'); return; }
+  a.busy = true; render();
+  try {
+    const r = await activateDeviceLicense(uid, code);
+    if (r && r.ok) toast(t('licenseActivateOk') + (r.message ? (' · ' + r.message) : ''));
+    else toast((r && r.message) || t('licenseActivateFail'), 'err');
+    if (state.licenseSelectedId) await loadLicenseDevices(state.licenseSelectedId);
+    state.licenseBatches = await listAllLicenseBatches();
+  } catch (e) {
+    toast((e && e.message) || String(e), 'err');
+  } finally {
+    a.busy = false;
+    render();
+  }
+}
+
+function viewLicense() {
+  const batches = state.licenseBatches || [];
+  let rows = batches.filter((b) => b && matchQ([b.batchCode, b.id, b.customerName, b.productSku, b.status, b.note]));
+  const selected = rows.find((b) => b.id === state.licenseSelectedId) || batches.find((b) => b.id === state.licenseSelectedId) || null;
+  const devices = state.licenseDevices || [];
+  const stream = state.loadingTab || !state.licenseBatches
+    ? loading('…')
+    : (!rows.length
+      ? studioEmpty('fa-key', t('licenseEmpty'), t('licenseEmptyHint'))
+      : studioStream(studioGroups(rows, (b) => b.updatedAt || b.createdAt), (b) => {
+          const used = Number(b.usedCount || 0);
+          const max = Number(b.maxDevices || 0);
+          const st = String(b.status || 'active');
+          const on = state.licenseSelectedId === b.id;
+          return h('article', {
+            class: 'glass logs-card' + (on ? ' on' : ''),
+            onclick: () => selectLicenseBatch(b),
+          },
+            h('div', { class: 'logs-card-mark' }, fa('fa-key')),
+            h('div', { class: 'logs-card-body' },
+              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, b.batchCode || b.id),
+              h('div', { class: 'logs-card-meta' },
+                b.customerName ? h('span', { class: 'logs-chip mute' }, b.customerName) : null,
+                b.productSku ? h('span', { class: 'logs-chip' }, b.productSku) : null,
+                h('span', { class: 'logs-chip' }, st),
+                h('span', { class: 'logs-chip mute' }, used + ' / ' + max),
+                h('span', {
+                  class: 'logs-chip mute', title: b.id,
+                  onclick: (e) => { e.stopPropagation(); copyText(b.batchCode || b.id); },
+                }, t('licenseCode'), h('span', { class: 'clip' }, shortId(b.batchCode || b.id))),
+              ),
+            ),
+            h('div', { class: 'logs-card-side' },
+              h('div', { class: 'logs-card-when' },
+                h('b', {}, logsRelTime(b.updatedAt || b.createdAt)),
+                fmt(b.updatedAt || b.createdAt),
+              ),
+              h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+                h('button', { class: 'gbtn icon btn-sm', title: t('edit'), onclick: () => openEditLicenseBatch(b) }, fa('fa-pen')),
+                h('button', { class: 'gbtn icon btn-sm danger', title: t('licenseRevokeOk'), onclick: () => askRevokeLicenseBatch(b) }, fa('fa-ban')),
+              ),
+            ),
+          );
+        }));
+
+  const devicePanel = !selected ? null : h('div', { class: 'glass logs-dock', style: { flexDirection: 'column', alignItems: 'stretch', gap: '12px' } },
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' } },
+      h('div', {},
+        h('div', { style: { fontWeight: 700 } }, t('licenseDevicesTitle') + ' · ' + (selected.batchCode || selected.id)),
+        h('div', { class: 'faint', style: { fontSize: '12px' } }, t('licenseDevicesSub')),
+      ),
+      h('button', { class: 'gbtn btn-sm', disabled: state.licenseDevicesBusy, onclick: () => loadLicenseDevices(selected.id) }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    state.licenseDevicesBusy ? loading('…') : (!devices.length
+      ? h('div', { class: 'faint' }, t('licenseDevicesEmpty'))
+      : h('div', { class: 'agora-table-wrap' },
+          h('table', { class: 'admin-table' },
+            h('thead', {}, h('tr', {},
+              h('th', {}, t('licenseDeviceUid')),
+              h('th', {}, t('licenseStatus')),
+              h('th', {}, t('licenseActivatedAt')),
+            )),
+            h('tbody', {}, ...devices.map((d) => h('tr', {},
+              h('td', { class: 'mono', title: d.deviceUid || d.id, onclick: () => copyText(d.deviceUid || d.id) }, shortId(d.deviceUid || d.id)),
+              h('td', {}, d.status || '—'),
+              h('td', {}, fmt(d.activatedAt || d.createdAt)),
+            ))),
+          ),
+        )),
+    h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' } },
+      h('div', { class: 'admin-field', style: { minWidth: '180px', flex: '1' } },
+        h('label', {}, t('licenseDeviceUid')),
+        h('input', {
+          value: state.licenseActivate.deviceUid || '',
+          placeholder: 'deviceUid',
+          oninput: (ev) => { state.licenseActivate.deviceUid = ev.target.value; },
+        }),
+      ),
+      h('div', { class: 'admin-field', style: { minWidth: '140px', flex: '1' } },
+        h('label', {}, t('licenseCode')),
+        h('input', {
+          value: state.licenseActivate.code || '',
+          placeholder: 'batchCode',
+          oninput: (ev) => { state.licenseActivate.code = ev.target.value; },
+        }),
+      ),
+      h('button', {
+        class: 'gbtn primary btn-sm',
+        disabled: state.licenseActivate.busy,
+        onclick: () => runLicenseActivate(),
+      }, state.licenseActivate.busy ? t('saving') : t('licenseActivate')),
+    ),
+  );
+
+  return h('div', { class: 'users-page logs-page' },
+    h('div', { class: 'glass logs-hero' },
+      h('div', {},
+        h('div', { class: 'logs-kicker' }, t('licenseEyebrow')),
+        h('h1', {}, t('licenseTitle')),
+        h('div', { class: 'logs-hero-sub' }, t('licenseSub')),
+        h('div', { class: 'logs-hero-meta' }, chip(String(rows.length) + ' ' + t('licenseBatchesCount'))),
+      ),
+      h('div', { class: 'logs-source-grid' },
+        h('div', { class: 'logs-source on info' },
+          h('span', { class: 'logs-source-ico' }, fa('fa-key')),
+          h('span', { class: 'k' }, t('licenseBatchesCount')),
+          h('span', { class: 'v num' }, String(batches.length)),
+          h('span', { class: 's' }, getRegion().toUpperCase()),
+        ),
+        h('div', { class: 'logs-source info' },
+          h('span', { class: 'logs-source-ico' }, fa('fa-microchip')),
+          h('span', { class: 'k' }, t('licenseUsedSum')),
+          h('span', { class: 'v num' }, String(batches.reduce((n, b) => n + Number(b.usedCount || 0), 0))),
+          h('span', { class: 's' }, t('licenseDevicesTitle')),
+        ),
+      ),
+    ),
+    h('div', { class: 'glass logs-dock' },
+      studioSearch(t('licenseSearch')),
+      h('button', { class: 'gbtn btn-sm primary', onclick: () => openCreateLicenseBatch() }, fa('fa-plus'), ' ' + t('licenseCreate')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.licenseBatches = null; await loadTab('license'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+    ),
+    stream,
+    devicePanel,
+  );
+}
+
+
 function render() {
   let body;
   if (state.tab === 'overview') body = viewOverview();
   else if (state.tab === 'users') body = viewUsers();
   else if (state.tab === 'devices') body = viewDevices();
   else if (state.tab === 'remote') body = viewRemote();
+  else if (state.tab === 'license') body = viewLicense();
   else if (state.tab === 'records') body = viewRecords();
   else if (state.tab === 'logs') body = viewLogs();
   else if (state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') body = viewCloudSub();

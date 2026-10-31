@@ -596,3 +596,85 @@ export function summarizeAwsCost(raw) {
   return { totalUsd, byService, daily };
 }
 
+
+// ── 出厂授权 LicenseBatch / DeviceLicense / activateDevice ─────────────────
+const Q_LIST_LICENSE_BATCHES = /* GraphQL */ `
+  query ListLicenseBatches($filter: ModelLicenseBatchFilterInput, $limit: Int, $nextToken: String) {
+    listLicenseBatches(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id batchCode customerName productSku maxDevices usedCount status
+        expiresAt note createdAt updatedAt
+      }
+      nextToken
+    }
+  }`;
+
+export async function listAllLicenseBatches(filter) {
+  const rows = await pageAll(Q_LIST_LICENSE_BATCHES, { filter: filter || null }, (d) => d.listLicenseBatches);
+  return (rows || []).filter((b) => b && b.id).sort((a, b) => {
+    const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+    const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+    return tb - ta;
+  });
+}
+
+const M_CREATE_LICENSE_BATCH = /* GraphQL */ `
+  mutation CreateLicenseBatch($input: CreateLicenseBatchInput!) {
+    createLicenseBatch(input: $input) {
+      id batchCode customerName productSku maxDevices usedCount status
+      expiresAt note createdAt updatedAt
+    }
+  }`;
+
+export async function createLicenseBatch(input) {
+  const data = await gql(M_CREATE_LICENSE_BATCH, { input });
+  return data.createLicenseBatch;
+}
+
+const M_UPDATE_LICENSE_BATCH = /* GraphQL */ `
+  mutation UpdateLicenseBatch($input: UpdateLicenseBatchInput!) {
+    updateLicenseBatch(input: $input) {
+      id batchCode customerName productSku maxDevices usedCount status
+      expiresAt note createdAt updatedAt
+    }
+  }`;
+
+export async function updateLicenseBatch(input) {
+  const data = await gql(M_UPDATE_LICENSE_BATCH, { input });
+  return data.updateLicenseBatch;
+}
+
+const Q_LIST_DEVICE_LICENSES = /* GraphQL */ `
+  query ListDeviceLicenses($filter: ModelDeviceLicenseFilterInput, $limit: Int, $nextToken: String) {
+    listDeviceLicenses(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id deviceUid batchId batchCode status activatedAt expiresAt createdAt updatedAt
+      }
+      nextToken
+    }
+  }`;
+
+export async function listDeviceLicensesByBatch(batchId) {
+  const rows = await pageAll(
+    Q_LIST_DEVICE_LICENSES,
+    { filter: { batchId: { eq: batchId } } },
+    (d) => d.listDeviceLicenses,
+  );
+  return (rows || []).filter(Boolean).sort((a, b) => {
+    const ta = Date.parse(a.activatedAt || a.createdAt || '') || 0;
+    const tb = Date.parse(b.activatedAt || b.createdAt || '') || 0;
+    return tb - ta;
+  });
+}
+
+const M_ACTIVATE_DEVICE = /* GraphQL */ `
+  mutation ActivateDevice($deviceUid: String!, $code: String!) {
+    activateDevice(deviceUid: $deviceUid, code: $code) {
+      ok message deviceUid batchId batchCode activatedAt expiresAt status
+    }
+  }`;
+
+export async function activateDeviceLicense(deviceUid, code) {
+  const data = await gql(M_ACTIVATE_DEVICE, { deviceUid, code });
+  return data.activateDevice;
+}
