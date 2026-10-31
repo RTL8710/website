@@ -532,12 +532,17 @@ body:has(.login-shell) #app{min-height:100vh}
 }
 .agora-footnote{margin:10px 0 0;font-size:11px;line-height:1.45;color:var(--text-lo);opacity:.85}
 
-.agora-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.85fr);gap:14px;align-items:start}
+.agora-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.85fr);gap:14px;align-items:stretch}
 .agora-card{
   padding:16px 16px 14px;border-radius:16px;margin:0;
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+  display:flex;flex-direction:column;min-height:100%;box-sizing:border-box;
 }
-.agora-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.agora-grid > .agora-card{height:100%}
+.agora-card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:12px;min-height:32px;flex:none;
+}
 .agora-card-head h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text-hi)}
 .agora-count{
   min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
@@ -556,7 +561,9 @@ body:has(.login-shell) #app{min-height:100vh}
 .agora-chart-svg{width:100%;height:210px;display:block}
 .agora-chart-grid{stroke:rgba(255,255,255,.06);stroke-width:1}
 .agora-chart-axis{fill:var(--text-lo);font-size:10px;font-weight:600}
-.agora-card-foot{display:flex;justify-content:flex-end;margin-top:8px}
+.agora-card-foot{display:flex;justify-content:flex-end;margin-top:auto;padding-top:8px}
+.agora-cost-card > .agora-link{margin-top:auto;align-self:flex-start;padding-top:8px}
+.agora-cost-card > .agora-footnote{margin-top:10px}
 .agora-link{
   appearance:none;border:0;background:transparent;cursor:pointer;padding:4px 0;
   font:inherit;font-size:11.5px;font-weight:700;color:var(--accent);opacity:.9;
