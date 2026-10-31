@@ -603,6 +603,7 @@ html[data-theme="light"] .apick-btn{background:linear-gradient(180deg,#fff,rgba(
   margin-bottom:12px;min-height:32px;flex:none;
 }
 .agora-card-head h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text-hi)}
+.agora-card-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .agora-count{
   min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
   font-size:11px;font-weight:800;background:var(--acc-soft);color:var(--accent);border:1px solid var(--acc-soft-bd);

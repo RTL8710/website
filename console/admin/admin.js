@@ -64,8 +64,10 @@ const state = {
   agoraProjectId: '', // '' = all
   agoraQuotaMinutes: 10000,
   agoraChartDays: 7,
+  agoraChartType: 'line', // line | bar
   awsCost: null, // { month, months, monthRange, monthsRange, refreshedAt, err }
   awsCostChartDays: 30,
+  awsCostDailyChart: 'line', // line | bar
   awsCostMonthsChart: 'bar', // bar | line
 };
 try {
@@ -3245,7 +3247,7 @@ function fmtMin1(n) {
 }
 
 /** Multi-series SVG line chart (Agora Console Usage style). */
-function agoraLineChart(daily, days = 7) {
+function agoraUsageChart(daily, days = 7, type = 'line') {
   const rowsIn = (daily || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const rows = rowsIn.slice(-(Math.max(1, days)));
   if (!rows.length) return h('div', { class: 'faint', style: { fontSize: '12px' } }, '—');
@@ -3258,10 +3260,13 @@ function agoraLineChart(daily, days = 7) {
       return minOfSec(secOf(sec, keys));
     }),
   }));
-  const ymax = Math.max(1, ...series.flatMap((s) => s.values));
+  const isBar = type === 'bar';
+  const dayTotals = rows.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] || 0), 0));
+  const ymax = Math.max(1, ...(isBar ? dayTotals : series.flatMap((s) => s.values)));
   const W = 720, H = 220, padL = 40, padR = 16, padT = 18, padB = 30;
   const iw = W - padL - padR, ih = H - padT - padB;
-  const xAt = (i) => padL + (rows.length <= 1 ? iw / 2 : (i / (rows.length - 1)) * iw);
+  const n = rows.length;
+  const xAt = (i) => padL + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw);
   const yAt = (v) => padT + ih - (v / ymax) * ih;
 
   const kids = [];
@@ -3272,19 +3277,41 @@ function agoraLineChart(daily, days = 7) {
     kids.push(svgEl('text', { x: padL - 8, y: y + 4, class: 'agora-chart-axis', 'text-anchor': 'end' },
       fmtMin1(val)));
   }
-  for (const s of series) {
-    const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(' ');
-    kids.push(svgEl('polyline', {
-      points: pts, fill: 'none', stroke: s.color, 'stroke-width': '2.25',
-      'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'agora-chart-line',
-    }));
-    s.values.forEach((v, i) => {
-      if (v <= 0) return;
-      kids.push(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: '3.2', fill: s.color, class: 'agora-chart-dot' }));
+  if (isBar) {
+    const slot = iw / Math.max(n, 1);
+    const bw = Math.max(5, Math.min(28, slot * 0.58));
+    rows.forEach((_, i) => {
+      const cx = n <= 1 ? padL + iw / 2 : xAt(i);
+      let yBase = padT + ih;
+      // 自下而上堆叠，顺序与图例一致
+      for (let si = series.length - 1; si >= 0; si--) {
+        const s = series[si];
+        const v = s.values[i] || 0;
+        if (v <= 0) continue;
+        const bh = Math.max(1, (v / ymax) * ih);
+        const y = yBase - bh;
+        kids.push(svgEl('rect', {
+          x: cx - bw / 2, y, width: bw, height: bh, rx: 2,
+          fill: s.color, opacity: '0.92', class: 'agora-chart-bar',
+        }));
+        yBase = y;
+      }
     });
+  } else {
+    for (const s of series) {
+      const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(' ');
+      kids.push(svgEl('polyline', {
+        points: pts, fill: 'none', stroke: s.color, 'stroke-width': '2.25',
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'agora-chart-line',
+      }));
+      s.values.forEach((v, i) => {
+        if (v <= 0) return;
+        kids.push(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: '3.2', fill: s.color, class: 'agora-chart-dot' }));
+      });
+    }
   }
   rows.forEach((d, i) => {
-    if (rows.length > 12 && i !== 0 && i !== rows.length - 1 && i % 2) return;
+    if (n > 12 && i !== 0 && i !== n - 1 && i % 2) return;
     kids.push(svgEl('text', { x: xAt(i), y: H - 8, class: 'agora-chart-axis', 'text-anchor': 'middle' },
       (d.date || '').slice(5)));
   });
@@ -3293,6 +3320,9 @@ function agoraLineChart(daily, days = 7) {
     svgEl('svg', { class: 'agora-chart-svg', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' },
       ...kids),
   );
+}
+function agoraLineChart(daily, days = 7) {
+  return agoraUsageChart(daily, days, 'line');
 }
 
 function agoraDailyTable(daily, days = 7) {
@@ -3567,11 +3597,19 @@ function viewAgora(opts) {
       h('section', { class: 'glass agora-card' },
         h('div', { class: 'agora-card-head' },
           h('h2', {}, t('agoraBreakdown')),
-          h('div', { class: 'seg' },
-            ...[7, 14, 30].map((n) => h('button', {
-              type: 'button', class: chartDays === n ? 'on' : '',
-              onclick: () => { state.agoraChartDays = n; render(); },
-            }, String(n) + 'd')),
+          h('div', { class: 'agora-card-tools' },
+            h('div', { class: 'seg' },
+              ...[['bar', 'awsChartBar'], ['line', 'awsChartLine']].map(([k, ik]) => h('button', {
+                type: 'button', class: (state.agoraChartType || 'line') === k ? 'on' : '',
+                onclick: () => { state.agoraChartType = k; render(); },
+              }, t(ik))),
+            ),
+            h('div', { class: 'seg' },
+              ...[7, 14, 30].map((n) => h('button', {
+                type: 'button', class: chartDays === n ? 'on' : '',
+                onclick: () => { state.agoraChartDays = n; render(); },
+              }, String(n) + 'd')),
+            ),
           ),
         ),
         h('div', { class: 'agora-series' },
@@ -3582,7 +3620,7 @@ function viewAgora(opts) {
             h('em', {}, t('agoraMinUnit')),
           )),
         ),
-        agoraLineChart(daily, chartDays),
+        agoraUsageChart(daily, chartDays, state.agoraChartType || 'line'),
         h('div', { class: 'agora-card-foot' },
           h('button', {
             type: 'button', class: 'agora-link',
@@ -3979,14 +4017,25 @@ function viewAws(opts) {
       h('section', { class: 'glass agora-card' },
         h('div', { class: 'agora-card-head' },
           h('h2', {}, t('awsDaily')),
-          h('div', { class: 'seg' },
-            ...[14, 30, 90].map((n) => h('button', {
-              type: 'button', class: chartDays === n ? 'on' : '',
-              onclick: () => { state.awsCostChartDays = n; render(); },
-            }, String(n) + 'd')),
+          h('div', { class: 'agora-card-tools' },
+            h('div', { class: 'seg' },
+              ...[['bar', 'awsChartBar'], ['line', 'awsChartLine']].map(([k, ik]) => h('button', {
+                type: 'button', class: (state.awsCostDailyChart || 'line') === k ? 'on' : '',
+                onclick: () => { state.awsCostDailyChart = k; render(); },
+              }, t(ik))),
+            ),
+            h('div', { class: 'seg' },
+              ...[14, 30, 90].map((n) => h('button', {
+                type: 'button', class: chartDays === n ? 'on' : '',
+                onclick: () => { state.awsCostChartDays = n; render(); },
+              }, String(n) + 'd')),
+            ),
           ),
         ),
-        awsCostLineChart(month.daily, chartDays),
+        awsCostSeriesChart((month.daily || []).slice(-Math.max(1, chartDays)), {
+          type: state.awsCostDailyChart || 'line',
+          xLabel: (r) => String(r.date || '').slice(5),
+        }),
       ),
 
       h('section', { class: 'glass agora-card agora-cost-card' },
