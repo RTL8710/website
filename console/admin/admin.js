@@ -3459,7 +3459,7 @@ function viewAgora(opts) {
     },
   }, fa('fa-rotate'));
 
-  const agoraActions = h('div', { class: 'agora-head-actions' },
+  const agoraTools = h('div', { class: 'agora-quota-tools' },
     h('select', {
       class: 'agora-select',
       value: pid,
@@ -3468,30 +3468,29 @@ function viewAgora(opts) {
       h('option', { value: '' }, t('agoraAllProjects')),
       ...projects.map((p) => h('option', { value: p.id }, p.name || p.id)),
     ),
-    refreshBtn,
+    h('span', { class: 'agora-pill muted' }, rangeLabel),
+    h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
+    h('span', { class: 'spacer' }),
     a && a.refreshedAt
       ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
       : null,
+    refreshBtn,
   );
   return h('div', { class: 'agora-page' + (embedded ? ' is-embedded' : '') },
     state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
 
-    embedded
-      ? h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' } }, agoraActions)
-      : h('header', { class: 'agora-head' },
-          h('div', { class: 'agora-head-left' },
-            h('div', { class: 'agora-kicker' }, t('agoraEyebrow')),
-            h('div', { class: 'agora-title-row' },
-              h('h1', {}, t('agora')),
-              h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
-              h('span', { class: 'agora-pill muted' }, t('agoraPackage')),
-              h('span', { class: 'agora-pill muted' }, rangeLabel),
-            ),
-          ),
-          agoraActions,
+    embedded ? null : h('header', { class: 'agora-head' },
+      h('div', { class: 'agora-head-left' },
+        h('div', { class: 'agora-kicker' }, t('agoraEyebrow')),
+        h('div', { class: 'agora-title-row' },
+          h('h1', {}, t('agora')),
+          h('span', { class: 'agora-pill muted' }, t('agoraPackage')),
         ),
+      ),
+    ),
 
     h('section', { class: 'agora-quota' },
+      agoraTools,
       h('div', { class: 'agora-quota-nums' },
         h('div', { class: 'agora-q' },
           h('span', { class: 'k' }, t('agoraUsed')),
@@ -3884,35 +3883,29 @@ function viewAws(opts) {
     },
   }, fa('fa-rotate'));
 
-  const awsHead = h('header', { class: 'agora-head' },
-    h('div', { class: 'agora-head-left' },
-      h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
-      h('div', { class: 'agora-title-row' },
-        h('h1', {}, t('aws')),
-        h('span', { class: 'agora-pill muted' }, rangeLabel),
-        h('span', { class: 'agora-pill muted' }, 'Unblended'),
-      ),
-      h('p', { class: 'agora-footnote', style: { marginTop: '6px' } }, t('awsSub')),
-    ),
-    h('div', { class: 'agora-head-actions' },
-      refreshBtn,
-      a && a.refreshedAt
-        ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
-        : null,
-    ),
+  const awsTools = h('div', { class: 'agora-quota-tools' },
+    h('span', { class: 'agora-pill muted' }, rangeLabel),
+    h('span', { class: 'agora-pill muted' }, 'Unblended'),
+    h('span', { class: 'spacer' }),
+    a && a.refreshedAt
+      ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
+      : null,
+    refreshBtn,
   );
   return h('div', { class: 'agora-page aws-page' + (embedded ? ' is-embedded' : '') },
     state._err || (a && a.err) ? h('div', { class: 'admin-msg err' }, state._err || a.err) : null,
-    embedded
-      ? h('div', { class: 'agora-head-actions', style: { justifyContent: 'flex-end', marginBottom: '10px' } },
-          refreshBtn,
-          a && a.refreshedAt
-            ? h('span', { class: 'agora-fresh' }, new Date(a.refreshedAt).toLocaleTimeString())
-            : null,
-        )
-      : awsHead,
+    embedded ? null : h('header', { class: 'agora-head' },
+      h('div', { class: 'agora-head-left' },
+        h('div', { class: 'agora-kicker' }, t('awsEyebrow')),
+        h('div', { class: 'agora-title-row' },
+          h('h1', {}, t('aws')),
+        ),
+        h('p', { class: 'agora-footnote', style: { marginTop: '6px' } }, t('awsSub')),
+      ),
+    ),
 
     h('section', { class: 'agora-quota' },
+      awsTools,
       h('div', { class: 'agora-quota-nums' },
         h('div', { class: 'agora-q accent' },
           h('span', { class: 'k' }, t('awsMonthTotal')),

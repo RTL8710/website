@@ -512,6 +512,11 @@ body:has(.login-shell) #app{min-height:100vh}
     radial-gradient(120% 80% at 100% 0%,rgba(45,212,191,.08),transparent 55%),
     linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
 }
+.agora-quota-tools{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-bottom:12px;
+}
+.agora-quota-tools .spacer{flex:1;min-width:8px}
+.agora-quota-tools .agora-select{max-width:min(100%,220px)}
 .agora-quota-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .agora-q .k{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo)}
 .agora-q .v{display:block;margin-top:4px;font-family:var(--font-display);font-size:clamp(20px,2.2vw,26px);font-weight:800;letter-spacing:-.035em;line-height:1.05;color:var(--text-hi)}
