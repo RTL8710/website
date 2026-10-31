@@ -844,6 +844,15 @@ function deviceCardMark(d) {
 
 
 
+function remoteHttpsPorts(d) {
+  const out = [];
+  const primary = Number(d && d.remoteHttpsPort) || (d && d.remoteHost ? 100 : 0);
+  const alt = Number(d && d.remoteHttpsAltPort) || (d && d.remoteHost ? 443 : 0);
+  if (primary > 0) out.push(primary);
+  if (alt > 0 && alt !== primary) out.push(alt);
+  return out;
+}
+
 function buildWebSshUrl(user, host, port) {
   const u = String(user || 'root').trim() || 'root';
   const hst = String(host || '').trim();
@@ -870,6 +879,7 @@ function openVpnModal(opts) {
     host,
     port,
     user,
+    tls: !!opts.tls,
     session: 1,
     liveUrl: kind === 'ssh' ? buildWebSshUrl(user, host, port) : '',
   };
@@ -900,15 +910,16 @@ function renderVpnModal() {
       const host = String(m.host || '').trim();
       const port = Number(m.port) || 90;
       if (!host) { toast(t('remoteNeedHost'), 'err'); return; }
-      window.open('http://' + host + ':' + port + '/', '_blank', 'noopener');
+      const scheme = m.tls ? 'https' : 'http';
+      window.open(scheme + '://' + host + ':' + port + '/', '_blank', 'noopener');
     };
     return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
       h('div', { class: 'glass modal' },
-        h('h3', {}, t('remoteHttpOpenTitle')),
-        h('p', { class: 'muted', style: { marginTop: 0 } }, (m.name || '') + ' · ' + t('remoteHttpOpenHint')),
+        h('h3', {}, m.tls ? t('remoteHttpsOpenTitle') : t('remoteHttpOpenTitle')),
+        h('p', { class: 'muted', style: { marginTop: 0 } }, (m.name || '') + ' · ' + (m.tls ? t('remoteHttpsOpenHint') : t('remoteHttpOpenHint'))),
         h('div', { class: 'admin-form' },
           h('label', {}, t('remoteVpnIp'), hostInput()),
-          h('label', {}, t('remoteHttpPort'), portInput()),
+          h('label', {}, m.tls ? t('remoteHttpsPort') : t('remoteHttpPort'), portInput()),
         ),
         h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '14px' } },
           h('button', { class: 'gbtn', onclick: close }, t('cancel')),
@@ -997,9 +1008,14 @@ function viewVpnPanel(devices) {
               ? h('span', {
                   class: 'logs-chip', title: t('remoteHttpOpenHint'),
                   style: { cursor: 'pointer' },
-                  onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort }); },
+                  onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort, tls: false }); },
                 }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
               : null,
+            ...remoteHttpsPorts(d).map((hp) => h('span', {
+              class: 'logs-chip', title: t('remoteHttpsOpenHint'),
+              style: { cursor: 'pointer' },
+              onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: hp, tls: true }); },
+            }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))),
             h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
           ),
         ),
@@ -1118,13 +1134,21 @@ function viewDevices() {
                 (d.remoteHost && d.remoteHttpPort
                   ? h('span', {
                       class: 'logs-chip',
-                      title: t('remoteAccessHint'),
+                      title: t('remoteHttpOpenHint'),
                       onclick: (e) => {
                         e.stopPropagation();
-                        copyText(d.remoteHost + ':' + d.remoteHttpPort);
+                        openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort, tls: false });
                       },
                     }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
                   : null),
+                ...(d.remoteHost ? remoteHttpsPorts(d).map((hp) => h('span', {
+                  class: 'logs-chip',
+                  title: t('remoteHttpsOpenHint'),
+                  onclick: (e) => {
+                    e.stopPropagation();
+                    openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: hp, tls: true });
+                  },
+                }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))) : []),
               ),
             ),
             h('div', { class: 'logs-card-side' },

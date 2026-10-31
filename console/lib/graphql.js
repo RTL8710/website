@@ -114,6 +114,8 @@ function normalizeDevice(d) {
     remoteHost: ra && ra.host ? String(ra.host) : '',
     remoteSshPort: ra && ra.sshPort != null ? Number(ra.sshPort) : 0,
     remoteHttpPort: ra && ra.httpPort != null ? Number(ra.httpPort) : 0,
+    remoteHttpsPort: ra && ra.httpsPort != null ? Number(ra.httpsPort) : (ra && ra.host ? 100 : 0),
+    remoteHttpsAltPort: ra && ra.httpsAltPort != null ? Number(ra.httpsAltPort) : (ra && ra.host ? 443 : 0),
     remoteNetwork: ra && ra.network ? String(ra.network) : '',
     createdAt: d.createdAt || '',
     updatedAt: d.updatedAt || '',
