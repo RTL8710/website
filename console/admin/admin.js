@@ -844,6 +844,13 @@ function deviceCardMark(d) {
 
 
 
+function openRemoteWeb(host, port, tls) {
+  const hst = String(host || '').trim();
+  const p = Number(port) || (tls ? 100 : 90);
+  if (!hst) { toast(t('remoteNeedHost'), 'err'); return; }
+  window.open((tls ? 'https' : 'http') + '://' + hst + ':' + p + '/', '_blank', 'noopener');
+}
+
 function remoteHttpsPorts(d) {
   const out = [];
   const primary = Number(d && d.remoteHttpsPort) || (d && d.remoteHost ? 100 : 0);
@@ -1008,13 +1015,13 @@ function viewVpnPanel(devices) {
               ? h('span', {
                   class: 'logs-chip', title: t('remoteHttpOpenHint'),
                   style: { cursor: 'pointer' },
-                  onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort, tls: false }); },
+                  onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, d.remoteHttpPort, false); },
                 }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
               : null,
             ...remoteHttpsPorts(d).map((hp) => h('span', {
               class: 'logs-chip', title: t('remoteHttpsOpenHint'),
               style: { cursor: 'pointer' },
-              onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: hp, tls: true }); },
+              onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, hp, true); },
             }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))),
             h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
           ),
@@ -1137,7 +1144,7 @@ function viewDevices() {
                       title: t('remoteHttpOpenHint'),
                       onclick: (e) => {
                         e.stopPropagation();
-                        openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort, tls: false });
+                        openRemoteWeb(d.remoteHost, d.remoteHttpPort, false);
                       },
                     }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
                   : null),
@@ -1146,7 +1153,7 @@ function viewDevices() {
                   title: t('remoteHttpsOpenHint'),
                   onclick: (e) => {
                     e.stopPropagation();
-                    openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: hp, tls: true });
+                    openRemoteWeb(d.remoteHost, hp, true);
                   },
                 }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))) : []),
               ),
