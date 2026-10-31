@@ -218,8 +218,8 @@ html[data-theme="light"] .confirm-modal.is-success{border-color:rgba(16,185,129,
   box-shadow:none
 }
 .ssh-console-top{
-  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
-  padding:18px 20px 12px;border-bottom:1px solid rgba(255,255,255,.06)
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)
 }
 .ssh-console-brand{display:flex;gap:14px;align-items:flex-start;min-width:0}
 .ssh-console-orb{
@@ -244,7 +244,8 @@ html[data-theme="light"] .confirm-modal.is-success{border-color:rgba(16,185,129,
   letter-spacing:-.03em;line-height:1.15
 }
 .ssh-console-sub{
-  margin:6px 0 0;font-size:12.5px;color:var(--text-lo);line-height:1.45;max-width:62ch
+  margin:4px 0 0;font-size:12px;color:var(--text-lo);line-height:1.35;max-width:62ch;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
 .ssh-console-x{
   appearance:none;width:36px;height:36px;border-radius:12px;flex:none;
@@ -326,6 +327,13 @@ html[data-theme="light"] .confirm-modal.is-success{border-color:rgba(16,185,129,
   margin-left:6px;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text-md)
 }
+.ssh-chrome-btn{
+  appearance:none;width:28px;height:28px;border-radius:8px;flex:none;padding:0;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--text-md);
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;
+  transition:background .15s,color .15s,border-color .15s
+}
+.ssh-chrome-btn:hover{background:var(--acc-soft);color:var(--accent);border-color:var(--acc-soft-bd)}
 .ssh-chrome-live{
   font-size:10px;font-weight:800;letter-spacing:.08em;padding:3px 8px;border-radius:999px;
   background:rgba(52,211,153,.12);color:#6ee7b7;border:1px solid rgba(52,211,153,.28)
