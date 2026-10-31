@@ -58,7 +58,7 @@ export function deviceCard(dev, onOpen, opts = {}) {
   thumbKids.push(h('span', { class: 'badge' }, statusChip(online)));
   if (entering) {
     thumbKids.push(h('div', { class: 'enter-overlay' },
-      h('div', { class: 'spinner' }),
+      loaderMark({ size: 'sm' }),
       h('span', {}, tt ? tt('enteringShort') : 'Entering…'),
     ));
   }
@@ -81,9 +81,48 @@ export function deviceCard(dev, onOpen, opts = {}) {
   );
 }
 
-export function loading(text = '加载中…') {
-  return h('div', { class: 'empty' }, h('div', { class: 'spinner' }), h('div', { class: 'faint' }, text));
+/** 规范化加载文案：裸省略号退回 i18n `loading` */
+function resolveLoadLabel(text) {
+  const tt = (typeof window !== 'undefined' && window.__t) ? window.__t : null;
+  const raw = (text == null) ? '' : String(text).trim();
+  if (!raw || raw === '…' || raw === '...' || raw === '⋯') {
+    return tt ? tt('loading') : '加载中';
+  }
+  return raw;
 }
+
+/** 轨道加载标记（深海青双环 + 脉冲核），size: md | sm */
+export function loaderMark({ size = 'md' } = {}) {
+  return h('div', {
+    class: 'ahs-load-orb' + (size === 'sm' ? ' ahs-load-orb--sm' : ''),
+    'aria-hidden': 'true',
+  },
+    h('span', { class: 'ahs-load-ring ahs-load-ring--outer' }),
+    h('span', { class: 'ahs-load-ring ahs-load-ring--inner' }),
+    h('span', { class: 'ahs-load-core' }),
+    h('span', { class: 'ahs-load-sweep' }),
+  );
+}
+
+/** 全站统一加载态 — Admin / Console / 设备卡进入 共用 */
+export function loading(text = '加载中…') {
+  const label = resolveLoadLabel(text);
+  return h('div', {
+    class: 'ahs-load empty',
+    role: 'status',
+    'aria-busy': 'true',
+    'aria-live': 'polite',
+    'aria-label': label,
+  },
+    loaderMark({ size: 'md' }),
+    h('div', { class: 'ahs-load-copy' },
+      h('div', { class: 'ahs-load-kicker' }, 'SYNC'),
+      h('div', { class: 'ahs-load-label' }, label),
+    ),
+    h('div', { class: 'ahs-load-meter', 'aria-hidden': 'true' }, h('i')),
+  );
+}
+
 export function emptyState(text = 'No data') {
   const box = h('div', { class: 'empty' });
   box.appendChild(icon('inbox', 46));

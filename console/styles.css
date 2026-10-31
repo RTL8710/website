@@ -149,7 +149,7 @@ html[data-theme="light"] .devices-hero h1{background:none;-webkit-background-cli
   border-radius:var(--r-pill);padding:6px 12px;cursor:pointer;font:inherit;font-size:12px;font-weight:650;
 }
 .devices-banner button:hover{background:rgba(248,113,113,.12)}
-.devcard .enter-overlay .spinner{width:28px;height:28px;border-width:2.5px}
+.devcard .enter-overlay .ahs-load-orb{margin-bottom:2px}
 
 /* 设备网格 */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;padding:4px 0 8px}
@@ -227,8 +227,91 @@ h1.title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-s
 
 /* 空态 / 加载 */
 .empty{display:flex;flex-direction:column;align-items:center;gap:14px;padding:64px 0;color:var(--text-lo)}
-.spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(45,212,191,.25);border-top-color:var(--accent);animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── 全站高级加载：双环轨道 + 核脉冲 + 扫光线（对齐深海青 / SSH boot 语言）── */
+.ahs-load{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;padding:72px 16px;min-height:180px;position:relative;
+}
+.ahs-load-orb{
+  position:relative;width:64px;height:64px;
+  display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 0 18px rgba(45,212,191,.22));
+}
+.ahs-load-orb--sm{width:28px;height:28px;filter:drop-shadow(0 0 10px rgba(45,212,191,.28))}
+.ahs-load-ring{
+  position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  border:1.5px solid rgba(45,212,191,.16);
+}
+.ahs-load-ring--outer{
+  border-top-color:var(--accent);
+  border-right-color:rgba(56,189,248,.55);
+  border-bottom-color:transparent;
+  animation:ahsLoadSpin 1.15s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+.ahs-load-ring--inner{
+  inset:11px;
+  border-color:rgba(56,189,248,.12);
+  border-left-color:#67e8f9;
+  border-bottom-color:rgba(103,232,249,.35);
+  border-top-color:transparent;
+  animation:ahsLoadSpin 1.75s linear infinite reverse;
+  opacity:.9;
+}
+.ahs-load-orb--sm .ahs-load-ring--inner{inset:6px;border-width:1.25px}
+.ahs-load-orb--sm .ahs-load-ring{border-width:1.5px}
+.ahs-load-core{
+  width:10px;height:10px;border-radius:50%;z-index:1;
+  background:radial-gradient(circle at 35% 30%,#ecfeff,#5eead4 45%,var(--accent) 100%);
+  box-shadow:0 0 14px rgba(94,234,212,.85),0 0 28px rgba(45,212,191,.35);
+  animation:ahsLoadPulse 1.55s ease-in-out infinite;
+}
+.ahs-load-orb--sm .ahs-load-core{width:5px;height:5px;box-shadow:0 0 8px rgba(94,234,212,.8)}
+.ahs-load-sweep{
+  position:absolute;inset:-6px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 200deg,transparent 0deg,rgba(45,212,191,.0) 240deg,rgba(45,212,191,.28) 300deg,transparent 360deg);
+  animation:ahsLoadSpin 2.4s linear infinite;
+  mask-image:radial-gradient(circle,transparent 42%,#000 48%,#000 68%,transparent 72%);
+  -webkit-mask-image:radial-gradient(circle,transparent 42%,#000 48%,#000 68%,transparent 72%);
+  opacity:.75;
+}
+.ahs-load-orb--sm .ahs-load-sweep{inset:-4px;opacity:.55}
+.ahs-load-copy{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.ahs-load-kicker{
+  font-family:var(--font-display);font-size:10px;font-weight:800;
+  letter-spacing:.18em;color:var(--accent);opacity:.85;
+}
+.ahs-load-label{
+  font-family:var(--font-display);font-size:14px;font-weight:650;
+  letter-spacing:.02em;color:var(--text-md);
+}
+.ahs-load-meter{
+  width:min(168px,42vw);height:2px;border-radius:999px;overflow:hidden;
+  background:rgba(255,255,255,.06);border:1px solid rgba(45,212,191,.12);
+}
+.ahs-load-meter i{
+  display:block;height:100%;width:36%;border-radius:inherit;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);
+  animation:ahsLoadMeter 1.4s ease-in-out infinite;
+}
+@keyframes ahsLoadSpin{to{transform:rotate(360deg)}}
+@keyframes ahsLoadPulse{
+  0%,100%{transform:scale(.88);opacity:.7}
+  50%{transform:scale(1.12);opacity:1}
+}
+@keyframes ahsLoadMeter{from{transform:translateX(-130%)}to{transform:translateX(290%)}}
+@media (prefers-reduced-motion:reduce){
+  .ahs-load-ring,.ahs-load-sweep,.ahs-load-core,.ahs-load-meter i{animation:none!important}
+  .ahs-load-ring--outer{border-top-color:var(--accent);border-right-color:var(--accent2)}
+}
+
+/* 兼容旧 .spinner 引用 → 视觉降级为单环，避免空白 */
+.spinner{
+  width:34px;height:34px;border-radius:50%;
+  border:2px solid rgba(45,212,191,.18);
+  border-top-color:var(--accent);border-right-color:rgba(56,189,248,.5);
+  animation:ahsLoadSpin .9s linear infinite;
+}
 .reveal{opacity:0;transform:translateY(8px);animation:reveal var(--base) var(--ease) forwards}
 @keyframes reveal{to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
