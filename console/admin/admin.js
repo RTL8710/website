@@ -1683,13 +1683,23 @@ function askDeleteDevice(d) {
 }
 function fieldInput(edit, key, label, opts) {
   const o = opts || {};
-  const inp = h(o.textarea ? 'textarea' : 'input', {
-    type: o.type || 'text',
-    value: edit.values[key] || '',
-    placeholder: o.ph || '',
-    style: o.textarea ? { minHeight: '64px' } : {},
-  });
-  if (o.textarea) inp.textContent = edit.values[key] || '';
+  // 原生 .value，避免 h() setAttribute('value') 与重建后读空（编辑批次误报「请填写批次码」）。
+  let inp;
+  if (o.textarea) {
+    inp = document.createElement('textarea');
+    inp.value = edit.values[key] || '';
+    inp.placeholder = o.ph || '';
+    inp.style.minHeight = '64px';
+  } else {
+    inp = document.createElement('input');
+    inp.type = o.type || 'text';
+    inp.value = edit.values[key] || '';
+    inp.placeholder = o.ph || '';
+  }
+  if (o.readonly) {
+    inp.readOnly = true;
+    inp.classList.add('readonly');
+  }
   inp.addEventListener('input', () => { edit.values[key] = inp.value; });
   return h('div', { class: 'admin-field' + (o.span2 ? ' span2' : '') }, h('label', {}, label), inp);
 }
@@ -1705,7 +1715,7 @@ function renderEdit() {
     : (isUser ? t('editUser') : (isPkg ? t('editPkg') : t('editDevice')));
   const fields = isLic
     ? [
-        fieldInput(e, 'batchCode', t('licenseCode'), { ph: 'AHSDEMO001' }),
+        fieldInput(e, 'batchCode', t('licenseCode'), { ph: 'AHSDEMO001', readonly: !isLicNew }),
         fieldInput(e, 'customerName', t('licenseCustomer')),
         fieldInput(e, 'productSku', t('licenseSku'), { ph: 'robot / cardv' }),
         fieldInput(e, 'maxDevices', t('licenseMaxDevices'), { ph: '100' }),
@@ -1743,15 +1753,17 @@ function renderEdit() {
     try {
       if (isLic) {
         const code = (e.values.batchCode || '').trim();
+        const sku = (e.values.productSku || '').trim();
         const max = parseInt(String(e.values.maxDevices || '').trim(), 10);
-        if (!code) throw new Error(t('licenseNeedCode'));
+        if (isLicNew && !code) throw new Error(t('licenseNeedCode'));
+        if (!sku) throw new Error(t('licenseNeedSku'));
         if (!Number.isFinite(max) || max <= 0) throw new Error(t('licenseNeedMax'));
         if (isLicNew) {
           await createLicenseBatch({
             id: code,
             batchCode: code,
             customerName: (e.values.customerName || '').trim() || null,
-            productSku: (e.values.productSku || '').trim() || null,
+            productSku: sku,
             maxDevices: max,
             usedCount: 0,
             status: 'active',
@@ -1762,7 +1774,7 @@ function renderEdit() {
           await updateLicenseBatch({
             id: e.id,
             customerName: (e.values.customerName || '').trim() || null,
-            productSku: (e.values.productSku || '').trim() || null,
+            productSku: sku,
             maxDevices: max,
             note: (e.values.note || '').trim() || null,
             status: (e.values.status || '').trim() || 'active',
