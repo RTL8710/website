@@ -98,6 +98,7 @@ function normalizeDevice(d) {
   const rawStatus = d && d.deviceConnectStatus;
   const s = String(rawStatus == null ? '' : rawStatus).trim().toLowerCase();
   const online = (s === 'online' || s === 'true' || s === '1' || rawStatus === true) ? 1 : 0;
+  const ra = (info && info.remoteAccess && typeof info.remoteAccess === 'object') ? info.remoteAccess : null;
   return {
     id: d.id,
     online,
@@ -109,6 +110,11 @@ function normalizeDevice(d) {
     firmware: info.deviceVersion || '',
     uuid: info.deviceUuid || '',
     deviceType: info.deviceType,
+    remoteAccess: ra,
+    remoteHost: ra && ra.host ? String(ra.host) : '',
+    remoteSshPort: ra && ra.sshPort != null ? Number(ra.sshPort) : 0,
+    remoteHttpPort: ra && ra.httpPort != null ? Number(ra.httpPort) : 0,
+    remoteNetwork: ra && ra.network ? String(ra.network) : '',
     createdAt: d.createdAt || '',
     updatedAt: d.updatedAt || '',
     raw: d,

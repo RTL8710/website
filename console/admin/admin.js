@@ -902,6 +902,27 @@ function viewDevices() {
                       onclick: (e) => { e.stopPropagation(); copyText(d.uuid); },
                     }, 'UUID', h('span', { class: 'clip' }, shortId(d.uuid)))
                   : h('span', { class: 'logs-chip warn' }, 'UUID —'),
+                (d.remoteHost
+                  ? h('span', {
+                      class: 'logs-chip',
+                      title: t('remoteAccessHint'),
+                      onclick: (e) => {
+                        e.stopPropagation();
+                        const s = d.remoteHost + (d.remoteSshPort ? (':' + d.remoteSshPort) : '');
+                        copyText(s);
+                      },
+                    }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22)))
+                  : h('span', { class: 'logs-chip mute' }, t('remoteAccessOff'))),
+                (d.remoteHost && d.remoteHttpPort
+                  ? h('span', {
+                      class: 'logs-chip',
+                      title: t('remoteAccessHint'),
+                      onclick: (e) => {
+                        e.stopPropagation();
+                        copyText(d.remoteHost + ':' + d.remoteHttpPort);
+                      },
+                    }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
+                  : null),
               ),
             ),
             h('div', { class: 'logs-card-side' },
