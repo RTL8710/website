@@ -26,6 +26,7 @@ const OPS_VPN_PEERS = [
   { name: 'ops-admin', host: '10.66.0.2', role: 'ops', note: '运维本机 WireGuard' },
 ];
 const WG_RELAY = { host: '38.179.64.41', port: 51820 };
+const WG_WEBSSH = 'http://10.66.0.1:7681'; // 仅 VPN 可达；ttyd 跑 ssh，URL ?arg=user@host
 
 const app = document.getElementById('app');
 const state = {
@@ -60,6 +61,7 @@ const state = {
   upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
   edit: null, // { type:'user'|'device', id, values, busy, err }
+  vpnModal: null, // { kind:'http'|'ssh', name, host, port, user }
   logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
   dataRegion: null, // 当前内存数据所属区域，切区必清
   sideCollapsed: true,
@@ -497,7 +499,7 @@ function shell(body) {
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
-  const modal = state.confirm ? renderConfirm() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null));
+  const modal = state.confirm ? renderConfirm() : (state.vpnModal ? renderVpnModal() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null)));
   return mount(app, topbar(), h('div', { class: 'admin-shell' + (collapsed ? ' is-collapsed' : '') }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
 }
 
@@ -841,6 +843,89 @@ function deviceCardMark(d) {
 }
 
 
+
+function openVpnModal(opts) {
+  state.vpnModal = {
+    kind: opts.kind || 'http',
+    name: opts.name || '',
+    host: String(opts.host || ''),
+    port: Number(opts.port || (opts.kind === 'ssh' ? 22 : 90)) || 0,
+    user: opts.user || 'root',
+  };
+  render();
+}
+
+function renderVpnModal() {
+  const m = state.vpnModal;
+  if (!m) return null;
+  const close = () => { state.vpnModal = null; render(); };
+  const hostInput = () => h('input', {
+    class: 'ginput', value: m.host,
+    oninput: (e) => { m.host = e.target.value; },
+  });
+  const portInput = () => h('input', {
+    class: 'ginput', type: 'number', value: String(m.port || ''),
+    oninput: (e) => { m.port = Number(e.target.value || 0); },
+  });
+  const userInput = () => h('input', {
+    class: 'ginput', value: m.user || 'root',
+    oninput: (e) => { m.user = e.target.value; },
+  });
+
+  if (m.kind === 'http') {
+    const openHttp = () => {
+      const host = String(m.host || '').trim();
+      const port = Number(m.port) || 90;
+      if (!host) { toast(t('remoteNeedHost'), 'err'); return; }
+      window.open('http://' + host + ':' + port + '/', '_blank', 'noopener');
+    };
+    return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
+      h('div', { class: 'glass modal' },
+        h('h3', {}, t('remoteHttpOpenTitle')),
+        h('p', { class: 'muted', style: { marginTop: 0 } }, (m.name || '') + ' · ' + t('remoteHttpOpenHint')),
+        h('div', { class: 'admin-form' },
+          h('label', {}, t('remoteVpnIp'), hostInput()),
+          h('label', {}, t('remoteHttpPort'), portInput()),
+        ),
+        h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '14px' } },
+          h('button', { class: 'gbtn', onclick: close }, t('cancel')),
+          h('button', { class: 'gbtn', onclick: () => copyText((m.host || '') + ':' + (m.port || 90)) }, t('copy')),
+          h('button', { class: 'gbtn primary', onclick: openHttp }, t('remoteOpenHttp')),
+        ),
+      ),
+    );
+  }
+
+  // ssh
+  const target = (m.user || 'root') + '@' + String(m.host || '').trim();
+  const cmd = 'ssh -p ' + (m.port || 22) + ' ' + target;
+  const webssh = WG_WEBSSH + '/?arg=' + encodeURIComponent(target);
+  return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
+    h('div', { class: 'glass modal wide' },
+      h('h3', {}, t('remoteSshOpenTitle')),
+      h('p', { class: 'muted', style: { marginTop: 0 } }, t('remoteSshWebHint')),
+      h('div', { class: 'admin-form' },
+        h('label', {}, t('remoteSshUser'), userInput()),
+        h('label', {}, t('remoteVpnIp'), hostInput()),
+        h('label', {}, t('remoteSshPort'), portInput()),
+        h('label', {}, t('remoteSshCmd'), h('input', { class: 'ginput', readonly: true, value: cmd })),
+      ),
+      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '10px', marginBottom: '10px' } },
+        h('button', { class: 'gbtn', onclick: () => copyText(cmd) }, t('copy')),
+        h('button', { class: 'gbtn primary', onclick: () => window.open(webssh, '_blank', 'noopener') }, t('remoteOpenSshTab')),
+      ),
+      h('iframe', {
+        src: webssh,
+        title: 'webssh',
+        style: { width: '100%', height: '420px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', background: '#0b1220' },
+      }),
+      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '12px' } },
+        h('button', { class: 'gbtn', onclick: close }, t('close') || t('cancel')),
+      ),
+    ),
+  );
+}
+
 function viewVpnPanel(devices) {
   const rows = (devices || []).filter((d) => d && d.remoteHost);
   const deviceCards = rows.length
@@ -850,13 +935,15 @@ function viewVpnPanel(devices) {
           h('div', { class: 'logs-card-meta' },
             statusTag(!!d.online),
             h('span', {
-              class: 'logs-chip', title: t('remoteAccessHint'),
-              onclick: () => copyText(d.remoteHost + ':' + (d.remoteSshPort || 22)),
+              class: 'logs-chip', title: t('remoteSshOpenHint'),
+              style: { cursor: 'pointer' },
+              onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'ssh', name: d.name || d.id, host: d.remoteHost, port: d.remoteSshPort || 22, user: 'root' }); },
             }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22))),
             d.remoteHttpPort
               ? h('span', {
-                  class: 'logs-chip',
-                  onclick: () => copyText(d.remoteHost + ':' + d.remoteHttpPort),
+                  class: 'logs-chip', title: t('remoteHttpOpenHint'),
+                  style: { cursor: 'pointer' },
+                  onclick: (e) => { e.stopPropagation(); openVpnModal({ kind: 'http', name: d.name || d.id, host: d.remoteHost, port: d.remoteHttpPort }); },
                 }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
               : null,
             h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
