@@ -889,6 +889,7 @@ function openVpnModal(opts) {
     user,
     tls: !!opts.tls,
     session: 1,
+    fullscreen: false,
     liveUrl: kind === 'ssh' ? buildWebSshUrl(user, host, port) : '',
   };
   render();
@@ -950,8 +951,27 @@ function renderVpnModal() {
   };
   const frameSrc = m.liveUrl || webssh;
 
-  return h('div', { class: 'modal-mask ssh-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
-    h('div', { class: 'glass modal ssh-console', onclick: (e) => e.stopPropagation() },
+  const isFs = !!m.fullscreen;
+  const toggleFs = () => {
+    m.fullscreen = !m.fullscreen;
+    render();
+    // 等布局后再触发 iframe 内 fit（跨域时忽略）
+    setTimeout(() => {
+      try {
+        const fr = document.querySelector('.ssh-frame');
+        if (fr && fr.contentWindow) fr.contentWindow.dispatchEvent(new Event('resize'));
+      } catch (_) {}
+    }, 50);
+  };
+
+  return h('div', {
+    class: 'modal-mask ssh-mask' + (isFs ? ' is-fullscreen' : ''),
+    onclick: (ev) => { if (ev.target === ev.currentTarget && !isFs) close(); },
+  },
+    h('div', {
+      class: 'glass modal ssh-console' + (isFs ? ' is-fullscreen' : ''),
+      onclick: (e) => e.stopPropagation(),
+    },
       h('div', { class: 'ssh-console-top' },
         h('div', { class: 'ssh-console-brand' },
           h('span', { class: 'ssh-console-orb', 'aria-hidden': 'true' }),
@@ -962,8 +982,15 @@ function renderVpnModal() {
               (m.name ? m.name + ' · ' : '') + t('remoteSshWebHint')),
           ),
         ),
-        h('button', { class: 'ssh-console-x', type: 'button', title: t('close'), onclick: close },
-          h('i', { class: 'fa-solid fa-xmark' })),
+        h('div', { class: 'ssh-console-actions-top' },
+          h('button', {
+            class: 'ssh-console-fs', type: 'button',
+            title: isFs ? t('remoteSshExitFullscreen') : t('remoteSshFullscreen'),
+            onclick: toggleFs,
+          }, h('i', { class: 'fa-solid ' + (isFs ? 'fa-compress' : 'fa-expand') })),
+          h('button', { class: 'ssh-console-x', type: 'button', title: t('close'), onclick: close },
+            h('i', { class: 'fa-solid fa-xmark' })),
+        ),
       ),
       h('div', { class: 'ssh-console-bar' },
         h('label', { class: 'ssh-field' },
@@ -986,7 +1013,7 @@ function renderVpnModal() {
         h('div', { class: 'ssh-chrome' },
           h('span', { class: 'ssh-dot r' }), h('span', { class: 'ssh-dot y' }), h('span', { class: 'ssh-dot g' }),
           h('span', { class: 'ssh-chrome-path' }, target || '—'),
-          h('span', { class: 'ssh-chrome-live' }, 'VPN'),
+          h('span', { class: 'ssh-chrome-live' }, t('tabRemote')),
         ),
         h('iframe', {
           class: 'ssh-frame',
