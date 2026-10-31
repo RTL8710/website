@@ -474,7 +474,8 @@ body:has(.login-shell) #app{min-height:100vh}
 
 
 /* ── Agora studio (compact) ── */
-.agora-page{display:flex;flex-direction:column;gap:14px;max-width:1180px}
+.agora-page{display:flex;flex-direction:column;gap:14px;width:100%;max-width:none}
+.cloudsub-page .agora-page{width:100%;max-width:none}
 .agora-head{
   display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;
   padding:4px 2px 2px;
@@ -517,6 +518,59 @@ body:has(.login-shell) #app{min-height:100vh}
 }
 .agora-quota-tools .spacer{flex:1;min-width:8px}
 .agora-quota-tools .agora-select{max-width:min(100%,220px)}
+.agora-quota-tools .apick{position:relative;z-index:5;flex:0 1 auto;min-width:min(100%,240px);max-width:320px}
+.apick-btn{
+  appearance:none;-webkit-appearance:none;width:100%;display:flex;align-items:center;gap:10px;
+  height:40px;padding:0 12px 0 10px;border-radius:12px;cursor:pointer;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  color:var(--text-hi);font:inherit;text-align:left;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  transition:border-color .15s,box-shadow .15s,background .15s;
+}
+.apick-btn:hover{border-color:var(--acc-soft-bd);box-shadow:0 0 0 3px rgba(45,212,191,.08)}
+.apick.open .apick-btn{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(45,212,191,.14), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.apick-ico{
+  width:28px;height:28px;border-radius:9px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(45,212,191,.12);color:var(--accent);font-size:12px;
+}
+.apick-text{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.apick-k{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo);line-height:1}
+.apick-v{font-size:13px;font-weight:750;color:var(--text-hi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+.apick-chev{font-size:11px;color:var(--text-lo);transition:transform .18s ease;flex:none}
+.apick.open .apick-chev{transform:rotate(180deg);color:var(--accent)}
+.apick-menu{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;min-width:260px;
+  padding:8px;border-radius:14px;border:1px solid var(--border);
+  background:rgba(12,16,24,.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 18px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset;
+  animation:apickIn .16s ease;
+  max-height:min(52vh,340px);overflow:auto;z-index:40;
+}
+@keyframes apickIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.apick-menu-cap{
+  padding:6px 10px 8px;font-size:10px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--text-lo);
+}
+.apick-opt{
+  appearance:none;width:100%;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border:0;border-radius:10px;background:transparent;
+  color:var(--text-md);font:inherit;text-align:left;cursor:pointer;
+  transition:background .12s,color .12s;
+}
+.apick-opt:hover{background:rgba(255,255,255,.05);color:var(--text-hi)}
+.apick-opt.on{background:var(--acc-soft);color:var(--accent)}
+.apick-opt-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.apick-opt-title{font-size:13px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick-opt-sub{font-size:10.5px;color:var(--text-lo);font-family:var(--font-display);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick-opt.on .apick-opt-sub{color:rgba(45,212,191,.75)}
+.apick-check{font-size:12px;flex:none}
+html[data-theme="light"] .apick-menu{background:rgba(255,255,255,.97);box-shadow:0 16px 40px rgba(15,23,42,.14)}
+html[data-theme="light"] .apick-btn{background:linear-gradient(180deg,#fff,rgba(255,255,255,.85))}
 .agora-quota-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .agora-q .k{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-lo)}
 .agora-q .v{display:block;margin-top:4px;font-family:var(--font-display);font-size:clamp(20px,2.2vw,26px);font-weight:800;letter-spacing:-.035em;line-height:1.05;color:var(--text-hi)}

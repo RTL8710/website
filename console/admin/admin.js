@@ -43,6 +43,7 @@ const state = {
   pkgFilterType: '',
   otaScope: 'device', // device | app
   cloudSubScope: 'agora', // agora | amazon
+  agoraPickOpen: false,
   toast: null,
   confirm: null,
   upload: {
@@ -73,10 +74,17 @@ try {
   else state.sideCollapsed = v !== '0';
 } catch (_) {}
 document.addEventListener('click', () => {
-  if (!state.otaPickOpen) return;
-  state.otaPickOpen = '';
-  state.otaPickQ = '';
-  if (state.tab === 'ota') render();
+  let need = false;
+  if (state.otaPickOpen) {
+    state.otaPickOpen = '';
+    state.otaPickQ = '';
+    need = state.tab === 'ota';
+  }
+  if (state.agoraPickOpen) {
+    state.agoraPickOpen = false;
+    need = need || state.tab === 'cloudsub' || state.tab === 'agora';
+  }
+  if (need) render();
 });
 
 function tabs() {
@@ -3396,6 +3404,54 @@ function viewCloudSub() {
   );
 }
 
+
+function agoraProjectPicker(projects, pid) {
+  const open = !!state.agoraPickOpen;
+  const cur = !pid ? null : (projects || []).find((p) => p.id === pid);
+  const label = cur ? (cur.name || cur.id) : t('agoraAllProjects');
+  const opt = (id, text, sub) => h('button', {
+    type: 'button',
+    class: 'apick-opt' + ((pid || '') === (id || '') ? ' on' : ''),
+    onclick: (e) => {
+      e.stopPropagation();
+      state.agoraProjectId = id || '';
+      state.agoraPickOpen = false;
+      render();
+    },
+  },
+    h('span', { class: 'apick-opt-main' },
+      h('span', { class: 'apick-opt-title' }, text),
+      sub ? h('span', { class: 'apick-opt-sub' }, sub) : null,
+    ),
+    ((pid || '') === (id || '')) ? h('i', { class: 'fa-solid fa-check apick-check' }) : null,
+  );
+  return h('div', {
+    class: 'apick' + (open ? ' open' : ''),
+    onclick: (e) => e.stopPropagation(),
+  },
+    h('button', {
+      type: 'button', class: 'apick-btn', 'aria-expanded': open ? 'true' : 'false',
+      onclick: (e) => {
+        e.stopPropagation();
+        state.agoraPickOpen = !state.agoraPickOpen;
+        render();
+      },
+    },
+      h('span', { class: 'apick-ico' }, fa('fa-layer-group')),
+      h('span', { class: 'apick-text' },
+        h('span', { class: 'apick-k' }, t('agoraSelectProject')),
+        h('span', { class: 'apick-v' }, label),
+      ),
+      h('i', { class: 'fa-solid fa-chevron-down apick-chev' }),
+    ),
+    open ? h('div', { class: 'apick-menu', role: 'listbox' },
+      h('div', { class: 'apick-menu-cap' }, t('agoraProjects')),
+      opt('', t('agoraAllProjects'), t('agoraAllProjects')),
+      ...(projects || []).map((p) => opt(p.id, p.name || p.id, p.id)),
+    ) : null,
+  );
+}
+
 function viewAgora(opts) {
   const embedded = !!(opts && opts.embedded);
 
@@ -3460,14 +3516,7 @@ function viewAgora(opts) {
   }, fa('fa-rotate'));
 
   const agoraTools = h('div', { class: 'agora-quota-tools' },
-    h('select', {
-      class: 'agora-select',
-      value: pid,
-      onchange: (e) => { state.agoraProjectId = e.target.value; render(); },
-    },
-      h('option', { value: '' }, t('agoraAllProjects')),
-      ...projects.map((p) => h('option', { value: p.id }, p.name || p.id)),
-    ),
+    agoraProjectPicker(projects, pid),
     h('span', { class: 'agora-pill muted' }, rangeLabel),
     h('span', { class: 'agora-pill agora-pill-' + risk.cls }, t(risk.key)),
     h('span', { class: 'spacer' }),
