@@ -514,13 +514,30 @@ function goTab(id) {
   loadTab(id);
 }
 
+function remoteSearchQ() {
+  return String(state.q || '').trim().toLowerCase();
+}
+
 function remoteDeviceRows() {
   const all = (state.devices || []).filter(Boolean);
-  const q = String(state.q || '').trim().toLowerCase();
+  const q = remoteSearchQ();
   let rows = all.filter((d) => d && d.remoteHost);
   if (q) {
     rows = rows.filter((d) => {
       const hay = [d.name, d.id, d.uuid, d.remoteHost, d.model, d.firmware]
+        .map((x) => String(x || '').toLowerCase());
+      return hay.some((s) => s.includes(q));
+    });
+  }
+  return rows;
+}
+
+function remoteOpsRows() {
+  const q = remoteSearchQ();
+  let rows = OPS_VPN_PEERS.slice();
+  if (q) {
+    rows = rows.filter((p) => {
+      const hay = [p.name, p.host, p.note, p.role]
         .map((x) => String(x || '').toLowerCase());
       return hay.some((s) => s.includes(q));
     });
@@ -557,16 +574,44 @@ function remoteDeviceCard(d) {
   );
 }
 
-/** 远程页筛选：只重绘列表，不销毁输入框（避免整页 render 丢焦点）。 */
-function paintRemoteDeviceList(rows) {
+function remoteOpsCard(p) {
+  return h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+    h('div', { class: 'logs-card-body' },
+      h('div', { class: 'logs-card-code' }, p.name),
+      h('div', { class: 'logs-card-meta' },
+        h('span', { class: 'logs-chip' }, t('remoteOpsPeer')),
+        h('span', {
+          class: 'logs-chip',
+          onclick: () => copyText(p.host),
+        }, t('remoteVpnIp'), h('span', { class: 'clip' }, p.host)),
+        p.note ? h('span', { class: 'logs-chip mute' }, p.note) : null,
+      ),
+    ),
+  );
+}
+
+/** 远程页筛选：只重绘设备+运维列表，不销毁输入框。 */
+function paintRemoteDeviceList(deviceRows) {
   const list = document.getElementById('remote-device-list');
-  if (!list) return false;
+  const opsList = document.getElementById('remote-ops-list');
+  if (!list || !opsList) return false;
+  const rows = deviceRows || remoteDeviceRows();
+  const ops = remoteOpsRows();
+
   while (list.firstChild) list.removeChild(list.firstChild);
   if (!rows.length) {
     list.appendChild(h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteDevicesEmpty')));
   } else {
     rows.forEach((d) => list.appendChild(remoteDeviceCard(d)));
   }
+
+  while (opsList.firstChild) opsList.removeChild(opsList.firstChild);
+  if (!ops.length) {
+    opsList.appendChild(h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteOpsEmpty')));
+  } else {
+    ops.forEach((p) => opsList.appendChild(remoteOpsCard(p)));
+  }
+
   const count = document.getElementById('remote-device-count');
   if (count) count.textContent = t('remoteDeviceCount') + ' ' + rows.length;
   const heroCount = document.getElementById('remote-hero-count');
@@ -1267,19 +1312,10 @@ function viewVpnPanel(devices) {
     ? rows.map((d) => remoteDeviceCard(d))
     : [h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteDevicesEmpty'))];
 
-  const opsCards = OPS_VPN_PEERS.map((p) => h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
-    h('div', { class: 'logs-card-body' },
-      h('div', { class: 'logs-card-code' }, p.name),
-      h('div', { class: 'logs-card-meta' },
-        h('span', { class: 'logs-chip' }, t('remoteOpsPeer')),
-        h('span', {
-          class: 'logs-chip',
-          onclick: () => copyText(p.host),
-        }, t('remoteVpnIp'), h('span', { class: 'clip' }, p.host)),
-        h('span', { class: 'logs-chip mute' }, p.note || ''),
-      ),
-    ),
-  ));
+  const ops = remoteOpsRows();
+  const opsCards = ops.length
+    ? ops.map((p) => remoteOpsCard(p))
+    : [h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteOpsEmpty'))];
 
   return h('div', { class: 'glass remote-panel', style: { padding: '16px', marginBottom: '16px' } },
     h('div', { class: 'remote-panel-head' },
@@ -1296,7 +1332,7 @@ function viewVpnPanel(devices) {
     h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteDevicesTitle')),
     h('div', { id: 'remote-device-list' }, ...deviceCards),
     h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteOpsTitle')),
-    ...opsCards,
+    h('div', { id: 'remote-ops-list' }, ...opsCards),
   );
 }
 
