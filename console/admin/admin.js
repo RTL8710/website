@@ -844,13 +844,34 @@ function deviceCardMark(d) {
 
 
 
+function buildWebSshUrl(user, host, port) {
+  const u = String(user || 'root').trim() || 'root';
+  const hst = String(host || '').trim();
+  const p = String(Number(port) || 22);
+  const target = u + '@' + hst;
+  // ttyd 需 -a；每个 arg= 追加到 ssh argv（勿把整条命令塞进单个 arg）
+  const args = [
+    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'UserKnownHostsFile=/dev/null',
+    '-p', p,
+    target,
+  ];
+  return WG_WEBSSH + '/?' + args.map((a) => 'arg=' + encodeURIComponent(a)).join('&');
+}
+
 function openVpnModal(opts) {
+  const kind = opts.kind === 'http' ? 'http' : 'ssh';
+  const host = String(opts.host || '');
+  const port = Number(opts.port || (kind === 'ssh' ? 22 : 90)) || 0;
+  const user = opts.user || 'root';
   state.vpnModal = {
-    kind: opts.kind || 'http',
+    kind,
     name: opts.name || '',
-    host: String(opts.host || ''),
-    port: Number(opts.port || (opts.kind === 'ssh' ? 22 : 90)) || 0,
-    user: opts.user || 'root',
+    host,
+    port,
+    user,
+    session: 1,
+    liveUrl: kind === 'ssh' ? buildWebSshUrl(user, host, port) : '',
   };
   render();
 }
@@ -859,16 +880,18 @@ function renderVpnModal() {
   const m = state.vpnModal;
   if (!m) return null;
   const close = () => { state.vpnModal = null; render(); };
-  const hostInput = () => h('input', {
-    class: 'ginput', value: m.host,
+  const hostInput = (extraClass) => h('input', {
+    class: 'ginput' + (extraClass ? ' ' + extraClass : ''), value: m.host,
+    spellcheck: false, autocomplete: 'off',
     oninput: (e) => { m.host = e.target.value; },
   });
-  const portInput = () => h('input', {
-    class: 'ginput', type: 'number', value: String(m.port || ''),
+  const portInput = (extraClass) => h('input', {
+    class: 'ginput' + (extraClass ? ' ' + extraClass : ''), type: 'number', value: String(m.port || ''),
     oninput: (e) => { m.port = Number(e.target.value || 0); },
   });
-  const userInput = () => h('input', {
-    class: 'ginput', value: m.user || 'root',
+  const userInput = (extraClass) => h('input', {
+    class: 'ginput' + (extraClass ? ' ' + extraClass : ''), value: m.user || 'root',
+    spellcheck: false, autocomplete: 'username',
     oninput: (e) => { m.user = e.target.value; },
   });
 
@@ -896,31 +919,62 @@ function renderVpnModal() {
     );
   }
 
-  // ssh
-  const target = (m.user || 'root') + '@' + String(m.host || '').trim();
+  const host = String(m.host || '').trim();
+  const target = (m.user || 'root') + '@' + host;
   const cmd = 'ssh -p ' + (m.port || 22) + ' ' + target;
-  const webssh = WG_WEBSSH + '/?arg=' + encodeURIComponent(target);
-  return h('div', { class: 'modal-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
-    h('div', { class: 'glass modal wide' },
-      h('h3', {}, t('remoteSshOpenTitle')),
-      h('p', { class: 'muted', style: { marginTop: 0 } }, t('remoteSshWebHint')),
-      h('div', { class: 'admin-form' },
-        h('label', {}, t('remoteSshUser'), userInput()),
-        h('label', {}, t('remoteVpnIp'), hostInput()),
-        h('label', {}, t('remoteSshPort'), portInput()),
-        h('label', {}, t('remoteSshCmd'), h('input', { class: 'ginput', readonly: true, value: cmd })),
+  const webssh = buildWebSshUrl(m.user, host, m.port);
+  const connect = () => {
+    if (!host) { toast(t('remoteNeedHost'), 'err'); return; }
+    m.liveUrl = buildWebSshUrl(m.user, host, m.port);
+    m.session = (m.session || 0) + 1;
+    render();
+  };
+  const frameSrc = m.liveUrl || webssh;
+
+  return h('div', { class: 'modal-mask ssh-mask', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
+    h('div', { class: 'glass modal ssh-console', onclick: (e) => e.stopPropagation() },
+      h('div', { class: 'ssh-console-top' },
+        h('div', { class: 'ssh-console-brand' },
+          h('span', { class: 'ssh-console-orb', 'aria-hidden': 'true' }),
+          h('div', { class: 'ssh-console-headtxt' },
+            h('div', { class: 'ssh-console-kicker' }, 'WireGuard · ' + WG_RELAY.host),
+            h('h3', { class: 'ssh-console-title' }, t('remoteSshOpenTitle')),
+            h('p', { class: 'ssh-console-sub' },
+              (m.name ? m.name + ' · ' : '') + t('remoteSshWebHint')),
+          ),
+        ),
+        h('button', { class: 'ssh-console-x', type: 'button', title: t('close'), onclick: close },
+          h('i', { class: 'fa-solid fa-xmark' })),
       ),
-      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '10px', marginBottom: '10px' } },
-        h('button', { class: 'gbtn', onclick: () => copyText(cmd) }, t('copy')),
-        h('button', { class: 'gbtn primary', onclick: () => window.open(webssh, '_blank', 'noopener') }, t('remoteOpenSshTab')),
+      h('div', { class: 'ssh-console-bar' },
+        h('label', { class: 'ssh-field' },
+          h('span', {}, t('remoteSshUser')), userInput('ssh-input')),
+        h('label', { class: 'ssh-field ssh-field-host' },
+          h('span', {}, t('remoteVpnIp')), hostInput('ssh-input mono')),
+        h('label', { class: 'ssh-field ssh-field-port' },
+          h('span', {}, t('remoteSshPort')), portInput('ssh-input mono')),
+        h('div', { class: 'ssh-console-actions' },
+          h('button', { class: 'gbtn', type: 'button', onclick: () => copyText(cmd), title: cmd }, t('copy')),
+          h('button', { class: 'gbtn', type: 'button', onclick: () => window.open(webssh, '_blank', 'noopener') }, t('remoteOpenSshTab')),
+          h('button', { class: 'gbtn primary', type: 'button', onclick: connect }, t('remoteSshReconnect')),
+        ),
       ),
-      h('iframe', {
-        src: webssh,
-        title: 'webssh',
-        style: { width: '100%', height: '420px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', background: '#0b1220' },
-      }),
-      h('div', { class: 'row-actions', style: { justifyContent: 'flex-end', marginTop: '12px' } },
-        h('button', { class: 'gbtn', onclick: close }, t('close') || t('cancel')),
+      h('div', { class: 'ssh-cmd-row' },
+        h('code', { class: 'ssh-cmd', title: cmd }, cmd),
+        h('span', { class: 'ssh-pill' }, t('remoteSshPwdHint')),
+      ),
+      h('div', { class: 'ssh-stage' },
+        h('div', { class: 'ssh-chrome' },
+          h('span', { class: 'ssh-dot r' }), h('span', { class: 'ssh-dot y' }), h('span', { class: 'ssh-dot g' }),
+          h('span', { class: 'ssh-chrome-path' }, target || '—'),
+          h('span', { class: 'ssh-chrome-live' }, 'VPN'),
+        ),
+        h('iframe', {
+          class: 'ssh-frame',
+          src: host ? (frameSrc + (frameSrc.indexOf('?') >= 0 ? '&' : '?') + '_s=' + (m.session || 0)) : 'about:blank',
+          title: 'webssh',
+          allow: 'clipboard-read; clipboard-write',
+        }),
       ),
     ),
   );
