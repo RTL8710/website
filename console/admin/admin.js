@@ -20,6 +20,13 @@ import {
   t, applyTheme, applyLang, setLangChangeHandler, switcherBar, regionSwitcher, tabDefs, regionLabel, getTheme,
 } from './i18n.js';
 
+
+// 运维侧 WireGuard 客户端（跳板分配；与设备 VPN 分列展示）
+const OPS_VPN_PEERS = [
+  { name: 'ops-admin', host: '10.66.0.2', role: 'ops', note: '运维本机 WireGuard' },
+];
+const WG_RELAY = { host: '38.179.64.41', port: 51820 };
+
 const app = document.getElementById('app');
 const state = {
   session: null,
@@ -833,6 +840,60 @@ function deviceCardMark(d) {
   return mark;
 }
 
+
+function viewVpnPanel(devices) {
+  const rows = (devices || []).filter((d) => d && d.remoteHost);
+  const deviceCards = rows.length
+    ? rows.map((d) => h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+        h('div', { class: 'logs-card-body' },
+          h('div', { class: 'logs-card-code' }, d.name || shortId(d.id)),
+          h('div', { class: 'logs-card-meta' },
+            statusTag(!!d.online),
+            h('span', {
+              class: 'logs-chip', title: t('remoteAccessHint'),
+              onclick: () => copyText(d.remoteHost + ':' + (d.remoteSshPort || 22)),
+            }, t('remoteSsh'), h('span', { class: 'clip' }, d.remoteHost + ':' + (d.remoteSshPort || 22))),
+            d.remoteHttpPort
+              ? h('span', {
+                  class: 'logs-chip',
+                  onclick: () => copyText(d.remoteHost + ':' + d.remoteHttpPort),
+                }, t('remoteHttp'), h('span', { class: 'clip' }, d.remoteHost + ':' + d.remoteHttpPort))
+              : null,
+            h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
+          ),
+        ),
+      ))
+    : [h('div', { class: 'muted', style: { padding: '8px 0' } }, t('remoteDevicesEmpty'))];
+
+  const opsCards = OPS_VPN_PEERS.map((p) => h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+    h('div', { class: 'logs-card-body' },
+      h('div', { class: 'logs-card-code' }, p.name),
+      h('div', { class: 'logs-card-meta' },
+        h('span', { class: 'logs-chip' }, t('remoteOpsPeer')),
+        h('span', {
+          class: 'logs-chip',
+          onclick: () => copyText(p.host),
+        }, t('remoteVpnIp'), h('span', { class: 'clip' }, p.host)),
+        h('span', { class: 'logs-chip mute' }, p.note || ''),
+      ),
+    ),
+  ));
+
+  return h('div', { class: 'glass', style: { padding: '16px', marginBottom: '16px' } },
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' } },
+      h('div', {},
+        h('h2', { style: { margin: '0 0 4px', fontSize: '18px' } }, t('remoteAccessTitle')),
+        h('p', { class: 'muted', style: { margin: 0 } }, t('remoteAccessSub') + ' · ' + WG_RELAY.host + ':' + WG_RELAY.port),
+      ),
+      h('span', { class: 'logs-chip' }, t('remoteDeviceCount') + ' ' + rows.length),
+    ),
+    h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteDevicesTitle')),
+    ...deviceCards,
+    h('h3', { style: { fontSize: '14px', margin: '14px 0 8px' } }, t('remoteOpsTitle')),
+    ...opsCards,
+  );
+}
+
 function viewDevices() {
   const all = (state.devices || []).filter(Boolean);
   const onlineN = all.filter((d) => d.online).length;
@@ -951,6 +1012,7 @@ function viewDevices() {
   }
 
   return h('div', { class: 'devices-page logs-page' },
+    viewVpnPanel(all),
     h('div', { class: 'glass logs-hero' },
       h('div', {},
         h('div', { class: 'logs-kicker' }, t('devicesEyebrow')),
