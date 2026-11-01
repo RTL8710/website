@@ -311,6 +311,38 @@ function mediaThumb(raw, opts) {
   }).catch(() => {});
   return box;
 }
+function cardWhen(iso) {
+  const abs = fmt(iso);
+  const rel = logsRelTime(iso);
+  if (rel === abs) return h('div', { class: 'logs-card-when' }, h('b', {}, abs));
+  return h('div', { class: 'logs-card-when' }, h('b', {}, rel), abs);
+}
+function userCardMark(u) {
+  const raw = (u && String(u.picture || '').trim()) || '';
+  const mark = h('div', { class: 'logs-card-mark' + (raw ? ' has-thumb' : '') });
+  if (!raw) {
+    mark.appendChild(fa('fa-user'));
+    return mark;
+  }
+  const box = mediaThumb(raw, { w: '44px', h: '44px' });
+  mark.appendChild(box);
+  // 签名/加载失败时回退默认头像
+  const arm = () => {
+    const img = box.querySelector('img');
+    if (!img) return false;
+    img.addEventListener('error', () => {
+      mark.classList.remove('has-thumb');
+      mark.replaceChildren(fa('fa-user'));
+    }, { once: true });
+    return true;
+  };
+  if (!arm()) {
+    const mo = new MutationObserver(() => { if (arm()) mo.disconnect(); });
+    mo.observe(box, { childList: true });
+    setTimeout(() => mo.disconnect(), 10000);
+  }
+  return mark;
+}
 function copyable(text, title) {
   return h('span', {
     class: 'mono copy', title: title || text,
@@ -1033,7 +1065,7 @@ function viewUsers() {
             class: 'glass logs-card',
             onclick: () => openEditUser(u),
           },
-            h('div', { class: 'logs-card-mark' }, fa('fa-user')),
+            userCardMark(u),
             h('div', { class: 'logs-card-body' },
               h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, name),
               h('div', { class: 'logs-card-meta' },
@@ -1051,10 +1083,7 @@ function viewUsers() {
               ),
             ),
             h('div', { class: 'logs-card-side' },
-              h('div', { class: 'logs-card-when' },
-                h('b', {}, logsRelTime(u.updatedAt || u.createdAt)),
-                fmt(u.updatedAt || u.createdAt),
-              ),
+              cardWhen(u.updatedAt || u.createdAt),
               h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
                 h('button', { class: 'gbtn icon btn-sm', title: t('edit'), 'aria-label': t('edit'), onclick: () => openEditUser(u) }, fa('fa-pen')),
                 h('button', { class: 'gbtn icon btn-sm danger', title: t('delete'), 'aria-label': t('delete'), onclick: () => askDeleteUser(u) }, fa('fa-trash')),
@@ -1551,10 +1580,7 @@ function viewDevices() {
               ),
             ),
             h('div', { class: 'logs-card-side' },
-              h('div', { class: 'logs-card-when' },
-                h('b', {}, logsRelTime(d.updatedAt || d.createdAt)),
-                fmt(d.updatedAt || d.createdAt),
-              ),
+              cardWhen(d.updatedAt || d.createdAt),
               h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
                 h('button', {
                   class: 'gbtn primary btn-sm',
@@ -1654,10 +1680,7 @@ function viewRecords() {
               ),
             ),
             h('div', { class: 'logs-card-side' },
-              h('div', { class: 'logs-card-when' },
-                h('b', {}, logsRelTime(r.dateTime)),
-                fmt(r.dateTime),
-              ),
+              cardWhen(r.dateTime),
             ),
           );
         }));
@@ -2400,10 +2423,7 @@ function otaPkgCard(pkg, ug, isApp, latestIds) {
       ),
     ),
     h('div', { class: 'logs-card-side' },
-      h('div', { class: 'logs-card-when' },
-        h('b', {}, logsRelTime(when)),
-        fmt(when),
-      ),
+      cardWhen(when),
       pkgRowActions(pkg, ug, isApp),
     ),
   );
@@ -3685,10 +3705,7 @@ function logsPackCard(r) {
       ),
     ),
     h('div', { class: 'logs-card-side' },
-      h('div', { class: 'logs-card-when' },
-        h('b', {}, logsRelTime(r.lastModified)),
-        fmt(r.lastModified),
-      ),
+      cardWhen(r.lastModified),
       h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
         h('button', { class: 'gbtn primary btn-sm', onclick: () => openDiagLogView(r) }, t('viewLog')),
         h('button', { class: 'gbtn icon btn-sm', title: t('download'), 'aria-label': t('download'), onclick: () => downloadDiagLog(r) }, fa('fa-download')),
@@ -4945,10 +4962,7 @@ function viewLicense() {
               ),
             ),
             h('div', { class: 'logs-card-side' },
-              h('div', { class: 'logs-card-when' },
-                h('b', {}, logsRelTime(b.updatedAt || b.createdAt)),
-                fmt(b.updatedAt || b.createdAt),
-              ),
+              cardWhen(b.updatedAt || b.createdAt),
               h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
                 h('button', { class: 'gbtn icon btn-sm', title: t('edit'), onclick: () => openEditLicenseBatch(b) }, fa('fa-pen')),
                 h('button', { class: 'gbtn icon btn-sm danger', title: t('licenseRevokeOk'), onclick: () => askRevokeLicenseBatch(b) }, fa('fa-ban')),
