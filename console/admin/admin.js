@@ -664,15 +664,22 @@ function remoteDeviceCard(d) {
 }
 
 function remoteOpsCard(p) {
-  return h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+  const ip = String((p && p.host) || '').trim();
+  const mark = h('div', {
+    class: 'logs-card-mark remote-ops-mark',
+    title: t('remoteOpsPeer'),
+  }, fa('fa-robot'));
+  return h('div', { class: 'glass logs-card remote-ops-card', style: { marginBottom: '10px' } },
+    mark,
     h('div', { class: 'logs-card-body' },
       h('div', { class: 'logs-card-code' }, p.name),
       h('div', { class: 'logs-card-meta' },
         h('span', { class: 'logs-chip' }, t('remoteOpsPeer')),
-        h('span', {
-          class: 'logs-chip',
-          onclick: () => copyText(p.host),
-        }, t('remoteVpnIp'), h('span', { class: 'clip' }, p.host)),
+        ip ? h('span', {
+          class: 'logs-chip mute is-copy',
+          title: t('copy') + ': ' + ip,
+          onclick: (e) => { e.stopPropagation(); copyText(ip); },
+        }, t('remoteVpnIp'), h('span', { class: 'clip' }, ip), fa('fa-copy')) : null,
         p.note ? h('span', { class: 'logs-chip mute' }, p.note) : null,
       ),
     ),
