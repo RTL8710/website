@@ -446,7 +446,7 @@ function ownerName(ownerUserId) {
   return userLabel(ownerUserId) || shortId(ownerUserId);
 }
 function bindUsersForDevice(deviceId) {
-  // Amplify list 偶发 items 含 null，读 b.deviceId 会把设备页整页打挂
+  // 云端 list 偶发 items 含 null，读 b.deviceId 会把设备页整页打挂
   return (state.binds || []).filter((b) => b && (b.deviceId === deviceId || (b.device && b.device.id === deviceId)));
 }
 function latestPackageForType(deviceType, preferPart) {
