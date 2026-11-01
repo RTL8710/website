@@ -1229,3 +1229,12 @@ html.admin-booting body{overflow:hidden}
     width:88px;height:56px;border-radius:14px;font-size:18px;
   }
 }
+
+
+/* App 预设头像 icon:N */
+.logs-card-mark.user-avatar-preset{
+  background:linear-gradient(145deg, color-mix(in srgb, var(--accent) 42%, #0b1220), color-mix(in srgb, var(--accent2) 30%, #0b1220));
+  color:#ecfeff;font-size:18px;
+  border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.28);
+}

@@ -330,10 +330,24 @@ function cardWhen(iso) {
   if (rel === abs) return h('div', { class: 'logs-card-when' }, h('b', {}, abs));
   return h('div', { class: 'logs-card-when' }, h('b', {}, rel), abs);
 }
+// 与 App avatar_presets.dart 对齐：User.picture = "icon:<index>" 为内置头像，非 S3
+const AVATAR_PRESET_ICONS = [
+  'fa-user', 'fa-face-smile', 'fa-face-grin', 'fa-face-laugh', 'fa-face-meh',
+  'fa-face-grin-wide', 'fa-face-grin-stars', 'fa-paw', 'fa-robot', 'fa-mobile-screen',
+  'fa-face-smile', 'fa-face-laugh-beam', 'fa-rocket', 'fa-feather', 'fa-gamepad',
+  'fa-star', 'fa-heart', 'fa-bolt', 'fa-camera', 'fa-shield-halved',
+];
+function avatarPresetFa(picture) {
+  const m = String(picture || '').trim().match(/^icon:(\d+)$/i);
+  if (!m) return null;
+  const i = Number(m[1]);
+  if (!Number.isFinite(i) || i < 0 || i >= AVATAR_PRESET_ICONS.length) return null;
+  return AVATAR_PRESET_ICONS[i];
+}
+function isPresetAvatar(picture) { return !!avatarPresetFa(picture); }
 function userInitials(u) {
   const raw = String((u && (u.awsUserName || u.email || u.phoneNumber || u.id)) || '?').trim();
   if (!raw) return '?';
-  // 手机号取末 2 位；邮箱取 @ 前 2；其它取前 2 字符
   if (/^\+?\d{6,}$/.test(raw.replace(/\s/g, ''))) {
     const d = raw.replace(/\D/g, '');
     return d.slice(-2) || '?';
@@ -349,6 +363,16 @@ function userCardMark(u) {
     mark.appendChild(h('span', { class: 'user-avatar-ini' }, userInitials(u)));
     return mark;
   };
+  // App 预设：icon:N → Font Awesome，勿当 S3 key 去签
+  const preset = avatarPresetFa(raw);
+  if (preset) {
+    const mark = h('div', {
+      class: 'logs-card-mark user-avatar-preset',
+      title: raw,
+    });
+    mark.appendChild(fa(preset));
+    return mark;
+  }
   if (!raw) return fallback();
   const mark = h('div', { class: 'logs-card-mark has-thumb' });
   const box = mediaThumb(raw, {
@@ -1875,7 +1899,7 @@ function renderEdit() {
         fieldInput(e, 'email', '邮箱'),
         fieldInput(e, 'phoneNumber', '手机'),
         fieldInput(e, 'region', '区域', { ph: '如 ap-northeast-1 / 东南亚' }),
-        fieldInput(e, 'picture', '头像 URL', { span2: true }),
+        fieldInput(e, 'picture', '头像（icon:0~19 预设 / S3 key）', { span2: true, ph: 'icon:0 或 public/…' }),
       ]
     : isPkg
     ? [
