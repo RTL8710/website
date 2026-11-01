@@ -999,3 +999,69 @@ html[data-theme="light"] .agora-chart-grid{stroke:rgba(15,23,42,.08)}
 .remote-panel-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .remote-panel-filter{margin-top:12px}
 .remote-panel-filter .logs-search{width:100%}
+
+/* ── 首屏 boot + 总览骨架 ─────────────────────────────────── */
+html.admin-booting body{overflow:hidden}
+#admin-boot-overlay{
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 80% at 50% 0%,rgba(45,212,191,.12),transparent 55%),
+    linear-gradient(180deg,#07090d 0%,#0b1220 100%);
+  transition:opacity .45s ease,visibility .45s ease
+}
+#admin-boot-overlay.admin-boot-done{opacity:0;visibility:hidden;pointer-events:none}
+.admin-boot-grid{
+  position:absolute;inset:0;opacity:.35;
+  background-image:linear-gradient(rgba(45,212,191,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(45,212,191,.06) 1px,transparent 1px);
+  background-size:48px 48px;mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%)
+}
+.admin-boot-stage{position:relative;text-align:center;padding:24px;max-width:320px}
+.admin-boot-orb{
+  width:56px;height:56px;margin:0 auto 16px;border-radius:50%;
+  border:1px solid rgba(45,212,191,.35);
+  box-shadow:0 0 0 8px rgba(45,212,191,.08),0 0 40px rgba(45,212,191,.2);
+  display:flex;align-items:center;justify-content:center
+}
+.admin-boot-orb span{
+  width:18px;height:18px;border-radius:50%;background:var(--accent,#2dd4bf);
+  animation:admin-boot-pulse 1.6s ease-in-out infinite
+}
+.admin-boot-brand{
+  font-size:11px;font-weight:800;letter-spacing:.22em;color:var(--accent,#2dd4bf);margin-bottom:6px
+}
+.admin-boot-title{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.admin-boot-sub{font-size:13px;color:var(--text-lo,#94a3b8);margin-bottom:18px}
+.admin-boot-bar{
+  height:3px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden
+}
+.admin-boot-bar>i{
+  display:block;height:100%;width:36%;border-radius:99px;background:var(--accent,#2dd4bf);
+  animation:admin-boot-bar 1.25s cubic-bezier(.4,0,.2,1) infinite
+}
+@keyframes admin-boot-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.55}}
+@keyframes admin-boot-bar{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+@media (prefers-reduced-motion:reduce){
+  .admin-boot-orb span,.admin-boot-bar>i{animation:none}
+  .admin-boot-bar>i{width:42%}
+}
+
+.admin-skel{
+  display:inline-block;min-width:2.2em;height:1em;border-radius:6px;vertical-align:middle;
+  background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(45,212,191,.18),rgba(255,255,255,.06));
+  background-size:200% 100%;animation:admin-skel 1.2s ease-in-out infinite
+}
+.logs-source .v.num .admin-skel{min-width:2.6em;height:.85em;margin-top:.15em}
+.overview-sync-chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  color:var(--accent,#2dd4bf);opacity:.9
+}
+.overview-sync-chip .spin{
+  width:10px;height:10px;border:1.5px solid rgba(45,212,191,.25);border-top-color:var(--accent,#2dd4bf);
+  border-radius:50%;animation:admin-spin .7s linear infinite
+}
+@keyframes admin-skel{0%{background-position:100% 0}100%{background-position:-100% 0}}
+@keyframes admin-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .admin-skel,.overview-sync-chip .spin{animation:none}
+}
+

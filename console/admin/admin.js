@@ -62,6 +62,9 @@ const state = {
   },
   upgrade: { deviceId: '', packageId: '', partition: '', busy: false, msg: '', err: '', tracking: false, progress: 0, status: '', statusText: '', detail: '' },
   loadingTab: false,
+  overviewSyncing: false, // 有缓存时后台刷新总览
+  recordsLite: false, // 总览轻量拉取，进云录像 Tab 再补全
+  _costWarm: false,
   edit: null, // { type:'user'|'device', id, values, busy, err }
   vpnModal: null, // { kind:'http'|'ssh', name, host, port, user }
   logView: null, // { key, title, item, busy, err, files, fileName, q, wrap, showAll }
@@ -169,6 +172,11 @@ function clearAdminPersist() {
 function clearAdminDataCache() {
   state.users = state.devices = state.binds = state.packages = state.records = null;
   state.recordsMeta = null;
+  state.recordsLite = false;
+  state.overviewSyncing = false;
+  state._costWarm = false;
+  state.agora = null;
+  state.awsCost = null;
   state.diagLogs = state.diagLogsMeta = null;
   // keep logsSource
   state.q = '';
@@ -668,6 +676,72 @@ function restoreSearchFocus() {
   try { el.setSelectionRange(pos, pos); } catch (_) {}
 }
 
+
+function dismissAdminBoot() {
+  const el = document.getElementById('admin-boot-overlay');
+  document.documentElement.classList.remove('admin-booting');
+  if (!el || el.classList.contains('admin-boot-done')) return;
+  el.classList.add('admin-boot-done');
+  el.setAttribute('aria-busy', 'false');
+  setTimeout(() => { try { el.remove(); } catch (_) {} }, 480);
+}
+
+function overviewBump() {
+  if (state.tab === 'overview') render();
+}
+
+function warmOverviewCosts() {
+  if (state._costWarm) return;
+  state._costWarm = true;
+  const jobs = [];
+  if (!state.agora) jobs.push(loadAgora().catch((e) => console.warn('[admin] warm agora', e)));
+  if (!state.awsCost) jobs.push(loadAwsCost().catch((e) => console.warn('[admin] warm aws', e)));
+  if (!jobs.length) return;
+  Promise.allSettled(jobs).then(() => {
+    if (state.tab === 'overview' || state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') render();
+  });
+}
+
+async function loadOverviewTab() {
+  const hadSnap = !!(state.users || state.devices || state.packages);
+  state.loadingTab = !hadSnap;
+  state.overviewSyncing = true;
+  render();
+  if (hadSnap) dismissAdminBoot();
+
+  const devicesP = listAllDevices().then((d) => { state.devices = d; overviewBump(); return d; });
+  const packagesP = listDeviceUpgrades().then((p) => { state.packages = p; overviewBump(); return p; });
+  const usersP = listAllUsers().then((u) => { state.users = u; overviewBump(); return u; });
+
+  const core = await Promise.allSettled([devicesP, packagesP]);
+  const coreFails = core.filter((r) => r.status === 'rejected');
+  if (coreFails.length === core.length) {
+    throw (coreFails[0].reason || new Error('overview load failed'));
+  }
+  for (const r of coreFails) console.warn('[admin] overview core', r.reason);
+
+  // 首屏关键数据到位：关 boot / 骨架，用户与费用后台继续
+  state.loadingTab = false;
+  state.overviewSyncing = !!hadSnap; // 有缓存时短暂保留「同步中」直到 users 也回
+  persistAdminSnap();
+  overviewBump();
+  dismissAdminBoot();
+
+  try {
+    await usersP;
+  } catch (e) {
+    console.warn('[admin] overview users', e);
+    if (!state.users) state.users = [];
+    overviewBump();
+  }
+  state.overviewSyncing = false;
+  persistAdminSnap();
+  overviewBump();
+
+  refreshOverviewSecondary();
+  warmOverviewCosts();
+}
+
 async function refreshAll() {
   clearAdminDataCache();
   state.dataRegion = getRegion();
@@ -696,7 +770,7 @@ async function ensure(kind, opts) {
     }
   }
   if (kind === 'packages' && !state.packages) state.packages = await listDeviceUpgrades();
-  if (kind === 'records' && state.records == null) await loadRecords();
+  if (kind === 'records' && (state.records == null || state.recordsLite)) await loadRecords();
   if (kind === 'diagLogs' && state.diagLogs == null) await loadDiagLogs();
   if (kind === 'licenseBatches' && !state.licenseBatches) {
     state.licenseBatches = await listAllLicenseBatches();
@@ -712,10 +786,22 @@ async function loadRecords() {
   const res = await listCloudRecordsAdmin({ filter, limit: 200, maxPages: 15 });
   state.records = res.items;
   state.recordsMeta = res;
+  state.recordsLite = false;
 }
 
 async function refreshOverviewSecondary() {
-  try { await loadRecords(); } catch (_) { if (!state.records) state.records = []; }
+  // 总览只要数量感：少页即可；完整列表进「云录像」Tab 再拉
+  try {
+    const days = Math.max(1, Number(state.recDays) || 7);
+    const end = new Date();
+    const start = new Date(Date.now() - days * 864e5);
+    const filter = { and: [{ dateTime: { between: [start.toISOString(), end.toISOString()] } }] };
+    if (state.recDeviceId.trim()) filter.and.push({ deviceID: { eq: state.recDeviceId.trim() } });
+    const res = await listCloudRecordsAdmin({ filter, limit: 100, maxPages: 1 });
+    state.records = res.items;
+    state.recordsMeta = res;
+    state.recordsLite = true;
+  } catch (_) { if (!state.records) state.records = []; }
   if (state.tab === 'overview') render();
   try { await loadDiagLogs(); } catch (_) { if (!state.diagLogs) state.diagLogs = []; }
   persistAdminSnap();
@@ -729,19 +815,7 @@ async function loadTab(id) {
   render();
   try {
     if (id === 'overview') {
-      const hadSnap = !!(state.users || state.devices || state.packages);
-      state.loadingTab = !hadSnap;
-      if (hadSnap) render();
-      const [users, devices, packages] = await Promise.all([
-        listAllUsers(), listAllDevices(), listDeviceUpgrades(),
-      ]);
-      state.users = users;
-      state.devices = devices;
-      state.packages = packages;
-      persistAdminSnap();
-      refreshOverviewSecondary();
-      // 费用卡：后台懒加载，失败不挡总览
-      // 不在总览自动打 CE（易限流）；点「AWS 费用」Tab / 总览卡再拉
+      await loadOverviewTab();
     } else if (id === 'users') await ensure('users');
     else if (id === 'devices') { await ensure('devices'); await ensure('packages'); }
     else if (id === 'remote') { await ensure('devices', { lite: true }); }
@@ -775,6 +849,7 @@ async function loadTab(id) {
     toast(state._err, 'err');
   } finally {
     state.loadingTab = false;
+    if (id === 'overview') state.overviewSyncing = false;
     render();
   }
 }
@@ -790,6 +865,15 @@ function tableWrap(headers, rows) {
 }
 
 function viewOverview() {
+  const pendingCore = state.loadingTab && state.devices == null;
+  const pendingUsers = state.users == null;
+  const pendingPkgs = state.packages == null;
+  const pendingRec = state.records == null;
+  const pendingLogs = state.diagLogs == null;
+  const pendingAws = !state.awsCost;
+  const pendingAgora = !state.agora;
+  const skel = () => h('span', { class: 'admin-skel', 'aria-hidden': 'true' }, ' ');
+  const num = (n, pending) => (pending ? skel() : String(n));
   const u = (state.users || []).length;
   const d = (state.devices || []).length;
   const online = (state.devices || []).filter((x) => x.online).length;
@@ -809,7 +893,7 @@ function viewOverview() {
   },
     h('span', { class: 'logs-source-ico' }, fa(icon)),
     h('span', { class: 'k' }, k),
-    h('span', { class: 'v num' }, String(v)),
+    h('span', { class: 'v num' }, typeof v === 'string' || typeof v === 'number' ? String(v) : v),
     h('span', { class: 's' }, s),
   );
   return h('div', { class: 'overview-page logs-page' },
@@ -821,7 +905,10 @@ function viewOverview() {
         h('div', { class: 'logs-hero-sub' }, t('overviewSub')),
         h('div', { class: 'logs-hero-meta' },
           chip(regionLabel(rc)),
-          chip(online + ' ' + t('online'), 'stat-online'),
+          pendingCore ? chip(t('loading')) : chip(online + ' ' + t('online'), 'stat-online'),
+          (state.loadingTab || state.overviewSyncing)
+            ? h('span', { class: 'overview-sync-chip' }, h('span', { class: 'spin' }), t('loading'))
+            : null,
         ),
       ),
       h('div', { class: 'logs-source-grid' },
@@ -832,8 +919,8 @@ function viewOverview() {
         },
           h('span', { class: 'logs-source-ico' }, fa('fa-wifi')),
           h('span', { class: 'k' }, t('onlineCount')),
-          h('span', { class: 'v num' }, String(online)),
-          h('span', { class: 's' }, d ? (online + ' / ' + d + ' ' + t('devicesCount')) : t('devicesEmpty')),
+          h('span', { class: 'v num' }, num(online, pendingCore)),
+          h('span', { class: 's' }, pendingCore ? t('loading') : (d ? (online + ' / ' + d + ' ' + t('devicesCount')) : t('devicesEmpty'))),
         ),
         h('button', {
           type: 'button',
@@ -842,32 +929,32 @@ function viewOverview() {
         },
           h('span', { class: 'logs-source-ico' }, fa('fa-rocket')),
           h('span', { class: 'k' }, t('overviewLatestPkg')),
-          h('span', { class: 'v num' }, latest ? ('v' + (latest.upgradeDeviceVersion || '?')) : '—'),
-          h('span', { class: 's' }, latest
+          h('span', { class: 'v num' }, pendingPkgs ? skel() : (latest ? ('v' + (latest.upgradeDeviceVersion || '?')) : '—')),
+          h('span', { class: 's' }, pendingPkgs ? t('loading') : (latest
             ? ((latest.upgradeDeviceType || '') + (latest.upgradeOtaTime ? ' · ' + logsRelTime(latest.upgradeOtaTime) : ''))
-            : t('overviewNoPkg')),
+            : t('overviewNoPkg'))),
         ),
       ),
     ),
     h('div', { class: 'logs-source-grid trio' },
-      mod('fa-user', '', t('tabUsers'), u, t('usersCount'), () => goTab('users')),
-      mod('fa-robot', '', t('tabDevices'), d, t('devicesCount'), () => { state.deviceFilter = 'all'; goTab('devices'); }),
-      mod('fa-file-lines', '', t('tabLogs'), logsN + (logsTrunc ? '+' : ''), t('logsCount'), () => goTab('logs')),
-      mod('fa-cloud', ' is-device', t('tabRecords'), r + (trunc ? '+' : ''), t('recordsCount'), () => goTab('records')),
-      mod('fa-rocket', ' is-device', t('tabOta'), p, t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'device'; goTab('ota'); }),
+      mod('fa-user', '', t('tabUsers'), pendingUsers ? skel() : u, pendingUsers ? t('loading') : t('usersCount'), () => goTab('users')),
+      mod('fa-robot', '', t('tabDevices'), pendingCore ? skel() : d, pendingCore ? t('loading') : t('devicesCount'), () => { state.deviceFilter = 'all'; goTab('devices'); }),
+      mod('fa-file-lines', '', t('tabLogs'), pendingLogs ? skel() : (logsN + (logsTrunc ? '+' : '')), pendingLogs ? t('loading') : t('logsCount'), () => goTab('logs')),
+      mod('fa-cloud', ' is-device', t('tabRecords'), pendingRec ? skel() : (r + (trunc ? '+' : '')), pendingRec ? t('loading') : t('recordsCount'), () => goTab('records')),
+      mod('fa-rocket', ' is-device', t('tabOta'), pendingPkgs ? skel() : p, pendingPkgs ? t('loading') : t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'device'; goTab('ota'); }),
       mod('fa-mobile-alt', '', t('otaScopeApp'),
-        appN,
-        t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'app'; goTab('ota'); }),
+        pendingPkgs ? skel() : appN,
+        pendingPkgs ? t('loading') : t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'app'; goTab('ota'); }),
     ),
     h('div', { class: 'logs-source-grid' },
       mod('fa-dollar-sign', ' on', t('overviewAwsCost'),
-        (state.awsCost && state.awsCost.month) ? fmtUsd(state.awsCost.month.totalUsd) : '—',
-        t('tabAws'), () => { state.cloudSubScope = 'amazon'; goTab('cloudsub'); }),
+        pendingAws ? skel() : ((state.awsCost && state.awsCost.month) ? fmtUsd(state.awsCost.month.totalUsd) : '—'),
+        pendingAws ? t('loading') : t('tabAws'), () => { state.cloudSubScope = 'amazon'; goTab('cloudsub'); }),
       mod('fa-tower-broadcast', '', t('overviewAgoraCost'),
-        (state.agora && state.agora.accountSec)
+        pendingAgora ? skel() : ((state.agora && state.agora.accountSec)
           ? fmtUsd(((Math.max(0, (state.agora.accountMinutes || 0) - (state.agora.quota || AGORA_QUOTA_DEFAULT))) / 1000) * 0.99)
-          : '—',
-        t('tabAgora'), () => { state.cloudSubScope = 'agora'; goTab('cloudsub'); }),
+          : '—'),
+        pendingAgora ? t('loading') : t('tabAgora'), () => { state.cloudSubScope = 'agora'; goTab('cloudsub'); }),
     ),
     h('div', { class: 'glass ota-panel' },
       h('h3', {}, h('span', { class: 'logs-source-ico' }, fa('fa-bolt')), t('commonOps')),
@@ -4966,6 +5053,7 @@ async function enterAdmin(session, fresh) {
 }
 
 function viewDenied(session) {
+  dismissAdminBoot();
   const account = (session && (session.account || (session.userRow && session.userRow.awsUserName) || session.email)) || '';
   mount(app, h('div', { class: 'center', style: { padding: '80px', textAlign: 'center' } },
     h('div', { class: 'glass', style: { padding: '28px 32px', maxWidth: '440px', margin: '0 auto' } },
@@ -4984,6 +5072,7 @@ function viewDenied(session) {
 }
 
 function viewLogin(preErr) {
+  dismissAdminBoot();
   const username = h('input', {
     class: 'form-input', type: 'text', id: 'admin-username', placeholder: t('phUser'),
     autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true,
@@ -5105,10 +5194,14 @@ function viewLogin(preErr) {
     hydrateAdminSnap();
     state.dataRegion = getRegion();
     render();
+    if (state.users || state.devices || state.packages) dismissAdminBoot();
     loadTab('overview');
   } else {
+    dismissAdminBoot();
     viewLogin();
   }
+  // 兜底：登录页或异常时不无限遮罩
+  setTimeout(() => dismissAdminBoot(), 12000);
   let session = null;
   try { session = await restoreSession(); } catch (_) {}
   if (!session || !session.userRow) {
