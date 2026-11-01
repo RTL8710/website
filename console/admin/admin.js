@@ -4837,9 +4837,24 @@ function openEditLicenseBatch(b) {
 }
 
 async function selectLicenseBatch(b) {
+  // 再点同一授权码 → 收起设备列表
+  if (state.licenseSelectedId === b.id) {
+    state.licenseSelectedId = '';
+    state.licenseDevices = null;
+    state.licenseDevicesBusy = false;
+    render();
+    return;
+  }
   state.licenseSelectedId = b.id;
   state.licenseActivate.code = b.batchCode || b.id || '';
   await loadLicenseDevices(b.id);
+}
+
+function closeLicenseDevices() {
+  state.licenseSelectedId = '';
+  state.licenseDevices = null;
+  state.licenseDevicesBusy = false;
+  render();
 }
 
 function askRevokeLicenseBatch(b) {
@@ -4903,7 +4918,7 @@ function viewLicense() {
           },
             h('div', { class: 'logs-card-mark' }, fa('fa-key')),
             h('div', { class: 'logs-card-body' },
-              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, b.batchCode || b.id),
+              h('div', { class: 'logs-card-code', style: { cursor: 'pointer' }, title: on ? t('close') : t('licenseDevicesTitle') }, b.batchCode || b.id),
               h('div', { class: 'logs-card-meta' },
                 b.customerName ? h('span', { class: 'logs-chip mute' }, b.customerName) : null,
                 b.productSku ? h('span', { class: 'logs-chip' }, b.productSku) : null,
@@ -4934,7 +4949,10 @@ function viewLicense() {
         h('div', { style: { fontWeight: 700 } }, t('licenseDevicesTitle') + ' · ' + (selected.batchCode || selected.id)),
         h('div', { class: 'faint', style: { fontSize: '12px' } }, t('licenseDevicesSub')),
       ),
-      h('button', { class: 'gbtn btn-sm', disabled: state.licenseDevicesBusy, onclick: () => loadLicenseDevices(selected.id) }, fa('fa-rotate'), ' ' + t('refresh')),
+      h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+        h('button', { class: 'gbtn btn-sm', disabled: state.licenseDevicesBusy, onclick: () => loadLicenseDevices(selected.id) }, fa('fa-rotate'), ' ' + t('refresh')),
+        h('button', { class: 'gbtn btn-sm', title: t('close'), onclick: () => closeLicenseDevices() }, fa('fa-xmark'), ' ' + t('close')),
+      ),
     ),
     state.licenseDevicesBusy ? loading('…') : (!devices.length
       ? h('div', { class: 'faint' }, t('licenseDevicesEmpty'))
