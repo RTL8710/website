@@ -358,9 +358,9 @@ function userCardMark(u) {
   if (preset) return paintPreset(preset, raw);
   // 2) S3 / http 头像
   if (raw && !/^icon:/i.test(raw)) {
-    const mark = h('div', { class: 'logs-card-mark has-thumb' });
+    const mark = h('div', { class: 'logs-card-mark has-thumb user-avatar-photo' });
     const box = mediaThumb(raw, {
-      w: '44px', h: '44px',
+      w: '72px', h: '72px',
       onError: () => {
         const fb = paintPreset(stableAvatarFa(u), 'avatar fallback');
         mark.replaceWith(fb);
@@ -1097,25 +1097,37 @@ function viewUsers() {
       ? studioEmpty('fa-user', t('usersEmpty'), t('usersEmptyHint'))
       : studioStream(studioGroups(rows, (u) => u.updatedAt || u.createdAt), (u) => {
           const name = u.awsUserName || u.email || shortId(u.id);
+          const copyChip = (label, value, short) => {
+            const v = String(value || '');
+            if (!v) return null;
+            return h('span', {
+              class: 'logs-chip mute is-copy',
+              title: t('copy') + ': ' + v,
+              onclick: (e) => { e.stopPropagation(); copyText(v); },
+            },
+              label ? (label + ' ') : null,
+              h('span', { class: 'clip' }, short ? shortId(v) : v),
+              fa('fa-copy'),
+            );
+          };
           return h('article', {
-            class: 'glass logs-card',
+            class: 'glass logs-card user-row',
             onclick: () => openEditUser(u),
           },
             userCardMark(u),
             h('div', { class: 'logs-card-body' },
-              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, name),
+              h('button', {
+                type: 'button',
+                class: 'logs-card-code is-copy',
+                title: t('copy') + ': ' + name,
+                onclick: (e) => { e.stopPropagation(); copyText(name); },
+              }, name, fa('fa-copy')),
               h('div', { class: 'logs-card-meta' },
-                u.email ? h('span', { class: 'logs-chip mute' }, h('span', { class: 'clip' }, u.email)) : null,
-                u.phoneNumber ? h('span', { class: 'logs-chip mute' }, u.phoneNumber) : null,
+                copyChip('', u.email, false),
+                copyChip('', u.phoneNumber, false),
                 u.region ? h('span', { class: 'logs-chip' }, u.region) : null,
-                u.id ? h('span', {
-                  class: 'logs-chip mute', title: u.id,
-                  onclick: (e) => { e.stopPropagation(); copyText(u.id); },
-                }, 'ID', h('span', { class: 'clip' }, shortId(u.id))) : null,
-                u.awsUserID ? h('span', {
-                  class: 'logs-chip mute', title: u.awsUserID,
-                  onclick: (e) => { e.stopPropagation(); copyText(u.awsUserID); },
-                }, 'Cognito', h('span', { class: 'clip' }, shortId(u.awsUserID))) : null,
+                copyChip('ID', u.id, true),
+                copyChip('Cognito', u.awsUserID, true),
               ),
             ),
             h('div', { class: 'logs-card-side' },
