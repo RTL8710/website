@@ -78,7 +78,7 @@ async function main() {
   ok('graphql deleteUserCompletely', gql.includes('deleteUserCompletely') && gql.includes('deleteDeviceCompletely'));
   ok('standalone admin entry comment', cfg.includes('/console/admin/'));
 
-  // 2) Amplify data completeness
+  // 2) 云端 data completeness
   const users = await pageCount('listUsers', 'id awsUserName');
   const devices = await pageCount('listDevices', 'id deviceConnectStatus');
   const upgrades = await pageCount('listDeviceUpgrades', 'id upgradeDeviceVersion');
