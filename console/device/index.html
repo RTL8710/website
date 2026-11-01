@@ -224,6 +224,35 @@ window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso) 
     .filter(function (r) { return !r.expireAt || new Date(r.expireAt).getTime() > now; })
     .sort(function (a, b) { return new Date(b.dateTime) - new Date(a.dateTime); });
 };
+
+/** 本机缓存 AppId→Certificate（声网 REST 不返回证书；切换项目靠这份保险柜自动填） */
+window.__agoraCertVaultKey = 'ahs.agoraCertByAppId.v1';
+window.__agoraCertVaultLoad = function () {
+  try {
+    var raw = localStorage.getItem(window.__agoraCertVaultKey);
+    var o = raw ? JSON.parse(raw) : {};
+    return (o && typeof o === 'object') ? o : {};
+  } catch (_) { return {}; }
+};
+window.__agoraCertVaultSave = function (map) {
+  try { localStorage.setItem(window.__agoraCertVaultKey, JSON.stringify(map || {})); } catch (_) {}
+};
+window.__agoraCertVaultRemember = function (appId, cert) {
+  var id = String(appId || '').trim().toLowerCase();
+  var c = String(cert || '').trim();
+  if (!id || !c || c.length < 8) return;
+  var map = window.__agoraCertVaultLoad();
+  if (map[id] === c) return;
+  map[id] = c;
+  window.__agoraCertVaultSave(map);
+};
+window.__agoraCertVaultLookup = function (appId) {
+  var id = String(appId || '').trim().toLowerCase();
+  if (!id) return '';
+  var map = window.__agoraCertVaultLoad();
+  return map[id] || '';
+};
+
 /** 声网控制台项目列表（AppSync → Agora REST）；用 App ID(=vendor_key) 反查项目名 */
 window.__fetchAgoraProjects = async function () {
   var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
@@ -9420,7 +9449,9 @@ window.__presignThumbUrl = function (raw) {
                                 <div class="col-12 col-lg-4">
                                     <label class="form-label mb-1" data-i18n="cl_agora_app_cert">App Certificate</label>
                                     <input class="form-control" x-model="agoraRtcService.rtcAppCertificate"
-                                           autocomplete="off" />
+                                           autocomplete="off" @change="rememberAgoraCertVault()" />
+                                    <div class="form-text text-warning" x-show="agoraCertMissingHint"
+                                         data-i18n="cl_agora_cert_missing">No cached certificate for this project — paste it once; later switches will auto-fill.</div>
                                 </div>
                             </div>
                             <div class="mb-1 row g-2">
@@ -9452,7 +9483,7 @@ window.__presignThumbUrl = function (raw) {
                                     </select>
                                 </div>
                             </div>
-                            <div class="form-text text-muted mb-0" data-i18n="cl_agora_layout_hint">Pick project to fill App ID; Certificate must match. Channel = device UUID. Leave Token empty.</div>
+                            <div class="form-text text-muted mb-0" data-i18n="cl_agora_layout_hint">Pick project to auto-fill App ID + cached Certificate. Channel = device UUID. Leave Token empty.</div>
                             </div>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-2 mt-3">
@@ -10827,7 +10858,7 @@ const I18N_INDEX = {
     cl_region:'Default Region', cl_log_level:'Log Level',
     cl_debug_sdp:'Debug Log SDP', cl_enable_webrtc:'Enable WebRTC',
     cl_update:'Update WebRTC',
-    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_layout_hint:'Pick project to fill App ID; Certificate must match. Channel = device UUID. Leave Token empty.', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
+    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_layout_hint:'Pick project to auto-fill App ID + cached Certificate. Channel = device UUID. Leave Token empty.', cl_agora_cert_missing:'No cached certificate for this project — paste it once; later switches will auto-fill.', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
     cl_agora_enable:'RTC Enable', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate (secret) stored on device with App ID; webpage mints token from it.', cl_agora_token:'Token', cl_agora_token_hint:'Leave empty. Do not paste App Certificate here.', cl_agora_log_level:'Log Level',
     cl_agora_rtm_enable:'Device RTM', cl_agora_rtm_enable_hint:'Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.',
     cl_agora_update:'Update Agora RTC', cl_agora_refresh:'Refresh Agora RTC',
@@ -10996,7 +11027,7 @@ const I18N_INDEX = {
     cl_region:'默认区域', cl_log_level:'日志级别',
     cl_debug_sdp:'调试 SDP 日志', cl_enable_webrtc:'启用 WebRTC',
     cl_update:'更新 WebRTC',
-    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_layout_hint:'选项目填 App ID；Certificate 须与项目一致。频道=设备 UUID。Token 留空。', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
+    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_layout_hint:'选项目自动填 App ID 与已缓存的 Certificate；首次需粘贴一次证书。频道=设备 UUID。Token 留空。', cl_agora_cert_missing:'该项目尚无缓存证书 — 请粘贴一次，之后切换会自动填充。', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
     cl_agora_enable:'RTC 启用', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate（Secret）随设备 App ID 下发并写回；网页用它签发进房 Token。', cl_agora_token:'Token', cl_agora_token_hint:'默认留空。勿把 App Certificate 填进 Token。', cl_agora_log_level:'日志级别',
     cl_agora_rtm_enable:'设备 RTM', cl_agora_rtm_enable_hint:'默认关闭。仅 RTC 预览无需 RTM；外网命令走 AWS IoT 时请保持关闭。',
     cl_agora_update:'更新 Agora RTC', cl_agora_refresh:'刷新 Agora RTC',
@@ -11164,7 +11195,7 @@ const I18N_INDEX = {
     cl_region:'デフォルトリージョン', cl_log_level:'ログレベル',
     cl_debug_sdp:'SDP デバッグログ', cl_enable_webrtc:'WebRTC 有効',
     cl_update:'WebRTC 更新',
-    cl_agora_title:'Agora RTC サービス', cl_agora_app_id:'アプリ ID', cl_agora_project:'プロジェクト', cl_agora_project_hint:'App ID から Agora コンソールのプロジェクトを照合。', cl_agora_project_unknown:'一致するプロジェクトなし', cl_agora_project_pick:'Agora プロジェクトを選択…', cl_agora_layout_hint:'プロジェクト選択で App ID を記入。Certificate は一致必須。チャンネル=端末 UUID。Token は空。', cl_agora_channel:'チャンネル名',
+    cl_agora_title:'Agora RTC サービス', cl_agora_app_id:'アプリ ID', cl_agora_project:'プロジェクト', cl_agora_project_hint:'App ID から Agora コンソールのプロジェクトを照合。', cl_agora_project_unknown:'一致するプロジェクトなし', cl_agora_project_pick:'Agora プロジェクトを選択…', cl_agora_layout_hint:'プロジェクト選択で App ID を記入。Certificate は一致必須。チャンネル=端末 UUID。Token は空。', cl_agora_cert_missing:'このプロジェクトの証明書が未キャッシュ — 一度貼り付けてください。以降は自動入力。', cl_agora_channel:'チャンネル名',
     cl_agora_enable:'RTC 有効', cl_agora_token:'トークン', cl_agora_log_level:'ログレベル',
     cl_agora_rtm_enable:'デバイス RTM', cl_agora_rtm_enable_hint:'既定オフ。RTC プレビューのみなら不要。',
     cl_agora_update:'Agora RTC 更新', cl_agora_refresh:'Agora RTC リフレッシュ',
@@ -11331,7 +11362,7 @@ const I18N_INDEX = {
     cl_region:'Standardregion', cl_log_level:'Protokollstufe',
     cl_debug_sdp:'SDP-Debug-Log', cl_enable_webrtc:'WebRTC aktivieren',
     cl_update:'WebRTC aktualisieren',
-    cl_agora_title:'Agora RTC Dienst', cl_agora_app_id:'App-ID', cl_agora_project:'Projekt', cl_agora_project_hint:'Zuordnung über App-ID zur Agora-Konsolen-Projektliste.', cl_agora_project_unknown:'keine Projektzuordnung', cl_agora_project_pick:'Agora-Projekt wählen…', cl_agora_layout_hint:'Projekt füllt App-ID; Zertifikat muss passen. Kanal=Geräte-UUID. Token leer lassen.', cl_agora_channel:'Kanalname',
+    cl_agora_title:'Agora RTC Dienst', cl_agora_app_id:'App-ID', cl_agora_project:'Projekt', cl_agora_project_hint:'Zuordnung über App-ID zur Agora-Konsolen-Projektliste.', cl_agora_project_unknown:'keine Projektzuordnung', cl_agora_project_pick:'Agora-Projekt wählen…', cl_agora_layout_hint:'Projekt füllt App-ID; Zertifikat muss passen. Kanal=Geräte-UUID. Token leer lassen.', cl_agora_cert_missing:'Kein Zertifikat im Cache — bitte einmal einfügen; danach Auto-Fill.', cl_agora_channel:'Kanalname',
     cl_agora_enable:'RTC aktiviert', cl_agora_token:'Token', cl_agora_log_level:'Log-Level',
     cl_agora_rtm_enable:'Gerät-RTM', cl_agora_rtm_enable_hint:'Standard aus. Für nur RTC-Vorschau nicht nötig.',
     cl_agora_update:'Agora RTC aktualisieren', cl_agora_refresh:'Agora RTC aktualisieren',
@@ -11499,7 +11530,7 @@ const I18N_INDEX = {
     cl_region:'Région par défaut', cl_log_level:'Niveau de log',
     cl_debug_sdp:'Log debug SDP', cl_enable_webrtc:'Activer WebRTC',
     cl_update:'Mettre à jour WebRTC',
-    cl_agora_title:'Service Agora RTC', cl_agora_app_id:'ID App', cl_agora_project:'Projet', cl_agora_project_hint:'Correspondance via App ID avec la liste des projets Agora Console.', cl_agora_project_unknown:'App ID sans projet', cl_agora_project_pick:'Choisir un projet Agora…', cl_agora_layout_hint:'Le projet remplit l’App ID ; le certificat doit correspondre. Canal=UUID. Token vide.', cl_agora_channel:'Nom du canal',
+    cl_agora_title:'Service Agora RTC', cl_agora_app_id:'ID App', cl_agora_project:'Projet', cl_agora_project_hint:'Correspondance via App ID avec la liste des projets Agora Console.', cl_agora_project_unknown:'App ID sans projet', cl_agora_project_pick:'Choisir un projet Agora…', cl_agora_layout_hint:'Le projet remplit l’App ID ; le certificat doit correspondre. Canal=UUID. Token vide.', cl_agora_cert_missing:'Certificat non mis en cache — collez-le une fois; ensuite auto-rempli.', cl_agora_channel:'Nom du canal',
     cl_agora_enable:'RTC activé', cl_agora_token:'Jeton', cl_agora_log_level:'Niveau log',
     cl_agora_rtm_enable:'RTM appareil', cl_agora_rtm_enable_hint:'Désactivé par défaut. Inutile pour l’aperçu RTC seul.',
     cl_agora_update:'Mettre à jour Agora RTC', cl_agora_refresh:'Actualiser Agora RTC',
@@ -11667,7 +11698,7 @@ const I18N_INDEX = {
     cl_region:'Región por defecto', cl_log_level:'Nivel de log',
     cl_debug_sdp:'Log debug SDP', cl_enable_webrtc:'Habilitar WebRTC',
     cl_update:'Actualizar WebRTC',
-    cl_agora_title:'Servicio Agora RTC', cl_agora_app_id:'ID de App', cl_agora_project:'Proyecto', cl_agora_project_hint:'Coincide por App ID con la lista de proyectos de Agora Console.', cl_agora_project_unknown:'App ID sin proyecto', cl_agora_project_pick:'Elegir proyecto Agora…', cl_agora_layout_hint:'El proyecto rellena App ID; el certificado debe coincidir. Canal=UUID. Token vacío.', cl_agora_channel:'Nombre canal',
+    cl_agora_title:'Servicio Agora RTC', cl_agora_app_id:'ID de App', cl_agora_project:'Proyecto', cl_agora_project_hint:'Coincide por App ID con la lista de proyectos de Agora Console.', cl_agora_project_unknown:'App ID sin proyecto', cl_agora_project_pick:'Elegir proyecto Agora…', cl_agora_layout_hint:'El proyecto rellena App ID; el certificado debe coincidir. Canal=UUID. Token vacío.', cl_agora_cert_missing:'Sin certificado en caché — péguelo una vez; luego se rellena solo.', cl_agora_channel:'Nombre canal',
     cl_agora_enable:'RTC habilitado', cl_agora_token:'Token', cl_agora_log_level:'Nivel log',
     cl_agora_rtm_enable:'RTM del dispositivo', cl_agora_rtm_enable_hint:'Desactivado por defecto. No hace falta solo para vista previa RTC.',
     cl_agora_update:'Actualizar Agora RTC', cl_agora_refresh:'Refrescar Agora RTC',
@@ -13072,6 +13103,7 @@ document.addEventListener('DOMContentLoaded', function() {
             agoraProjectsByAppId: {},
             agoraProjectList: [],
             agoraProjectPickId: '',
+            agoraCertMissingHint: false,
             agoraProjectsLoadState: '', // '' | loading | ok | err
 
             provisioningService: {
@@ -14132,9 +14164,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!pid || !this.agoraRtcService) return;
                 const row = (this.agoraProjectList || []).find((p) => p && p.id === pid);
                 if (!row || !row.appId) return;
+                // 切换前：把当前 AppId 的证书记入本机保险柜
+                const prevApp = (this.agoraRtcService.rtcAppId || '').trim();
+                const prevCert = (this.agoraRtcService.rtcAppCertificate || '').trim();
+                if (prevApp && prevCert && typeof window.__agoraCertVaultRemember === 'function') {
+                    window.__agoraCertVaultRemember(prevApp, prevCert);
+                }
                 this.agoraRtcService.rtcAppId = row.appId;
-                // Certificate 属于密钥，列表接口不返回；切换项目后若仍是旧证书需人工核对
+                let cert = '';
+                if (typeof window.__agoraCertVaultLookup === 'function') {
+                    cert = window.__agoraCertVaultLookup(row.appId) || '';
+                }
+                this.agoraRtcService.rtcAppCertificate = cert;
+                this.agoraCertMissingHint = !cert;
                 this.sanitizeAgoraRtcForm();
+            },
+            rememberAgoraCertVault(){
+                if (!this.agoraRtcService) return;
+                const app = (this.agoraRtcService.rtcAppId || '').trim();
+                const cert = (this.agoraRtcService.rtcAppCertificate || '').trim();
+                if (app && cert && typeof window.__agoraCertVaultRemember === 'function') {
+                    window.__agoraCertVaultRemember(app, cert);
+                }
+                if (cert) this.agoraCertMissingHint = false;
             },
             sanitizeAgoraRtcForm(){
                 if (!this.agoraRtcService) return;
@@ -17856,6 +17908,7 @@ async _execSystemServiceAction(action) {
                         if (a.rtmServiceEnable == null) a.rtmServiceEnable = false;
                         this.agoraRtcService = a;
                         this.sanitizeAgoraRtcForm();
+                        this.rememberAgoraCertVault();
                         this.ensureAgoraProjectCatalog();
                         const app = (a.rtcAppId || '').trim();
                         const cert = (this.agoraRtcService.rtcAppCertificate || '').trim();
@@ -17876,6 +17929,7 @@ async _execSystemServiceAction(action) {
                 const quiet = !!opts.quiet || !!opts.credentialsOnly;
                 try {
                     this.sanitizeAgoraRtcForm();
+                    this.rememberAgoraCertVault();
                     const payload = {
                         rtcAppId: this.agoraRtcService.rtcAppId || '',
                         rtcAppCertificate: this.agoraRtcService.rtcAppCertificate || '',
