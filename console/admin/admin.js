@@ -4901,7 +4901,8 @@ async function runLicenseActivate() {
 function viewLicense() {
   const batches = state.licenseBatches || [];
   let rows = batches.filter((b) => b && matchQ([b.batchCode, b.id, b.customerName, b.productSku, b.status, b.note]));
-  const selected = rows.find((b) => b.id === state.licenseSelectedId) || batches.find((b) => b.id === state.licenseSelectedId) || null;
+  // 设备面板仅跟「当前筛选可见」的批次；筛选掉主卡片时一并收起，不清 selected 以便清筛选后可恢复
+  const selected = rows.find((b) => b.id === state.licenseSelectedId) || null;
   const devices = state.licenseDevices || [];
   const stream = state.loadingTab || !state.licenseBatches
     ? loading('…')
