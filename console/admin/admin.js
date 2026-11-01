@@ -298,17 +298,30 @@ function mediaThumb(raw, opts) {
     },
   }, h('span', { class: 'faint', style: { fontSize: '10px' } }, '…'));
   if (!raw) return h('span', { class: 'faint' }, '—');
-  resolvedCreds().then((c) => {
-    const url = signS3MediaUrl(c, raw, 3600);
+  const paint = (url) => {
     if (!url) return;
     const img = h('img', {
       src: url, alt: '',
       style: { width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' },
-      onclick: () => window.open(url, '_blank'),
-      onerror: function () { this.style.display = 'none'; },
+      onclick: (e) => { e.stopPropagation(); window.open(url, '_blank'); },
+      onerror: function () {
+        this.style.display = 'none';
+        if (typeof o.onError === 'function') o.onError();
+      },
     });
     box.replaceChildren(img);
-  }).catch(() => {});
+  };
+  const s = String(raw).trim();
+  // 非 S3 的 http(s) 直出，不等凭证
+  if (/^https?:\/\//i.test(s) && !/amazonaws\.com/i.test(s)) {
+    paint(s);
+    return box;
+  }
+  resolvedCreds().then((c) => {
+    paint(signS3MediaUrl(c, s, 3600));
+  }).catch(() => {
+    paint(signS3MediaUrl(null, s, 3600));
+  });
   return box;
 }
 function cardWhen(iso) {
@@ -317,30 +330,35 @@ function cardWhen(iso) {
   if (rel === abs) return h('div', { class: 'logs-card-when' }, h('b', {}, abs));
   return h('div', { class: 'logs-card-when' }, h('b', {}, rel), abs);
 }
+function userInitials(u) {
+  const raw = String((u && (u.awsUserName || u.email || u.phoneNumber || u.id)) || '?').trim();
+  if (!raw) return '?';
+  // 手机号取末 2 位；邮箱取 @ 前 2；其它取前 2 字符
+  if (/^\+?\d{6,}$/.test(raw.replace(/\s/g, ''))) {
+    const d = raw.replace(/\D/g, '');
+    return d.slice(-2) || '?';
+  }
+  const base = raw.includes('@') ? raw.split('@')[0] : raw;
+  const chars = Array.from(base);
+  return (chars[0] || '?').toUpperCase() + ((chars[1] || '').toUpperCase());
+}
 function userCardMark(u) {
   const raw = (u && String(u.picture || '').trim()) || '';
-  const mark = h('div', { class: 'logs-card-mark' + (raw ? ' has-thumb' : '') });
-  if (!raw) {
-    mark.appendChild(fa('fa-user'));
+  const fallback = () => {
+    const mark = h('div', { class: 'logs-card-mark user-avatar-fallback', title: (u && (u.awsUserName || u.email)) || '' });
+    mark.appendChild(h('span', { class: 'user-avatar-ini' }, userInitials(u)));
     return mark;
-  }
-  const box = mediaThumb(raw, { w: '44px', h: '44px' });
-  mark.appendChild(box);
-  // 签名/加载失败时回退默认头像
-  const arm = () => {
-    const img = box.querySelector('img');
-    if (!img) return false;
-    img.addEventListener('error', () => {
-      mark.classList.remove('has-thumb');
-      mark.replaceChildren(fa('fa-user'));
-    }, { once: true });
-    return true;
   };
-  if (!arm()) {
-    const mo = new MutationObserver(() => { if (arm()) mo.disconnect(); });
-    mo.observe(box, { childList: true });
-    setTimeout(() => mo.disconnect(), 10000);
-  }
+  if (!raw) return fallback();
+  const mark = h('div', { class: 'logs-card-mark has-thumb' });
+  const box = mediaThumb(raw, {
+    w: '44px', h: '44px',
+    onError: () => {
+      const fb = fallback();
+      mark.replaceWith(fb);
+    },
+  });
+  mark.appendChild(box);
   return mark;
 }
 function copyable(text, title) {
@@ -1116,8 +1134,12 @@ function viewUsers() {
     ),
     h('div', { class: 'glass logs-dock' },
       studioSearch(t('searchUsers')),
-      h('button', { class: 'gbtn btn-sm', onclick: async () => { state.users = null; await loadTab('users'); } }, fa('fa-rotate'), ' ' + t('refresh')),
+      h('button', { class: 'gbtn btn-sm', onclick: async () => {
+        state.users = null; state._err = '';
+        await loadTab('users');
+      } }, fa('fa-rotate'), ' ' + t('refresh')),
     ),
+    state._err ? h('div', { class: 'admin-msg err' }, state._err) : null,
     stream,
   );
 }

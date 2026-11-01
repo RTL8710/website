@@ -22,10 +22,10 @@ async function pageAll(query, variables, pick) {
   let token = null, out = [];
   do {
     const data = await gql(query, { ...variables, limit: 1000, nextToken: token });
-    const conn = pick(data);
+    const conn = (pick(data) || {}) ;
     const items = (conn.items || []).filter((x) => x != null);
     out = out.concat(items);
-    token = conn.nextToken;
+    token = conn.nextToken || null;
   } while (token);
   return out;
 }
@@ -117,8 +117,8 @@ function normalizeDevice(d) {
     remoteHttpsPort: ra && ra.httpsPort != null ? Number(ra.httpsPort) : (ra && ra.host ? 100 : 0),
     remoteHttpsAltPort: ra && ra.httpsAltPort != null ? Number(ra.httpsAltPort) : (ra && ra.host ? 443 : 0),
     remoteNetwork: ra && ra.network ? String(ra.network) : '',
-    createdAt: d.createdAt || '',
-    updatedAt: d.updatedAt || '',
+    createdAt: d.createdAt || info.datetime || info.createdAt || '',
+    updatedAt: d.updatedAt || info.datetime || info.updatedAt || d.createdAt || info.createdAt || '',
     raw: d,
   };
 }
@@ -167,7 +167,6 @@ const Q_LIST_DEVICES = /* GraphQL */ `
     listDevices(filter: $filter, limit: $limit, nextToken: $nextToken) {
       items {
         id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation
-        createdAt updatedAt
       }
       nextToken
     }
