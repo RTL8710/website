@@ -9,6 +9,7 @@ import {
   updateUserAdmin, deleteUserCompletely,
   updateDeviceAdmin, deleteDeviceCompletely,
   getAgoraProjects, getAgoraUsage, agoraStandardMinutesFromUsage, agoraMonthUtcRange,
+  listAgoraProjectCredentials, upsertAgoraProjectCredential,
   getAwsCostSummary, summarizeAwsCost, awsCostMonthUtcRange, awsCostLastMonthsUtcRange,
   isAwsCostRateLimitedError, AWS_COST_S3_CACHE_KEY,
   listAllLicenseBatches, createLicenseBatch, updateLicenseBatch,
@@ -3928,6 +3929,18 @@ async function loadAgora() {
   const quota = Number(state.agoraQuotaMinutes) || AGORA_QUOTA_DEFAULT;
   try {
     const projects = await getAgoraProjects();
+    let creds = [];
+    try { creds = await listAgoraProjectCredentials(); } catch (e) { console.warn('[agora] creds', e); }
+    const credByApp = {};
+    for (const c of (creds || [])) {
+      const k = String((c && c.appId) || '').trim().toLowerCase();
+      if (k) credByApp[k] = c;
+    }
+    for (const p of projects) {
+      const hit = credByApp[String(p.appId || '').trim().toLowerCase()];
+      p.appCertificate = hit ? (hit.appCertificate || '') : '';
+      p.credUpdatedAt = hit ? (hit.updatedAt || '') : '';
+    }
     const byProject = {};
     let accountMinutes = 0;
     const accountSec = { audio: 0, hd: 0, hdp: 0, fullHd: 0, video2k: 0, video2kPlus: 0 };
@@ -3951,6 +3964,7 @@ async function loadAgora() {
     }
     state.agora = {
       projects, byProject, range, quota,
+      credByApp,
       accountMinutes, accountSec,
       refreshedAt: new Date().toISOString(),
       err: '',
@@ -4511,22 +4525,62 @@ function viewAgora(opts) {
               h('th', {}, t('colName')),
               h('th', {}, t('agoraProjectId')),
               h('th', {}, t('agoraAppId')),
+              h('th', {}, t('agoraAppCert')),
               h('th', {}, t('agoraStatus')),
               h('th', {}, t('agoraUsed')),
+              h('th', {}, t('colActions')),
             )),
             h('tbody', {}, ...projects.map((p) => {
               const m = (a.byProject[p.id] && a.byProject[p.id].minutes) || 0;
+              const draftKey = 'agoraCertDraft:' + (p.appId || p.id);
+              if (state[draftKey] == null) state[draftKey] = p.appCertificate || '';
+              const hasCert = !!(state[draftKey] || '').trim();
               return h('tr', {
                 class: pid === p.id ? 'is-active-row' : '',
-                onclick: () => { state.agoraProjectId = p.id; render(); },
               },
-                h('td', {}, h('strong', {}, p.name || '—')),
-                h('td', { class: 'mono' }, p.id),
-                h('td', { class: 'mono agora-trunc' }, p.appId || '—'),
+                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } }, h('strong', {}, p.name || '—')),
+                h('td', { class: 'mono', onclick: () => { state.agoraProjectId = p.id; render(); } }, p.id),
+                h('td', { class: 'mono agora-trunc', onclick: () => { state.agoraProjectId = p.id; render(); } }, p.appId || '—'),
+                h('td', {},
+                  h('input', {
+                    class: 'admin-input mono',
+                    type: 'password',
+                    autocomplete: 'off',
+                    placeholder: t('agoraAppCertPh'),
+                    value: state[draftKey],
+                    oninput: (e) => { state[draftKey] = e.target.value; },
+                    onclick: (e) => e.stopPropagation(),
+                  }),
+                  h('div', { class: 'muted tiny' }, hasCert ? t('agoraCertCached') : t('agoraCertMissing')),
+                ),
                 h('td', {}, p.status === 1
                   ? h('span', { class: 'agora-dot-on' }, t('agoraEnabled'))
                   : h('span', { class: 'agora-dot-off' }, t('agoraDisabled'))),
-                h('td', {}, h('b', {}, fmtMin(m))),
+                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } }, h('b', {}, fmtMin(m))),
+                h('td', {},
+                  h('button', {
+                    type: 'button', class: 'btn sm',
+                    onclick: async (e) => {
+                      e.stopPropagation();
+                      const cert = String(state[draftKey] || '').trim();
+                      if (!p.appId) { toast(t('agoraNeedAppId'), 'err'); return; }
+                      if (!cert) { toast(t('agoraNeedCert'), 'err'); return; }
+                      try {
+                        await upsertAgoraProjectCredential({
+                          appId: p.appId,
+                          appCertificate: cert,
+                          projectId: p.id,
+                          projectName: p.name || '',
+                        });
+                        p.appCertificate = cert;
+                        toast(t('agoraCertSaved'));
+                        render();
+                      } catch (err) {
+                        toast((err && err.message) || t('agoraCertSaveFail'), 'err');
+                      }
+                    },
+                  }, t('save')),
+                ),
               );
             })),
           ),

@@ -394,6 +394,83 @@ function parseAwsJson(v) {
   return null;
 }
 
+
+// ── Agora 项目凭证（App ID ↔ Certificate，云端真相源）────────────────────
+const Q_LIST_AGORA_CREDS = /* GraphQL */ `
+  query ListAgoraProjectCredentials($filter: ModelAgoraProjectCredentialFilterInput, $limit: Int, $nextToken: String) {
+    listAgoraProjectCredentials(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items { id appId appCertificate projectId projectName note updatedAt }
+      nextToken
+    }
+  }`;
+const M_CREATE_AGORA_CRED = /* GraphQL */ `
+  mutation CreateAgoraProjectCredential($input: CreateAgoraProjectCredentialInput!) {
+    createAgoraProjectCredential(input: $input) {
+      id appId appCertificate projectId projectName note updatedAt
+    }
+  }`;
+const M_UPDATE_AGORA_CRED = /* GraphQL */ `
+  mutation UpdateAgoraProjectCredential($input: UpdateAgoraProjectCredentialInput!) {
+    updateAgoraProjectCredential(input: $input) {
+      id appId appCertificate projectId projectName note updatedAt
+    }
+  }`;
+
+/** 列出云端维护的声网 App Certificate（按 appId） */
+export async function listAgoraProjectCredentials(filter) {
+  const rows = await pageAll(
+    Q_LIST_AGORA_CREDS,
+    { filter: filter || null },
+    (d) => d.listAgoraProjectCredentials,
+  );
+  return (rows || []).filter(Boolean).map((r) => ({
+    id: r.id,
+    appId: r.appId || r.id || '',
+    appCertificate: r.appCertificate || '',
+    projectId: r.projectId || '',
+    projectName: r.projectName || '',
+    note: r.note || '',
+    updatedAt: r.updatedAt || '',
+  }));
+}
+
+const Q_GET_AGORA_CRED = /* GraphQL */ `
+  query GetAgoraProjectCredential($id: ID!) {
+    getAgoraProjectCredential(id: $id) { id appId appCertificate projectId projectName note updatedAt }
+  }`;
+
+/** 创建或更新（id = appId） */
+export async function upsertAgoraProjectCredential({ appId, appCertificate, projectId, projectName, note }) {
+  const id = String(appId || '').trim();
+  const cert = String(appCertificate || '').trim();
+  if (!id) throw new Error('缺少 appId');
+  if (!cert) throw new Error('缺少 appCertificate');
+  const input = {
+    id,
+    appId: id,
+    appCertificate: cert,
+    projectId: projectId || null,
+    projectName: projectName || null,
+    note: note || null,
+  };
+  let existing = null;
+  try {
+    const got = await gql(Q_GET_AGORA_CRED, { id });
+    existing = got && got.getAgoraProjectCredential;
+  } catch (_) { existing = null; }
+  if (existing && existing.id) {
+    const data = await gql(M_UPDATE_AGORA_CRED, { input });
+    return data.updateAgoraProjectCredential;
+  }
+  try {
+    const data = await gql(M_CREATE_AGORA_CRED, { input });
+    return data.createAgoraProjectCredential;
+  } catch (e) {
+    const data = await gql(M_UPDATE_AGORA_CRED, { input });
+    return data.updateAgoraProjectCredential;
+  }
+}
+
 /** 列出 Agora 账号下全部项目（不含 certificate） */
 export async function getAgoraProjects() {
   const data = await gql(Q_AGORA_PROJECTS, {});

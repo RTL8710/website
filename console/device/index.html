@@ -253,6 +253,75 @@ window.__agoraCertVaultLookup = function (appId) {
   return map[id] || '';
 };
 
+
+/** 云端 AgoraProjectCredential：AppId → Certificate */
+window.__fetchAgoraProjectCredentials = async function () {
+  var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
+  if (!creds.appsyncEndpoint || !creds.appsyncApiKey) throw new Error('AppSync config missing');
+  var q = 'query ListAgoraProjectCredentials($filter: ModelAgoraProjectCredentialFilterInput, $limit: Int, $nextToken: String) {\n'
+    + '  listAgoraProjectCredentials(filter: $filter, limit: $limit, nextToken: $nextToken) {\n'
+    + '    items { id appId appCertificate projectId projectName note updatedAt }\n'
+    + '    nextToken\n  }\n}';
+  var items = [], token = null;
+  do {
+    var res = await fetch(creds.appsyncEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': creds.appsyncApiKey },
+      body: JSON.stringify({ query: q, variables: { filter: null, limit: 200, nextToken: token } })
+    });
+    var json = await res.json();
+    if (json.errors && json.errors.length && !(json.data && json.data.listAgoraProjectCredentials)) {
+      throw new Error(json.errors.map(function (e) { return e.message; }).join('; '));
+    }
+    var conn = (json.data && json.data.listAgoraProjectCredentials) || {};
+    items = items.concat(conn.items || []);
+    token = conn.nextToken || null;
+  } while (token);
+  return items.filter(Boolean).map(function (r) {
+    return {
+      id: r.id || r.appId || '',
+      appId: String(r.appId || r.id || '').trim(),
+      appCertificate: String(r.appCertificate || '').trim(),
+      projectId: r.projectId || '',
+      projectName: r.projectName || ''
+    };
+  });
+};
+window.__upsertAgoraProjectCredential = async function (row) {
+  var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
+  if (!creds.appsyncEndpoint || !creds.appsyncApiKey) throw new Error('AppSync config missing');
+  var id = String((row && row.appId) || '').trim();
+  var cert = String((row && row.appCertificate) || '').trim();
+  if (!id || !cert) throw new Error('appId/certificate required');
+  var input = {
+    id: id, appId: id, appCertificate: cert,
+    projectId: (row && row.projectId) || null,
+    projectName: (row && row.projectName) || null,
+    note: (row && row.note) || null
+  };
+  var getQ = 'query GetAgoraProjectCredential($id: ID!) { getAgoraProjectCredential(id: $id) { id } }';
+  var upd = 'mutation UpdateAgoraProjectCredential($input: UpdateAgoraProjectCredentialInput!) { updateAgoraProjectCredential(input: $input) { id appId appCertificate } }';
+  var cre = 'mutation CreateAgoraProjectCredential($input: CreateAgoraProjectCredentialInput!) { createAgoraProjectCredential(input: $input) { id appId appCertificate } }';
+  var headers = { 'Content-Type': 'application/json', 'x-api-key': creds.appsyncApiKey };
+  var existing = null;
+  try {
+    var g = await fetch(creds.appsyncEndpoint, { method:'POST', headers: headers, body: JSON.stringify({ query: getQ, variables: { id: id } }) });
+    var gj = await g.json();
+    existing = gj.data && gj.data.getAgoraProjectCredential;
+  } catch (_) {}
+  var mut = existing ? upd : cre;
+  var res = await fetch(creds.appsyncEndpoint, { method:'POST', headers: headers, body: JSON.stringify({ query: mut, variables: { input: input } }) });
+  var json = await res.json();
+  if (json.errors && json.errors.length) {
+    // create failed → try update; update failed → try create
+    mut = existing ? cre : upd;
+    res = await fetch(creds.appsyncEndpoint, { method:'POST', headers: headers, body: JSON.stringify({ query: mut, variables: { input: input } }) });
+    json = await res.json();
+    if (json.errors && json.errors.length) throw new Error(json.errors.map(function(e){return e.message;}).join('; '));
+  }
+  return (json.data && (json.data.updateAgoraProjectCredential || json.data.createAgoraProjectCredential)) || null;
+};
+
 /** 声网控制台项目列表（AppSync → Agora REST）；用 App ID(=vendor_key) 反查项目名 */
 window.__fetchAgoraProjects = async function () {
   var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
@@ -10858,7 +10927,7 @@ const I18N_INDEX = {
     cl_region:'Default Region', cl_log_level:'Log Level',
     cl_debug_sdp:'Debug Log SDP', cl_enable_webrtc:'Enable WebRTC',
     cl_update:'Update WebRTC',
-    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_layout_hint:'Pick project to auto-fill App ID + cached Certificate. Channel = device UUID. Leave Token empty.', cl_agora_cert_missing:'No cached certificate for this project — paste it once; later switches will auto-fill.', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
+    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_layout_hint:'Pick project to auto-fill App ID + Certificate from cloud. Channel = device UUID. Leave Token empty.', cl_agora_cert_missing:'Cloud has no certificate for this project — paste once and Update to save to cloud.', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
     cl_agora_enable:'RTC Enable', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate (secret) stored on device with App ID; webpage mints token from it.', cl_agora_token:'Token', cl_agora_token_hint:'Leave empty. Do not paste App Certificate here.', cl_agora_log_level:'Log Level',
     cl_agora_rtm_enable:'Device RTM', cl_agora_rtm_enable_hint:'Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.',
     cl_agora_update:'Update Agora RTC', cl_agora_refresh:'Refresh Agora RTC',
@@ -11027,7 +11096,7 @@ const I18N_INDEX = {
     cl_region:'默认区域', cl_log_level:'日志级别',
     cl_debug_sdp:'调试 SDP 日志', cl_enable_webrtc:'启用 WebRTC',
     cl_update:'更新 WebRTC',
-    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_layout_hint:'选项目自动填 App ID 与已缓存的 Certificate；首次需粘贴一次证书。频道=设备 UUID。Token 留空。', cl_agora_cert_missing:'该项目尚无缓存证书 — 请粘贴一次，之后切换会自动填充。', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
+    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_layout_hint:'选项目自动填 App ID 与云端 Certificate；云端没有时粘贴一次并更新即可入库。频道=设备 UUID。Token 留空。', cl_agora_cert_missing:'云端尚无该项目证书 — 粘贴一次并点更新，将写入云端。', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
     cl_agora_enable:'RTC 启用', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate（Secret）随设备 App ID 下发并写回；网页用它签发进房 Token。', cl_agora_token:'Token', cl_agora_token_hint:'默认留空。勿把 App Certificate 填进 Token。', cl_agora_log_level:'日志级别',
     cl_agora_rtm_enable:'设备 RTM', cl_agora_rtm_enable_hint:'默认关闭。仅 RTC 预览无需 RTM；外网命令走 AWS IoT 时请保持关闭。',
     cl_agora_update:'更新 Agora RTC', cl_agora_refresh:'刷新 Agora RTC',
@@ -13104,6 +13173,7 @@ document.addEventListener('DOMContentLoaded', function() {
             agoraProjectList: [],
             agoraProjectPickId: '',
             agoraCertMissingHint: false,
+            agoraCloudCertByAppId: {},
             agoraProjectsLoadState: '', // '' | loading | ok | err
 
             provisioningService: {
@@ -14114,19 +14184,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.agoraProjectsLoadState = 'loading';
                 try {
                     const list = await window.__fetchAgoraProjects();
+                    let cloudCreds = [];
+                    try {
+                        if (typeof window.__fetchAgoraProjectCredentials === 'function') {
+                            cloudCreds = await window.__fetchAgoraProjectCredentials();
+                        }
+                    } catch (ce) { console.warn('[AHS][Agora] cloud creds', ce); }
+                    const certByApp = {};
+                    (cloudCreds || []).forEach((c) => {
+                        const id = (c && c.appId) ? String(c.appId).trim().toLowerCase() : '';
+                        if (!id || !c.appCertificate) return;
+                        certByApp[id] = String(c.appCertificate).trim();
+                        if (typeof window.__agoraCertVaultRemember === 'function') {
+                            window.__agoraCertVaultRemember(id, certByApp[id]);
+                        }
+                    });
                     const map = {};
                     const arr = [];
                     (list || []).forEach((p) => {
                         const appId = (p && p.appId) ? String(p.appId).trim() : '';
                         if (!appId) return;
-                        const row = { name: p.name || appId, id: p.id || appId, appId: appId };
+                        const row = {
+                            name: p.name || appId,
+                            id: p.id || appId,
+                            appId: appId,
+                            appCertificate: certByApp[appId.toLowerCase()] || '',
+                        };
                         map[appId.toLowerCase()] = row;
                         arr.push(row);
                     });
                     arr.sort((a, b) => String(a.name).localeCompare(String(b.name)));
                     this.agoraProjectsByAppId = map;
                     this.agoraProjectList = arr;
+                    this.agoraCloudCertByAppId = certByApp;
                     this.syncAgoraProjectPickFromAppId();
+                    // 若当前 AppId 在云端有证书且本地空，自动填入
+                    const cur = ((this.agoraRtcService && this.agoraRtcService.rtcAppId) || '').trim().toLowerCase();
+                    if (cur && certByApp[cur] && this.agoraRtcService && !(this.agoraRtcService.rtcAppCertificate || '').trim()) {
+                        this.agoraRtcService.rtcAppCertificate = certByApp[cur];
+                        this.agoraCertMissingHint = false;
+                    }
                     this.agoraProjectsLoadState = 'ok';
                 } catch (e) {
                     console.warn('[AHS][Agora] project catalog', e);
@@ -14171,8 +14268,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.__agoraCertVaultRemember(prevApp, prevCert);
                 }
                 this.agoraRtcService.rtcAppId = row.appId;
-                let cert = '';
-                if (typeof window.__agoraCertVaultLookup === 'function') {
+                let cert = (row.appCertificate || '').trim();
+                if (!cert && this.agoraCloudCertByAppId) {
+                    cert = this.agoraCloudCertByAppId[String(row.appId).toLowerCase()] || '';
+                }
+                if (!cert && typeof window.__agoraCertVaultLookup === 'function') {
                     cert = window.__agoraCertVaultLookup(row.appId) || '';
                 }
                 this.agoraRtcService.rtcAppCertificate = cert;
@@ -14187,6 +14287,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.__agoraCertVaultRemember(app, cert);
                 }
                 if (cert) this.agoraCertMissingHint = false;
+                // 写回云端真相源（失败不阻断本地）
+                if (app && cert && typeof window.__upsertAgoraProjectCredential === 'function') {
+                    const hit = (this.agoraProjectList || []).find((p) => p && String(p.appId).toLowerCase() === app.toLowerCase());
+                    window.__upsertAgoraProjectCredential({
+                        appId: app,
+                        appCertificate: cert,
+                        projectId: hit ? hit.id : '',
+                        projectName: hit ? hit.name : '',
+                    }).then((row) => {
+                        if (!this.agoraCloudCertByAppId) this.agoraCloudCertByAppId = {};
+                        this.agoraCloudCertByAppId[app.toLowerCase()] = cert;
+                        if (hit) hit.appCertificate = cert;
+                    }).catch((e) => console.warn('[AHS][Agora] upsert cloud cert', e));
+                }
             },
             sanitizeAgoraRtcForm(){
                 if (!this.agoraRtcService) return;
