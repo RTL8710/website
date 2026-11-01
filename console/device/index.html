@@ -3269,8 +3269,7 @@ window.__presignThumbUrl = function (raw) {
 
     <style id="dv-boot-css">
       /* ── 强制刷新首屏：高端 boot 遮罩，避免空 Dashboard 裸闪 ── */
-      html.dv-booting, html.dv-booting body { overflow: hidden !important; }
-      html.dv-booting .page { visibility: hidden; }
+      html.dv-booting body { overflow: hidden !important; }
       #dv-boot-overlay {
         position: fixed; inset: 0; z-index: 100000;
         display: flex; align-items: center; justify-content: center;
@@ -3418,7 +3417,7 @@ window.__presignThumbUrl = function (raw) {
   }
   applyBase();
   var done = false;
-  var safety = setTimeout(function () { window.DvBoot && window.DvBoot.ready(); }, 12000);
+  var safety = setTimeout(function () { window.DvBoot && window.DvBoot.ready(); }, 8000);
   window.DvBoot = {
     setStage: function (key, pct) {
       if (done) return;
@@ -14316,45 +14315,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 return Math.round(u * 100 / ((u + a) || 1));
             },
 
-            // 仪表盘首屏：并行拉关键数据，完成后关掉 boot 遮罩（与设备本地页同款）
+            // 仪表盘首屏：遮罩盖住请求中；核心参数一次并行拉取（不拖慢进页），extras 后台补
             async bootstrapDashboard() {
                 const stage = (k, p) => { try { if (window.DvBoot) window.DvBoot.setStage(k, p); } catch (e) {} };
                 try {
-                    // 云端控制台依赖传输层（IoT）；先接线再拉数
                     if (typeof this.initTransport === 'function') {
-                        try { await this.initTransport(); } catch (e) { console.warn('initTransport', e); }
+                        try { this.initTransport(); } catch (e) {}
                     }
-                    stage('device', 12);
-                    await Promise.allSettled([
-                        this.initDeviceGeneralInformation()
-                    ]);
-                    stage('media', 40);
-                    await Promise.allSettled([
+                    stage('device', 25);
+                    const core = [
+                        this.initDeviceGeneralInformation(),
                         this.initStorageInformation(),
                         this.initVedioSettings(0),
                         this.initAudioSettings(),
-                        this.initRecordSettings()
-                    ]);
-                    stage('ai', 68);
-                    await Promise.allSettled([
+                        this.initRecordSettings(),
                         this.getCloudRecordService(),
                         this.initRtspServerInformation(),
                         this.initAlgorithmInformation(),
                         this.initChatGptInformation()
-                    ]);
-                    stage('extras', 86);
-                    await this.initDashboardExtras();
+                    ];
                     if (typeof this.refreshSystemService === 'function') {
-                        try { await this.refreshSystemService(true); } catch (e) {}
+                        core.push(this.refreshSystemService(true));
                     }
-                    if (typeof this.startDashSysMemPoll === 'function') {
-                        try { this.startDashSysMemPoll(); } catch (e) {}
-                    }
+                    await Promise.allSettled(core);
                     stage('ready', 100);
                 } catch (e) {
                     console.warn('bootstrapDashboard', e);
                 } finally {
                     try { if (window.DvBoot) window.DvBoot.ready(); } catch (e2) {}
+                    try {
+                        const extras = this.initDashboardExtras();
+                        if (extras && typeof extras.then === 'function') extras.catch(function () {});
+                    } catch (e3) {}
+                    try { if (typeof this.startDashSysMemPoll === 'function') this.startDashSysMemPoll(); } catch (e4) {}
                 }
             },
 
