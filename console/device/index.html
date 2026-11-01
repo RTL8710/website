@@ -9397,43 +9397,39 @@ window.__presignThumbUrl = function (raw) {
                             </div>
                             </div>
 
-                            <!-- Agora 参数 -->
+                            <!-- Agora 参数：两行紧凑布局 -->
                             <div x-show="!isLiveTransportKvs()" x-cloak x-init="ensureAgoraProjectCatalog()">
-                            <div class="hr-text text-primary mb-3" data-i18n="cl_agora_section">Agora RTC</div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_app_id">App ID</label>
-                                    <input class="form-control" x-model="agoraRtcService.rtcAppId"
-                                           @change="syncAgoraProjectPickFromAppId()" />
-                                    <div class="form-text" x-show="resolveAgoraProjectHint()">
-                                        <span data-i18n="cl_agora_project">Project</span>:
-                                        <strong x-text="resolveAgoraProjectHint()"></strong>
-                                    </div>
-                                    <select class="form-select form-control mt-2" x-model="agoraProjectPickId"
+                            <div class="hr-text text-primary mb-2" data-i18n="cl_agora_section">Agora RTC</div>
+                            <div class="mb-2 row g-2">
+                                <div class="col-12 col-lg-4">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_project">Project</label>
+                                    <select class="form-control" x-model="agoraProjectPickId"
                                             @change="applyAgoraProjectPick()"
                                             :disabled="!(agoraProjectList && agoraProjectList.length)">
                                         <option value="" data-i18n="cl_agora_project_pick">Select Agora project…</option>
                                         <template x-for="p in agoraProjectList" :key="p.id">
-                                            <option :value="p.id" x-text="(p.name || p.id) + ' · ' + (p.appId || '').slice(0, 8) + '…'"></option>
+                                            <option :value="p.id" x-text="p.name || p.id"></option>
                                         </template>
                                     </select>
-                                    <div class="form-text text-muted" data-i18n="cl_agora_project_hint">Matched from Agora Console project list by App ID. Picker only fills App ID — keep Certificate matched.</div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_app_cert">App Certificate</label>
+                                <div class="col-12 col-lg-4">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_app_id">App ID</label>
+                                    <input class="form-control" x-model="agoraRtcService.rtcAppId"
+                                           @change="syncAgoraProjectPickFromAppId()" />
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_app_cert">App Certificate</label>
                                     <input class="form-control" x-model="agoraRtcService.rtcAppCertificate"
                                            autocomplete="off" />
-                                    <div class="form-text" data-i18n="cl_agora_app_cert_hint">App Certificate (secret) from device. Saved with App ID; webpage mints RTC token from it.</div>
                                 </div>
                             </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_channel">Channel Name</label>
+                            <div class="mb-1 row g-2">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_channel">Channel Name</label>
                                     <input class="form-control" :value="resolveAgoraChannelName()" readonly />
-                                    <div class="form-text" data-i18n="cl_agora_channel_hint">Always equals device ID (UUID).</div>
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_log_level">Log Level</label>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_log_level">Log Level</label>
                                     <select class="form-control" x-model.number="agoraRtcService.rtcLogLevel">
                                         <option value="0">DEFAULT</option>
                                         <option value="1">FATAL</option>
@@ -9443,23 +9439,20 @@ window.__presignThumbUrl = function (raw) {
                                         <option value="16">DEBUG</option>
                                     </select>
                                 </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label col-12 col-md-6" data-i18n="cl_agora_token">Token</label>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_token">Token</label>
                                     <input class="form-control" x-model="agoraRtcService.rtcToken"
                                            placeholder="(empty)" autocomplete="off" />
-                                    <div class="form-text" data-i18n="cl_agora_token_hint">Leave empty. Do not paste App Certificate here.</div>
                                 </div>
-                            </div>
-                            <div class="mb-4 row">
-                                <div class="col-12 col-md-4">
-                                    <label class="col-form-label" data-i18n="cl_agora_rtm_enable">Device RTM</label>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label mb-1" data-i18n="cl_agora_rtm_enable">Device RTM</label>
                                     <select class="form-control" x-model="agoraRtcService.rtmServiceEnable">
                                         <option :value="false">false</option>
                                         <option :value="true">true</option>
                                     </select>
-                                    <div class="form-text" data-i18n="cl_agora_rtm_enable_hint">Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.</div>
                                 </div>
                             </div>
+                            <div class="form-text text-muted mb-0" data-i18n="cl_agora_layout_hint">Pick project to fill App ID; Certificate must match. Channel = device UUID. Leave Token empty.</div>
                             </div>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-2 mt-3">
@@ -10834,7 +10827,7 @@ const I18N_INDEX = {
     cl_region:'Default Region', cl_log_level:'Log Level',
     cl_debug_sdp:'Debug Log SDP', cl_enable_webrtc:'Enable WebRTC',
     cl_update:'Update WebRTC',
-    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
+    cl_agora_title:'Agora RTC Service', cl_agora_app_id:'App ID', cl_agora_project:'Project', cl_agora_project_hint:'Matched from Agora Console by App ID. Picker fills App ID only — keep Certificate matched.', cl_agora_project_unknown:'unmatched App ID', cl_agora_project_pick:'Select Agora project…', cl_agora_layout_hint:'Pick project to fill App ID; Certificate must match. Channel = device UUID. Leave Token empty.', cl_agora_channel:'Channel Name', cl_agora_channel_hint:'Always equals device ID (UUID).',
     cl_agora_enable:'RTC Enable', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate (secret) stored on device with App ID; webpage mints token from it.', cl_agora_token:'Token', cl_agora_token_hint:'Leave empty. Do not paste App Certificate here.', cl_agora_log_level:'Log Level',
     cl_agora_rtm_enable:'Device RTM', cl_agora_rtm_enable_hint:'Default off. RTC preview needs no RTM; keep off unless WAN uses Agora RTM.',
     cl_agora_update:'Update Agora RTC', cl_agora_refresh:'Refresh Agora RTC',
@@ -11003,7 +10996,7 @@ const I18N_INDEX = {
     cl_region:'默认区域', cl_log_level:'日志级别',
     cl_debug_sdp:'调试 SDP 日志', cl_enable_webrtc:'启用 WebRTC',
     cl_update:'更新 WebRTC',
-    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
+    cl_agora_title:'Agora RTC 服务', cl_agora_app_id:'应用 ID', cl_agora_project:'项目', cl_agora_project_hint:'按 App ID 对照声网项目；下拉只填 App ID，Certificate 需与项目一致。', cl_agora_project_unknown:'未匹配到声网项目', cl_agora_project_pick:'选择声网项目…', cl_agora_layout_hint:'选项目填 App ID；Certificate 须与项目一致。频道=设备 UUID。Token 留空。', cl_agora_channel:'频道名称', cl_agora_channel_hint:'固定等于设备 ID（UUID）。',
     cl_agora_enable:'RTC 启用', cl_agora_app_cert:'App Certificate', cl_agora_app_cert_hint:'App Certificate（Secret）随设备 App ID 下发并写回；网页用它签发进房 Token。', cl_agora_token:'Token', cl_agora_token_hint:'默认留空。勿把 App Certificate 填进 Token。', cl_agora_log_level:'日志级别',
     cl_agora_rtm_enable:'设备 RTM', cl_agora_rtm_enable_hint:'默认关闭。仅 RTC 预览无需 RTM；外网命令走 AWS IoT 时请保持关闭。',
     cl_agora_update:'更新 Agora RTC', cl_agora_refresh:'刷新 Agora RTC',
@@ -11171,7 +11164,7 @@ const I18N_INDEX = {
     cl_region:'デフォルトリージョン', cl_log_level:'ログレベル',
     cl_debug_sdp:'SDP デバッグログ', cl_enable_webrtc:'WebRTC 有効',
     cl_update:'WebRTC 更新',
-    cl_agora_title:'Agora RTC サービス', cl_agora_app_id:'アプリ ID', cl_agora_project:'プロジェクト', cl_agora_project_hint:'App ID から Agora コンソールのプロジェクトを照合。', cl_agora_project_unknown:'一致するプロジェクトなし', cl_agora_project_pick:'Agora プロジェクトを選択…', cl_agora_channel:'チャンネル名',
+    cl_agora_title:'Agora RTC サービス', cl_agora_app_id:'アプリ ID', cl_agora_project:'プロジェクト', cl_agora_project_hint:'App ID から Agora コンソールのプロジェクトを照合。', cl_agora_project_unknown:'一致するプロジェクトなし', cl_agora_project_pick:'Agora プロジェクトを選択…', cl_agora_layout_hint:'プロジェクト選択で App ID を記入。Certificate は一致必須。チャンネル=端末 UUID。Token は空。', cl_agora_channel:'チャンネル名',
     cl_agora_enable:'RTC 有効', cl_agora_token:'トークン', cl_agora_log_level:'ログレベル',
     cl_agora_rtm_enable:'デバイス RTM', cl_agora_rtm_enable_hint:'既定オフ。RTC プレビューのみなら不要。',
     cl_agora_update:'Agora RTC 更新', cl_agora_refresh:'Agora RTC リフレッシュ',
@@ -11338,7 +11331,7 @@ const I18N_INDEX = {
     cl_region:'Standardregion', cl_log_level:'Protokollstufe',
     cl_debug_sdp:'SDP-Debug-Log', cl_enable_webrtc:'WebRTC aktivieren',
     cl_update:'WebRTC aktualisieren',
-    cl_agora_title:'Agora RTC Dienst', cl_agora_app_id:'App-ID', cl_agora_project:'Projekt', cl_agora_project_hint:'Zuordnung über App-ID zur Agora-Konsolen-Projektliste.', cl_agora_project_unknown:'keine Projektzuordnung', cl_agora_project_pick:'Agora-Projekt wählen…', cl_agora_channel:'Kanalname',
+    cl_agora_title:'Agora RTC Dienst', cl_agora_app_id:'App-ID', cl_agora_project:'Projekt', cl_agora_project_hint:'Zuordnung über App-ID zur Agora-Konsolen-Projektliste.', cl_agora_project_unknown:'keine Projektzuordnung', cl_agora_project_pick:'Agora-Projekt wählen…', cl_agora_layout_hint:'Projekt füllt App-ID; Zertifikat muss passen. Kanal=Geräte-UUID. Token leer lassen.', cl_agora_channel:'Kanalname',
     cl_agora_enable:'RTC aktiviert', cl_agora_token:'Token', cl_agora_log_level:'Log-Level',
     cl_agora_rtm_enable:'Gerät-RTM', cl_agora_rtm_enable_hint:'Standard aus. Für nur RTC-Vorschau nicht nötig.',
     cl_agora_update:'Agora RTC aktualisieren', cl_agora_refresh:'Agora RTC aktualisieren',
@@ -11506,7 +11499,7 @@ const I18N_INDEX = {
     cl_region:'Région par défaut', cl_log_level:'Niveau de log',
     cl_debug_sdp:'Log debug SDP', cl_enable_webrtc:'Activer WebRTC',
     cl_update:'Mettre à jour WebRTC',
-    cl_agora_title:'Service Agora RTC', cl_agora_app_id:'ID App', cl_agora_project:'Projet', cl_agora_project_hint:'Correspondance via App ID avec la liste des projets Agora Console.', cl_agora_project_unknown:'App ID sans projet', cl_agora_project_pick:'Choisir un projet Agora…', cl_agora_channel:'Nom du canal',
+    cl_agora_title:'Service Agora RTC', cl_agora_app_id:'ID App', cl_agora_project:'Projet', cl_agora_project_hint:'Correspondance via App ID avec la liste des projets Agora Console.', cl_agora_project_unknown:'App ID sans projet', cl_agora_project_pick:'Choisir un projet Agora…', cl_agora_layout_hint:'Le projet remplit l’App ID ; le certificat doit correspondre. Canal=UUID. Token vide.', cl_agora_channel:'Nom du canal',
     cl_agora_enable:'RTC activé', cl_agora_token:'Jeton', cl_agora_log_level:'Niveau log',
     cl_agora_rtm_enable:'RTM appareil', cl_agora_rtm_enable_hint:'Désactivé par défaut. Inutile pour l’aperçu RTC seul.',
     cl_agora_update:'Mettre à jour Agora RTC', cl_agora_refresh:'Actualiser Agora RTC',
@@ -11674,7 +11667,7 @@ const I18N_INDEX = {
     cl_region:'Región por defecto', cl_log_level:'Nivel de log',
     cl_debug_sdp:'Log debug SDP', cl_enable_webrtc:'Habilitar WebRTC',
     cl_update:'Actualizar WebRTC',
-    cl_agora_title:'Servicio Agora RTC', cl_agora_app_id:'ID de App', cl_agora_project:'Proyecto', cl_agora_project_hint:'Coincide por App ID con la lista de proyectos de Agora Console.', cl_agora_project_unknown:'App ID sin proyecto', cl_agora_project_pick:'Elegir proyecto Agora…', cl_agora_channel:'Nombre canal',
+    cl_agora_title:'Servicio Agora RTC', cl_agora_app_id:'ID de App', cl_agora_project:'Proyecto', cl_agora_project_hint:'Coincide por App ID con la lista de proyectos de Agora Console.', cl_agora_project_unknown:'App ID sin proyecto', cl_agora_project_pick:'Elegir proyecto Agora…', cl_agora_layout_hint:'El proyecto rellena App ID; el certificado debe coincidir. Canal=UUID. Token vacío.', cl_agora_channel:'Nombre canal',
     cl_agora_enable:'RTC habilitado', cl_agora_token:'Token', cl_agora_log_level:'Nivel log',
     cl_agora_rtm_enable:'RTM del dispositivo', cl_agora_rtm_enable_hint:'Desactivado por defecto. No hace falta solo para vista previa RTC.',
     cl_agora_update:'Actualizar Agora RTC', cl_agora_refresh:'Refrescar Agora RTC',
