@@ -28,15 +28,22 @@
   --panel:rgba(13,17,23,.6); --input-bg:rgba(5,7,14,.5); --input-bg-focus:rgba(19,26,36,.6);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html{
+  min-height:100%;
+  background-color:var(--bg0);
+}
 body{
   font-family:var(--font-body); color:var(--text-hi);
-  background:
+  /* 底色 + 固定氛围：滚动时不再在一屏处「切一刀」 */
+  background-color:var(--bg0);
+  background-image:
     radial-gradient(900px 520px at 12% -12%, var(--glow1), transparent 60%),
     radial-gradient(760px 480px at 104% 0%, var(--glow2), transparent 55%),
-    var(--bg0);
+    radial-gradient(640px 420px at 50% 118%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+  background-attachment:fixed;
+  background-repeat:no-repeat;
   -webkit-font-smoothing:antialiased; font-feature-settings:'tnum','cv02','cv03';
-  min-height:100vh; transition:background .3s var(--ease);
+  min-height:100vh; transition:background-color .3s var(--ease), background-image .3s var(--ease);
 }
 a{color:var(--accent);text-decoration:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}

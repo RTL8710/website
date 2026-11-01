@@ -8,12 +8,26 @@
   src:url(../device/webfonts/fa-solid-900.woff2) format("woff2"),
       url(../device/webfonts/fa-solid-900.ttf) format("truetype");
 }
-.admin-shell{display:grid;grid-template-columns:164px 1fr;min-height:100vh;transition:grid-template-columns .22s var(--ease)}
-.admin-shell.is-collapsed{grid-template-columns:72px 1fr}
+.admin-shell{
+  --admin-side-w:164px;
+  display:grid;grid-template-columns:var(--admin-side-w) 1fr;min-height:100vh;
+  transition:grid-template-columns .22s var(--ease);
+  position:relative;isolation:isolate;
+}
+.admin-shell.is-collapsed{--admin-side-w:72px;grid-template-columns:var(--admin-side-w) 1fr}
+/* 侧栏底贯穿整页高度，避免内容区变高后左侧露出断层 */
+.admin-shell::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:var(--admin-side-w);z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(7,9,13,.78),rgba(7,9,13,.52));
+  border-right:1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transition:width .22s var(--ease);
+}
 .admin-side{
   display:flex;flex-direction:column;align-items:stretch;gap:8px;
-  border-right:1px solid var(--border);background:rgba(7,9,13,.62);backdrop-filter:blur(16px);
-  padding:14px 10px 16px;position:sticky;top:0;height:100vh;overflow:auto
+  border-right:0;background:transparent;backdrop-filter:none;
+  padding:14px 10px 16px;position:sticky;top:0;height:100vh;overflow:auto;
+  z-index:1;
 }
 .admin-side .logo{display:flex;align-items:center;gap:10px;padding:6px 10px 16px;font-weight:800;font-size:14px}
 .admin-side .logo .b{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(45,212,191,.15)}
@@ -69,7 +83,16 @@
   transition:background .15s,color .15s,border-color .15s
 }
 .admin-side-toggle:hover{background:var(--fill-md);color:var(--accent);border-color:var(--acc-soft-bd)}
-.admin-main{padding:18px clamp(14px,2.5vw,26px) 56px;min-width:0;max-width:1280px}
+.admin-main{
+  position:relative;z-index:1;
+  padding:18px clamp(14px,2.5vw,26px) 96px;min-width:0;max-width:1280px;
+}
+/* 内容底部柔收，替代硬切 */
+.admin-main::after{
+  content:"";display:block;height:1px;margin-top:28px;
+  background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--border) 55%, transparent) 18%, color-mix(in srgb, var(--border) 55%, transparent) 82%, transparent);
+  opacity:.55;
+}
 .admin-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .admin-head h1{font-size:22px;font-weight:800;font-family:var(--font-display);letter-spacing:-.02em}
 .admin-sub{font-size:13px;color:var(--text-lo);width:100%;margin-top:-6px;margin-bottom:8px}
@@ -585,7 +608,11 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
   display:flex;align-items:center;gap:12px;font-size:11px;font-weight:800;letter-spacing:.12em;
   text-transform:uppercase;color:var(--text-lo);
 }
-.logs-day-h::after{content:"";flex:1;height:1px;background:var(--border)}
+.logs-day-h::after{
+  content:"";flex:1;height:1px;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, var(--border)), transparent 88%);
+  opacity:.65;
+}
 
 .logs-card{
   display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;
@@ -1075,3 +1102,25 @@ html.admin-booting body{overflow:hidden}
   .admin-skel,.overview-sync-chip .spin{animation:none}
 }
 
+
+
+/* stream polish：列表与背景更融，减少「切片感」 */
+.logs-stream{gap:18px}
+.logs-day{gap:8px}
+.logs-card{
+  background:linear-gradient(165deg, rgba(255,255,255,.055), rgba(255,255,255,.012));
+  box-shadow:0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.logs-card.on{
+  border-color:color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow:var(--sh-glow), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.logs-page > .glass.logs-dock,
+.logs-page > .glass.logs-hero,
+.ota-panel.glass{
+  box-shadow:0 12px 32px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.045);
+}
+@media (max-width:860px){
+  .admin-shell::before{display:none}
+  .admin-side{border-right:1px solid var(--border);background:rgba(7,9,13,.62);backdrop-filter:blur(16px)}
+}
