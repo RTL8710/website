@@ -1146,8 +1146,10 @@ function viewUsers() {
 
 function deviceCardMark(d) {
   const raw = d._pictureRaw || d.picture || (d.raw && d.raw.devicePicture) || '';
-  const mark = h('div', { class: 'logs-card-mark' + (raw ? ' has-thumb' : '') + (d.online ? '' : ' is-off') });
-  if (raw) mark.appendChild(mediaThumb(raw, { w: '44px', h: '44px' }));
+  const mark = h('div', {
+    class: 'logs-card-mark dev-thumb' + (raw ? ' has-thumb' : '') + (d.online ? ' is-on' : ' is-off'),
+  });
+  if (raw) mark.appendChild(mediaThumb(raw, { w: '112px', h: '72px' }));
   else mark.appendChild(fa(otaPkgIcon(resolveDeviceType(d))));
   return mark;
 }
