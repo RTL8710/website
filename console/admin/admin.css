@@ -704,6 +704,12 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .ota-xfer-head{
   display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;
 }
+.ota-xfer.is-compact .ota-xfer-head{margin-bottom:10px}
+.ota-xfer-file{
+  min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12.5px;font-weight:600;color:var(--text-md);
+  font-variant-numeric:tabular-nums;
+}
 .ota-xfer-pill{
   display:inline-flex;align-items:center;gap:8px;min-width:0;
   padding:5px 11px 5px 9px;border-radius:999px;

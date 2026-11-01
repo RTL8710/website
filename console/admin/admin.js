@@ -2525,13 +2525,18 @@ function otaXferView(opts) {
   const p = Math.max(0, Math.min(100, Number(o.progress) || 0));
   const failed = !!o.failed;
   const done = !!o.done || p >= 100;
-  const cls = 'ota-xfer' + (failed ? ' is-err' : (done && !o.busy ? ' is-done' : ' is-busy'));
+  const phase = (o.phase == null) ? '' : String(o.phase);
+  const showPhase = !!phase;
+  const cls = 'ota-xfer' + (failed ? ' is-err' : (done && !o.busy ? ' is-done' : ' is-busy'))
+    + (showPhase ? '' : ' is-compact');
   return h('div', { class: cls, 'data-ota-xfer': '1' },
     h('div', { class: 'ota-xfer-head' },
-      h('span', { class: 'ota-xfer-pill' },
-        h('span', { class: 'ota-xfer-dot', 'aria-hidden': 'true' }),
-        h('span', { 'data-ota-phase': '1' }, o.phase || t('uploading')),
-      ),
+      showPhase
+        ? h('span', { class: 'ota-xfer-pill' },
+            h('span', { class: 'ota-xfer-dot', 'aria-hidden': 'true' }),
+            h('span', { 'data-ota-phase': '1' }, phase),
+          )
+        : h('span', { class: 'ota-xfer-file', 'data-ota-meta-inline': '1' }, o.detail || ''),
       h('span', { class: 'ota-xfer-pct', 'data-ota-pct': '1' }, p + '%'),
     ),
     h('div', {
@@ -2542,7 +2547,7 @@ function otaXferView(opts) {
       'aria-valuenow': String(p),
       'aria-label': (o.phase || t('uploading')) + ' ' + p + '%',
     }, h('i', { 'data-ota-bar': '1', style: { width: p + '%' } })),
-    o.detail ? h('div', { class: 'ota-xfer-meta', 'data-ota-meta': '1' }, o.detail) : null,
+    (o.detail && showPhase) ? h('div', { class: 'ota-xfer-meta', 'data-ota-meta': '1' }, o.detail) : null,
   );
 }
 
@@ -2559,7 +2564,11 @@ function paintUploadProgress(p) {
     if (track) {
       track.setAttribute('aria-valuenow', String(pct));
       const phase = root.querySelector('[data-ota-phase]');
-      track.setAttribute('aria-label', ((phase && phase.textContent) || t('uploading')) + ' ' + pct + '%');
+      const inline = root.querySelector('[data-ota-meta-inline]');
+      const label = (phase && phase.textContent)
+        || (inline && inline.textContent)
+        || t('uploading');
+      track.setAttribute('aria-label', label + ' ' + pct + '%');
     }
     root.classList.toggle('is-done', pct >= 100);
   }
@@ -2719,7 +2728,7 @@ function viewOta() {
           u.busy ? (t('uploading') + '…') : (isApp ? t('btnUploadApp') : t('btnUpload')))),
       u.busy ? otaXferView({
         progress: u.progress || 0,
-        phase: t('uploading'),
+        phase: '', // 按钮已有「上传中…」，进度卡只留百分比+文件名
         busy: true,
         detail: u.file
           ? (u.file.name + ' · ' + Math.round(u.file.size / 1024) + ' KB')
