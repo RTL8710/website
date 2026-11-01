@@ -324,18 +324,13 @@ function mediaThumb(raw, opts) {
   });
   return box;
 }
-function cardWhen(iso) {
-  const abs = fmt(iso);
-  const rel = logsRelTime(iso);
-  if (rel === abs) return h('div', { class: 'logs-card-when' }, h('b', {}, abs));
-  return h('div', { class: 'logs-card-when' }, h('b', {}, rel), abs);
-}
 // 与 App avatar_presets.dart 对齐：User.picture = "icon:<index>" 为内置头像，非 S3
+// 图标名须存在于 device/css/all.min.css（FA6 free）
 const AVATAR_PRESET_ICONS = [
   'fa-user', 'fa-face-smile', 'fa-face-grin', 'fa-face-laugh', 'fa-face-meh',
-  'fa-face-grin-wide', 'fa-face-grin-stars', 'fa-paw', 'fa-robot', 'fa-mobile-screen',
+  'fa-face-grin-wide', 'fa-face-grin-stars', 'fa-paw', 'fa-robot', 'fa-android',
   'fa-face-smile', 'fa-face-laugh-beam', 'fa-rocket', 'fa-feather', 'fa-gamepad',
-  'fa-star', 'fa-heart', 'fa-bolt', 'fa-camera', 'fa-shield-halved',
+  'fa-star', 'fa-heart', 'fa-bolt', 'fa-camera', 'fa-shield-alt',
 ];
 function avatarPresetFa(picture) {
   const m = String(picture || '').trim().match(/^icon:(\d+)$/i);
@@ -345,45 +340,44 @@ function avatarPresetFa(picture) {
   return AVATAR_PRESET_ICONS[i];
 }
 function isPresetAvatar(picture) { return !!avatarPresetFa(picture); }
-function userInitials(u) {
-  const raw = String((u && (u.awsUserName || u.email || u.phoneNumber || u.id)) || '?').trim();
-  if (!raw) return '?';
-  if (/^\+?\d{6,}$/.test(raw.replace(/\s/g, ''))) {
-    const d = raw.replace(/\D/g, '');
-    return d.slice(-2) || '?';
-  }
-  const base = raw.includes('@') ? raw.split('@')[0] : raw;
-  const chars = Array.from(base);
-  return (chars[0] || '?').toUpperCase() + ((chars[1] || '').toUpperCase());
+function stableAvatarFa(u) {
+  const s = String((u && (u.id || u.awsUserID || u.awsUserName || u.phoneNumber)) || 'x');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
+  return AVATAR_PRESET_ICONS[h % AVATAR_PRESET_ICONS.length];
 }
 function userCardMark(u) {
   const raw = (u && String(u.picture || '').trim()) || '';
-  const fallback = () => {
-    const mark = h('div', { class: 'logs-card-mark user-avatar-fallback', title: (u && (u.awsUserName || u.email)) || '' });
-    mark.appendChild(h('span', { class: 'user-avatar-ini' }, userInitials(u)));
+  const paintPreset = (iconCls, title) => {
+    const mark = h('div', { class: 'logs-card-mark user-avatar-preset', title: title || '' });
+    mark.appendChild(fa(iconCls));
     return mark;
   };
-  // App 预设：icon:N → Font Awesome，勿当 S3 key 去签
+  // 1) App 明确写入的 icon:N
   const preset = avatarPresetFa(raw);
-  if (preset) {
-    const mark = h('div', {
-      class: 'logs-card-mark user-avatar-preset',
-      title: raw,
+  if (preset) return paintPreset(preset, raw);
+  // 2) S3 / http 头像
+  if (raw && !/^icon:/i.test(raw)) {
+    const mark = h('div', { class: 'logs-card-mark has-thumb' });
+    const box = mediaThumb(raw, {
+      w: '44px', h: '44px',
+      onError: () => {
+        const fb = paintPreset(stableAvatarFa(u), 'avatar fallback');
+        mark.replaceWith(fb);
+      },
     });
-    mark.appendChild(fa(preset));
+    mark.appendChild(box);
     return mark;
   }
-  if (!raw) return fallback();
-  const mark = h('div', { class: 'logs-card-mark has-thumb' });
-  const box = mediaThumb(raw, {
-    w: '44px', h: '44px',
-    onError: () => {
-      const fb = fallback();
-      mark.replaceWith(fb);
-    },
-  });
-  mark.appendChild(box);
-  return mark;
+  // 3) 未设置 picture：按用户稳定映射预设图标（勿用手机号末两位当「头像」）
+  return paintPreset(stableAvatarFa(u), 'preset-fallback');
+}
+function cardWhen(iso) {
+  // 单行：近期相对时间，否则绝对时间（避免双行重复感）
+  const abs = fmt(iso);
+  const rel = logsRelTime(iso);
+  const line = (rel && rel !== abs) ? rel : abs;
+  return h('div', { class: 'logs-card-when', title: abs }, h('b', {}, line));
 }
 function copyable(text, title) {
   return h('span', {
