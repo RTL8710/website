@@ -670,7 +670,128 @@ html[data-theme="light"] .status-tag.is-offline{background:rgba(100,116,139,.1);
 .ota-studio{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;overflow:visible}
 .ota-panel-foot{margin-top:auto;padding-top:14px;display:flex;flex-direction:column;gap:12px}
 .ota-panel-foot .progress{margin-top:0}
-.ota-upload-bar{height:6px}
+
+/* OTA 传输进度卡：大号百分比 + 发光轨道 */
+.ota-xfer{
+  position:relative;margin-top:2px;padding:14px 16px 13px;
+  border-radius:14px;
+  border:1px solid color-mix(in srgb, var(--acc-soft-bd, rgba(168,85,247,.35)) 80%, transparent);
+  background:
+    linear-gradient(135deg, rgba(168,85,247,.10), rgba(45,212,191,.04) 55%, rgba(0,0,0,.18)),
+    rgba(8,10,16,.55);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.03) inset,
+    0 10px 28px rgba(0,0,0,.28),
+    0 0 24px rgba(168,85,247,.08);
+  overflow:hidden;
+}
+.ota-xfer::before{
+  content:"";position:absolute;inset:0 auto 0 0;width:3px;
+  background:linear-gradient(180deg, var(--accent2, #c084fc), var(--accent, #a855f7), var(--accent2, #2dd4bf));
+  opacity:.9;
+}
+.ota-xfer.is-busy{border-color:rgba(168,85,247,.42)}
+.ota-xfer.is-done{
+  border-color:rgba(52,211,153,.38);
+  box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.28), 0 0 22px rgba(52,211,153,.12);
+}
+.ota-xfer.is-done::before{background:linear-gradient(180deg,#6ee7b7,#34d399)}
+.ota-xfer.is-err{
+  border-color:rgba(248,113,113,.42);
+  box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.28), 0 0 22px rgba(248,113,113,.12);
+}
+.ota-xfer.is-err::before{background:linear-gradient(180deg,#fca5a5,#f87171)}
+.ota-xfer-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;
+}
+.ota-xfer-pill{
+  display:inline-flex;align-items:center;gap:8px;min-width:0;
+  padding:5px 11px 5px 9px;border-radius:999px;
+  font-size:12px;font-weight:700;letter-spacing:.02em;
+  color:#f3e8ff;
+  background:rgba(168,85,247,.18);
+  border:1px solid rgba(192,132,252,.28);
+  backdrop-filter:blur(8px);
+}
+.ota-xfer.is-done .ota-xfer-pill{
+  color:#bbf7d0;background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.3);
+}
+.ota-xfer.is-err .ota-xfer-pill{
+  color:#fecaca;background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.3);
+}
+.ota-xfer-dot{
+  width:7px;height:7px;border-radius:50%;flex:none;
+  background:var(--accent2, #c084fc);
+  box-shadow:0 0 0 3px rgba(192,132,252,.18), 0 0 10px rgba(168,85,247,.55);
+}
+.ota-xfer.is-busy .ota-xfer-dot{animation:otaXferPulse 1.25s ease-in-out infinite}
+.ota-xfer.is-done .ota-xfer-dot{
+  background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.18), 0 0 10px rgba(52,211,153,.5);animation:none;
+}
+.ota-xfer.is-err .ota-xfer-dot{
+  background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.18), 0 0 10px rgba(248,113,113,.45);animation:none;
+}
+.ota-xfer-pct{
+  flex:none;font-family:var(--font-display), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(135deg,#f5d0fe 0%, #c084fc 45%, #67e8f9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 24px rgba(168,85,247,.25);
+}
+.ota-xfer.is-done .ota-xfer-pct{
+  background:linear-gradient(135deg,#bbf7d0,#34d399);
+  -webkit-background-clip:text;background-clip:text;
+}
+.ota-xfer.is-err .ota-xfer-pct{
+  background:linear-gradient(135deg,#fecaca,#f87171);
+  -webkit-background-clip:text;background-clip:text;
+}
+.ota-xfer-track{
+  position:relative;height:10px;border-radius:999px;overflow:hidden;
+  background:rgba(255,255,255,.06);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.35);
+}
+.ota-xfer-track>i{
+  display:block;height:100%;width:0;border-radius:inherit;position:relative;
+  background:linear-gradient(90deg,#7c3aed 0%, #a855f7 40%, #22d3ee 100%);
+  box-shadow:0 0 16px rgba(168,85,247,.45), 0 0 4px rgba(34,211,238,.35);
+  transition:width .18s cubic-bezier(.22,1,.36,1);
+}
+.ota-xfer-track>i::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg, transparent 0%, rgba(255,255,255,.38) 50%, transparent 100%);
+  background-size:200% 100%;
+  animation:otaXferShine 1.6s linear infinite;
+  opacity:.85;
+}
+.ota-xfer.is-done .ota-xfer-track>i{
+  background:linear-gradient(90deg,#059669,#34d399,#6ee7b7);
+  box-shadow:0 0 14px rgba(52,211,153,.4);
+}
+.ota-xfer.is-done .ota-xfer-track>i::after{animation:none;opacity:.25}
+.ota-xfer.is-err .ota-xfer-track>i{
+  background:linear-gradient(90deg,#dc2626,#f87171);
+  box-shadow:0 0 14px rgba(248,113,113,.4);
+}
+.ota-xfer.is-err .ota-xfer-track>i::after{animation:none}
+.ota-xfer-meta{
+  margin-top:10px;font-size:11.5px;color:var(--text-md);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+@keyframes otaXferPulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.55;transform:scale(.86)}
+}
+@keyframes otaXferShine{
+  0%{background-position:120% 0}
+  100%{background-position:-120% 0}
+}
+@media (prefers-reduced-motion:reduce){
+  .ota-xfer.is-busy .ota-xfer-dot,
+  .ota-xfer-track>i::after{animation:none}
+}
 .ota-panel.is-upload:not(.is-app){padding:12px 14px}
 .ota-panel.is-upload:not(.is-app) h3{margin-bottom:10px}
 .ota-panel.is-upload:not(.is-app) .ota-drop{padding:10px 12px}

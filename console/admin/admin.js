@@ -2520,13 +2520,51 @@ function otaPkgCard(pkg, ug, isApp, latestIds) {
 }
 
 
+function otaXferView(opts) {
+  const o = opts || {};
+  const p = Math.max(0, Math.min(100, Number(o.progress) || 0));
+  const failed = !!o.failed;
+  const done = !!o.done || p >= 100;
+  const cls = 'ota-xfer' + (failed ? ' is-err' : (done && !o.busy ? ' is-done' : ' is-busy'));
+  return h('div', { class: cls, 'data-ota-xfer': '1' },
+    h('div', { class: 'ota-xfer-head' },
+      h('span', { class: 'ota-xfer-pill' },
+        h('span', { class: 'ota-xfer-dot', 'aria-hidden': 'true' }),
+        h('span', { 'data-ota-phase': '1' }, o.phase || t('uploading')),
+      ),
+      h('span', { class: 'ota-xfer-pct', 'data-ota-pct': '1' }, p + '%'),
+    ),
+    h('div', {
+      class: 'ota-xfer-track',
+      role: 'progressbar',
+      'aria-valuemin': '0',
+      'aria-valuemax': '100',
+      'aria-valuenow': String(p),
+      'aria-label': (o.phase || t('uploading')) + ' ' + p + '%',
+    }, h('i', { 'data-ota-bar': '1', style: { width: p + '%' } })),
+    o.detail ? h('div', { class: 'ota-xfer-meta', 'data-ota-meta': '1' }, o.detail) : null,
+  );
+}
+
 function paintUploadProgress(p) {
-  const root = document.querySelector('.ota-studio > .ota-panel:first-child');
-  if (!root) return;
-  const bar = root.querySelector('.progress > i');
-  if (bar) bar.style.width = (p || 0) + '%';
-  const btn = root.querySelector('.row-actions .gbtn.primary');
-  if (btn && state.upload.busy) btn.textContent = t('uploading') + ' ' + (p || 0) + '%';
+  const root = document.querySelector('.ota-panel.is-upload [data-ota-xfer]')
+    || document.querySelector('.ota-studio > .ota-panel:first-child [data-ota-xfer]');
+  const pct = Math.max(0, Math.min(100, Number(p) || 0));
+  if (root) {
+    const bar = root.querySelector('[data-ota-bar]');
+    if (bar) bar.style.width = pct + '%';
+    const el = root.querySelector('[data-ota-pct]');
+    if (el) el.textContent = pct + '%';
+    const track = root.querySelector('.ota-xfer-track');
+    if (track) {
+      track.setAttribute('aria-valuenow', String(pct));
+      const phase = root.querySelector('[data-ota-phase]');
+      track.setAttribute('aria-label', ((phase && phase.textContent) || t('uploading')) + ' ' + pct + '%');
+    }
+    root.classList.toggle('is-done', pct >= 100);
+  }
+  const btn = document.querySelector('.ota-panel.is-upload .row-actions .gbtn.primary');
+  if (btn && state.upload.busy) btn.textContent = t('uploading') + '…';
 }
 
 function otaSelect(id, placeholder, selectedText, options, onPick, searchPh) {
@@ -2678,8 +2716,15 @@ function viewOta() {
     h('div', { class: 'ota-panel-foot' },
       h('div', { class: 'row-actions' },
         h('button', { class: 'gbtn primary', disabled: u.busy, onclick: () => doUpload() },
-          u.busy ? `${t('uploading')} ${u.progress}%` : (isApp ? t('btnUploadApp') : t('btnUpload')))),
-      u.busy ? h('div', { class: 'progress ota-upload-bar' }, h('i', { style: { width: (u.progress || 0) + '%' } })) : null,
+          u.busy ? (t('uploading') + '…') : (isApp ? t('btnUploadApp') : t('btnUpload')))),
+      u.busy ? otaXferView({
+        progress: u.progress || 0,
+        phase: t('uploading'),
+        busy: true,
+        detail: u.file
+          ? (u.file.name + ' · ' + Math.round(u.file.size / 1024) + ' KB')
+          : '',
+      }) : null,
       u.msg ? h('div', { class: 'admin-msg ok' }, u.msg) : null,
       u.err ? h('div', { class: 'admin-msg err' }, u.err) : null,
     ),
@@ -2763,15 +2808,16 @@ function viewOta() {
               };
               render();
             },
-          }, ug.busy || ug.tracking ? (ug.tracking ? `${t('upgrading')} ${ug.progress || 0}%` : t('dispatching')) : t('btnRemote'))),
-        (ug.tracking || ug.progress > 0 || ug.statusText) ? h('div', { class: 'admin-field', style: { marginTop: '10px' } },
-          h('label', {}, t('upgradeStatus')),
-          h('div', { class: 'progress', style: { marginTop: '6px' } }, h('i', { style: { width: (ug.progress || 0) + '%' } })),
-          h('div', {
-            class: 'admin-msg ' + (ug.err ? 'err' : (String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED' ? 'ok' : 'info')),
-            style: { marginTop: '8px' },
-          }, ug.err || ug.statusText || ug.msg || t('waitingDevice')),
-        ) : null,
+          }, ug.busy || ug.tracking ? (ug.tracking ? (t('upgrading') + '…') : t('dispatching')) : t('btnRemote'))),
+        (ug.tracking || ug.progress > 0 || ug.statusText) ? otaXferView({
+          progress: ug.progress || 0,
+          phase: ug.err || ug.statusText || ug.msg || t('waitingDevice'),
+          detail: ug.detail || '',
+          busy: !!(ug.busy || ug.tracking),
+          done: String(ug.status) === '6' || String(ug.status) === 'SUCCEEDED',
+          failed: !!(ug.err || String(ug.status) === '5' || String(ug.status) === 'FAILED'
+            || String(ug.status) === 'REJECTED' || String(ug.status) === 'TIMED_OUT'),
+        }) : null,
         ug.msg && !ug.tracking ? h('div', { class: 'admin-msg ok' }, ug.msg) : null,
         ug.err && !ug.tracking ? h('div', { class: 'admin-msg err' }, ug.err) : null,
         h('div', { class: 'admin-msg info', style: { marginTop: '12px' } }, t('otaIotHint')),
