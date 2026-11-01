@@ -1280,3 +1280,27 @@ html.admin-booting body{overflow:hidden}
     width:56px;height:56px;border-radius:14px;font-size:22px;
   }
 }
+
+
+/* 远程页设备卡：缩略图 + 可复制 IP */
+.remote-page .remote-device-card,
+.remote-panel .remote-device-card{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;
+  padding:14px 16px;min-height:88px;
+}
+.remote-page .remote-device-card .logs-card-mark.dev-thumb,
+.remote-panel .remote-device-card .logs-card-mark.dev-thumb{
+  width:96px;height:62px;border-radius:14px;font-size:20px;
+}
+.remote-page .remote-device-card .logs-card-mark.dev-thumb.has-thumb .thumb,
+.remote-panel .remote-device-card .logs-card-mark.dev-thumb.has-thumb .thumb{
+  width:96px;height:62px;border-radius:14px;
+}
+@media (max-width:720px){
+  .remote-page .remote-device-card .logs-card-mark.dev-thumb,
+  .remote-panel .remote-device-card .logs-card-mark.dev-thumb,
+  .remote-page .remote-device-card .logs-card-mark.dev-thumb.has-thumb .thumb,
+  .remote-panel .remote-device-card .logs-card-mark.dev-thumb.has-thumb .thumb{
+    width:72px;height:48px;border-radius:12px;font-size:16px;
+  }
+}

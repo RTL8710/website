@@ -629,7 +629,9 @@ function remoteOpsRows() {
 }
 
 function remoteDeviceCard(d) {
-  return h('div', { class: 'glass logs-card', style: { marginBottom: '10px' } },
+  const ip = String(d.remoteHost || '').trim();
+  return h('div', { class: 'glass logs-card remote-device-card', style: { marginBottom: '10px' } },
+    deviceCardMark(d),
     h('div', { class: 'logs-card-body' },
       h('div', { class: 'logs-card-code' }, d.name || shortId(d.id)),
       h('div', { class: 'logs-card-meta' },
@@ -651,7 +653,11 @@ function remoteDeviceCard(d) {
           style: { cursor: 'pointer' },
           onclick: (e) => { e.stopPropagation(); openRemoteWeb(d.remoteHost, hp, true); },
         }, t('remoteHttps'), h('span', { class: 'clip' }, d.remoteHost + ':' + hp))),
-        h('span', { class: 'logs-chip mute' }, t('remoteVpnIp') + ' ' + d.remoteHost),
+        ip ? h('span', {
+          class: 'logs-chip mute is-copy',
+          title: t('copy') + ': ' + ip,
+          onclick: (e) => { e.stopPropagation(); copyText(ip); },
+        }, t('remoteVpnIp'), h('span', { class: 'clip' }, ip), fa('fa-copy')) : null,
       ),
     ),
   );
