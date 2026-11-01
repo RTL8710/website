@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="auto" xmlns:margin-top="http://www.w3.org/1999/xhtml">
 <head>
-    <script>/* 防主题闪烁:渲染前先按已存主题设 data-theme(dark=无属性,回落 :root) */(function(){try{var t=localStorage.getItem('dv_theme');if(t&&t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+    <script>/* 防主题闪烁 + 首屏 boot 遮罩 */(function(){try{var t=localStorage.getItem('dv_theme');if(t&&t!=='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}document.documentElement.classList.add('dv-booting');})();</script>
     <meta charset="UTF-8">
     <!--    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3266,8 +3266,194 @@ window.__presignThumbUrl = function (raw) {
         }
 
     </style>
+
+    <style id="dv-boot-css">
+      /* ── 强制刷新首屏：高端 boot 遮罩，避免空 Dashboard 裸闪 ── */
+      html.dv-booting, html.dv-booting body { overflow: hidden !important; }
+      html.dv-booting .page { visibility: hidden; }
+      #dv-boot-overlay {
+        position: fixed; inset: 0; z-index: 100000;
+        display: flex; align-items: center; justify-content: center;
+        background:
+          radial-gradient(900px 520px at 50% 28%, color-mix(in srgb, var(--accent, #22D3EE) 18%, transparent), transparent 62%),
+          radial-gradient(700px 480px at 80% 90%, color-mix(in srgb, var(--accent2, #38BDF8) 10%, transparent), transparent 55%),
+          linear-gradient(165deg, #070d18 0%, var(--bg-base, #0B1220) 48%, #0a1220 100%);
+        color: var(--text-primary, #E5EDF7);
+        transition: opacity .55s cubic-bezier(.22,.8,.28,1), visibility .55s;
+        overflow: hidden;
+      }
+      #dv-boot-overlay.dv-boot-done {
+        opacity: 0; visibility: hidden; pointer-events: none;
+      }
+      #dv-boot-overlay .dv-boot-grid {
+        position: absolute; inset: 0; opacity: .35; pointer-events: none;
+        background-image:
+          linear-gradient(color-mix(in srgb, var(--accent,#22D3EE) 7%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in srgb, var(--accent,#22D3EE) 7%, transparent) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 70% 60% at 50% 42%, #000 20%, transparent 75%);
+      }
+      #dv-boot-overlay .dv-boot-scan {
+        position: absolute; left: 0; right: 0; height: 28%;
+        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent,#22D3EE) 10%, transparent), transparent);
+        animation: dv-boot-scan 3.6s ease-in-out infinite;
+        pointer-events: none; opacity: .55;
+      }
+      @keyframes dv-boot-scan { 0%{top:-30%} 100%{top:110%} }
+      .dv-boot-stage {
+        position: relative; z-index: 1; width: min(420px, 88vw);
+        text-align: center; padding: 28px 20px;
+      }
+      .dv-boot-orb {
+        position: relative; width: 118px; height: 118px; margin: 0 auto 22px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .dv-boot-orb .ring {
+        position: absolute; inset: 0; border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, var(--accent,#22D3EE) 35%, transparent);
+        animation: dv-boot-spin 8s linear infinite;
+      }
+      .dv-boot-orb .ring:nth-child(2) {
+        inset: 12px; border-color: color-mix(in srgb, var(--accent2,#38BDF8) 45%, transparent);
+        border-top-color: transparent; border-left-color: transparent;
+        animation-duration: 4.2s; animation-direction: reverse;
+      }
+      .dv-boot-orb .ring:nth-child(3) {
+        inset: 26px; border-style: dashed; opacity: .55;
+        animation-duration: 12s;
+      }
+      .dv-boot-orb .core {
+        width: 54px; height: 54px; border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(145deg, color-mix(in srgb, var(--accent,#22D3EE) 22%, transparent), color-mix(in srgb, var(--bg-card,#131C2E) 80%, transparent));
+        border: 1px solid color-mix(in srgb, var(--accent,#22D3EE) 40%, transparent);
+        box-shadow: 0 0 28px color-mix(in srgb, var(--accent,#22D3EE) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.08);
+        color: var(--accent,#22D3EE); font-size: 22px;
+        animation: dv-boot-pulse 2.4s ease-in-out infinite;
+      }
+      @keyframes dv-boot-spin { to { transform: rotate(360deg); } }
+      @keyframes dv-boot-pulse {
+        0%,100% { transform: scale(1); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent,#22D3EE) 40%, transparent)); }
+        50% { transform: scale(1.04); filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent,#22D3EE) 55%, transparent)); }
+      }
+      .dv-boot-brand {
+        font-size: 13px; font-weight: 750; letter-spacing: .28em; text-transform: uppercase;
+        color: var(--accent,#22D3EE); margin-bottom: 10px;
+      }
+      .dv-boot-title {
+        font-size: 22px; font-weight: 720; letter-spacing: -.02em; line-height: 1.25;
+        color: var(--text-primary, #E5EDF7); margin: 0 0 8px;
+      }
+      .dv-boot-sub {
+        font-size: 13px; color: var(--text-secondary, #8A9BB4); min-height: 1.4em; margin: 0 0 22px;
+        letter-spacing: .02em;
+      }
+      .dv-boot-bar {
+        height: 3px; border-radius: 999px; overflow: hidden;
+        background: color-mix(in srgb, var(--border,#1E2A44) 80%, transparent);
+        position: relative;
+      }
+      .dv-boot-bar > i {
+        display: block; height: 100%; width: 18%; border-radius: inherit;
+        background: linear-gradient(90deg, transparent, var(--accent,#22D3EE), var(--accent2,#38BDF8), transparent);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--accent,#22D3EE) 55%, transparent);
+        animation: dv-boot-indeterminate 1.35s cubic-bezier(.4,0,.2,1) infinite;
+      }
+      .dv-boot-bar.is-det > i {
+        animation: none; transition: width .35s ease;
+        background: linear-gradient(90deg, var(--accent,#22D3EE), var(--accent2,#38BDF8));
+      }
+      @keyframes dv-boot-indeterminate {
+        0% { transform: translateX(-120%); width: 28%; }
+        50% { width: 42%; }
+        100% { transform: translateX(420%); width: 28%; }
+      }
+      .dv-boot-meta {
+        margin-top: 14px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+        color: var(--text-muted, #5B6B85);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #dv-boot-overlay .dv-boot-scan,
+        .dv-boot-orb .ring, .dv-boot-orb .core, .dv-boot-bar > i { animation: none !important; }
+        .dv-boot-bar > i { width: 40%; }
+      }
+    </style>
 </head>
 <body>
+<!-- 首屏 boot：盖住空 Dashboard，数据就绪后淡出 -->
+<div id="dv-boot-overlay" role="status" aria-live="polite" aria-busy="true">
+  <div class="dv-boot-grid" aria-hidden="true"></div>
+  <div class="dv-boot-scan" aria-hidden="true"></div>
+  <div class="dv-boot-stage">
+    <div class="dv-boot-orb" aria-hidden="true">
+      <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+      <div class="core"><i class="fa-solid fa-robot"></i></div>
+    </div>
+    <div class="dv-boot-brand">DEVICE</div>
+    <h1 class="dv-boot-title" id="dvBootTitle">Initializing</h1>
+    <p class="dv-boot-sub" id="dvBootSub">Connecting to device services…</p>
+    <div class="dv-boot-bar" id="dvBootBar"><i id="dvBootBarFill"></i></div>
+    <div class="dv-boot-meta" id="dvBootMeta">SECURE · LOCAL CONSOLE</div>
+  </div>
+</div>
+<script>
+(function () {
+  var I18N = {
+    en: { title: 'Initializing', sub: 'Connecting to device services…', device: 'Loading device profile…', media: 'Syncing media & storage…', ai: 'Preparing AI & cloud…', extras: 'Building dashboard…', ready: 'Ready', meta: 'SECURE · LOCAL CONSOLE' },
+    zh: { title: '正在启动', sub: '正在连接设备服务…', device: '加载设备信息…', media: '同步媒体与存储…', ai: '准备 AI 与云端…', extras: '构建仪表盘…', ready: '就绪', meta: '安全 · 本地控制台' },
+    ja: { title: '初期化中', sub: 'デバイスに接続しています…', device: 'デバイス情報を読込中…', media: 'メディア/ストレージ同期…', ai: 'AI / クラウド準備…', extras: 'ダッシュボード構築…', ready: '完了', meta: 'SECURE · LOCAL CONSOLE' },
+    de: { title: 'Initialisierung', sub: 'Verbinde Geräteservices…', device: 'Geräteprofil…', media: 'Medien & Speicher…', ai: 'KI & Cloud…', extras: 'Dashboard…', ready: 'Bereit', meta: 'SICHER · LOKALE KONSOLE' },
+    fr: { title: 'Initialisation', sub: 'Connexion aux services…', device: 'Profil appareil…', media: 'Médias & stockage…', ai: 'IA & cloud…', extras: 'Tableau de bord…', ready: 'Prêt', meta: 'SÉCURISÉ · CONSOLE LOCALE' },
+    es: { title: 'Inicializando', sub: 'Conectando servicios…', device: 'Perfil del dispositivo…', media: 'Medios y almacenamiento…', ai: 'IA y nube…', extras: 'Panel…', ready: 'Listo', meta: 'SEGURO · CONSOLA LOCAL' }
+  };
+  var lang = 'en';
+  try { lang = localStorage.getItem('dv_lang') || 'en'; } catch (e) {}
+  var t = I18N[lang] || I18N.en;
+  function $(id) { return document.getElementById(id); }
+  function applyBase() {
+    var a = $('dvBootTitle'), b = $('dvBootSub'), c = $('dvBootMeta');
+    if (a) a.textContent = t.title;
+    if (b) b.textContent = t.sub;
+    if (c) c.textContent = t.meta;
+  }
+  applyBase();
+  var done = false;
+  var safety = setTimeout(function () { window.DvBoot && window.DvBoot.ready(); }, 12000);
+  window.DvBoot = {
+    setStage: function (key, pct) {
+      if (done) return;
+      var msg = t[key] || t.sub;
+      var el = $('dvBootSub');
+      if (el) el.textContent = msg;
+      if (typeof pct === 'number') {
+        var bar = $('dvBootBar'), fill = $('dvBootBarFill');
+        if (bar && fill) {
+          bar.classList.add('is-det');
+          fill.style.width = Math.max(6, Math.min(100, pct)) + '%';
+        }
+      }
+    },
+    ready: function () {
+      if (done) return;
+      done = true;
+      clearTimeout(safety);
+      try {
+        var el = $('dvBootSub'); if (el) el.textContent = t.ready;
+        var bar = $('dvBootBar'), fill = $('dvBootBarFill');
+        if (bar && fill) { bar.classList.add('is-det'); fill.style.width = '100%'; }
+      } catch (e) {}
+      var ov = $('dv-boot-overlay');
+      document.documentElement.classList.remove('dv-booting');
+      if (!ov) return;
+      ov.setAttribute('aria-busy', 'false');
+      requestAnimationFrame(function () {
+        ov.classList.add('dv-boot-done');
+        setTimeout(function () { try { ov.remove(); } catch (e) {} }, 650);
+      });
+    }
+  };
+})();
+</script>
 
 <div class="page">
     <!-- Sidebar: same structure as index_origin.html -->
@@ -5882,7 +6068,7 @@ window.__presignThumbUrl = function (raw) {
                     @media (max-width: 991px){#dashboard .dash-hero-viz{display:none}}
                 </style>
                 <div class="page-section active" id="dashboard" x-data="deviceSettings()"
-                     x-init="initDeviceGeneralInformation(); initStorageInformation(); initVedioSettings(0); initAudioSettings(); initRecordSettings(); getCloudRecordService(); initRtspServerInformation(); initAlgorithmInformation(); initChatGptInformation(); initDashboardExtras()">
+                     x-init="bootstrapDashboard()">
                     <div class="page-wrapper">
                         <div class="page-body">
                             <div class="container-xl">
@@ -14128,6 +14314,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 const u = this.storageInformation.storageUsed || 0;
                 const a = this.storageInformation.storageAvailable || 0;
                 return Math.round(u * 100 / ((u + a) || 1));
+            },
+
+            // 仪表盘首屏：并行拉关键数据，完成后关掉 boot 遮罩（与设备本地页同款）
+            async bootstrapDashboard() {
+                const stage = (k, p) => { try { if (window.DvBoot) window.DvBoot.setStage(k, p); } catch (e) {} };
+                try {
+                    // 云端控制台依赖传输层（IoT）；先接线再拉数
+                    if (typeof this.initTransport === 'function') {
+                        try { await this.initTransport(); } catch (e) { console.warn('initTransport', e); }
+                    }
+                    stage('device', 12);
+                    await Promise.allSettled([
+                        this.initDeviceGeneralInformation()
+                    ]);
+                    stage('media', 40);
+                    await Promise.allSettled([
+                        this.initStorageInformation(),
+                        this.initVedioSettings(0),
+                        this.initAudioSettings(),
+                        this.initRecordSettings()
+                    ]);
+                    stage('ai', 68);
+                    await Promise.allSettled([
+                        this.getCloudRecordService(),
+                        this.initRtspServerInformation(),
+                        this.initAlgorithmInformation(),
+                        this.initChatGptInformation()
+                    ]);
+                    stage('extras', 86);
+                    await this.initDashboardExtras();
+                    if (typeof this.refreshSystemService === 'function') {
+                        try { await this.refreshSystemService(true); } catch (e) {}
+                    }
+                    if (typeof this.startDashSysMemPoll === 'function') {
+                        try { this.startDashSysMemPoll(); } catch (e) {}
+                    }
+                    stage('ready', 100);
+                } catch (e) {
+                    console.warn('bootstrapDashboard', e);
+                } finally {
+                    try { if (window.DvBoot) window.DvBoot.ready(); } catch (e2) {}
+                }
             },
 
             // Dashboard/直播占位:拿「录像文件数 + 每路缩略图」。缩略图【优先 snapshot 类型(recordType=3)】,
