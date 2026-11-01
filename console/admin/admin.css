@@ -1,3 +1,13 @@
+
+/* FA 图标：强制 swap，避免 font-display:block 首屏空方块 */
+@font-face{
+  font-family:"Font Awesome 6 Free";
+  font-style:normal;
+  font-weight:900;
+  font-display:swap;
+  src:url(../device/webfonts/fa-solid-900.woff2) format("woff2"),
+      url(../device/webfonts/fa-solid-900.ttf) format("truetype");
+}
 .admin-shell{display:grid;grid-template-columns:164px 1fr;min-height:100vh;transition:grid-template-columns .22s var(--ease)}
 .admin-shell.is-collapsed{grid-template-columns:72px 1fr}
 .admin-side{
