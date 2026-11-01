@@ -50,7 +50,10 @@ export async function resolveUserRow(cognitoSub) {
   // 管理后台本身走 listAll*,不依赖 DeviceUser;此处仅保证登录档案稳定。
   items.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
   if (items.length > 1) {
-    console.warn('[graphql] resolveUserRow: duplicate User rows for sub, using oldest', items[0].id);
+    if (!resolveUserRow._dupLogged) {
+      resolveUserRow._dupLogged = 1;
+      console.info('[graphql] resolveUserRow: duplicate User rows, using oldest', items[0].id);
+    }
   }
   return items[0]; // { id, awsUserID, email, ... }
 }

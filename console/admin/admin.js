@@ -2,7 +2,7 @@
 import {
   COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, getRegion, setRegion, REGIONS, REGION_ORDER, isAdminAccount,
 } from '../config.js';
-import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth } from '../lib/auth.js';
+import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth, currentIdToken } from '../lib/auth.js';
 import {
   listAllUsers, resolveUserRow, listAllDevices, listAllDeviceUsers, listDeviceUpgrades,
   listCloudRecordsAdmin, createDeviceUpgrade, updateDeviceUpgrade, deleteDeviceUpgrade,
@@ -758,16 +758,38 @@ function overviewBump() {
   if (state.tab === 'overview') render();
 }
 
+async function waitForIdToken(ms) {
+  const budget = Math.max(0, Number(ms) || 8000);
+  const t0 = Date.now();
+  while (!currentIdToken() && (Date.now() - t0) < budget) {
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return !!currentIdToken();
+}
+
 function warmOverviewCosts() {
   if (state._costWarm) return;
   state._costWarm = true;
-  const jobs = [];
-  if (!state.agora) jobs.push(loadAgora().catch((e) => console.warn('[admin] warm agora', e)));
-  if (!state.awsCost) jobs.push(loadAwsCost().catch((e) => console.warn('[admin] warm aws', e)));
-  if (!jobs.length) return;
-  Promise.allSettled(jobs).then(() => {
+  (async () => {
+    // 等 Cognito 会话落盘后再暖费用；总览只读 S3 缓存，绝不自动打 CE（慢且易限流）
+    const ready = await waitForIdToken(10000);
+    if (!ready) {
+      if (!state.awsCost) {
+        state.awsCost = {
+          month: { totalUsd: 0, byService: [], daily: [] },
+          months: { totalUsd: 0, byService: [], daily: [] },
+          refreshedAt: '', source: 'none', err: '',
+        };
+      }
+      overviewBump();
+      return;
+    }
+    const jobs = [];
+    if (!state.agora) jobs.push(loadAgora().catch(() => {}));
+    if (!state.awsCost) jobs.push(loadAwsCost({ cacheOnly: true }).catch(() => {}));
+    await Promise.allSettled(jobs);
     if (state.tab === 'overview' || state.tab === 'cloudsub' || state.tab === 'agora' || state.tab === 'aws') render();
-  });
+  })();
 }
 
 async function loadOverviewTab() {
@@ -4523,7 +4545,13 @@ function awsFocusOf(name) {
 }
 
 async function readAwsCostS3Cache() {
-  const creds = await resolvedCreds();
+  if (!currentIdToken()) return null;
+  let creds;
+  try {
+    creds = await resolvedCreds();
+  } catch (_) {
+    return null;
+  }
   if (!creds || !creds.accessKeyId) return null;
   const buf = await getS3Object(creds, {
     bucket: S3_BUCKET, region: COGNITO.region, key: AWS_COST_S3_CACHE_KEY,
@@ -4565,9 +4593,17 @@ function applyAwsCostCache(cache, note) {
 
 async function loadAwsCost(opts = {}) {
   const force = !!(opts && opts.force);
+  const cacheOnly = !!(opts && opts.cacheOnly);
   const month = awsCostMonthUtcRange();
   const months = awsCostLastMonthsUtcRange(12);
   const empty = { totalUsd: 0, byService: [], daily: [] };
+  const paintEmpty = (src) => {
+    state.awsCost = {
+      monthRange: month, monthsRange: months,
+      month: empty, months: empty,
+      refreshedAt: '', source: src || 'none', err: '',
+    };
+  };
 
   // 默认：S3 缓存优先，避免每次进 Tab 都打 CE 限流 → 页面假 $0
   if (!force) {
@@ -4575,12 +4611,24 @@ async function loadAwsCost(opts = {}) {
       const cache = await readAwsCostS3Cache();
       if (cache) {
         applyAwsCostCache(cache, '');
-        if (state.tab === 'cloudsub') render();
+        if (state.tab === 'cloudsub' || state.tab === 'overview') render();
         return;
       }
     } catch (e) {
-      console.warn('[aws-cost] S3 cache miss', e);
+      const msg = (e && e.message) || String(e);
+      if (!/未登录/.test(msg)) console.warn('[aws-cost] S3 cache miss', msg);
     }
+  }
+
+  // 总览暖启动：有缓存用缓存，无缓存保持 —，不打 CE、不抛错
+  if (cacheOnly) {
+    if (!state.awsCost) paintEmpty('none');
+    return;
+  }
+
+  if (!currentIdToken()) {
+    paintEmpty('none');
+    return;
   }
 
   try {
@@ -4594,7 +4642,7 @@ async function loadAwsCost(opts = {}) {
         start: months.start, end: months.end, granularity: 'MONTHLY', bypassCache: force,
       });
     } catch (e2) {
-      console.warn('[aws-cost] months', e2);
+      console.warn('[aws-cost] months', (e2 && e2.message) || e2);
     }
     const refreshedAt = new Date().toISOString();
     state.awsCost = {
@@ -4615,9 +4663,9 @@ async function loadAwsCost(opts = {}) {
       monthRaw: rawMonth,
       monthsRaw: rawMonths || null,
     });
-    if (state.tab === 'cloudsub') render();
+    if (state.tab === 'cloudsub' || state.tab === 'overview') render();
   } catch (e) {
-    console.error('[aws-cost]', e);
+    console.warn('[aws-cost]', (e && e.message) || e);
     try {
       const cache = await readAwsCostS3Cache();
       if (cache) {
@@ -4625,7 +4673,7 @@ async function loadAwsCost(opts = {}) {
           ? t('awsRateLimited')
           : ((e && e.message) || String(e));
         applyAwsCostCache(cache, note);
-        if (state.tab === 'cloudsub') render();
+        if (state.tab === 'cloudsub' || state.tab === 'overview') render();
         return;
       }
     } catch (_) {}
@@ -4638,6 +4686,7 @@ async function loadAwsCost(opts = {}) {
       refreshedAt: new Date().toISOString(),
       err: nice,
     };
+    // 云订阅 Tab 仍可提示；总览暖启动路径不会走到这里
     throw new Error(nice);
   }
 }
