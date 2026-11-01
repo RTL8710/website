@@ -263,8 +263,8 @@ function toast(msg, type = 'ok') {
     if (state.toast && Date.now() - state.toast.t >= 2800) { state.toast = null; render(); }
   }, 3000);
 }
-function copyText(t) {
-  const s = String(t || '');
+function copyText(text) {
+  const s = String(text || '');
   if (!s) { toast(t('copyFail'), 'err'); return; }
   const ok = () => toast(t('copied'));
   const fail = () => toast(t('copyFail'), 'err');
@@ -4533,33 +4533,82 @@ function viewAgora(opts) {
             h('tbody', {}, ...projects.map((p) => {
               const m = (a.byProject[p.id] && a.byProject[p.id].minutes) || 0;
               const draftKey = 'agoraCertDraft:' + (p.appId || p.id);
+              const showKey = 'agoraCertShow:' + (p.appId || p.id);
               if (state[draftKey] == null) state[draftKey] = p.appCertificate || '';
-              const hasCert = !!(state[draftKey] || '').trim();
+              const certVal = String(state[draftKey] || '');
+              const hasCert = !!certVal.trim();
+              const showCert = !!state[showKey];
+              const appId = p.appId || '';
               return h('tr', {
-                class: pid === p.id ? 'is-active-row' : '',
+                class: 'agora-proj-row' + (pid === p.id ? ' is-active-row' : ''),
               },
-                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } }, h('strong', {}, p.name || '—')),
-                h('td', { class: 'mono', onclick: () => { state.agoraProjectId = p.id; render(); } }, p.id),
-                h('td', { class: 'mono agora-trunc', onclick: () => { state.agoraProjectId = p.id; render(); } }, p.appId || '—'),
+                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } },
+                  h('div', { class: 'agora-proj-name' }, p.name || '—')),
                 h('td', {},
-                  h('input', {
-                    class: 'admin-input mono',
-                    type: 'password',
-                    autocomplete: 'off',
-                    placeholder: t('agoraAppCertPh'),
-                    value: state[draftKey],
-                    oninput: (e) => { state[draftKey] = e.target.value; },
-                    onclick: (e) => e.stopPropagation(),
-                  }),
-                  h('div', { class: 'muted tiny' }, hasCert ? t('agoraCertCached') : t('agoraCertMissing')),
+                  h('button', {
+                    type: 'button', class: 'agora-id-chip', title: p.id,
+                    onclick: (e) => { e.stopPropagation(); copyText(p.id); },
+                  }, h('span', { class: 'mono' }, p.id || '—'), fa('fa-copy')),
+                ),
+                h('td', {},
+                  appId
+                    ? h('button', {
+                        type: 'button', class: 'agora-id-chip agora-id-chip-wide', title: appId,
+                        onclick: (e) => { e.stopPropagation(); copyText(appId); },
+                      },
+                        h('span', { class: 'mono agora-id-chip-val' }, appId),
+                        fa('fa-copy'),
+                      )
+                    : h('span', { class: 'muted' }, '—'),
+                ),
+                h('td', {},
+                  h('div', { class: 'agora-cert-field', onclick: (e) => e.stopPropagation() },
+                    h('div', { class: 'agora-cert-shell' },
+                      h('input', {
+                        class: 'agora-cert-input mono',
+                        type: showCert ? 'text' : 'password',
+                        autocomplete: 'off',
+                        spellcheck: 'false',
+                        placeholder: t('agoraAppCertPh'),
+                        value: certVal,
+                        oninput: (e) => { state[draftKey] = e.target.value; },
+                      }),
+                      h('div', { class: 'agora-cert-actions' },
+                        h('button', {
+                          type: 'button', class: 'agora-ico-btn',
+                          title: showCert ? t('hide') : t('show'),
+                          onclick: (e) => {
+                            e.stopPropagation();
+                            state[showKey] = !state[showKey];
+                            render();
+                          },
+                        }, fa(showCert ? 'fa-eye-slash' : 'fa-eye')),
+                        h('button', {
+                          type: 'button', class: 'agora-ico-btn',
+                          title: t('copy'),
+                          disabled: !hasCert,
+                          onclick: (e) => {
+                            e.stopPropagation();
+                            copyText(certVal.trim());
+                          },
+                        }, fa('fa-copy')),
+                      ),
+                    ),
+                    h('div', {
+                      class: 'agora-cert-badge' + (hasCert ? ' is-ok' : ' is-miss'),
+                    }, hasCert ? t('agoraCertCached') : t('agoraCertMissing')),
+                  ),
                 ),
                 h('td', {}, p.status === 1
                   ? h('span', { class: 'agora-dot-on' }, t('agoraEnabled'))
                   : h('span', { class: 'agora-dot-off' }, t('agoraDisabled'))),
-                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } }, h('b', {}, fmtMin(m))),
+                h('td', { onclick: () => { state.agoraProjectId = p.id; render(); } },
+                  h('b', { class: 'agora-used' }, fmtMin(m))),
                 h('td', {},
                   h('button', {
-                    type: 'button', class: 'btn sm',
+                    type: 'button',
+                    class: 'agora-save-btn' + (hasCert ? '' : ' is-disabled'),
+                    disabled: !hasCert || !appId,
                     onclick: async (e) => {
                       e.stopPropagation();
                       const cert = String(state[draftKey] || '').trim();
@@ -4579,7 +4628,7 @@ function viewAgora(opts) {
                         toast((err && err.message) || t('agoraCertSaveFail'), 'err');
                       }
                     },
-                  }, t('save')),
+                  }, fa('fa-cloud-arrow-up'), h('span', {}, t('save'))),
                 ),
               );
             })),

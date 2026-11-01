@@ -997,9 +997,6 @@ html[data-theme="light"] .apick-btn{background:linear-gradient(180deg,#fff,rgba(
 .agora-leg{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--text-md)}
 .agora-leg i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
 .agora-rate-detail{margin:8px 0;border-radius:12px;border:1px solid var(--border);overflow:auto;max-height:240px}
-.agora-table-wrap{overflow:auto;border-radius:12px;border:1px solid var(--border);max-height:min(42vh,360px)}
-.agora-proj-table tr{cursor:pointer}
-.agora-proj-table tr.is-active-row td{background:var(--acc-soft)}
 .agora-trunc{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agora-dot-on,.agora-dot-off{
   display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
@@ -1322,3 +1319,86 @@ html.admin-booting body{overflow:hidden}
 @media (max-width:720px){
   .logs-card-mark.remote-ops-mark{width:72px;height:48px;border-radius:12px;font-size:20px}
 }
+
+
+/* Agora project credentials — premium chips / cert field / save */
+.agora-proj-table{width:100%;border-collapse:separate;border-spacing:0}
+.agora-proj-table th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-lo);font-weight:800;padding:10px 12px;white-space:nowrap}
+.agora-proj-table td{padding:12px;vertical-align:middle;border-top:1px solid var(--border)}
+.agora-proj-table tr{cursor:default}
+.agora-proj-row:hover td{background:rgba(255,255,255,.02)}
+.agora-proj-name{font-weight:800;letter-spacing:-.01em;color:var(--text-hi);cursor:pointer}
+.agora-used{font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+.agora-id-chip{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;
+  padding:7px 10px;border-radius:10px;cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+  color:var(--text-md);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  transition:border-color .15s, background .15s, color .15s, box-shadow .15s;
+}
+.agora-id-chip:hover{
+  border-color:color-mix(in srgb, var(--accent) 55%, var(--border));
+  color:var(--text-hi);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent), rgba(255,255,255,.02));
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.agora-id-chip .fa-copy{font-size:11px;opacity:.45;flex:none}
+.agora-id-chip:hover .fa-copy{opacity:.95;color:var(--accent)}
+.agora-id-chip-wide{max-width:min(280px,36vw)}
+.agora-id-chip-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-size:11.5px}
+.agora-cert-field{display:flex;flex-direction:column;gap:6px;min-width:200px;max-width:320px}
+.agora-cert-shell{
+  display:flex;align-items:center;gap:4px;
+  padding:3px 3px 3px 10px;border-radius:12px;
+  border:1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background:linear-gradient(180deg, rgba(0,0,0,.22), rgba(255,255,255,.02));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  transition:border-color .15s, box-shadow .15s;
+}
+.agora-cert-shell:focus-within{
+  border-color:color-mix(in srgb, var(--accent) 60%, var(--border));
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.agora-cert-input{
+  flex:1;min-width:0;border:0;outline:none;background:transparent!important;
+  color:var(--text-hi);font-size:12px;padding:7px 0;box-shadow:none!important;
+}
+.agora-cert-input::placeholder{color:var(--text-lo);opacity:.7}
+.agora-cert-actions{display:flex;align-items:center;gap:2px;flex:none}
+.agora-ico-btn{
+  width:30px;height:30px;border-radius:8px;border:0;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;color:var(--text-lo);
+  transition:background .15s, color .15s;
+}
+.agora-ico-btn:hover:not(:disabled){background:rgba(255,255,255,.06);color:var(--accent)}
+.agora-ico-btn:disabled{opacity:.3;cursor:not-allowed}
+.agora-cert-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;width:fit-content;
+  padding:2px 8px;border-radius:999px;border:1px solid transparent;
+}
+.agora-cert-badge.is-ok{color:#6ee7b7;background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.22)}
+.agora-cert-badge.is-miss{color:var(--text-lo);background:rgba(255,255,255,.03);border-color:var(--border)}
+.agora-save-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:11px;cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 28%, #111), color-mix(in srgb, var(--accent) 12%, #0a0a0a));
+  color:#fff;font-size:12px;font-weight:750;letter-spacing:.02em;
+  box-shadow:0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .12s, box-shadow .15s, filter .15s;
+}
+.agora-save-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+.agora-save-btn:active:not(:disabled){transform:translateY(0)}
+.agora-save-btn:disabled,.agora-save-btn.is-disabled{
+  opacity:.4;cursor:not-allowed;transform:none;filter:none;box-shadow:none;
+}
+.agora-table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--border);max-height:min(52vh,420px);
+  background:linear-gradient(180deg, rgba(255,255,255,.02), transparent)}
+html[data-theme="light"] .agora-id-chip{background:rgba(15,23,42,.03)}
+html[data-theme="light"] .agora-cert-shell{background:rgba(15,23,42,.03)}
+html[data-theme="light"] .agora-proj-row:hover td{background:rgba(15,23,42,.025)}
+
+.agora-proj-table tr.is-active-row td{background:var(--acc-soft)}
