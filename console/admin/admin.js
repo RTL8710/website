@@ -738,6 +738,15 @@ async function loadOverviewTab() {
   persistAdminSnap();
   overviewBump();
 
+  // 授权批次：不挡首屏，后台补宫格
+  listAllLicenseBatches().then((b) => {
+    state.licenseBatches = b || [];
+    overviewBump();
+  }).catch((e) => {
+    console.warn('[admin] overview license', e);
+    if (!state.licenseBatches) state.licenseBatches = [];
+    overviewBump();
+  });
   refreshOverviewSecondary();
   warmOverviewCosts();
 }
@@ -872,6 +881,11 @@ function viewOverview() {
   const pendingLogs = state.diagLogs == null;
   const pendingAws = !state.awsCost;
   const pendingAgora = !state.agora;
+  const pendingLic = state.licenseBatches == null;
+  const licBatches = state.licenseBatches || [];
+  const licN = licBatches.length;
+  const licUsed = licBatches.reduce((n, b) => n + Number((b && b.usedCount) || 0), 0);
+  const licActive = licBatches.filter((b) => String((b && b.status) || 'active') === 'active').length;
   const skel = () => h('span', { class: 'admin-skel', 'aria-hidden': 'true' }, ' ');
   const num = (n, pending) => (pending ? skel() : String(n));
   const u = (state.users || []).length;
@@ -936,17 +950,16 @@ function viewOverview() {
         ),
       ),
     ),
-    h('div', { class: 'logs-source-grid trio' },
+    h('div', { class: 'logs-source-grid ov-mosaic' },
       mod('fa-user', '', t('tabUsers'), pendingUsers ? skel() : u, pendingUsers ? t('loading') : t('usersCount'), () => goTab('users')),
       mod('fa-robot', '', t('tabDevices'), pendingCore ? skel() : d, pendingCore ? t('loading') : t('devicesCount'), () => { state.deviceFilter = 'all'; goTab('devices'); }),
+      mod('fa-key', '', t('tabLicense'), pendingLic ? skel() : licN, pendingLic ? t('loading') : (String(licActive) + ' / ' + String(licN) + ' · ' + t('licenseUsedSum') + ' ' + String(licUsed)), () => goTab('license')),
       mod('fa-file-lines', '', t('tabLogs'), pendingLogs ? skel() : (logsN + (logsTrunc ? '+' : '')), pendingLogs ? t('loading') : t('logsCount'), () => goTab('logs')),
       mod('fa-cloud', ' is-device', t('tabRecords'), pendingRec ? skel() : (r + (trunc ? '+' : '')), pendingRec ? t('loading') : t('recordsCount'), () => goTab('records')),
       mod('fa-rocket', ' is-device', t('tabOta'), pendingPkgs ? skel() : p, pendingPkgs ? t('loading') : t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'device'; goTab('ota'); }),
       mod('fa-mobile-alt', '', t('otaScopeApp'),
         pendingPkgs ? skel() : appN,
         pendingPkgs ? t('loading') : t('pkgsCount'), () => { if (state.upload && state.upload.busy) { toast(t('otaUploadLock'), 'err'); return; } state.otaScope = 'app'; goTab('ota'); }),
-    ),
-    h('div', { class: 'logs-source-grid' },
       mod('fa-dollar-sign', ' on', t('overviewAwsCost'),
         pendingAws ? skel() : ((state.awsCost && state.awsCost.month) ? fmtUsd(state.awsCost.month.totalUsd) : '—'),
         pendingAws ? t('loading') : t('tabAws'), () => { state.cloudSubScope = 'amazon'; goTab('cloudsub'); }),

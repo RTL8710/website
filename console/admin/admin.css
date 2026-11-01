@@ -1124,3 +1124,51 @@ html.admin-booting body{overflow:hidden}
   .admin-shell::before{display:none}
   .admin-side{border-right:1px solid var(--border);background:rgba(7,9,13,.62);backdrop-filter:blur(16px)}
 }
+
+
+/* 总览 3×3 宫格：加高、统一节奏、高级感 */
+.overview-page .logs-source-grid.ov-mosaic{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source{
+  min-height:104px;
+  padding:18px 16px;
+  border-radius:16px;
+  align-content:center;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+    linear-gradient(165deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+  box-shadow:0 12px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.05);
+  transition:transform .18s var(--ease), border-color .18s, box-shadow .18s, background .18s;
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source:hover{
+  transform:translateY(-3px);
+  border-color:color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow:0 16px 36px rgba(0,0,0,.34), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source.on{
+  border-color:color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow:var(--sh-glow), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source-ico{
+  width:42px;height:42px;border-radius:13px;font-size:15px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source .k{
+  font-size:12px;letter-spacing:.02em;
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source .v{
+  font-size:clamp(22px,2.1vw,28px);font-weight:800;letter-spacing:-.03em;
+}
+.overview-page .logs-source-grid.ov-mosaic .logs-source .s{
+  font-size:11px;line-height:1.35;max-width:14em;
+}
+@media (max-width:860px){
+  .overview-page .logs-source-grid.ov-mosaic{grid-template-columns:1fr;gap:10px}
+  .overview-page .logs-source-grid.ov-mosaic .logs-source{min-height:88px;padding:14px 14px}
+}
+@media (min-width:861px) and (max-width:1100px){
+  .overview-page .logs-source-grid.ov-mosaic .logs-source{min-height:96px;padding:16px 14px}
+  .overview-page .logs-source-grid.ov-mosaic .logs-source .v{font-size:24px}
+}
