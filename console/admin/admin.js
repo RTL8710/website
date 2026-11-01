@@ -3954,6 +3954,16 @@ function viewLogs() {
 }
 
 
+
+/** 用量区间 pill：同日只显示 MM-DD，跨日 MM-DD → MM-DD（月初第 1 天避免 11-01 → 11-01） */
+function formatMdRangeLabel(fromIso, toIso) {
+  if (!fromIso || !toIso) return '—';
+  const a = String(fromIso).slice(5, 10);
+  const b = String(toIso).slice(5, 10);
+  if (!a || !b) return '—';
+  return a === b ? a : (a + ' → ' + b);
+}
+
 const AGORA_QUOTA_DEFAULT = 10000;
 
 function agoraRisk(pct) {
@@ -4408,7 +4418,7 @@ function viewAgora(opts) {
     ['agoraVideo2k', minOfSec(secOf(sec, ['video2k'])), '#EC4899'],
     ['agoraVideo2kPlus', minOfSec(secOf(sec, ['video2kPlus'])), '#A855F7'],
   ];
-  const rangeLabel = (a && a.range) ? (a.range.fromDate.slice(5) + ' → ' + a.range.toDate.slice(5)) : '—';
+  const rangeLabel = (a && a.range) ? formatMdRangeLabel(a.range.fromDate, a.range.toDate) : '—';
   const showDaily = !!state.agoraShowDaily;
   const showCostDetail = !!state.agoraShowCostDetail;
 
@@ -4943,7 +4953,7 @@ function viewAws(opts) {
   const months = (a && a.months) || { totalUsd: 0, byService: [], daily: [] };
   const chartDays = Number(state.awsCostChartDays) || 30;
   const rangeLabel = (a && a.monthRange)
-    ? (a.monthRange.start.slice(5) + ' → ' + a.monthRange.end.slice(5))
+    ? formatMdRangeLabel(a.monthRange.start, a.monthRange.end)
     : '—';
   const focus = [];
   const other = [];
