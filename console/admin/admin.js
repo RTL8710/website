@@ -3955,13 +3955,45 @@ function viewLogs() {
 
 
 
-/** 用量区间 pill：同日只显示 MM-DD，跨日 MM-DD → MM-DD（月初第 1 天避免 11-01 → 11-01） */
+/** 用量区间：同日 MM-DD，跨日 MM-DD – MM-DD（不用箭头，避免像坏掉的区间） */
 function formatMdRangeLabel(fromIso, toIso) {
   if (!fromIso || !toIso) return '—';
   const a = String(fromIso).slice(5, 10);
   const b = String(toIso).slice(5, 10);
   if (!a || !b) return '—';
-  return a === b ? a : (a + ' → ' + b);
+  return a === b ? a : (a + ' – ' + b);
+}
+
+/** 声网套餐 pill：本月累计（与图表 7d/14d/30d 窗口区分） */
+function formatAgoraMonthLabel(range) {
+  if (!range || !range.fromDate || !range.toDate) return '—';
+  const days = formatMdRangeLabel(range.fromDate, range.toDate);
+  return t('agoraMonthToDate') + ' · ' + days;
+}
+
+/** 按日历补齐近 N 天（含 toDate），无用量日填 0，让 7d 轴真有 7 格 */
+function padDailySeries(daily, days, endIso) {
+  const n = Math.max(1, Number(days) || 7);
+  const end = String(endIso || '').slice(0, 10);
+  const endMs = end ? Date.parse(end + 'T00:00:00Z') : Date.now();
+  if (!Number.isFinite(endMs)) return (daily || []).slice(-n);
+  const byDate = {};
+  for (const d of (daily || [])) {
+    const k = String(d.date || '').slice(0, 10);
+    if (k) byDate[k] = d;
+  }
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const ms = endMs - i * 86400000;
+    const dt = new Date(ms);
+    const key = dt.toISOString().slice(0, 10);
+    out.push(byDate[key] || {
+      date: key,
+      standardMinutes: 0,
+      seconds: { audio: 0, hd: 0, hdp: 0, fullHd: 0, video2k: 0, video2kPlus: 0 },
+    });
+  }
+  return out;
 }
 
 const AGORA_QUOTA_DEFAULT = 10000;
@@ -4134,9 +4166,8 @@ function fmtMin1(n) {
 }
 
 /** Multi-series SVG line chart (Agora Console Usage style). */
-function agoraUsageChart(daily, days = 7, type = 'line') {
-  const rowsIn = (daily || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  const rows = rowsIn.slice(-(Math.max(1, days)));
+function agoraUsageChart(daily, days = 7, type = 'line', endIso = '') {
+  const rows = padDailySeries(daily, days, endIso || (daily && daily.length && daily[daily.length - 1].date));
   if (!rows.length) return h('div', { class: 'faint', style: { fontSize: '12px' } }, '—');
 
   const series = AGORA_SERIES.map((s) => ({
@@ -4212,8 +4243,8 @@ function agoraLineChart(daily, days = 7) {
   return agoraUsageChart(daily, days, 'line');
 }
 
-function agoraDailyTable(daily, days = 7) {
-  const rows = (daily || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, days);
+function agoraDailyTable(daily, days = 7, endIso = '') {
+  const rows = padDailySeries(daily, days, endIso).slice().reverse();
   if (!rows.length) return null;
   return h('div', { class: 'agora-daily-table' },
     h('table', { class: 'admin-table' },
@@ -4418,7 +4449,7 @@ function viewAgora(opts) {
     ['agoraVideo2k', minOfSec(secOf(sec, ['video2k'])), '#EC4899'],
     ['agoraVideo2kPlus', minOfSec(secOf(sec, ['video2kPlus'])), '#A855F7'],
   ];
-  const rangeLabel = (a && a.range) ? formatMdRangeLabel(a.range.fromDate, a.range.toDate) : '—';
+  const rangeLabel = (a && a.range) ? formatAgoraMonthLabel(a.range) : '—';
   const showDaily = !!state.agoraShowDaily;
   const showCostDetail = !!state.agoraShowCostDetail;
 
@@ -4507,14 +4538,14 @@ function viewAgora(opts) {
             h('em', {}, t('agoraMinUnit')),
           )),
         ),
-        agoraUsageChart(daily, chartDays, state.agoraChartType || 'line'),
+        agoraUsageChart(daily, chartDays, state.agoraChartType || 'line', a && a.range && a.range.toDate),
         h('div', { class: 'agora-card-foot' },
           h('button', {
             type: 'button', class: 'agora-link',
             onclick: () => { state.agoraShowDaily = !state.agoraShowDaily; render(); },
           }, showDaily ? t('agoraHideDaily') : t('agoraShowDaily')),
         ),
-        showDaily ? agoraDailyTable(daily, chartDays) : null,
+        showDaily ? agoraDailyTable(daily, chartDays, a && a.range && a.range.toDate) : null,
       ),
 
       h('section', { class: 'glass agora-card agora-cost-card' },
