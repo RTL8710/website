@@ -3964,11 +3964,12 @@ function formatMdRangeLabel(fromIso, toIso) {
   return a === b ? a : (a + ' – ' + b);
 }
 
-/** 声网套餐 pill：本月累计（与图表 7d/14d/30d 窗口区分） */
+/** 声网套餐 pill：本月累计截至今日（不展示起止区间，避免与图表 7d 混淆） */
 function formatAgoraMonthLabel(range) {
-  if (!range || !range.fromDate || !range.toDate) return '—';
-  const days = formatMdRangeLabel(range.fromDate, range.toDate);
-  return t('agoraMonthToDate') + ' · ' + days;
+  if (!range || !range.toDate) return t('agoraMonthToDate');
+  const md = String(range.toDate).slice(5, 10);
+  if (!md) return t('agoraMonthToDate');
+  return t('agoraMonthToDate') + ' · ' + t('agoraAsOf').replace('{d}', md);
 }
 
 /** 按日历补齐近 N 天（含 toDate），无用量日填 0，让 7d 轴真有 7 格 */
