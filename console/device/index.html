@@ -15,6 +15,15 @@
     <link href="dropzone.css" rel="stylesheet"/>
     <link href="css/all.min.css" rel="stylesheet">
     <link href="fonts/fonts.css" rel="stylesheet">
+    <link rel="stylesheet" href="vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="vendor/flatpickr/dv-theme.css">
+    <script src="vendor/flatpickr/flatpickr.min.js" defer></script>
+    <script src="vendor/flatpickr/zh.js" defer></script>
+    <script src="vendor/flatpickr/ja.js" defer></script>
+    <script src="vendor/flatpickr/de.js" defer></script>
+    <script src="vendor/flatpickr/fr.js" defer></script>
+    <script src="vendor/flatpickr/es.js" defer></script>
+    <script src="vendor/flatpickr/dv-bind.js" defer></script>
     <script>
         // 管理门户跳转可带 ?deviceId=<uuid>：写入缓存，device-transport 直接用（免手填）
         try {
@@ -6484,11 +6493,11 @@ window.__presignThumbUrl = function (raw) {
                                                 <div class="row mb-2 gx-2 align-items-end">
                                                     <div class="col-2">
                                                         <label class="form-label" data-i18n="cm_start_time">Start</label>
-                                                        <input type="datetime-local" class="form-control form-control-sm" x-model="startTime" />
+                                                        <input type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="startTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, startTime)" autocomplete="off" />
                                                     </div>
                                                     <div class="col-2">
                                                         <label class="form-label" data-i18n="cm_end_time">End</label>
-                                                        <input type="datetime-local" class="form-control form-control-sm" x-model="endTime" />
+                                                        <input type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="endTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, endTime)" autocomplete="off" />
                                                     </div>
                                                     <div class="col-2">
                                                         <label class="form-label" data-i18n="evt_event_type">Event type</label>
@@ -6597,7 +6606,7 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
                                                 <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                                    <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchTimeline()">
+                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="fetchTimeline()" autocomplete="off">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                                     <span x-show="timelineLoading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
                                                     <span class="text-muted" style="font-size:11px;" x-show="!timelineLoading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
@@ -6913,11 +6922,11 @@ window.__presignThumbUrl = function (raw) {
                                                 <div class="row mb-2 gx-2 align-items-end">
                                                     <div class="col-lg-2">
                                                         <label class="form-label" data-i18n="cm_start_time">Start Time</label>
-                                                        <input id="snapStartTime" type="datetime-local" class="form-control form-control-sm" x-model="snapStartTime" />
+                                                        <input id="snapStartTime" type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="snapStartTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, snapStartTime)" autocomplete="off" />
                                                     </div>
                                                     <div class="col-lg-2">
                                                         <label class="form-label" data-i18n="cm_end_time">End Time</label>
-                                                        <input id="snapEndTime" type="datetime-local" class="form-control form-control-sm" x-model="snapEndTime" />
+                                                        <input id="snapEndTime" type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="snapEndTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, snapEndTime)" autocomplete="off" />
                                                     </div>
                                                     <div class="col-lg-2">
                                                         <label class="form-label" data-i18n="evt_event_type">Event type</label>
@@ -6981,7 +6990,7 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
                                                 <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                                    <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchTimeline()">
+                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="fetchTimeline()" autocomplete="off">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                                     <span x-show="timelineLoading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
                                                     <span class="text-muted" style="font-size:11px;" x-show="!timelineLoading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
@@ -7174,7 +7183,7 @@ window.__presignThumbUrl = function (raw) {
                                 <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
                                     <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
                                         <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                        <input type="date" class="form-control form-control-sm" style="width:150px;" x-model="timelineDate" @change="fetchCloudDay()">
+                                        <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="fetchCloudDay()" autocomplete="off">
                                         <button class="btn btn-sm btn-outline-secondary" @click="cloudShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                         <span x-show="cloudPlayback.loading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
                                         <span class="text-muted" style="font-size:11px;" x-show="!cloudPlayback.loading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
@@ -8102,18 +8111,26 @@ window.__presignThumbUrl = function (raw) {
                                                         <label for="openaiChatstartTime" class="form-label" data-i18n="cm_start_time">Start Time</label>
                                                         <input
                                                                 id="openaiChatstartTime"
-                                                                type="datetime-local"
-                                                                class="form-control"
+                                                                type="text"
+                                                                class="form-control dv-fp"
+                                                                data-fp="datetime"
                                                                 x-model="openaiChatstartTime"
+                                                                x-init="dvBindFp($el)"
+                                                                x-effect="dvFpSync($el, openaiChatstartTime)"
+                                                                autocomplete="off"
                                                         />
                                                     </div>
                                                     <div class="col-lg-3">
                                                         <label for="openaiChatendTime" class="form-label" data-i18n="cm_end_time">End Time</label>
                                                         <input
                                                                 id="openaiChatendTime"
-                                                                type="datetime-local"
-                                                                class="form-control"
+                                                                type="text"
+                                                                class="form-control dv-fp"
+                                                                data-fp="datetime"
                                                                 x-model="openaiChatendTime"
+                                                                x-init="dvBindFp($el)"
+                                                                x-effect="dvFpSync($el, openaiChatendTime)"
+                                                                autocomplete="off"
                                                         />
                                                     </div>
                                                     <div class="col-lg-2">
