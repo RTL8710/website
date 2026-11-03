@@ -242,7 +242,7 @@ var require_buffer = __commonJS({
     exports.Buffer = Buffer5;
     exports.SlowBuffer = SlowBuffer;
     exports.INSPECT_MAX_BYTES = 50;
-    Buffer5.TYPED_ARRAY_SUPPORT = global.TYPED_ARRAY_SUPPORT !== void 0 ? global.TYPED_ARRAY_SUPPORT : typedArraySupport();
+    Buffer5.TYPED_ARRAY_SUPPORT = globalThis.TYPED_ARRAY_SUPPORT !== void 0 ? globalThis.TYPED_ARRAY_SUPPORT : typedArraySupport();
     exports.kMaxLength = kMaxLength();
     function typedArraySupport() {
       try {
@@ -2610,8 +2610,8 @@ if (typeof window !== "undefined" && window.crypto) {
 if (!crypto && typeof window !== "undefined" && window.msCrypto) {
   crypto = window.msCrypto;
 }
-if (!crypto && typeof global !== "undefined" && global.crypto) {
-  crypto = global.crypto;
+if (!crypto && typeof globalThis !== "undefined" && globalThis.crypto) {
+  crypto = globalThis.crypto;
 }
 if (!crypto && typeof __require === "function") {
   try {
