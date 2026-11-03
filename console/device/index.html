@@ -7233,19 +7233,18 @@ window.__presignThumbUrl = function (raw) {
                                 </div>
                                 <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
                                     <div class="row">
-                                        <template x-for="r in cloudPlayback.records" :key="r.RecordIndexInformationDateTime">
+                                        <template x-for="r in cloudListPageRecords()" :key="(r.RecordIndexInformationDateTime||'')+'-'+(r.channel!=null?r.channel:r.RecordIndexInformationCameraIndex||0)">
                                             <div class="col-12 mb-1">
                                                 <div class="card shadow-sm" style="cursor:pointer;overflow:hidden;"
                                                      :style="cloudPlayback.selected === r ? 'cursor:pointer;overflow:hidden;border:2px solid #2fbf71;box-shadow:0 0 7px rgba(47,191,113,0.55);' : 'cursor:pointer;overflow:hidden;'"
                                                      @click="playCloudRecord(r)">
                                                     <div class="d-flex align-items-center w-100" style="height:64px;padding:4px 8px;">
-                                                        <!-- 缩略图位：本地同段封面就近匹配(云记录自身无缩略图);无则云图标占位 -->
+                                                        <!-- 仅当前页挂缩略图；未解析前云图标占位 -->
                                                         <div style="position:relative;width:84px;height:56px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg-card2,#e9ecef);display:flex;align-items:center;justify-content:center;">
-                                                            <img x-show="r._thumb" :src="r._thumb" onerror="this.style.display='none'" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+                                                            <img x-show="r._thumb" :src="r._thumb" loading="lazy" decoding="async" onerror="this.style.display='none'" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
                                                             <i class="fa-solid fa-cloud" x-show="!r._thumb" style="font-size:24px;color:#9aa4b2;"></i>
                                                             <i class="fa-solid fa-circle-play" x-show="cloudPlayback.selected === r" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;color:#2fbf71;text-shadow:0 0 5px rgba(0,0,0,0.9);z-index:2;"></i>
                                                         </div>
-                                                        <!-- 右侧信息 -->
                                                         <div class="ms-2 d-flex flex-column justify-content-center" style="height:100%;min-width:0;overflow:hidden;">
                                                             <div class="text-start" style="font-size:12px;display:flex;flex-wrap:wrap;gap:3px;">
                                                                 <span class="badge" style="font-size:9px;"
@@ -7260,6 +7259,12 @@ window.__presignThumbUrl = function (raw) {
                                                 </div>
                                             </div>
                                         </template>
+                                        <div class="col-12 d-flex align-items-center justify-content-between mt-2" x-show="(cloudPlayback.records||[]).length">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="(cloudPlayback.listPage||1)<=1" @click="cloudListShiftPage(-1)"><i class="fa fa-chevron-left"></i></button>
+                                            <span class="text-muted" style="font-size:11px;"
+                                                  x-text="tIdx('cm_page')+' '+(cloudPlayback.listPage||1)+' / '+cloudListPageCount()+' · '+(cloudPlayback.records||[]).length"></span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="(cloudPlayback.listPage||1)>=cloudListPageCount()" @click="cloudListShiftPage(1)"><i class="fa fa-chevron-right"></i></button>
+                                        </div>
                                         <div x-show="!cloudPlayback.records.length" class="col-12 text-muted text-center py-3" data-i18n="cp_no_records">No cloud recordings</div>
                                     </div>
                                 </div>
@@ -10997,7 +11002,7 @@ const I18N_INDEX = {
     rs_file_counts:'Record File Counts', rs_file_counts_tip:'Record file count', rs_sec_loop:'Loop Recording', rs_sec_timelapse:'Timelapse Recording',
     cm_start_time:'Start Time', cm_end_time:'End Time',
     cm_page_size:'Page Size', cm_page_number:'Page Number',
-    cm_search:'Search', cm_load_more:'Load More', cm_loading:'Loading...', cm_cancel:'Cancel', cm_confirm:'Confirm',
+    cm_search:'Search', cm_load_more:'Load More', cm_loading:'Loading...', cm_page:'Page', cm_cancel:'Cancel', cm_confirm:'Confirm',
     cm_notice:'Notice', cm_start:'Start', cm_stop:'Stop',
     cm_capture:'Capture', cm_message:'Message', cm_picture:'Picture', cm_audio:'Audio',
     cm_send_to_device:'Send message to device', cm_chat_loading:'Loading...',
@@ -11166,7 +11171,7 @@ const I18N_INDEX = {
     rs_file_counts:'录像文件数量', rs_file_counts_tip:'录像文件记录个数', rs_sec_loop:'循环录像', rs_sec_timelapse:'缩时录像',
     cm_start_time:'开始时间', cm_end_time:'结束时间',
     cm_page_size:'每页条数', cm_page_number:'页码',
-    cm_search:'搜索', cm_load_more:'加载更多', cm_loading:'加载中…', cm_cancel:'取消', cm_confirm:'确定',
+    cm_search:'搜索', cm_load_more:'加载更多', cm_loading:'加载中…', cm_page:'Page', cm_cancel:'取消', cm_confirm:'确定',
     cm_notice:'通知', cm_start:'开始', cm_stop:'停止',
     cm_capture:'抓拍', cm_message:'消息', cm_picture:'图片', cm_audio:'音频',
     cm_send_to_device:'给设备发送信息', cm_chat_loading:'加载中...',
@@ -11335,7 +11340,7 @@ const I18N_INDEX = {
     rs_file_counts:'録画ファイル数', rs_file_counts_tip:'録画ファイル記録数', rs_sec_loop:'ループ録画', rs_sec_timelapse:'タイムラプス録画',
     cm_start_time:'開始時刻', cm_end_time:'終了時刻',
     cm_page_size:'ページサイズ', cm_page_number:'ページ番号',
-    cm_search:'検索', cm_load_more:'さらに読み込む', cm_loading:'読み込み中…', cm_cancel:'キャンセル', cm_confirm:'確認',
+    cm_search:'検索', cm_load_more:'さらに読み込む', cm_loading:'読み込み中…', cm_page:'Page', cm_cancel:'キャンセル', cm_confirm:'確認',
     cm_notice:'通知', cm_start:'開始', cm_stop:'停止',
     cm_capture:'キャプチャ', cm_message:'メッセージ', cm_picture:'画像', cm_audio:'音声',
     cm_send_to_device:'デバイスにメッセージを送信', cm_chat_loading:'読み込み中...',
@@ -11503,7 +11508,7 @@ const I18N_INDEX = {
     rs_file_counts:'Aufnahmedateien', rs_file_counts_tip:'Anzahl der Aufnahmedateien', rs_sec_loop:'Schleifenaufnahme', rs_sec_timelapse:'Zeitrafferaufnahme',
     cm_start_time:'Startzeit', cm_end_time:'Endzeit',
     cm_page_size:'Seitengröße', cm_page_number:'Seitennummer',
-    cm_search:'Suchen', cm_load_more:'Mehr laden', cm_loading:'Wird geladen…', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
+    cm_search:'Suchen', cm_load_more:'Mehr laden', cm_loading:'Wird geladen…', cm_page:'Page', cm_cancel:'Abbrechen', cm_confirm:'Bestätigen',
     cm_notice:'Hinweis', cm_start:'Start', cm_stop:'Stopp',
     cm_capture:'Aufnehmen', cm_message:'Nachricht', cm_picture:'Bild', cm_audio:'Audio',
     cm_send_to_device:'Nachricht an Gerät senden', cm_chat_loading:'Laden...',
@@ -11670,7 +11675,7 @@ const I18N_INDEX = {
     rs_file_counts:'Fichiers enreg.', rs_file_counts_tip:'Nombre de fichiers enregistrés', rs_sec_loop:'Enregistrement en boucle', rs_sec_timelapse:'Enregistrement accéléré',
     cm_start_time:'Début', cm_end_time:'Fin',
     cm_page_size:'Taille page', cm_page_number:'N° page',
-    cm_search:'Rechercher', cm_load_more:'Charger plus', cm_loading:'Chargement…', cm_cancel:'Annuler', cm_confirm:'Confirmer',
+    cm_search:'Rechercher', cm_load_more:'Charger plus', cm_loading:'Chargement…', cm_page:'Page', cm_cancel:'Annuler', cm_confirm:'Confirmer',
     cm_notice:'Notification', cm_start:'Démarrer', cm_stop:'Arrêter',
     cm_capture:'Capturer', cm_message:'Message', cm_picture:'Image', cm_audio:'Audio',
     cm_send_to_device:'Envoyer un message à l\'appareil', cm_chat_loading:'Chargement...',
@@ -11838,7 +11843,7 @@ const I18N_INDEX = {
     rs_file_counts:'Archivos grabación', rs_file_counts_tip:'Cantidad de archivos grabados', rs_sec_loop:'Grabación en bucle', rs_sec_timelapse:'Grabación timelapse',
     cm_start_time:'Inicio', cm_end_time:'Fin',
     cm_page_size:'Tamaño página', cm_page_number:'N° página',
-    cm_search:'Buscar', cm_load_more:'Cargar más', cm_loading:'Cargando…', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
+    cm_search:'Buscar', cm_load_more:'Cargar más', cm_loading:'Cargando…', cm_page:'Page', cm_cancel:'Cancelar', cm_confirm:'Confirmar',
     cm_notice:'Aviso', cm_start:'Iniciar', cm_stop:'Detener',
     cm_capture:'Capturar', cm_message:'Mensaje', cm_picture:'Imagen', cm_audio:'Audio',
     cm_send_to_device:'Enviar mensaje al dispositivo', cm_chat_loading:'Cargando...',
@@ -13293,7 +13298,7 @@ document.addEventListener('DOMContentLoaded', function() {
             s3UploadResult: { uploading: false, url: '', error: '' },
 
             cloudPlayback: {
-                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, loading: false, selected: null, posterThumb: '' },
+                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', _appsyncThumbCache: null, _appsyncThumbDay: '' },
 
             scanService:  {
                 scan_service_enable:  false,
@@ -17724,15 +17729,13 @@ async _execSystemServiceAction(action) {
                     this.cloudPlayback.error = (e && (e.code ? (e.code + ': ') : '') + (e.message || e)) || String(e);
                 }
             },
-            // 拉取云录像列表（镜像 fetchRecords，method=getCloudRecordListCommand）
+            // 拉取云录像元数据（可多页拼整天供时间轴）；缩略图只挂「当前列表页」
             async fetchCloudRecords() {
                 this.cloudPlayback.error = '';
-                // 本地时间格式化为 "YYYY-MM-DDTHH:mm"
                 const fmtLocal = (date) => {
                     const tz = date.getTimezoneOffset() * 60000;
                     return new Date(date.getTime() - tz).toISOString().slice(0, 16);
                 };
-                // 时间窗口：手动输入为空则默认最近 24h
                 let startTime = this.cloudPlayback.startStr;
                 let endTime = this.cloudPlayback.endStr;
                 if (!startTime || !endTime) {
@@ -17744,53 +17747,103 @@ async _execSystemServiceAction(action) {
                 const deviceID = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
                 this.cloudPlayback.loading = true;
                 try {
-                    const response = await fetch('/getDeviceCommand', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            method: 'getCloudRecordListCommand',
-                            params: {
-                                deviceID: deviceID,
-                                startTime: startTime,
-                                endTime: endTime,
-                                pageSize: this.cloudPlayback.pageSize,
-                                pageNumber: this.cloudPlayback.pageNumber,
-                            },
-                            requestId: 'cloudRecList_' + Date.now(),
-                        }),
-                    });
-                    const result = await response.json();
-                    this.cloudPlayback.records = (result && result.params && result.params.records) || [];
+                    // 元数据分页拼整天（≤60/页），不在这里拉 JPEG
+                    const metaPageSize = 60;
+                    let page = 1, all = [], total = null;
+                    while (page <= 40) {
+                        const response = await fetch('/getDeviceCommand', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                method: 'getCloudRecordListCommand',
+                                params: {
+                                    deviceID: deviceID,
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    pageSize: metaPageSize,
+                                    pageNumber: page,
+                                    slim: true,
+                                },
+                                requestId: 'cloudRecList_' + Date.now() + '_' + page,
+                            }),
+                        });
+                        const result = await response.json();
+                        const p = (result && result.params) || {};
+                        const batch = p.records || [];
+                        if (typeof p.totalRecords === 'number') total = p.totalRecords;
+                        all = all.concat(batch);
+                        if (!batch.length || batch.length < metaPageSize) break;
+                        if (total != null && all.length >= total) break;
+                        page += 1;
+                    }
+                    this.cloudPlayback.records = all;
+                    this.cloudPlayback.listPage = 1;
+                    this.cloudPlayback._appsyncThumbCache = null;
+                    this.cloudPlayback._appsyncThumbDay = '';
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] list error:', e);
                     this.cloudPlayback.error = (e && (e.message || e)) || String(e);
                     this.cloudPlayback.records = [];
                 } finally {
-                    this.buildCloudTimeline();   // 列表与时间轴同源刷新
+                    this.buildCloudTimeline();
                     this.cloudPlayback.loading = false;
-                    this.attachCloudThumbs();    // 异步补齐列表缩略图 + 播放器 poster(不阻塞列表渲染)
+                    this.attachCloudThumbs(); // 只给当前列表页补缩略图
                 }
             },
-            // 云记录自身无缩略图(RecordIndexInformationImage 恒空)。用【同段本地录像封面就近匹配】作列表缩略图
-            // 与播放器 poster：按云段起止查本地索引(+60s 余量),取窗口内首张有封面的记录;本地文件已轮删的旧段回退云图标。
-            // 仅网页端,不改设备/命令。各记录并行查询,结果写回 r._thumb 后 slice 数组触发重渲染(保留对象引用→selected 高亮不丢)。
+            cloudListPageCount() {
+                const n = (this.cloudPlayback.records || []).length;
+                const ps = Math.max(1, Number(this.cloudPlayback.pageSize) || 20);
+                return Math.max(1, Math.ceil(n / ps));
+            },
+            cloudListPageRecords() {
+                const ps = Math.max(1, Number(this.cloudPlayback.pageSize) || 20);
+                let pn = Math.max(1, Number(this.cloudPlayback.listPage) || 1);
+                const max = this.cloudListPageCount();
+                if (pn > max) pn = max;
+                const start = (pn - 1) * ps;
+                return (this.cloudPlayback.records || []).slice(start, start + ps);
+            },
+            cloudListShiftPage(delta) {
+                const max = this.cloudListPageCount();
+                let pn = Math.max(1, Number(this.cloudPlayback.listPage) || 1) + (delta || 0);
+                if (pn < 1) pn = 1;
+                if (pn > max) pn = max;
+                if (pn === this.cloudPlayback.listPage) return;
+                this.cloudPlayback.listPage = pn;
+                this.attachCloudThumbs();
+            },
+            // Thumbnails: only current list page (avoid hundreds of S3 JPEGs for a full day).
+            // WAN: AppSync thumbnailUrl for that day; LAN: local index nearest match.
             async attachCloudThumbs() {
-                // 外网：用 AppSync CloudRecord.thumbnailUrl（与 App 一致），禁止再查本地索引拼 /download
-                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode() : (this.isCloudOtaMode && this.isCloudOtaMode())) {
-                    const list = this.cloudPlayback.records || [];
-                    if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
+                const page = (typeof this.cloudListPageRecords === 'function')
+                    ? this.cloudListPageRecords() : (this.cloudPlayback.records || []);
+                if (!(this.cloudPlayback.records || []).length) { this.cloudPlayback.posterThumb = ''; return; }
+                if (!page.length) return;
+                const msOf = (dt) => {
+                    const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+                    return m ? Date.parse(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00') : NaN;
+                };
+                const wan = (typeof window.isWanMediaMode === 'function')
+                    ? window.isWanMediaMode()
+                    : (typeof this.isCloudOtaMode === 'function' && this.isCloudOtaMode());
+                if (wan) {
                     const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
-                    let cloud = [];
-                    try {
-                        const endIso = new Date(Date.now() + 864e5).toISOString();
-                        const startIso = new Date(Date.now() - 14 * 864e5).toISOString();
-                        cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
-                    } catch (e) { cloud = []; }
-                    const msOf = (dt) => {
-                        const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-                        return m ? Date.parse(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00') : NaN;
-                    };
-                    for (const r of list) {
+                    const day = this.timelineDate || (this.cloudPlayback.startStr || '').slice(0, 10);
+                    let cloud = this.cloudPlayback._appsyncThumbCache;
+                    if (!cloud || this.cloudPlayback._appsyncThumbDay !== day) {
+                        try {
+                            const startIso = day
+                                ? new Date(day + 'T00:00:00').toISOString()
+                                : new Date(Date.now() - 864e5).toISOString();
+                            const endIso = day
+                                ? new Date(new Date(day + 'T00:00:00').getTime() + 864e5).toISOString()
+                                : new Date(Date.now() + 864e5).toISOString();
+                            cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                        } catch (e) { cloud = []; }
+                        this.cloudPlayback._appsyncThumbCache = cloud;
+                        this.cloudPlayback._appsyncThumbDay = day;
+                    }
+                    for (const r of page) {
                         if (r._thumb) continue;
                         const t0 = msOf(r.RecordIndexInformationDateTime);
                         const rCam = (r.channel != null) ? Number(r.channel)
@@ -17805,57 +17858,46 @@ async _execSystemServiceAction(action) {
                         }
                         r._thumb = best ? (window.__presignThumbUrl(best.thumbnailUrl) || '') : '';
                     }
-                    this.cloudPlayback.records = this.cloudPlayback.records.slice();
-                    const withThumb = list.filter(r => r._thumb).sort((a, b) =>
-                        String(b.RecordIndexInformationDateTime || '').localeCompare(String(a.RecordIndexInformationDateTime || '')));
-                    this.cloudPlayback.posterThumb = withThumb.length ? withThumb[0]._thumb : this.cloudPlayback.posterThumb;
-                    return;
+                } else {
+                    const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                    const pad = n => (n < 10 ? '0' : '') + n;
+                    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    const msFull = (dt) => {
+                        const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+                        return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : NaN;
+                    };
+                    const winOf = (r) => {
+                        const startMs = msFull(r.RecordIndexInformationDateTime);
+                        if (isNaN(startMs)) return null;
+                        const e = new Date(startMs + (r.RecordIndexInformationDuration || 30) * 1000);
+                        return { start: fmt(new Date(startMs)), end: fmt(e), startMs };
+                    };
+                    await Promise.all(page.map(async r => {
+                        if (r._thumb !== undefined) return;
+                        const w = winOf(r);
+                        if (!w) { r._thumb = ''; return; }
+                        try {
+                            const resp = await fetch('/getDeviceCommand', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ method: 'queryLocalRecordIndexInformationCommand',
+                                    params: { deviceID: uuid, startTime: w.start, endTime: w.end, pageSize: 60, pageNumber: 1, recordType: 0 } })
+                            });
+                            const d = await resp.json();
+                            const recs = (d && d.params && d.params.records) || [];
+                            let best = null, bestDist = Infinity;
+                            for (const x of recs) {
+                                if (!x.RecordIndexInformationImage) continue;
+                                const dist = Math.abs(msFull(x.RecordIndexInformationDateTime) - w.startMs);
+                                if (dist < bestDist) { bestDist = dist; best = x; }
+                            }
+                            r._thumb = best ? ('/download?filePath=' + best.RecordIndexInformationImage) : '';
+                        } catch (e) { r._thumb = ''; }
+                    }));
                 }
-
-                const list = this.cloudPlayback.records || [];
-                if (!list.length) { this.cloudPlayback.posterThumb = ''; return; }
-                const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
-                const pad = n => (n < 10 ? '0' : '') + n;
-                const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                const msOf = (dt) => {
-                    const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
-                    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : NaN;
-                };
-                // 窗口 = 云段起止各自所在的【分钟】(设备 endTime 按整分钟包含)。不加前向余量——
-                // 本地索引很密(~15条/分钟),加余量会把更新的记录挤进 newest-first 首页、把本段封面翻到后页。
-                const winOf = (r) => {
-                    const startMs = msOf(r.RecordIndexInformationDateTime);
-                    if (isNaN(startMs)) return null;
-                    const e = new Date(startMs + (r.RecordIndexInformationDuration || 30) * 1000);
-                    return { start: fmt(new Date(startMs)), end: fmt(e), startMs };
-                };
-                await Promise.all(list.map(async r => {
-                    if (r._thumb !== undefined) return;   // 已解析过
-                    const w = winOf(r);
-                    if (!w) { r._thumb = ''; return; }
-                    try {
-                        const resp = await fetch('/getDeviceCommand', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ method: 'queryLocalRecordIndexInformationCommand',
-                                params: { deviceID: uuid, startTime: w.start, endTime: w.end, pageSize: 60, pageNumber: 1, recordType: 0 } })
-                        });
-                        const d = await resp.json();
-                        const recs = (d && d.params && d.params.records) || [];
-                        // 取封面里【离云段起始最近】的一张(而非窗口内最新那张),更贴合该事件画面
-                        let best = null, bestDist = Infinity;
-                        for (const x of recs) {
-                            if (!x.RecordIndexInformationImage) continue;
-                            const dist = Math.abs(msOf(x.RecordIndexInformationDateTime) - w.startMs);
-                            if (dist < bestDist) { bestDist = dist; best = x; }
-                        }
-                        r._thumb = best ? ('/download?filePath=' + best.RecordIndexInformationImage) : '';
-                    } catch (e) { r._thumb = ''; }
-                }));
-                this.cloudPlayback.records = this.cloudPlayback.records.slice();   // 触发重渲染
-                // poster 取最新一段(按时间倒序)有封面的那张
-                const withThumb = list.filter(r => r._thumb).sort((a, b) =>
+                this.cloudPlayback.records = this.cloudPlayback.records.slice();
+                const withThumb = page.filter(r => r._thumb).sort((a, b) =>
                     String(b.RecordIndexInformationDateTime || '').localeCompare(String(a.RecordIndexInformationDateTime || '')));
-                this.cloudPlayback.posterThumb = withThumb.length ? withThumb[0]._thumb : this.cloudPlayback.posterThumb;
+                if (withThumb.length) this.cloudPlayback.posterThumb = withThumb[0]._thumb;
             },
             // 点击列表项播放：把记录时间换算为 datetime-local 本地字符串后复用 DASH 播放流程
             async playCloudRecord(r) {
