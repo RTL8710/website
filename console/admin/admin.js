@@ -3239,7 +3239,7 @@ let _fflateUnzip = null;
 
 async function loadFflateUnzip() {
   if (_fflateUnzip) return _fflateUnzip;
-  const mod = await import('https://esm.sh/fflate@0.8.2');
+  const mod = await import('../vendor/fflate.esm.js');
   if (typeof mod.unzipSync !== 'function') throw new Error('unzip 库加载失败');
   _fflateUnzip = mod.unzipSync;
   return _fflateUnzip;
@@ -3460,7 +3460,7 @@ async function openDiagLogView(item) {
     const buf = await getS3Object(creds, { bucket: S3_BUCKET, region: COGNITO.region, key });
     let files;
     if (/\.gz$/i.test(key) && !/\.tar\.gz$/i.test(key)) {
-      const gunzipSync = (await import('https://esm.sh/fflate@0.8.2')).gunzipSync;
+      const gunzipSync = (await import('../vendor/fflate.esm.js')).gunzipSync;
       const u8 = gunzipSync(new Uint8Array(buf));
       const decoded = decodeLogBytes(u8);
       const name = (item.fileName || key).replace(/\.gz$/i, '') || 'console_systemd.out';

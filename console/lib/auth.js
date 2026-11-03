@@ -23,8 +23,7 @@ async function pool() {
   return _pool;
 }
 
-// 预热:启动时后台提前 import cognito-identity-js(esm.sh 冷加载是登录/恢复会话的主要延迟)+ 建 pool,
-// 让用户填账号时模块已就绪,signIn/restoreSession 不再等 CDN 冷加载。
+// 预热:启动时后台提前 import 本地 cognito-identity-js + 建 pool，填账号时模块已就绪。
 export function warmupAuth() { pool().catch(() => {}); }
 
 // 登录(USER_SRP_AUTH,账号为用户名)。成功后解析出 User 行(含 User.id)。

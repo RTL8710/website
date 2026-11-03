@@ -1,5 +1,5 @@
 /* 本地自托管字体（离线可用，勿挂 Google CDN）
- * Inter: 拉丁；Noto Sans SC: 中文。各只加载一份 woff2，其余字重复用，减少排队。
+ * Inter: 拉丁正文；Space Grotesk: 展示标题；Noto Sans SC: 中文。
  */
 
 @font-face {
@@ -8,6 +8,28 @@
   font-weight: 400 700;
   font-display: swap;
   src: url('inter-latin-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('space-grotesk-latin-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('space-grotesk-latin-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('space-grotesk-latin-700.woff2') format('woff2');
 }
 
 @font-face {

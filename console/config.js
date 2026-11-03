@@ -78,9 +78,12 @@ export function resolveKvsRegion(regionCode) {
   }
 }
 
-// 登录用 amazon-cognito-identity-js(esm.sh)。不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。
+// 登录用本地自托管 amazon-cognito-identity-js（vendor/，同源加载）。
+// 用 import.meta.url 解析：auth.js 里 dynamic import(DEPS.x) 必须是绝对 URL，
+// 相对 './vendor/…' 会错误地相对 lib/auth.js 解析。
+// 不用 @aws-sdk（其 esm 版会拉 node fs 在浏览器崩）。
 export const DEPS = {
-  cognitoIdentityJs: 'https://esm.sh/amazon-cognito-identity-js@6.3.12',
+  cognitoIdentityJs: new URL('./vendor/amazon-cognito-identity-js.esm.js', import.meta.url).href,
 };
 
 // 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
