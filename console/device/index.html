@@ -6594,7 +6594,7 @@ window.__presignThumbUrl = function (raw) {
                                                             <i class="fa-solid" :class="recordListCollapsed ? 'fa-chevron-left' : 'fa-chevron-right'"></i>
                                                             <span x-text="recordListCollapsed ? tIdx('vp_show_list') : tIdx('vp_hide_list')"></span>
                                                         </button>
-                                                        <button class="btn btn-sm btn-primary" @click="fetchRecords(true)">
+                                                        <button class="btn btn-sm btn-primary" @click="onPlaybackSearch()">
                                                             <span data-i18n="cm_search">Search</span>
                                                         </button>
                                                     </div>
@@ -6606,7 +6606,7 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
                                                 <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="fetchTimeline()" autocomplete="off">
+                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="onTimelineDateChanged()" autocomplete="off">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                                     <span x-show="timelineLoading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
                                                     <span class="text-muted" style="font-size:11px;" x-show="!timelineLoading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
@@ -6978,7 +6978,7 @@ window.__presignThumbUrl = function (raw) {
                                                             <i class="fa-solid fa-clone" aria-hidden="true"></i><span class="lbl" x-text="tIdx('pl_pip')"></span>
                                                         </button>
                                                     </div>
-                                                        <button class="btn btn-sm btn-primary" @click="fetchImages(true)">
+                                                        <button class="btn btn-sm btn-primary" @click="onImagePlaybackSearch()">
                                                             <span data-i18n="cm_search">Search</span>
                                                         </button>
                                                     </div>
@@ -6990,7 +6990,7 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-body p-2" @mousemove.window="onTimelineMouseMove($event)" @mouseup.window="onTimelineMouseUp()">
                                                 <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size:13px;">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(-1)"><i class="fa fa-chevron-left"></i></button>
-                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="fetchTimeline()" autocomplete="off">
+                                                    <input type="text" class="form-control form-control-sm dv-fp" data-fp="date" style="width:150px;" x-model="timelineDate" x-init="dvBindFp($el)" x-effect="dvFpSync($el, timelineDate)" @change="onTimelineDateChanged()" autocomplete="off">
                                                     <button class="btn btn-sm btn-outline-secondary" @click="timelineShiftDay(1)"><i class="fa fa-chevron-right"></i></button>
                                                     <span x-show="timelineLoading" class="text-muted" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i><span data-i18n="cm_loading">Loading...</span></span>
                                                     <span class="text-muted" style="font-size:11px;" x-show="!timelineLoading"><span x-text="recordTimeline.length"></span> <span data-i18n="tl_segments">segments</span></span>
@@ -13509,8 +13509,8 @@ document.addEventListener('DOMContentLoaded', function() {
             _agoraLastStart: '',
             // startTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // endTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            // startTime / endTime 占位；进回放页 fetchRecords(false) 会设为「昨天此刻~现在」(懒加载前原逻辑)
-            startTime: (() => { const d = new Date(); d.setDate(d.getDate() - 1); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            // startTime / endTime 占位；进回放页与时间轴对齐为「当天 00:00~现在」
+            startTime: (() => { const d = new Date(); d.setHours(0,0,0,0); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T00:00`; })(),
             endTime: (() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
 
             statusMessage: '',
@@ -13526,7 +13526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             syncImages: [],           // 图片回放多路同步封面（对齐 syncRecords）
             // snapStartTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // snapEndTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            snapStartTime: (() => { const d = new Date(); d.setDate(d.getDate() - 1); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            snapStartTime: (() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T00:00`; })(),
             snapEndTime: (() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
 
             openaiChatRecords: [], // chat记录列表
@@ -20125,17 +20125,17 @@ async _execSystemServiceAction(action) {
 
 
                 if (!isSearch) {
-                    // 默认开始时间为前一天的当前时刻
-                    this.startTime = formatDate(yesterday);
-
-                    // 默认结束时间为当前时刻
+                    // 默认：当天 00:00 ~ 现在（与时间轴「当天」一致，避免筛选跨天、轴仍停在今天）
+                    const today0 = new Date(now);
+                    today0.setHours(0, 0, 0, 0);
+                    this.startTime = formatDate(today0);
                     this.endTime = formatDate(now);
-
-
+                    const day = this._dayFromDateTime(this.endTime) || this._localDayStr(now);
+                    if (day && this.timelineDate !== day) this.timelineDate = day;
                 }
 
-                console.log("Start time (yesterday):", this.startTime); // 输出前一天的时间
-                console.log("End time (now):", this.endTime); // 输出当前时间
+                console.log("Start time:", this.startTime);
+                console.log("End time:", this.endTime);
 
                 // 如果是搜索，重置分页信息
                 if (isSearch) {
@@ -20728,12 +20728,62 @@ async _execSystemServiceAction(action) {
             },
 
             // ===== 录像时间轴（按天） =====
+            // 筛选起止 vs 时间轴日期双向同步：时间轴是「当天」真相源；筛选跨天时时间轴对齐结束日
+            _localDayStr(d) {
+                const x = d instanceof Date ? d : new Date();
+                return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+            },
+            _dayFromDateTime(s) {
+                const m = String(s || '').match(/^(\d{4}-\d{2}-\d{2})/);
+                return m ? m[1] : '';
+            },
+            syncFilterRangeToTimelineDate() {
+                const day = this.timelineDate || this._localDayStr(new Date());
+                if (!this.timelineDate) this.timelineDate = day;
+                const start = day + 'T00:00';
+                const end = day + 'T23:59';
+                if (this.playbackTab === 'image') {
+                    this.snapStartTime = start;
+                    this.snapEndTime = end;
+                } else {
+                    this.startTime = start;
+                    this.endTime = end;
+                }
+            },
+            syncTimelineDateFromFilter() {
+                let a, b;
+                if (this.playbackTab === 'image') {
+                    a = this._dayFromDateTime(this.snapStartTime);
+                    b = this._dayFromDateTime(this.snapEndTime);
+                } else {
+                    a = this._dayFromDateTime(this.startTime);
+                    b = this._dayFromDateTime(this.endTime);
+                }
+                const day = (a && b && a === b) ? a : (b || a);
+                if (!day) return false;
+                if (this.timelineDate === day) return false;
+                this.timelineDate = day;
+                return true;
+            },
+            onTimelineDateChanged() {
+                this.syncFilterRangeToTimelineDate();
+                this.fetchTimeline();
+                if (this.playbackTab === 'image') this.fetchImages(true);
+                else if (this.playbackTab !== 'cloud') this.fetchRecords(true);
+            },
+            onPlaybackSearch() {
+                if (this.syncTimelineDateFromFilter()) this.fetchTimeline();
+                this.fetchRecords(true);
+            },
+            onImagePlaybackSearch() {
+                if (this.syncTimelineDateFromFilter()) this.fetchTimeline();
+                this.fetchImages(true);
+            },
             initTimeline() {
+                // 优先用筛选结束日，保证进页时与列表默认范围同一天
                 if (!this.timelineDate) {
-                    const n = new Date();
-                    this.timelineDate = n.getFullYear() + '-' +
-                        String(n.getMonth() + 1).padStart(2, '0') + '-' +
-                        String(n.getDate()).padStart(2, '0');
+                    const fromFilter = this._dayFromDateTime(this.endTime) || this._dayFromDateTime(this.startTime);
+                    this.timelineDate = fromFilter || this._localDayStr(new Date());
                 }
                 this.fetchTimeline();
             },
@@ -20769,12 +20819,10 @@ async _execSystemServiceAction(action) {
                 }
             },
             timelineShiftDay(delta) {
-                const d = new Date(this.timelineDate + 'T00:00:00');
+                const d = new Date((this.timelineDate || this._localDayStr(new Date())) + 'T00:00:00');
                 d.setDate(d.getDate() + delta);
-                this.timelineDate = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-                this.fetchTimeline();
+                this.timelineDate = this._localDayStr(d);
+                this.onTimelineDateChanged();
             },
             tlCamOf(p) { p = String(p || ''); return p.includes('/second/') ? 1 : p.includes('/third/') ? 2 : p.includes('/fourth/') ? 3 : 0; },
             // slim 时间轴带 cam；旧包体无 cam 时回退路径推断
@@ -21633,17 +21681,16 @@ async _execSystemServiceAction(action) {
 
 
                 if (!isSearch) {
-                    // 默认开始时间为前一天的当前时刻
-                    this.snapStartTime = formatDate(yesterday);
-
-                    // 默认结束时间为当前时刻
+                    const today0 = new Date(now);
+                    today0.setHours(0, 0, 0, 0);
+                    this.snapStartTime = formatDate(today0);
                     this.snapEndTime = formatDate(now);
-
+                    const day = this._dayFromDateTime(this.snapEndTime) || this._localDayStr(now);
+                    if (day && this.timelineDate !== day) this.timelineDate = day;
                 }
 
-
-                console.log("snapStartTime time (yesterday):", this.snapStartTime); // 输出前一天的时间
-                console.log("snapEndTime time (now):", this.snapEndTime); // 输出当前时间
+                console.log("snapStartTime:", this.snapStartTime);
+                console.log("snapEndTime:", this.snapEndTime);
 
 
                 // 如果是搜索，重置分页信息
