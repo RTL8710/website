@@ -1,18 +1,14 @@
-/* 原生 date / datetime-local 输入框 + 自绘「日」面板 · Deep Sea
- * datetime-local 仍用系统弹层（仅能 color-scheme）；纯 date 用 dv-day-picker 主题面板。
- */
+/* date / datetime-local · 主题变量驱动（跟随 html[data-theme] 的 --accent / --bg-*） */
 
-input[type="date"].dv-native-date,
-input[type="datetime-local"].dv-native-dt,
 input.dv-native-date,
 input.dv-native-dt {
   color-scheme: dark;
-  accent-color: #22D3EE;
+  accent-color: var(--accent, #22D3EE);
   color: var(--text-primary, #E5EDF7) !important;
   background:
-    linear-gradient(180deg, rgba(34, 211, 238, 0.06), transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent, #22D3EE) 10%, transparent), transparent 48%),
     var(--bg-card2, rgba(11, 18, 32, 0.96)) !important;
-  border: 1px solid rgba(34, 211, 238, 0.28) !important;
+  border: 1px solid color-mix(in srgb, var(--accent, #22D3EE) 35%, transparent) !important;
   border-radius: 10px !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
@@ -22,38 +18,36 @@ input.dv-native-dt {
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
   max-width: 100%;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  position: relative;
 }
-input[type="datetime-local"].dv-native-dt,
 input.dv-native-dt {
   min-width: 12.75rem;
   width: 12.75rem;
-  padding-right: 0.55rem !important;
+  padding-right: 2rem !important;
 }
-input[type="date"].dv-native-date,
 input.dv-native-date {
   min-width: 10rem;
   width: 10rem;
   padding-right: 2rem !important;
-  cursor: pointer;
-  position: relative;
 }
-
 input.dv-native-date:hover,
 input.dv-native-dt:hover {
-  border-color: rgba(34, 211, 238, 0.45) !important;
+  border-color: color-mix(in srgb, var(--accent, #22D3EE) 55%, transparent) !important;
 }
 input.dv-native-date:focus,
 input.dv-native-dt:focus {
-  border-color: rgba(34, 211, 238, 0.7) !important;
+  border-color: color-mix(in srgb, var(--accent, #22D3EE) 75%, transparent) !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 0 0 3px rgba(34, 211, 238, 0.18),
+    0 0 0 3px color-mix(in srgb, var(--accent, #22D3EE) 22%, transparent),
     0 8px 22px rgba(0, 0, 0, 0.35) !important;
   outline: none !important;
 }
 
-input.dv-native-date::-webkit-calendar-picker-indicator {
+input.dv-native-date::-webkit-calendar-picker-indicator,
+input.dv-native-dt::-webkit-calendar-picker-indicator {
   opacity: 0;
   width: 100%;
   height: 100%;
@@ -61,6 +55,7 @@ input.dv-native-date::-webkit-calendar-picker-indicator {
   left: 0; top: 0;
   cursor: pointer;
 }
+
 .dv-date-wrap {
   position: relative;
   display: inline-block;
@@ -76,28 +71,29 @@ input.dv-native-date::-webkit-calendar-picker-indicator {
   height: 14px;
   transform: translateY(-50%);
   pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2222D3EE' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2'/%3E%3Cpath d='M2.5 6.5h11M5.5 2v3M10.5 2v3'/%3E%3C/svg%3E") center / contain no-repeat;
   opacity: 0.9;
+  background-color: var(--accent, #22D3EE);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2'/%3E%3Cpath d='M2.5 6.5h11M5.5 2v3M10.5 2v3'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2'/%3E%3Cpath d='M2.5 6.5h11M5.5 2v3M10.5 2v3'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-input.dv-native-dt::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.9;
-  filter: invert(72%) sepia(62%) saturate(650%) hue-rotate(140deg) brightness(105%);
-}
-
+/* ── 弹出面板（背景/强调色全部走主题变量）── */
 .dv-day-pop {
   position: fixed;
   z-index: 10050;
   width: 292px;
   padding: 10px 10px 8px;
   border-radius: 14px;
-  border: 1px solid rgba(34, 211, 238, 0.26);
-  background: linear-gradient(165deg, rgba(19, 28, 46, 0.98), rgba(11, 18, 32, 0.98));
+  border: 1px solid color-mix(in srgb, var(--accent, #22D3EE) 30%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--bg-card, #131C2E) 92%, #000),
+    color-mix(in srgb, var(--bg-base, #0B1220) 96%, #000)
+  );
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
     0 18px 50px rgba(0, 0, 0, 0.55),
-    0 0 40px rgba(34, 211, 238, 0.08);
+    0 0 40px color-mix(in srgb, var(--accent, #22D3EE) 12%, transparent);
   font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
   color: var(--text-primary, #E5EDF7);
   animation: dvDayIn 140ms ease-out;
@@ -108,6 +104,10 @@ input.dv-native-dt::-webkit-calendar-picker-indicator {
   to { opacity: 1; transform: none; }
 }
 .dv-day-pop[hidden] { display: none !important; }
+
+.dv-day-body { display: flex; gap: 10px; align-items: stretch; }
+.dv-day-cal { flex: 1 1 auto; min-width: 0; }
+.dv-day-pop.has-time .dv-day-cal { flex: 1 1 250px; }
 
 .dv-day-head {
   display: flex;
@@ -120,101 +120,100 @@ input.dv-native-dt::-webkit-calendar-picker-indicator {
   font-size: 14px;
   font-weight: 650;
   letter-spacing: 0.02em;
-  color: #E5EDF7;
+  color: var(--text-primary, #E5EDF7);
 }
-.dv-day-nav {
-  display: inline-flex;
-  gap: 4px;
-}
+.dv-day-nav { display: inline-flex; gap: 4px; }
 .dv-day-nav button {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #22D3EE;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--accent, #22D3EE); cursor: pointer; font-size: 14px; line-height: 1;
 }
 .dv-day-nav button:hover {
-  background: rgba(34, 211, 238, 0.12);
-  border-color: rgba(34, 211, 238, 0.22);
+  background: color-mix(in srgb, var(--accent, #22D3EE) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #22D3EE) 28%, transparent);
 }
 
 .dv-day-week {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  margin-bottom: 4px;
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px;
 }
 .dv-day-week span {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #5B6B85;
-  padding: 4px 0;
+  text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text-muted, #5B6B85); padding: 4px 0;
 }
 
-.dv-day-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-}
+.dv-day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .dv-day-grid button {
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #8A9BB4;
-  font-size: 13px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+  color: var(--text-secondary, #8A9BB4); font-size: 13px; font-weight: 500;
+  font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .dv-day-grid button:hover {
-  background: rgba(34, 211, 238, 0.12);
-  border-color: rgba(34, 211, 238, 0.28);
-  color: #E5EDF7;
+  background: color-mix(in srgb, var(--accent, #22D3EE) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #22D3EE) 28%, transparent);
+  color: var(--text-primary, #E5EDF7);
 }
-.dv-day-grid button.muted { opacity: 0.35; color: #5B6B85; }
+.dv-day-grid button.muted { opacity: 0.35; color: var(--text-muted, #5B6B85); }
 .dv-day-grid button.today {
-  border-color: rgba(34, 211, 238, 0.55);
-  color: #22D3EE;
-  font-weight: 650;
+  border-color: color-mix(in srgb, var(--accent, #22D3EE) 55%, transparent);
+  color: var(--accent, #22D3EE); font-weight: 650;
 }
 .dv-day-grid button.selected {
-  background: linear-gradient(135deg, #22D3EE, #38BDF8);
-  border-color: transparent;
-  color: #04222B;
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.35);
+  background: linear-gradient(135deg, var(--accent, #22D3EE), var(--accent2, #38BDF8));
+  border-color: transparent; color: var(--on-accent, #04222B); font-weight: 700;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent, #22D3EE) 35%, transparent);
 }
-.dv-day-grid button.selected:hover { color: #04222B; }
+.dv-day-grid button.selected:hover { color: var(--on-accent, #04222B); }
+
+/* 时分列 */
+.dv-day-time {
+  flex: 0 0 120px;
+  border-left: 1px solid color-mix(in srgb, var(--accent, #22D3EE) 14%, transparent);
+  padding-left: 8px;
+}
+.dv-day-time-cols { display: flex; gap: 4px; height: 240px; }
+.dv-day-time-col {
+  flex: 1;
+  overflow-y: auto;
+  scroll-snap-type: y proximity;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card2, #1A2438) 80%, transparent);
+  padding: 4px 2px;
+}
+.dv-day-time-col button {
+  display: block; width: 100%; height: 32px; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-secondary, #8A9BB4);
+  font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 500; cursor: pointer;
+  scroll-snap-align: center;
+}
+.dv-day-time-col button:hover {
+  background: color-mix(in srgb, var(--accent, #22D3EE) 12%, transparent);
+  color: var(--text-primary, #E5EDF7);
+}
+.dv-day-time-col button.selected {
+  background: linear-gradient(135deg, var(--accent, #22D3EE), var(--accent2, #38BDF8));
+  color: var(--on-accent, #04222B); font-weight: 700;
+}
 
 .dv-day-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(34, 211, 238, 0.12);
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--accent, #22D3EE) 14%, transparent);
 }
+.dv-day-foot-r { display: flex; gap: 6px; align-items: center; }
 .dv-day-foot button {
-  border: none;
-  background: transparent;
-  color: #22D3EE;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
+  border: none; background: transparent; color: var(--accent, #22D3EE);
+  font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 6px;
 }
-.dv-day-foot button:hover { background: rgba(34, 211, 238, 0.1); }
+.dv-day-foot button:hover {
+  background: color-mix(in srgb, var(--accent, #22D3EE) 12%, transparent);
+}
+.dv-day-foot .dv-day-ok {
+  background: linear-gradient(135deg, var(--accent, #22D3EE), var(--accent2, #38BDF8));
+  color: var(--on-accent, #04222B); padding: 4px 12px;
+}
+.dv-day-foot .dv-day-ok:hover { filter: brightness(1.05); }
 
+/* light：保留可读对比；其它主题靠变量自动换色 */
 [data-theme="light"] input.dv-native-date,
 [data-theme="light"] input.dv-native-dt {
   color-scheme: light;
@@ -223,16 +222,6 @@ input.dv-native-dt::-webkit-calendar-picker-indicator {
   border-color: rgba(15, 23, 42, 0.14) !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
-[data-theme="light"] input.dv-native-dt::-webkit-calendar-picker-indicator {
-  filter: none;
-  opacity: 0.65;
-}
 [data-theme="light"] .dv-day-pop {
-  background: linear-gradient(165deg, #ffffff, #f1f5f9);
-  border-color: rgba(15, 23, 42, 0.1);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-  color: #0f172a;
 }
-[data-theme="light"] .dv-day-title { color: #0f172a; }
-[data-theme="light"] .dv-day-grid button { color: #334155; }
-[data-theme="light"] .dv-day-grid button.selected { color: #04222B; }
