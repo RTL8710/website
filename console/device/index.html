@@ -11,6 +11,8 @@
     <link href="dropzone.css" rel="stylesheet"/>
     <link href="css/all.min.css" rel="stylesheet">
     <link href="fonts/fonts.css" rel="stylesheet">
+    <link rel="preload" href="fonts/noto-sans-sc-cn-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
     <script>
         // 管理门户跳转可带 ?deviceId=<uuid>：写入缓存，device-transport 直接用（免手填）
         try {
@@ -94,6 +96,23 @@ window.isLanDeviceOrigin = function () {
 window.isWanMediaMode = function () {
   if (window.isLanDeviceOrigin && window.isLanDeviceOrigin()) return false;
   return !!(window.isCloudOtaMode && window.isCloudOtaMode());
+};
+/* Alpine 会立刻 init 页内所有 x-data（含隐藏 tab），硬刷新会洪水式打 IoT/HTTP。
+ * 非首屏页用 dvWhenPage 把重 RPC 推迟到首次进入该页。 */
+window.dvWhenPage = function (pageId, fn) {
+  var ran = false;
+  var run = function () {
+    if (ran) return;
+    ran = true;
+    try { fn(); } catch (e) { console.warn('[dvWhenPage]', pageId, e); }
+  };
+  try {
+    var sec = document.getElementById(pageId);
+    if (sec && sec.classList.contains('active')) { run(); return; }
+  } catch (e) {}
+  window.addEventListener('pagechange', function (ev) {
+    if (ev && ev.detail && ev.detail.pageId === pageId) run();
+  });
 };
 window.__otaCredsBundle = function () {
   var c = {};
@@ -3561,7 +3580,7 @@ window.__presignThumbUrl = function (raw) {
   }
   applyBase();
   var done = false;
-  var safety = setTimeout(function () { window.DvBoot && window.DvBoot.ready(); }, 8000);
+  var safety = setTimeout(function () { window.DvBoot && window.DvBoot.ready(); }, 5000);
   window.DvBoot = {
     setStage: function (key, pct) {
       if (done) return;
@@ -3758,7 +3777,7 @@ window.__presignThumbUrl = function (raw) {
         <div id="alerts-container"></div>
             <div class="page-section" id="home">
                 <div class="page-wrapper" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation()"
+                     x-init="dvWhenPage('home', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initDashboardExtras();initMotorControlInformation(); })"
                      @pagechange.window="onCameraHealthPage('home', $event.detail.pageId)">
                     <div class="page-body" style="padding:0; margin:0; height: 100%; overflow: hidden;">
 <div class="row row-deck">
@@ -4036,7 +4055,7 @@ window.__presignThumbUrl = function (raw) {
                                             <!-- 视频设置页面 -->
                 
                 <div class="page-section " id="video-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();syncPreviewTransportFromDevice();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings()" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="dvWhenPage('video-settings', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();syncPreviewTransportFromDevice();initVedioSettings();initOsdInformation();initAlgorithmInformation();initDashboardExtras();initAudioSettings(); })" @pagechange.window="onCameraHealthPage('video-settings', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <header class="log-page-hero">
@@ -4974,7 +4993,7 @@ window.__presignThumbUrl = function (raw) {
 
 <!-- AI 检测页面（per-camera 算法配置，不同摄像头可加载不同模型）-->
                 <div class="page-section " id="ai-detection">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initMediaServerInformation();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })()" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="dvWhenPage('ai-detection', () => { if (window.__pendingAiParamTab) { aiParamTab = window.__pendingAiParamTab; delete window.__pendingAiParamTab; } initTransport();initDeviceGeneralInformation();initMediaServerInformation();syncPreviewTransportFromDevice();initVedioSettings();initAlgorithmInformation();initHullMapInformation();initDashboardExtras();initChatGptInformation(); if (aiParamTab==='vis') initVisualizationService(); })" @pagechange.window="onCameraHealthPage('ai-detection', $event.detail.pageId)">
                         <div class="page-body">
                             <div class="container-xl">
                         <header class="log-page-hero">
@@ -5771,7 +5790,7 @@ window.__presignThumbUrl = function (raw) {
                 <!-- 录像设置页面 -->
                 
                 <div class="page-section " id="record-settings">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="initRecordSettings();initStorageInformation()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="dvWhenPage('record-settings', () => { initRecordSettings();initStorageInformation(); })">
                         <div class="page-body">
                             <div class="container-xl">
                         <header class="log-page-hero">
@@ -6401,7 +6420,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })()" @pagechange.window="onPlaybackPageChange($event.detail.pageId)">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="dvWhenPage('playback', () => { if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })" @pagechange.window="onPlaybackPageChange($event.detail.pageId)">
                     <div class="playback-inner">
                         <header class="log-page-hero">
                             <div class="log-page-hero-main">
@@ -7259,7 +7278,7 @@ window.__presignThumbUrl = function (raw) {
 
 
                                 <!-- Device Info：Info / OTA / Peripheral / Motor 分段 Tab -->
-                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else if (deviceInfoParamTab==='vpn') { initNetworkInformation(); if (typeof initWebserverService==='function') initWebserverService(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })()">
+                <div class="page-section" id="device-information" x-data="deviceSettings()" x-init="dvWhenPage('device-information', () => { if (window.__pendingDeviceInfoTab) { deviceInfoParamTab = window.__pendingDeviceInfoTab; delete window.__pendingDeviceInfoTab; } if (deviceInfoParamTab==='ota') { initCloudOta(); if (isCloudOtaMode()) refreshCloudOtaPackage(); } else if (deviceInfoParamTab==='peripheral') { initPeripheralControlInformation(); } else if (deviceInfoParamTab==='motor') { initMotorControlInformation(); } else if (deviceInfoParamTab==='vpn') { initNetworkInformation(); if (typeof initWebserverService==='function') initWebserverService(); } else { initDeviceGeneralInformation(); initNtpInformation(); initScanServiceInformation(); initWatchdogInformation(); } })">
                         <header class="log-page-hero">
                             <div class="log-page-hero-main">
                                 <div class="log-eyebrow" data-i18n="ph_eyebrow_device">Device</div>
@@ -8041,7 +8060,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="chatgpt-information"></div>
 
 <div class="page-section " id="chatdevice-information">
-                    <div class="page-wrapper" x-data="deviceSettings()" x-init="loadAskHistory()">
+                    <div class="page-wrapper" x-data="deviceSettings()" x-init="dvWhenPage('chatdevice-information', () => { loadAskHistory(); })">
                         <div class="page-body">
                             <div class="container-xl">
                         <header class="log-page-hero">
@@ -8233,7 +8252,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
                                 <!-- Production：Provisioning / Factory Test / Activate 分段 Tab -->
-                <div class="page-section" id="production" x-data="deviceSettings()" x-init="(function(){ if (window.__pendingProductionTab) { productionParamTab = window.__pendingProductionTab; delete window.__pendingProductionTab; } if (productionParamTab==='factory') { initFactoryTestServiceInformation(); } else if (productionParamTab==='activate') { getLicenseService(); } else { initProvisioningServiceInformation(); } })()">
+                <div class="page-section" id="production" x-data="deviceSettings()" x-init="dvWhenPage('production', () => { if (window.__pendingProductionTab) { productionParamTab = window.__pendingProductionTab; delete window.__pendingProductionTab; } if (productionParamTab==='factory') { initFactoryTestServiceInformation(); } else if (productionParamTab==='activate') { getLicenseService(); } else { initProvisioningServiceInformation(); } })">
                         <header class="log-page-hero">
                             <div class="log-page-hero-main">
                                 <div class="log-eyebrow" data-i18n="ph_eyebrow_prod">Factory</div>
@@ -9001,7 +9020,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="factoryTest-information"></div>
 
                 <!-- 设备网络页面 -->
-                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="initNetworkInformation();initRtspServerInformation();initWebserverService()">
+                                <div class="page-section" id="network-information" x-data="deviceSettings()" x-init="dvWhenPage('network-information', () => { initNetworkInformation();initRtspServerInformation();initWebserverService(); })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
                     <!-- Network Settings：分段 Tab（仿 Cloud Settings / 视频 ISP/OSD），内容用原表单布局 -->
 
@@ -9342,7 +9361,7 @@ window.__presignThumbUrl = function (raw) {
                     </div>
                 </div>
 <div class="page-section" id="cloud-information" x-data="deviceSettings()"
-                     x-init="initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();getCloudRecordService();getCloudDataService();getS3UploadService()">
+                     x-init="dvWhenPage('cloud-information', () => { initTransport();initDeviceGeneralInformation();initMediaServerInformation();initAgoraRtcService();syncPreviewTransportFromDevice();getCloudRecordService();getCloudDataService();getS3UploadService(); })">
                     <!--        <div class="page-section" id="network-information" x-data="deviceSettings()">-->
 
                     <!-- 实时预览传输方案(Agora/KVS)已移到 视频预览页左侧工具栏(仿主码流/次码流图标切换)。 -->
@@ -9707,7 +9726,7 @@ window.__presignThumbUrl = function (raw) {
                 <div class="page-section" id="cloud-playback"></div>
 
                 <!--日志页面-->
-                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="(function(){ initDeviceGeneralInformation(); if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); })()" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
+                <div class="page-section log-page-premium" id="debug" x-data="deviceSettings()" x-init="dvWhenPage('debug', () => { initDeviceGeneralInformation(); if (window.__pendingLogParamTab) { logParamTab = window.__pendingLogParamTab; delete window.__pendingLogParamTab; } if (logParamTab==='viewer') { fetchLogs(); } else { initLogInformation(); } syncTopbarLogSeg(); })" @pagechange.window="onCameraHealthPage('debug', $event.detail.pageId); if ($event.detail.pageId==='debug') { syncTopbarLogSeg(); }">
 
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
@@ -10447,7 +10466,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 系统：系统状态 / 系统管理（smart_robot.service）-->
                 <div class="page-section" id="system-service" x-data="deviceSettings()"
-                     x-init="(function(){ if (window.__pendingSystemTab) { systemParamTab = window.__pendingSystemTab; delete window.__pendingSystemTab; } refreshSystemService(); })()"
+                     x-init="dvWhenPage('system-service', () => { if (window.__pendingSystemTab) { systemParamTab = window.__pendingSystemTab; delete window.__pendingSystemTab; } refreshSystemService(); })"
                      @pagechange.window="if ($event.detail.pageId==='system-service') { refreshSystemService(); startSystemServicePoll(); } else { stopSystemServicePoll(); }">
                     <header class="log-page-hero">
                         <div class="log-page-hero-main">
@@ -10801,7 +10820,7 @@ window.__presignThumbUrl = function (raw) {
                 </div>
 
                 <!-- 用户管理：必须留在 .page-wrapper / .page-body 流内，勿再误关外层 div -->
-                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="loadUsers()">
+                <div class="page-section" id="user-management" x-data="deviceSettings()" x-init="dvWhenPage('user-management', () => { loadUsers(); })">
                     <div class="um-wrap">
                         <header class="um-head">
                             <div>
@@ -13023,7 +13042,7 @@ document.addEventListener('DOMContentLoaded', function() {
             recordParamTab: 'record', // Record Settings 分段: record|storage
             videoPageTab: 'video',  // Video Settings 页分段: video|audio
             playbackTab: 'video',  // Playback 页分段: video|image|cloud
-            logParamTab: 'viewer', // 默认进日志文件；settings|viewer
+            logParamTab: 'settings', // 默认设置；viewer 进页再拉（外网无 /log）
             productionParamTab: 'provisioning', // Production 分段: provisioning|factory|activate
             deviceInfoParamTab: 'info', // Device Info 分段: info|ota|peripheral|motor|vpn
             peripheralControlInformation: {
@@ -13976,6 +13995,14 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             async fetchLogs() {
                 await this.initLogInformation();
+                // 外网门户无设备 /log 接口；硬刷新勿打 anhaishi 404
+                if (typeof window.isWanMediaMode === 'function' ? window.isWanMediaMode()
+                    : (typeof window.isCloudOtaMode === 'function' && window.isCloudOtaMode())) {
+                    this.logs = [];
+                    this.logContent = '';
+                    this.logActiveFile = '';
+                    return;
+                }
                 const dir = encodeURIComponent(this.logInformation.logDir || '');
                 fetch(`/log/log-list?dir=${dir}`)
                     .then((response) => response.json())
