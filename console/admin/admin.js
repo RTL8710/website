@@ -246,6 +246,47 @@ function fmt(iso) {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+/** 解析设备 CloudRecord.dateTime（墙钟数字+Z）：按字面年月日时分秒当作本地时间，不做 UTC→本地偏移。 */
+function parseCloudRecordWallClock(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
+  if (!m) {
+    const d = new Date(iso || '');
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const ms = m[7] ? Number(String(m[7]).padEnd(3, '0').slice(0, 3)) : 0;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], ms);
+}
+function fmtCloudRecord(iso) {
+  if (!iso) return '—';
+  const d = parseCloudRecordWallClock(iso);
+  if (!d) return String(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function cloudRecordDayKey(iso) {
+  const d = parseCloudRecordWallClock(iso);
+  if (!d) return 'other';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function cloudRecordRelTime(iso) {
+  const d = parseCloudRecordWallClock(iso);
+  if (!d) return '—';
+  const sec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+  if (sec < 45) return t('logsJustNow');
+  if (sec < 3600) return t('logsMinsAgo').replace('{n}', String(Math.max(1, Math.floor(sec / 60))));
+  if (sec < 86400) return t('logsHoursAgo').replace('{n}', String(Math.floor(sec / 3600)));
+  if (sec < 86400 * 7) return t('logsDaysAgo').replace('{n}', String(Math.floor(sec / 86400)));
+  return fmtCloudRecord(iso);
+}
+function cardWhenCloudRecord(iso) {
+  const abs = fmtCloudRecord(iso);
+  const rel = cloudRecordRelTime(iso);
+  const line = (rel && rel !== abs) ? rel : abs;
+  return h('div', { class: 'logs-card-when', title: abs }, h('b', {}, line));
+}
+
 function shortId(id) {
   if (!id) return '—';
   const s = String(id);
@@ -1110,10 +1151,11 @@ function studioSearch(ph) {
   wrap.appendChild(searchBox(ph));
   return wrap;
 }
-function studioGroups(items, timeFn, limit) {
+function studioGroups(items, timeFn, limit, dayKeyFn) {
+  const keyOf = (typeof dayKeyFn === 'function') ? dayKeyFn : logsDayKey;
   const groups = [];
   (items || []).slice(0, limit || 500).forEach((it) => {
-    const key = logsDayKey(timeFn(it));
+    const key = keyOf(timeFn(it));
     const last = groups[groups.length - 1];
     if (!last || last.key !== key) groups.push({ key, items: [it] });
     else last.items.push(it);
@@ -1731,7 +1773,11 @@ function viewDevices() {
 
 function viewRecords() {
   const rows = (state.records || []).filter((r) => matchQ([r.deviceID, r.id, r.resolution, r.type, String(r.channel)])).slice()
-    .sort((a, b) => (Date.parse(b.dateTime || '') || 0) - (Date.parse(a.dateTime || '') || 0));
+    .sort((a, b) => {
+      const da = parseCloudRecordWallClock(a.dateTime);
+      const db = parseCloudRecordWallClock(b.dateTime);
+      return ((db && db.getTime()) || 0) - ((da && da.getTime()) || 0);
+    });
   const trunc = state.recordsMeta && state.recordsMeta.truncated;
   const deviceSel = h('select', {},
     h('option', { value: '' }, t('recordsAllDevices')),
@@ -1763,14 +1809,14 @@ function viewRecords() {
     ? loading('…')
     : (!rows.length
       ? studioEmpty('fa-cloud', t('recordsEmpty'), t('recordsEmptyHint'))
-      : studioStream(studioGroups(rows, (r) => r.dateTime), (r) => {
+      : studioStream(studioGroups(rows, (r) => r.dateTime, 500, cloudRecordDayKey), (r) => {
           const dur = r.duration ? (r.duration + 's') : '—';
           const dev = (state.devices || []).find((d) => d.id === r.deviceID || d.uuid === r.deviceID);
           return h('article', { class: 'glass logs-card static is-device' },
             h('div', { class: 'logs-card-mark has-thumb rec-thumb' },
               mediaThumb(r.thumbnailUrl, { w: '72px', h: '44px' })),
             h('div', { class: 'logs-card-body' },
-              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, fmt(r.dateTime)),
+              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, fmtCloudRecord(r.dateTime)),
               h('div', { class: 'logs-card-meta' },
                 h('span', {
                   class: 'logs-chip', title: r.deviceID,
@@ -1783,7 +1829,7 @@ function viewRecords() {
               ),
             ),
             h('div', { class: 'logs-card-side' },
-              cardWhen(r.dateTime),
+              cardWhenCloudRecord(r.dateTime),
             ),
           );
         }));
