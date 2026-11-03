@@ -890,11 +890,23 @@ async function ensure(kind, opts) {
   }
 }
 
+
+/** 设备 CloudRecord.dateTime = 本地墙钟数字 + 后缀 Z（非真 UTC，见 MediaPipelineService）。
+ * 管理台 between 若用 Date.toISOString()（真 UTC），东八区下午会把「今天」记录滤成未来。
+ * 查询窗口改用「浏览器本地墙钟格式化为 …Z」，与设备约定对齐。 */
+function cloudRecordWallClockIso(d = new Date()) {
+  const p2 = (n) => String(n).padStart(2, '0');
+  const p3 = (n) => String(n).padStart(3, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(d.getMilliseconds())}Z`;
+}
+
 async function loadRecords() {
   const days = Math.max(1, Number(state.recDays) || 7);
   const end = new Date();
   const start = new Date(Date.now() - days * 864e5);
-  const filter = { and: [{ dateTime: { between: [start.toISOString(), end.toISOString()] } }] };
+  // end +1min 缓冲时钟偏差；起止均用墙钟+Z，对齐设备写入
+  const endQ = new Date(end.getTime() + 60e3);
+  const filter = { and: [{ dateTime: { between: [cloudRecordWallClockIso(start), cloudRecordWallClockIso(endQ)] } }] };
   if (state.recDeviceId.trim()) filter.and.push({ deviceID: { eq: state.recDeviceId.trim() } });
   const res = await listCloudRecordsAdmin({ filter, limit: 200, maxPages: 15 });
   state.records = res.items;
@@ -908,7 +920,8 @@ async function refreshOverviewSecondary() {
     const days = Math.max(1, Number(state.recDays) || 7);
     const end = new Date();
     const start = new Date(Date.now() - days * 864e5);
-    const filter = { and: [{ dateTime: { between: [start.toISOString(), end.toISOString()] } }] };
+    const endQ = new Date(end.getTime() + 60e3);
+    const filter = { and: [{ dateTime: { between: [cloudRecordWallClockIso(start), cloudRecordWallClockIso(endQ)] } }] };
     if (state.recDeviceId.trim()) filter.and.push({ deviceID: { eq: state.recDeviceId.trim() } });
     const res = await listCloudRecordsAdmin({ filter, limit: 100, maxPages: 1 });
     state.records = res.items;
