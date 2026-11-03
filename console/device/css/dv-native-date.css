@@ -1,0 +1,56 @@
+/* 原生 date / datetime-local · Deep Sea 皮肤（替代 Flatpickr）
+ * 浏览器仍用系统日历弹层，但输入框外观对齐设备页暗色主题。
+ */
+input[type="date"].dv-native-date,
+input[type="datetime-local"].dv-native-dt,
+input.dv-native-date,
+input.dv-native-dt {
+  color-scheme: dark;
+  color: var(--text-primary, #E5EDF7) !important;
+  background-color: var(--bg-card2, rgba(15, 23, 42, 0.92)) !important;
+  border: 1px solid rgba(34, 211, 238, 0.22) !important;
+  border-radius: 8px !important;
+  letter-spacing: 0.01em;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+input[type="datetime-local"].dv-native-dt,
+input.dv-native-dt {
+  min-width: 12.5rem;
+  width: 12.5rem;
+}
+input[type="date"].dv-native-date,
+input.dv-native-date {
+  min-width: 9.5rem;
+  width: 9.5rem;
+}
+input.dv-native-date:focus,
+input.dv-native-dt:focus {
+  border-color: rgba(34, 211, 238, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15) !important;
+  outline: none !important;
+}
+/* WebKit 日历图标改青色 */
+input.dv-native-date::-webkit-calendar-picker-indicator,
+input.dv-native-dt::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+  filter: invert(72%) sepia(62%) saturate(650%) hue-rotate(140deg) brightness(105%);
+}
+input.dv-native-date::-webkit-calendar-picker-indicator:hover,
+input.dv-native-dt::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+/* 浅色主题 */
+[data-theme="light"] input.dv-native-date,
+[data-theme="light"] input.dv-native-dt {
+  color-scheme: light;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+[data-theme="light"] input.dv-native-date::-webkit-calendar-picker-indicator,
+[data-theme="light"] input.dv-native-dt::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.7;
+}
