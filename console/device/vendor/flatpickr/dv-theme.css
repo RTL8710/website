@@ -170,16 +170,22 @@ input.flatpickr-alt.dv-fp {
   max-width: 100%;
   flex: 0 0 auto;
 }
+/* datetime 完整显示 Y-m-d H:i + 日历图标；altInput 也带 data-fp */
 input.dv-fp[data-fp="datetime"],
-input.flatpickr-alt.dv-fp[data-fp="datetime"],
-.flatpickr-wrapper:has(input[data-fp="datetime"]) .flatpickr-alt {
-  min-width: 11.75rem;
-  width: 11.75rem !important;
+input.flatpickr-alt.dv-fp[data-fp="datetime"] {
+  min-width: 12.5rem;
+  width: 12.5rem !important;
 }
 input.dv-fp[data-fp="date"],
-.flatpickr-wrapper:has(input[data-fp="date"]) .flatpickr-alt {
-  min-width: 9.25rem;
-  width: 9.25rem !important;
+input.flatpickr-alt.dv-fp[data-fp="date"] {
+  min-width: 9.5rem;
+  width: 9.5rem !important;
+}
+/* 父列里别被 Bootstrap width:100% 再次撑破/裁切 */
+.col-md-auto > .flatpickr-wrapper,
+.col-md-auto > input.dv-fp {
+  width: auto !important;
+  max-width: none;
 }
 .flatpickr-wrapper {
   display: inline-block;

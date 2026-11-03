@@ -6920,11 +6920,11 @@ window.__presignThumbUrl = function (raw) {
                                             <div class="card-body">
                                                 <!-- 时间范围选择器 -->
                                                 <div class="row mb-2 gx-2 align-items-end">
-                                                    <div class="col-lg-2">
+                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
                                                         <label class="form-label" data-i18n="cm_start_time">Start Time</label>
                                                         <input id="snapStartTime" type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="snapStartTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, snapStartTime)" autocomplete="off" />
                                                     </div>
-                                                    <div class="col-lg-2">
+                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
                                                         <label class="form-label" data-i18n="cm_end_time">End Time</label>
                                                         <input id="snapEndTime" type="text" class="form-control form-control-sm dv-fp" data-fp="datetime" x-model="snapEndTime" x-init="dvBindFp($el)" x-effect="dvFpSync($el, snapEndTime)" autocomplete="off" />
                                                     </div>
@@ -13526,8 +13526,8 @@ document.addEventListener('DOMContentLoaded', function() {
             syncImages: [],           // 图片回放多路同步封面（对齐 syncRecords）
             // snapStartTime: new Date().toISOString().slice(0, 16), // 默认开始时间
             // snapEndTime: new Date().toISOString().slice(0, 16), // 默认结束时间
-            snapStartTime: new Date().toISOString().slice(0, 16), // 默认开始时间
-            snapEndTime: new Date().toISOString().slice(0, 16), // 默认结束时间
+            snapStartTime: (() => { const d = new Date(); d.setDate(d.getDate() - 1); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
+            snapEndTime: (() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
 
             openaiChatRecords: [], // chat记录列表
             openaiChatpageNumber: 1,

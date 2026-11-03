@@ -37,6 +37,8 @@
           instance.altInput.classList.add('form-control');
           if (el.classList.contains('form-control-sm')) instance.altInput.classList.add('form-control-sm');
           instance.altInput.classList.add('dv-fp');
+          // altInput 不继承 data-fp；CSS 宽度选择器依赖它
+          if (mode) instance.altInput.setAttribute('data-fp', mode);
         }
       },
       onChange: function (dates, str) {
