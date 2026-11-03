@@ -155,9 +155,10 @@ span.flatpickr-weekday {
 .numInputWrapper span.arrowUp:after { border-bottom-color: var(--accent, #22D3EE) !important; }
 .numInputWrapper span.arrowDown:after { border-top-color: var(--accent, #22D3EE) !important; }
 
+/* 原 input（Alpine 绑定）+ 可见 altInput（dv-fp-alt，禁止再带 dv-fp） */
 input.dv-fp,
 input.dv-fp.form-control,
-input.flatpickr-alt.dv-fp {
+input.dv-fp-alt {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2222D3EE' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2'/%3E%3Cpath d='M2.5 6.5h11M5.5 2v3M10.5 2v3'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
@@ -169,21 +170,22 @@ input.flatpickr-alt.dv-fp {
   width: auto !important;
   max-width: 100%;
   flex: 0 0 auto;
+  color: var(--text-primary, #E5EDF7) !important;
 }
-/* datetime 完整显示 Y-m-d H:i + 日历图标；altInput 也带 data-fp */
 input.dv-fp[data-fp="datetime"],
-input.flatpickr-alt.dv-fp[data-fp="datetime"] {
+input.dv-fp-alt[data-fp-mode="datetime"] {
   min-width: 12.5rem;
   width: 12.5rem !important;
 }
 input.dv-fp[data-fp="date"],
-input.flatpickr-alt.dv-fp[data-fp="date"] {
+input.dv-fp-alt[data-fp-mode="date"] {
   min-width: 9.5rem;
   width: 9.5rem !important;
 }
 /* 父列里别被 Bootstrap width:100% 再次撑破/裁切 */
 .col-md-auto > .flatpickr-wrapper,
-.col-md-auto > input.dv-fp {
+.col-md-auto > input.dv-fp,
+.col-md-auto > input.dv-fp-alt {
   width: auto !important;
   max-width: none;
 }
@@ -194,9 +196,22 @@ input.flatpickr-alt.dv-fp[data-fp="date"] {
   width: auto !important;
   max-width: max-content;
 }
+/* Flatpickr 隐藏原 input 后偶发仍占位：强制不占视觉 */
+input.dv-fp.flatpickr-input:not(.flatpickr-alt):not(.dv-fp-alt) {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+  background: none !important;
+}
 input.dv-fp::-webkit-calendar-picker-indicator { opacity: 0; display: none; }
-.flatpickr-input[readonly],
-input.flatpickr-input { cursor: pointer; }
+input.dv-fp-alt,
+input.flatpickr-alt { cursor: pointer; }
 
 [data-theme="light"] .flatpickr-calendar {
   background: linear-gradient(165deg, #ffffff, #f1f5f9) !important;
