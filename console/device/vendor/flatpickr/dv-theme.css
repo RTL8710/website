@@ -11,7 +11,7 @@
     0 18px 50px rgba(0, 0, 0, 0.55),
     0 0 40px rgba(34, 211, 238, 0.08) !important;
   font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif !important;
-  width: 328px !important;
+  width: 307.875px !important;
   padding: 6px 4px 8px !important;
   animation: dvFpIn 160ms ease-out;
 }
@@ -73,17 +73,24 @@ span.flatpickr-weekday {
   letter-spacing: 0.04em;
 }
 
-.flatpickr-days { width: 100% !important; }
-.dayContainer { width: 308px !important; min-width: 308px !important; max-width: 308px !important; }
+.flatpickr-calendar.hasTime { width: 307.875px !important; }
+.flatpickr-days { width: 307.875px !important; }
+.dayContainer {
+  width: 307.875px !important;
+  min-width: 307.875px !important;
+  max-width: 307.875px !important;
+}
 
 .flatpickr-day {
   color: var(--text-secondary, #8A9BB4) !important;
-  border-radius: 9px !important;
-  max-width: 40px !important;
-  height: 36px !important;
-  line-height: 36px !important;
-  margin: 1px 2px !important;
+  border-radius: 8px !important;
+  /* 保持 Flatpickr 默认 7 列网格，勿加 margin 导致叠字 */
+  max-width: 39px !important;
+  height: 39px !important;
+  line-height: 39px !important;
+  margin: 0 !important;
   border: 1px solid transparent !important;
+  box-sizing: border-box !important;
   transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
 }
 .flatpickr-day:hover,
@@ -149,7 +156,8 @@ span.flatpickr-weekday {
 .numInputWrapper span.arrowDown:after { border-top-color: var(--accent, #22D3EE) !important; }
 
 input.dv-fp,
-input.dv-fp.form-control {
+input.dv-fp.form-control,
+input.flatpickr-alt.dv-fp {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2222D3EE' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2'/%3E%3Cpath d='M2.5 6.5h11M5.5 2v3M10.5 2v3'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
@@ -157,6 +165,28 @@ input.dv-fp.form-control {
   padding-right: 30px !important;
   cursor: pointer;
   letter-spacing: 0.01em;
+  /* form-control 默认 width:100% 会在 flex 行里撑满整行 */
+  width: auto !important;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+input.dv-fp[data-fp="datetime"],
+input.flatpickr-alt.dv-fp[data-fp="datetime"],
+.flatpickr-wrapper:has(input[data-fp="datetime"]) .flatpickr-alt {
+  min-width: 11.75rem;
+  width: 11.75rem !important;
+}
+input.dv-fp[data-fp="date"],
+.flatpickr-wrapper:has(input[data-fp="date"]) .flatpickr-alt {
+  min-width: 9.25rem;
+  width: 9.25rem !important;
+}
+.flatpickr-wrapper {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  width: auto !important;
+  max-width: max-content;
 }
 input.dv-fp::-webkit-calendar-picker-indicator { opacity: 0; display: none; }
 .flatpickr-input[readonly],
