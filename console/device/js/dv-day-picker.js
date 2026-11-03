@@ -195,6 +195,4 @@
   document.addEventListener('alpine:initialized', function () {
     setTimeout(function () { scan(document); }, 0);
   });
-  // 晚出现的面板（x-show）
-  setInterval(function () { scan(document); }, 2000);
 })();
