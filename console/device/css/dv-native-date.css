@@ -16,6 +16,7 @@ input.dv-native-dt {
   letter-spacing: 0.02em;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  text-align: center;
   flex: 0 0 auto;
   max-width: 100%;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -145,7 +146,8 @@ input.dv-native-dt::-webkit-calendar-picker-indicator {
 .dv-day-grid button {
   height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent;
   color: var(--text-secondary, #8A9BB4); font-size: 13px; font-weight: 500;
-  font-variant-numeric: tabular-nums; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  text-align: center; cursor: pointer;
 }
 .dv-day-grid button:hover {
   background: color-mix(in srgb, var(--accent, #22D3EE) 12%, transparent);
@@ -182,7 +184,8 @@ input.dv-native-dt::-webkit-calendar-picker-indicator {
 .dv-day-time-col button {
   display: block; width: 100%; height: 32px; border: none; border-radius: 6px;
   background: transparent; color: var(--text-secondary, #8A9BB4);
-  font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 500; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  text-align: center; font-size: 13px; font-weight: 500; cursor: pointer;
   scroll-snap-align: center;
 }
 .dv-day-time-col button:hover {
