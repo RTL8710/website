@@ -1,56 +1,19 @@
 /* 本地自托管字体（离线可用，勿挂 Google CDN）
- * Inter: 拉丁正文；Noto Sans SC: 简体中文。
- * 云端硬刷新优化：Noto 仅加载 400（~1.1MB），500/700 复用同一文件，
- * 避免连下 3×1.1MB 拖慢首屏；粗体由浏览器合成略轻于真·700，可接受。
+ * Inter: 拉丁；Noto Sans SC: 中文。各只加载一份 woff2，其余字重复用，减少排队。
  */
 
 @font-face {
   font-family: 'Inter';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
   src: url('inter-latin-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('inter-latin-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('inter-latin-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('inter-latin-600.woff2') format('woff2');
 }
 
 @font-face {
   font-family: 'Noto Sans SC';
   font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('noto-sans-sc-cn-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Noto Sans SC';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('noto-sans-sc-cn-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Noto Sans SC';
-  font-style: normal;
-  font-weight: 700;
+  font-weight: 400 700;
   font-display: swap;
   src: url('noto-sans-sc-cn-400.woff2') format('woff2');
 }

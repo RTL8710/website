@@ -7,12 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!--    <link rel="icon" type="image/x-icon" href="/favicon.ico">-->
         <title data-i18n="page_title">Device</title>
+    <!-- 字体/图标尽早抢连接：避免被 1.6MB index 与其它 JS 挤到队尾（Network 里 FA ~8s） -->
+    <link rel="preload" href="webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/noto-sans-sc-cn-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="tabler.min.css">
     <link href="dropzone.css" rel="stylesheet"/>
     <link href="css/all.min.css" rel="stylesheet">
     <link href="fonts/fonts.css" rel="stylesheet">
-    <link rel="preload" href="fonts/noto-sans-sc-cn-400.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
     <script>
         // 管理门户跳转可带 ?deviceId=<uuid>：写入缓存，device-transport 直接用（免手填）
         try {
