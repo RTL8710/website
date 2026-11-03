@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="pageTitle">Device — Login</title>
     <link href="css/all.min.css" rel="stylesheet">
-    <!-- 移除外网 Google Fonts：局域网设备无外网时该 render-blocking 请求会卡到超时(login 秒开变 3s)。
-         CJK 改用系统字体回退,不依赖外网。 -->
+    <link href="fonts/fonts.css" rel="stylesheet">
+    <!-- 字体本地自托管 fonts/（Inter + Noto Sans SC），离线可用，不走 Google CDN。 -->
     <!-- 登录走 RTM（外网）：加载 RTM SDK + 与 index.html 共用的传输单例（拦截 /api/auth，HTTP 优先回退 RTM） -->
     <script src="agora-rtm.js"></script>
     <script src="device-transport.js"></script>
@@ -40,7 +40,7 @@
             --accent-soft:   rgba(34,211,238,0.10);  /* 功能图标底 */
             --accent-soft-bd:rgba(34,211,238,0.18);  /* 功能图标边 */
             --accent-glow:   rgba(34,211,238,0.35);  /* 徽标/按钮光晕 */
-            --font: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+            --font: 'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
                     'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
         }
 
@@ -610,6 +610,9 @@
     let currentLang = localStorage.getItem('dv_lang') || 'en';
 
     function applyLang(lang) {
+        // 未知语言码(localStorage 里的 dv_lang 可能是旧版遗留/其它页面写入的 login.html 未定义的值)
+        // 回退 en，避免 I18N[lang] 为 undefined 导致后续 t[key] 抛错、整页脚本中断而登录不了。
+        if (!I18N[lang]) lang = 'en';
         currentLang = lang;
         localStorage.setItem('dv_lang', lang);
         const t = I18N[lang];
@@ -697,9 +700,10 @@
     function setLoading(on) {
         const btn = document.getElementById('loginBtn');
         btn.disabled = on;
+        const t = I18N[currentLang] || I18N.en;   // 兜底：currentLang 未知时用 en，防止点登录时抛错
         btn.innerHTML = on
-            ? '<span class="spinner"></span>' + I18N[currentLang].btnLoading
-            : I18N[currentLang].btnLogin;
+            ? '<span class="spinner"></span>' + t.btnLoading
+            : t.btnLogin;
     }
 
     async function doLogin(e) {
