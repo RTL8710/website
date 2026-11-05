@@ -46,7 +46,7 @@ export async function sigv4PostJson(creds, { host, path, service, region, body, 
   const scope = `${date}/${region}/${service}/aws4_request`;
   const payload = JSON.stringify(body);
 
-  const headers = { 'content-type': 'application/x-amz-json-1.1', 'host': host, 'x-amz-date': amz };
+  const headers = { 'content-type': 'application/json', 'host': host, 'x-amz-date': amz };
   if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
   const signed = Object.keys(headers).sort();
   const signedHeaders = signed.join(';');
@@ -54,10 +54,11 @@ export async function sigv4PostJson(creds, { host, path, service, region, body, 
   const canon = `POST\n${path}\n\n${canonHeaders}\n${signedHeaders}\n${sha(payload)}`;
   const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${sha(canon)}`;
   const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), service), 'aws4_request');
-  const sig = hmac(sts, kSigning).toString(C.enc.Hex);
+  // CryptoJS: hmac(key,data)=HmacSHA256(data,key) → 最终须 hmac(kSigning, sts)；旧 hmac(sts,kSigning) 致 KVS 403 SignatureDoesNotMatch
+  const sig = hmac(kSigning, sts).toString(C.enc.Hex);
   const auth = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
 
-  const h = { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Date': amz, 'Authorization': auth };
+  const h = { 'Content-Type': 'application/json', 'X-Amz-Date': amz, 'Authorization': auth };
   if (creds.sessionToken) h['X-Amz-Security-Token'] = creds.sessionToken;
   const r = await fetch((endpoint || `https://${host}`) + path, { method: 'POST', headers: h, body: payload });
   const text = await r.text();
