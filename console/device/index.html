@@ -3216,7 +3216,25 @@ window.__presignThumbUrl = function (raw) {
 
         /* 回放多路布局切换：筛选栏内胶囊分段 */
         
-        .pb-filter-row{
+        
+        .cp-video-wrap{position:relative;border-radius:6px;overflow:hidden;background:var(--video-bg, var(--bg-card2));}
+        .cp-video-wrap > video{position:relative;z-index:1;}
+        .cp-video-cover{
+            position:absolute;inset:0;z-index:3;pointer-events:none;
+            display:flex;align-items:center;justify-content:center;
+            background:#0b0f14;
+        }
+        .cp-video-cover img{
+            position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+            background:#0b0f14;
+        }
+        .cp-video-cover-busy{
+            position:relative;z-index:1;width:42px;height:42px;border-radius:999px;
+            display:flex;align-items:center;justify-content:center;
+            background:rgba(0,0,0,.45);color:#fff;font-size:18px;
+            box-shadow:0 0 0 1px rgba(255,255,255,.12);
+        }
+.pb-filter-row{
             display:flex; flex-wrap:nowrap; align-items:flex-end; gap:8px;
             overflow-x:auto; padding-bottom:2px;
         }
@@ -7225,7 +7243,20 @@ window.__presignThumbUrl = function (raw) {
                                         <span><i class="fa-solid fa-earth-asia me-1"></i><span data-i18n="cp_region">Region</span>: <b x-text="cloudPlayback.region"></b></span>
                                         <span x-show="cloudPlayback.error" x-text="cloudPlayback.error" style="color:#d63939"></span>
                                     </div>
-                                    <video id="cloudPlaybackVideo" controls autoplay playsinline :poster="cloudPlayback.posterThumb" style="width:100%;background:var(--video-bg, var(--bg-card2));display:block;border-radius:6px;"></video>
+                                    <div class="cp-video-wrap">
+                                        <video id="cloudPlaybackVideo" controls autoplay playsinline
+                                               :poster="cloudPlayback.posterThumb"
+                                               @playing="cloudPlayback.buffering=false"
+                                               @error="cloudPlayback.buffering=false"
+                                               style="width:100%;background:var(--video-bg, var(--bg-card2));display:block;border-radius:6px;"></video>
+                                        <!-- dash.js 挂载后原生 poster 会立刻消失；加载期用选中缩略图遮罩避免黑屏 -->
+                                        <div class="cp-video-cover" x-show="cloudPlayback.buffering" x-cloak>
+                                            <img x-show="cloudPlayback.posterThumb" :src="cloudPlayback.posterThumb" alt="" decoding="async">
+                                            <div class="cp-video-cover-busy">
+                                                <i class="fa fa-spinner fa-spin"></i>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             </div><!-- /左列 col-lg-8 -->
@@ -13307,7 +13338,7 @@ document.addEventListener('DOMContentLoaded', function() {
             s3UploadResult: { uploading: false, url: '', error: '' },
 
             cloudPlayback: {
-                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', _appsyncThumbCache: null, _appsyncThumbDay: '' },
+                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', buffering: false, _appsyncThumbCache: null, _appsyncThumbDay: '' },
 
             scanService:  {
                 scan_service_enable:  false,
@@ -17687,6 +17718,7 @@ async _execSystemServiceAction(action) {
             // 云端回放：从 KVS 已归档媒体生成 MPEG-DASH 会话 URL，并用 dash.js 播放
             async playCloudRecording() {
                 this.cloudPlayback.error = '';
+                this.cloudPlayback.buffering = true;
                 try {
                     const streamName = this.cloudPlayback.streamName
                         || (window.cloudRecordStreamName
@@ -17731,11 +17763,21 @@ async _execSystemServiceAction(action) {
 
                     await this.ensureDashSdk();   // dash.js 懒加载(首屏不背 775KB)
                     if (this._dashPlayer) { try { this._dashPlayer.reset(); } catch (e) {} }
+                    const videoEl = document.getElementById('cloudPlaybackVideo');
+                    // 原生 poster 在 MediaSource 一挂就没了；等首帧 playing 再撤遮罩
+                    if (videoEl) {
+                        const clearBuf = () => { this.cloudPlayback.buffering = false; };
+                        videoEl.addEventListener('playing', clearBuf, { once: true });
+                        videoEl.addEventListener('error', clearBuf, { once: true });
+                    }
                     this._dashPlayer = dashjs.MediaPlayer().create();
-                    this._dashPlayer.initialize(document.getElementById('cloudPlaybackVideo'), url, true);
+                    this._dashPlayer.initialize(videoEl, url, true);
+                    // 兜底：长时间无首帧也撤遮罩，避免永久挡住 controls
+                    setTimeout(() => { if (this.cloudPlayback.buffering) this.cloudPlayback.buffering = false; }, 12000);
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] error:', e);
                     this.cloudPlayback.error = (e && (e.code ? (e.code + ': ') : '') + (e.message || e)) || String(e);
+                    this.cloudPlayback.buffering = false;
                 }
             },
             // 拉取云录像元数据（可多页拼整天供时间轴）；缩略图只挂「当前列表页」
@@ -17920,6 +17962,7 @@ async _execSystemServiceAction(action) {
 
                 this.cloudPlayback.selected = r;
                 if (r && r._thumb) this.cloudPlayback.posterThumb = r._thumb;   // 选中段封面作播放器 poster
+                this.cloudPlayback.buffering = true; // 立刻盖上缩略图，等 DASH 首帧
                 // r.RecordIndexInformationDateTime 为设备本地时间 "YYYY-MM-DD HH:MM:SS"
                 const dt = r.RecordIndexInformationDateTime || '';
                 const m = dt.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);

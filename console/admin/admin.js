@@ -1774,6 +1774,39 @@ function viewDevices() {
 }
 
 
+
+function waitVideoPlaying(video, timeoutMs) {
+  return new Promise((resolve) => {
+    if (!video) { resolve(false); return; }
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      video.removeEventListener('playing', onPlay);
+      video.removeEventListener('error', onErr);
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const onPlay = () => finish(true);
+    const onErr = () => finish(false);
+    const timer = setTimeout(() => finish(false), Math.max(1000, timeoutMs || 12000));
+    video.addEventListener('playing', onPlay, { once: true });
+    video.addEventListener('error', onErr, { once: true });
+  });
+}
+
+async function resolveRecThumbUrl(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  if (/^https?:\/\//i.test(s) && !s.includes('amazonaws.com')) return s;
+  try {
+    const c = await resolvedCreds();
+    return signS3MediaUrl(c, s, 3600) || s;
+  } catch (_) {
+    return signS3MediaUrl(null, s, 3600) || s;
+  }
+}
+
 function closeRecPlay() {
   try { destroyDash(); } catch (_) {}
   state.recPlay = null;
@@ -1815,11 +1848,25 @@ async function startRecPlay() {
   // 不整页 remount：避免播起来后 render 拆掉 <video>
   document.querySelectorAll('.rec-play-overlay').forEach((el) => el.remove());
   const stage = video.parentElement;
+  const thumbUrl = await resolveRecThumbUrl(r.thumbnailUrl);
   if (stage) {
     const ov = document.createElement('div');
-    ov.className = 'rec-play-overlay';
-    ov.innerHTML = '<div class="rec-play-spin"><i class="fa-solid fa-circle-notch fa-spin"></i></div><div></div>';
-    ov.lastChild.textContent = t('recordsPlayLoading');
+    ov.className = 'rec-play-overlay has-thumb';
+    if (thumbUrl) {
+      const img = document.createElement('img');
+      img.className = 'rec-play-cover';
+      img.alt = '';
+      img.decoding = 'async';
+      img.src = thumbUrl;
+      ov.appendChild(img);
+    }
+    const spin = document.createElement('div');
+    spin.className = 'rec-play-spin';
+    spin.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+    const lab = document.createElement('div');
+    lab.textContent = t('recordsPlayLoading');
+    ov.appendChild(spin);
+    ov.appendChild(lab);
     stage.appendChild(ov);
   }
   try {
@@ -1830,6 +1877,8 @@ async function startRecPlay() {
       endMs,
       region: COGNITO.region,
     });
+    // 等首帧再撤遮罩，避免 DASH 缓冲期黑屏
+    await waitVideoPlaying(video, 12000);
     if (state.recPlay === rp) {
       rp.busy = false;
       rp.started = true;
@@ -1879,7 +1928,8 @@ function renderRecPlay() {
           playsinline: true,
           autoplay: true,
         }),
-        rp.busy ? h('div', { class: 'rec-play-overlay' },
+        rp.busy ? h('div', { class: 'rec-play-overlay has-thumb' },
+          r.thumbnailUrl ? h('img', { class: 'rec-play-cover', src: signS3MediaUrl(null, r.thumbnailUrl, 3600) || r.thumbnailUrl, alt: '', decoding: 'async' }) : null,
           h('div', { class: 'rec-play-spin' }, fa('fa-circle-notch fa-spin')),
           h('div', {}, t('recordsPlayLoading')),
         ) : null,
