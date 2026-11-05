@@ -19,6 +19,7 @@ import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object }
 import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
+import { playCloudClip, destroyDash } from '../lib/kvs-dash.js';
 import {
   t, applyTheme, applyLang, setLangChangeHandler, switcherBar, regionSwitcher, tabDefs, regionLabel, getTheme,
 } from './i18n.js';
@@ -51,6 +52,7 @@ const state = {
   deviceSortDir: 'desc', // desc | asc
   recDeviceId: '',
   recDays: 7,
+  recPlay: null, // { record, busy, err, videoEl }
   pkgFilterType: '',
   otaScope: 'device', // device | app
   cloudSubScope: 'agora', // agora | amazon
@@ -190,7 +192,7 @@ function clearAdminDataCache() {
     tracking: false, progress: 0, status: '', statusText: '', detail: '',
   };
   state.upload.file = null; state.upload.msg = ''; state.upload.err = '';
-  state.edit = null; state.confirm = null; state.logView = null;
+  state.edit = null; state.confirm = null; state.logView = null; state.recPlay = null; try { destroyDash(); } catch (_) {}
   state.dataRegion = null;
 }
 /** 切区域：先登出旧池，再换配置，清内存，回登录（各区域 Cognito/AppSync/S3 独立） */
@@ -627,7 +629,7 @@ function shell(body) {
   const toastEl = state.toast
     ? h('div', { class: 'toast-host' }, h('div', { class: 'toast ' + state.toast.type }, state.toast.msg))
     : null;
-  const modal = state.confirm ? renderConfirm() : (state.vpnModal ? renderVpnModal() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null)));
+  const modal = state.recPlay ? renderRecPlay() : (state.confirm ? renderConfirm() : (state.vpnModal ? renderVpnModal() : (state.edit ? renderEdit() : (state.logView ? renderLogView() : null))));
   return mount(app, topbar(), h('div', { class: 'admin-shell' + (collapsed ? ' is-collapsed' : '') }, side, h('main', { class: 'admin-main' }, body)), toastEl, modal);
 }
 
@@ -1771,6 +1773,129 @@ function viewDevices() {
   );
 }
 
+
+function closeRecPlay() {
+  try { destroyDash(); } catch (_) {}
+  state.recPlay = null;
+  render();
+}
+
+function openRecPlay(record) {
+  if (!record) return;
+  state.recPlay = { record, busy: true, err: '', started: false };
+  render();
+  // 等 DOM 挂上 video 再播
+  queueMicrotask(() => { startRecPlay(); });
+}
+
+async function startRecPlay() {
+  const rp = state.recPlay;
+  if (!rp || !rp.record) return;
+  const r = rp.record;
+  const video = document.getElementById('adminRecPlayVideo');
+  if (!video) {
+    rp.busy = false;
+    rp.err = t('recordsPlayErr');
+    render();
+    return;
+  }
+  const startD = parseCloudRecordWallClock(r.dateTime);
+  if (!startD) {
+    rp.busy = false;
+    rp.err = t('recordsPlayErr') + ': bad dateTime';
+    render();
+    return;
+  }
+  const durSec = Math.max(1, Number(r.duration) || 10);
+  const startMs = startD.getTime();
+  // 略加尾部缓冲，避免片段边界丢末帧
+  const endMs = startMs + (durSec + 2) * 1000;
+  rp.busy = true;
+  rp.err = '';
+  // 不整页 remount：避免播起来后 render 拆掉 <video>
+  document.querySelectorAll('.rec-play-overlay').forEach((el) => el.remove());
+  const stage = video.parentElement;
+  if (stage) {
+    const ov = document.createElement('div');
+    ov.className = 'rec-play-overlay';
+    ov.innerHTML = '<div class="rec-play-spin"><i class="fa-solid fa-circle-notch fa-spin"></i></div><div></div>';
+    ov.lastChild.textContent = t('recordsPlayLoading');
+    stage.appendChild(ov);
+  }
+  try {
+    await playCloudClip(video, {
+      deviceId: r.deviceID,
+      channel: r.channel,
+      startMs,
+      endMs,
+      region: COGNITO.region,
+    });
+    if (state.recPlay === rp) {
+      rp.busy = false;
+      rp.started = true;
+      document.querySelectorAll('.rec-play-overlay').forEach((el) => el.remove());
+    }
+  } catch (e) {
+    console.error('[admin] rec play', e);
+    if (state.recPlay === rp) {
+      rp.busy = false;
+      rp.err = (e && e.message) || String(e) || t('recordsPlayErr');
+      render(); // 失败态可 remount
+    }
+  }
+}
+
+function renderRecPlay() {
+  const rp = state.recPlay;
+  if (!rp) return null;
+  const r = rp.record || {};
+  const dev = (state.devices || []).find((d) => d.id === r.deviceID || d.uuid === r.deviceID);
+  const title = (dev && dev.name) || shortId(r.deviceID) || t('records');
+  const meta = [
+    fmtCloudRecord(r.dateTime),
+    r.duration ? (r.duration + 's') : null,
+    r.channel != null ? ('CH ' + r.channel) : null,
+    r.resolution || null,
+    r.type || null,
+  ].filter(Boolean).join(' · ');
+  const close = () => closeRecPlay();
+  return h('div', {
+    class: 'modal-mask rec-play-mask',
+    onclick: (e) => { if (e.target === e.currentTarget) close(); },
+  },
+    h('div', { class: 'glass modal rec-play-modal', role: 'dialog', 'aria-modal': 'true' },
+      h('div', { class: 'rec-play-head' },
+        h('div', { class: 'rec-play-titles' },
+          h('h3', {}, title),
+          h('div', { class: 'rec-play-meta' }, meta),
+        ),
+        h('button', { class: 'gbtn icon', title: t('close'), onclick: close }, fa('fa-xmark')),
+      ),
+      h('div', { class: 'rec-play-stage' },
+        h('video', {
+          id: 'adminRecPlayVideo',
+          class: 'rec-play-video',
+          controls: true,
+          playsinline: true,
+          autoplay: true,
+        }),
+        rp.busy ? h('div', { class: 'rec-play-overlay' },
+          h('div', { class: 'rec-play-spin' }, fa('fa-circle-notch fa-spin')),
+          h('div', {}, t('recordsPlayLoading')),
+        ) : null,
+        (!rp.busy && rp.err) ? h('div', { class: 'rec-play-overlay is-err' },
+          h('div', {}, fa('fa-triangle-exclamation')),
+          h('div', {}, rp.err),
+          h('button', { class: 'gbtn primary btn-sm', onclick: () => startRecPlay() }, t('refresh')),
+        ) : null,
+      ),
+      h('div', { class: 'row-actions rec-play-actions' },
+        h('button', { class: 'gbtn', onclick: close }, t('close')),
+      ),
+    ),
+  );
+}
+
 function viewRecords() {
   const rows = (state.records || []).filter((r) => matchQ([r.deviceID, r.id, r.resolution, r.type, String(r.channel)])).slice()
     .sort((a, b) => {
@@ -1812,15 +1937,23 @@ function viewRecords() {
       : studioStream(studioGroups(rows, (r) => r.dateTime, 500, cloudRecordDayKey), (r) => {
           const dur = r.duration ? (r.duration + 's') : '—';
           const dev = (state.devices || []).find((d) => d.id === r.deviceID || d.uuid === r.deviceID);
-          return h('article', { class: 'glass logs-card static is-device' },
+          return h('article', {
+            class: 'glass logs-card static is-device is-playable',
+            title: t('recordsPlayHint'),
+            onclick: (ev) => {
+              if (ev.target && ev.target.closest && ev.target.closest('.logs-chip')) return;
+              openRecPlay(r);
+            },
+          },
             h('div', { class: 'logs-card-mark has-thumb rec-thumb' },
-              mediaThumb(r.thumbnailUrl, { w: '72px', h: '44px' })),
+              mediaThumb(r.thumbnailUrl, { w: '72px', h: '44px' }),
+              h('span', { class: 'rec-play-badge', 'aria-hidden': 'true' }, fa('fa-play'))),
             h('div', { class: 'logs-card-body' },
-              h('div', { class: 'logs-card-code', style: { cursor: 'default' } }, fmtCloudRecord(r.dateTime)),
+              h('div', { class: 'logs-card-code' }, fmtCloudRecord(r.dateTime)),
               h('div', { class: 'logs-card-meta' },
                 h('span', {
                   class: 'logs-chip', title: r.deviceID,
-                  onclick: () => copyText(r.deviceID),
+                  onclick: (ev) => { ev.stopPropagation(); copyText(r.deviceID); },
                 }, fa('fa-microchip'), h('span', { class: 'clip' }, (dev && dev.name) || shortId(r.deviceID))),
                 h('span', { class: 'logs-chip mute' }, dur),
                 r.channel != null ? h('span', { class: 'logs-chip mute' }, 'CH ' + r.channel) : null,

@@ -3215,7 +3215,22 @@ window.__presignThumbUrl = function (raw) {
         }
 
         /* 回放多路布局切换：筛选栏内胶囊分段 */
-        .pb-layout-seg {
+        
+        .pb-filter-row{
+            display:flex; flex-wrap:nowrap; align-items:flex-end; gap:8px;
+            overflow-x:auto; padding-bottom:2px;
+        }
+        .pb-filter-row .pb-ff{ flex:0 0 auto; min-width:0; }
+        .pb-filter-row .pb-ff .form-label{ margin-bottom:2px; white-space:nowrap; font-size:12px; }
+        .pb-filter-row .pb-ff-dt{ width:13rem; }
+        .pb-filter-row .pb-ff-evt{ width:8.5rem; }
+        .pb-filter-row .pb-ff-sm{ width:4.75rem; }
+        .pb-filter-row .pb-ff-type{ width:7.5rem; }
+        .pb-filter-row .pb-ff-ai{ width:5.5rem; }
+        @media (max-width: 900px){
+            .pb-filter-row{ flex-wrap:wrap; overflow-x:visible; }
+        }
+.pb-layout-seg {
             display: inline-flex;
             align-items: center;
             padding: 3px;
@@ -6484,16 +6499,16 @@ window.__presignThumbUrl = function (raw) {
                                         <div class="card shadow">
                                             <div class="card-body">
                                                 <!-- 时间范围选择器 -->
-                                                <div class="row mb-2 gx-2 align-items-end">
-                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
+                                                <div class="pb-filter-row mb-2">
+                                                    <div class="pb-ff pb-ff-dt">
                                                         <label class="form-label" data-i18n="cm_start_time">Start</label>
                                                         <input type="datetime-local" class="form-control form-control-sm dv-native-dt" x-model="startTime" />
                                                     </div>
-                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
+                                                    <div class="pb-ff pb-ff-dt">
                                                         <label class="form-label" data-i18n="cm_end_time">End</label>
                                                         <input type="datetime-local" class="form-control form-control-sm dv-native-dt" x-model="endTime" />
                                                     </div>
-                                                    <div class="col-6 col-md-2">
+                                                    <div class="pb-ff pb-ff-evt">
                                                         <label class="form-label" data-i18n="evt_event_type">Event type</label>
                                                         <select class="form-control form-control-sm" x-model="searchEventType">
                                                             <option value="" data-i18n="evt_event_type_all">All</option>
@@ -6502,25 +6517,20 @@ window.__presignThumbUrl = function (raw) {
                                                             </template>
                                                         </select>
                                                     </div>
-                                                    <div class="col-1">
+                                                    <div class="pb-ff pb-ff-sm">
                                                         <label class="form-label" data-i18n="cm_page_size">Size</label>
-                                                        <select
-                                                                id="pageSize"
-                                                                class="form-control form-control-sm"
-                                                                x-model.number="pageSize"
-                                                        >
+                                                        <select id="pageSize" class="form-control form-control-sm" x-model.number="pageSize">
                                                             <option value="10">10</option>
                                                             <option value="20">20</option>
                                                             <option value="30">30</option>
                                                             <option value="40">40</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-1">
+                                                    <div class="pb-ff pb-ff-sm">
                                                         <label class="form-label" data-i18n="cm_page_number">Page Number</label>
-                                                        <input type="number" class="form-control form-control-sm"
-                                                               x-model.number="pageNumber" min="1" />
+                                                        <input type="number" class="form-control form-control-sm" x-model.number="pageNumber" min="1" />
                                                     </div>
-                                                    <div class="col-2">
+                                                    <div class="pb-ff pb-ff-type">
                                                         <label class="form-label" data-i18n="vp_record_type">Type</label>
                                                         <select class="form-control form-control-sm" x-model.number="searchRecordType">
                                                             <option :value="0" data-i18n="vp_type_all">All</option>
@@ -6529,9 +6539,9 @@ window.__presignThumbUrl = function (raw) {
                                                             <option :value="3" data-i18n="vp_type_timelapse">Timelapse</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-2">
+                                                    <div class="pb-ff pb-ff-ai">
                                                         <label class="form-label" data-i18n="evt_ai_tagged">AI tagged</label>
-                                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" x-model="searchEventOnly"></div>
+                                                        <div class="form-check mt-1 mb-0"><input class="form-check-input" type="checkbox" x-model="searchEventOnly"></div>
                                                     </div>
                                                 </div>
                                                 <!-- 搜索按钮 -->
@@ -6913,16 +6923,16 @@ window.__presignThumbUrl = function (raw) {
                                         <div class="card shadow">
                                             <div class="card-body">
                                                 <!-- 时间范围选择器 -->
-                                                <div class="row mb-2 gx-2 align-items-end">
-                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
+                                                <div class="pb-filter-row mb-2">
+                                                    <div class="pb-ff pb-ff-dt">
                                                         <label class="form-label" data-i18n="cm_start_time">Start Time</label>
                                                         <input id="snapStartTime" type="datetime-local" class="form-control form-control-sm dv-native-dt" x-model="snapStartTime" />
                                                     </div>
-                                                    <div class="col-12 col-md-auto" style="min-width:13rem;">
+                                                    <div class="pb-ff pb-ff-dt">
                                                         <label class="form-label" data-i18n="cm_end_time">End Time</label>
                                                         <input id="snapEndTime" type="datetime-local" class="form-control form-control-sm dv-native-dt" x-model="snapEndTime" />
                                                     </div>
-                                                    <div class="col-lg-2">
+                                                    <div class="pb-ff pb-ff-evt">
                                                         <label class="form-label" data-i18n="evt_event_type">Event type</label>
                                                         <select class="form-control form-control-sm" x-model="snapSearchEventType">
                                                             <option value="" data-i18n="evt_event_type_all">All</option>
@@ -6931,7 +6941,7 @@ window.__presignThumbUrl = function (raw) {
                                                             </template>
                                                         </select>
                                                     </div>
-                                                    <div class="col-lg-1">
+                                                    <div class="pb-ff pb-ff-sm">
                                                         <label class="form-label" data-i18n="cm_page_size">Page Size</label>
                                                         <select id="snapPageSize" class="form-control form-control-sm" x-model.number="snapPageSize">
                                                             <option value="10">10</option>
@@ -6940,13 +6950,13 @@ window.__presignThumbUrl = function (raw) {
                                                             <option value="40">40</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-lg-1">
+                                                    <div class="pb-ff pb-ff-sm">
                                                         <label class="form-label" data-i18n="cm_page_number">Page Number</label>
                                                         <input id="snapPageNumber" type="number" class="form-control form-control-sm" x-model.number="snapPageNumber" min="1" />
                                                     </div>
-                                                    <div class="col-lg-2">
+                                                    <div class="pb-ff pb-ff-ai">
                                                         <label class="form-label" data-i18n="evt_ai_tagged">AI tagged</label>
-                                                        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" x-model="snapSearchEventOnly"></div>
+                                                        <div class="form-check mt-1 mb-0"><input class="form-check-input" type="checkbox" x-model="snapSearchEventOnly"></div>
                                                     </div>
                                                 </div>
                                                 <!-- 搜索按钮 -->
