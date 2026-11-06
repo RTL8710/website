@@ -55,6 +55,7 @@ const state = {
   recDeviceId: '',
   recDays: 7,
   recPlay: null, // { record, busy, err, videoEl }
+  recDownloadingKey: null, // 列表项下载中的 key
   pkgFilterType: '',
   otaScope: 'device', // device | app
   cloudSubScope: 'agora', // agora | amazon
@@ -2002,6 +2003,32 @@ async function downloadRecPlayClip() {
   }
 }
 
+
+function cloudRecordKey(r) {
+  if (!r) return '';
+  if (r.id) return String(r.id);
+  return [r.deviceID || r.deviceId || '', r.dateTime || '', r.channel != null ? r.channel : ''].join('|');
+}
+
+async function downloadCloudRecord(record) {
+  const r = record || {};
+  const key = cloudRecordKey(r);
+  if (!key) { toast(t('clipSelectFirst'), 'err'); return; }
+  if (state.recDownloadingKey) return;
+  state.recDownloadingKey = key;
+  render();
+  try {
+    await downloadCloudClip({ record: r });
+    toast(t('clipDownloaded'));
+  } catch (e) {
+    const k = clipErrorMessage(e && e.code);
+    toast(t(k) || ((e && e.message) || String(e)), 'err');
+  } finally {
+    if (state.recDownloadingKey === key) state.recDownloadingKey = null;
+    render();
+  }
+}
+
 function viewRecords() {
   const rows = (state.records || []).filter((r) => matchQ([r.deviceID, r.id, r.resolution, r.type, String(r.channel)])).slice()
     .sort((a, b) => {
@@ -2047,7 +2074,7 @@ function viewRecords() {
             class: 'glass logs-card static is-device is-playable',
             title: t('recordsPlayHint'),
             onclick: (ev) => {
-              if (ev.target && ev.target.closest && ev.target.closest('.logs-chip')) return;
+              if (ev.target && ev.target.closest && ev.target.closest('.logs-chip, .row-actions, button')) return;
               openRecPlay(r);
             },
           },
@@ -2069,6 +2096,15 @@ function viewRecords() {
             ),
             h('div', { class: 'logs-card-side' },
               cardWhenCloudRecord(r.dateTime),
+              h('div', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+                h('button', {
+                  class: 'gbtn icon btn-sm',
+                  title: t('clipDownload'),
+                  'aria-label': t('clipDownload'),
+                  disabled: !!state.recDownloadingKey,
+                  onclick: () => downloadCloudRecord(r),
+                }, fa(state.recDownloadingKey === cloudRecordKey(r) ? 'fa-circle-notch fa-spin' : 'fa-download')),
+              ),
             ),
           );
         }));
