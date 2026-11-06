@@ -3,6 +3,7 @@ import { COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, REGIONS, REGION_ORDER, getRe
 import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
 import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
+import { downloadCloudClip, clipErrorMessage } from './lib/kvs-clip.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
 import { presignS3Get } from './lib/sigv4.js';
 import { signS3MediaUrl } from './lib/s3-media.js';
@@ -485,12 +486,52 @@ function cloudPlayback(dev) {
   const dateInput = h('input', { type: 'date', value: todayStr(),
     style: { height: '38px', padding: '0 10px', borderRadius: '10px', background: 'rgba(5,7,14,.5)', border: '1px solid var(--border)', color: 'var(--text-hi)', fontFamily: 'inherit' } });
   const countChip = h('span', { class: 'chip count' }, '0');
-  const bar = h('div', { class: 'glass', style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px' } },
+  let selectedRec = null;
+  let downloading = false;
+  const dlBtn = h('button', {
+    type: 'button',
+    class: 'gbtn btn-sm',
+    disabled: true,
+    style: { height: '34px', padding: '0 12px', borderRadius: '10px', cursor: 'pointer' },
+  }, '下载 MP4');
+  const statusSpan = h('span', { class: 'muted', style: { fontSize: '12px' } }, '');
+  const refreshDl = () => {
+    dlBtn.disabled = !selectedRec || downloading;
+    dlBtn.textContent = downloading ? '下载中…' : '下载 MP4';
+  };
+  dlBtn.addEventListener('click', async () => {
+    if (!selectedRec || downloading) return;
+    downloading = true;
+    refreshDl();
+    statusSpan.textContent = '';
+    try {
+      await downloadCloudClip({ record: selectedRec, deviceId: selectedRec.deviceID || dev.id });
+      statusSpan.textContent = '已开始下载';
+      statusSpan.style.color = 'var(--ok, #34d399)';
+    } catch (err) {
+      const key = clipErrorMessage(err && err.code);
+      const map = {
+        clip_too_long: '片段过长（约 210 秒上限）',
+        clip_no_data: '该时段无可用数据',
+        clip_permission: '浏览器阻止下载',
+        clip_network: '网络或 GraphQL 错误',
+        clip_failed: '下载失败',
+      };
+      statusSpan.textContent = map[key] || ((err && err.message) || String(err));
+      statusSpan.style.color = '#f87171';
+    } finally {
+      downloading = false;
+      refreshDl();
+    }
+  });
+  const bar = h('div', { class: 'glass', style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', flexWrap: 'wrap' } },
     icon('cloud'), h('span', { class: 'muted', style: { fontSize: '13px' } }, '云端录像'),
-    dateInput, countChip, h('span', { class: 'spacer', style: { flex: 1 } }));
+    dateInput, countChip, dlBtn, statusSpan, h('span', { class: 'spacer', style: { flex: 1 } }));
 
   async function load() {
     mount(listBox, loading('查询云端录像…'));
+    selectedRec = null;
+    refreshDl();
     try {
       const [s, e] = dayRange(dateInput.value);
       const recs = await fetchCloudRecords(dev.id, s, e);
@@ -529,6 +570,8 @@ function cloudPlayback(dev) {
     end.addEventListener('click', async () => {
       document.querySelectorAll('.rec.on').forEach((x) => x.classList.remove('on'));
       row.classList.add('on');
+      selectedRec = rec;
+      refreshDl();
       mount(player, video); // 用 <video> 替换占位
       try {
         const startIso = rec.dateTime;

@@ -384,6 +384,7 @@ window.__presignThumbUrl = function (raw) {
   return /^https?:\/\//i.test(s) ? s : '';
 };
 </script>
+    <script type="module" src="../lib/kvs-clip.js"></script>
 
     <!-- 云端回放：AWS SDK(KinesisVideo + KinesisVideoArchivedMedia) + dash.js(MPEG-DASH 播放器)
          注意:KVS WebRTC sdk.min.js 也设过 window.AWS(精简版,无 ArchivedMedia)。
@@ -7241,6 +7242,14 @@ window.__presignThumbUrl = function (raw) {
                                     <div class="d-flex flex-wrap align-items-center gap-3 mb-2" style="font-size:11px;color:var(--text-muted);">
                                         <span><i class="fa-solid fa-video me-1"></i><span data-i18n="cp_stream_name">Stream Name</span>: <b x-text="cloudPlayback.streamName"></b></span>
                                         <span><i class="fa-solid fa-earth-asia me-1"></i><span data-i18n="cp_region">Region</span>: <b x-text="cloudPlayback.region"></b></span>
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-auto"
+                                                :disabled="!cloudPlayback.selected || cloudPlayback.downloading"
+                                                @click="downloadSelectedCloudClip()">
+                                            <i class="fa-solid" :class="cloudPlayback.downloading ? 'fa-circle-notch fa-spin' : 'fa-download'"></i>
+                                            <span x-text="cloudPlayback.downloading ? tIdx('cp_downloading') : tIdx('cp_download')"></span>
+                                            <span x-show="cloudPlayback.downloading && cloudPlayback.downloadProgress>0"
+                                                  x-text="' ' + Math.round((cloudPlayback.downloadProgress||0)*100) + '%'"></span>
+                                        </button>
                                         <span x-show="cloudPlayback.error" x-text="cloudPlayback.error" style="color:#d63939"></span>
                                     </div>
                                     <div class="cp-video-wrap">
@@ -11112,7 +11121,7 @@ const I18N_INDEX = {
     cr_title:'Cloud Recording', cr_col_param:'Parameter', cr_col_value:'Value', cr_enable:'Cloud Record Enable', cr_stream_type:'Upload Stream', cr_retention_hours:'Retention', cr_duration_sec:'Clip Duration', cr_ret_2h:'2 Hours', cr_ret_12h:'12 Hours', cr_ret_1d:'1 Day', cr_ret_1w:'1 Week', cr_ret_1mo:'1 Month', cr_ret_1q:'1 Quarter', cr_ret_6mo:'6 Months', cr_ret_1y:'1 Year', cr_ret_2y:'2 Years', cr_trig_emr:'Trigger on EMR', cr_trig_prerecord:'Trigger on Pre-record', cr_stream_name:'Stream Name', cr_region:'Region', cr_save:'Save',
     cd_title:'Cloud Data', cd_endpoint:'AppSync Endpoint', cd_api_key:'API Key', cd_region:'Region', cd_auth_mode:'Auth Mode', cd_direct_enable:'Direct Write Enable', cd_save:'Save',
     s3_title:'File Storage', s3_enable:'Auto upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Key Prefix', s3_role_alias:'Role Alias', s3_url:'Last uploaded URL', s3_save:'Save', s3_upload_now:'Upload current snapshot', s3_uploading:'Uploading...', opt_on:'On', opt_off:'Off',
-    nav_cloud_playback:'Cloud Playback', cp_title:'Cloud Playback', cp_stream_name:'Stream Name', cp_region:'Region', cp_start:'Start Time', cp_end:'End Time', cp_play:'Play', cp_list:'Cloud Recordings', cp_no_records:'No cloud recordings', cp_refresh:'Refresh',
+    nav_cloud_playback:'Cloud Playback', cp_title:'Cloud Playback', cp_stream_name:'Stream Name', cp_region:'Region', cp_start:'Start Time', cp_end:'End Time', cp_play:'Play', cp_list:'Cloud Recordings', cp_no_records:'No cloud recordings', cp_refresh:'Refresh', cp_download:'Download MP4', cp_downloading:'Downloading…', cp_select_first:'Select a clip first', cp_clip_too_long:'Clip too long (max ~210s). Shorten the range.', cp_clip_no_data:'No clip data for this range', cp_clip_permission:'Download blocked by browser', cp_clip_network:'Network or GraphQL error', cp_clip_failed:'Download failed',
     pl_grid:'Grid', pl_single:'Single', pl_pip:'PiP', pl_switch_hint:'Click a sub view to focus it', pl_pip_drag:'Drag PiP windows to move', ll_pip:'PiP', ll_grid:'Grid', ll_cycle_hint:'tap to cycle layout', cp_trig:'Trigger Cloud Rec', cp_trig_ok:'Cloud recording triggered (needs cloud + EMR trigger on)', cp_trig_hint:'Manually mark the current segment as an event to upload to the cloud (requires cloud recording enabled and EMR trigger on)',
     nw_rtsp_title:'RTSP Information', nw_rtsp_enable:'RTSP Enable',
     nw_rtsp_video_type:'Video Type', nw_rtsp_main:'Main', nw_rtsp_sub:'Sub',
@@ -11281,7 +11290,7 @@ const I18N_INDEX = {
     cr_title:'云录像', cr_col_param:'参数', cr_col_value:'取值', cr_enable:'云录像启用', cr_stream_type:'上传码流', cr_retention_hours:'保留时长', cr_duration_sec:'单段时长', cr_ret_2h:'2小时', cr_ret_12h:'12小时', cr_ret_1d:'1天', cr_ret_1w:'一周', cr_ret_1mo:'一个月', cr_ret_1q:'一季度', cr_ret_6mo:'半年', cr_ret_1y:'一年', cr_ret_2y:'二年', cr_trig_emr:'紧急事件触发', cr_trig_prerecord:'预录触发', cr_stream_name:'流名称', cr_region:'区域', cr_save:'保存',
     cd_title:'云数据', cd_endpoint:'AppSync 端点', cd_api_key:'API 密钥', cd_region:'区域', cd_auth_mode:'鉴权模式', cd_direct_enable:'直连写入启用', cd_save:'保存',
     s3_title:'文件存储', s3_enable:'抓拍即上传', s3_bucket:'存储桶', s3_region:'区域', s3_prefix:'路径前缀', s3_role_alias:'角色别名', s3_url:'最近上传 URL', s3_save:'保存', s3_upload_now:'上传当前抓拍', s3_uploading:'上传中...', opt_on:'开', opt_off:'关',
-    nav_cloud_playback:'云回放', cp_title:'云端回放', cp_stream_name:'流名称', cp_region:'区域', cp_start:'开始时间', cp_end:'结束时间', cp_play:'播放', cp_list:'云录像列表', cp_no_records:'暂无云录像', cp_refresh:'刷新',
+    nav_cloud_playback:'云回放', cp_title:'云端回放', cp_stream_name:'流名称', cp_region:'区域', cp_start:'开始时间', cp_end:'结束时间', cp_play:'播放', cp_list:'云录像列表', cp_no_records:'暂无云录像', cp_refresh:'刷新', cp_download:'下载 MP4', cp_downloading:'下载中…', cp_select_first:'请先选中片段', cp_clip_too_long:'片段过长（约 210 秒上限），请缩短时间范围', cp_clip_no_data:'该时段无可用片段数据', cp_clip_permission:'浏览器权限阻止下载', cp_clip_network:'网络或 GraphQL 错误', cp_clip_failed:'下载失败',
     pl_grid:'网格', pl_single:'单画面', pl_pip:'画中画', pl_switch_hint:'点击小窗切换聚焦画面', pl_pip_drag:'拖动小窗可移动位置', ll_pip:'画中画', ll_grid:'宫格', ll_cycle_hint:'点击切换布局', cp_trig:'触发云录像', cp_trig_ok:'云录像已触发（需云录像启用 + 紧急事件触发=开）', cp_trig_hint:'手动将当前录像段标记为事件并上传云端（需云录像启用且紧急事件触发=开）',
     nw_rtsp_title:'RTSP 信息', nw_rtsp_enable:'RTSP 启用',
     nw_rtsp_video_type:'视频类型', nw_rtsp_main:'主码流', nw_rtsp_sub:'子码流',
@@ -11449,7 +11458,7 @@ const I18N_INDEX = {
     cr_title:'クラウド録画', cr_col_param:'項目', cr_col_value:'値', cr_enable:'クラウド録画有効', cr_stream_type:'アップロードストリーム', cr_retention_hours:'保持期間', cr_duration_sec:'クリップ長', cr_ret_2h:'2時間', cr_ret_12h:'12時間', cr_ret_1d:'1日', cr_ret_1w:'1週間', cr_ret_1mo:'1ヶ月', cr_ret_1q:'四半期', cr_ret_6mo:'半年', cr_ret_1y:'1年', cr_ret_2y:'2年', cr_trig_emr:'緊急イベントトリガー', cr_trig_prerecord:'プリ録画トリガー', cr_stream_name:'ストリーム名', cr_region:'リージョン', cr_save:'保存',
     cd_title:'クラウドデータ', cd_endpoint:'AppSync エンドポイント', cd_api_key:'API キー', cd_region:'リージョン', cd_auth_mode:'認証モード', cd_direct_enable:'直接書き込み有効', cd_save:'保存',
     s3_title:'ファイルストレージ', s3_enable:'自動アップロード', s3_bucket:'バケット', s3_region:'リージョン', s3_prefix:'キープレフィックス', s3_role_alias:'ロールエイリアス', s3_url:'最終アップロードURL', s3_save:'保存', s3_upload_now:'現在のスナップショットをアップロード', s3_uploading:'アップロード中...', opt_on:'オン', opt_off:'オフ',
-    nav_cloud_playback:'クラウド再生', cp_title:'クラウド再生', cp_stream_name:'ストリーム名', cp_region:'リージョン', cp_start:'開始時間', cp_end:'終了時間', cp_play:'再生', cp_list:'クラウド録画一覧', cp_no_records:'クラウド録画がありません', cp_refresh:'更新',
+    nav_cloud_playback:'クラウド再生', cp_title:'クラウド再生', cp_stream_name:'ストリーム名', cp_region:'リージョン', cp_start:'開始時間', cp_end:'終了時間', cp_play:'再生', cp_list:'クラウド録画一覧', cp_no_records:'クラウド録画がありません', cp_refresh:'更新', cp_download:'MP4 をダウンロード', cp_downloading:'ダウンロード中…', cp_select_first:'先にクリップを選択', cp_clip_too_long:'クリップが長すぎます（約210秒上限）', cp_clip_no_data:'この範囲にデータがありません', cp_clip_permission:'ブラウザがダウンロードを拒否', cp_clip_network:'ネットワーク / GraphQL エラー', cp_clip_failed:'ダウンロード失敗',
     pl_grid:'グリッド', pl_single:'単画面', pl_pip:'ワイプ', pl_switch_hint:'子画面をクリックしてフォーカス', pl_pip_drag:'小窓をドラッグして移動', ll_pip:'ワイプ', ll_grid:'グリッド', ll_cycle_hint:'タップで切替', cp_trig:'クラウド録画を起動', cp_trig_ok:'クラウド録画を起動しました（クラウド録画有効 + 緊急トリガー=オンが必要）', cp_trig_hint:'現在のセグメントをイベントとして手動でマークしクラウドへアップロード（クラウド録画有効かつ緊急トリガー=オンが必要）',
     nw_rtsp_title:'RTSP 情報', nw_rtsp_enable:'RTSP 有効',
     nw_rtsp_video_type:'映像タイプ', nw_rtsp_main:'メイン', nw_rtsp_sub:'サブ',
@@ -11616,7 +11625,7 @@ const I18N_INDEX = {
     cr_title:'Cloud-Aufnahme', cr_col_param:'Parameter', cr_col_value:'Wert', cr_enable:'Cloud-Aufnahme aktiv', cr_stream_type:'Upload-Stream', cr_retention_hours:'Aufbewahrung', cr_duration_sec:'Clip-Dauer', cr_ret_2h:'2 Stunden', cr_ret_12h:'12 Stunden', cr_ret_1d:'1 Tag', cr_ret_1w:'1 Woche', cr_ret_1mo:'1 Monat', cr_ret_1q:'1 Quartal', cr_ret_6mo:'6 Monate', cr_ret_1y:'1 Jahr', cr_ret_2y:'2 Jahre', cr_trig_emr:'Auslösung bei Notfall', cr_trig_prerecord:'Auslösung bei Voraufnahme', cr_stream_name:'Stream-Name', cr_region:'Region', cr_save:'Speichern',
     cd_title:'Cloud-Daten', cd_endpoint:'AppSync-Endpunkt', cd_api_key:'API-Schlüssel', cd_region:'Region', cd_auth_mode:'Auth-Modus', cd_direct_enable:'Direktes Schreiben aktiv', cd_save:'Speichern',
     s3_title:'Dateispeicher', s3_enable:'Auto-Upload', s3_bucket:'Bucket', s3_region:'Region', s3_prefix:'Schlüsselpräfix', s3_role_alias:'Rollen-Alias', s3_url:'Zuletzt hochgeladene URL', s3_save:'Speichern', s3_upload_now:'Aktuellen Schnappschuss hochladen', s3_uploading:'Wird hochgeladen...', opt_on:'Ein', opt_off:'Aus',
-    nav_cloud_playback:'Cloud-Wiedergabe', cp_title:'Cloud-Wiedergabe', cp_stream_name:'Stream-Name', cp_region:'Region', cp_start:'Startzeit', cp_end:'Endzeit', cp_play:'Abspielen', cp_list:'Cloud-Aufnahmen', cp_no_records:'Keine Cloud-Aufnahmen', cp_refresh:'Aktualisieren',
+    nav_cloud_playback:'Cloud-Wiedergabe', cp_title:'Cloud-Wiedergabe', cp_stream_name:'Stream-Name', cp_region:'Region', cp_start:'Startzeit', cp_end:'Endzeit', cp_play:'Abspielen', cp_list:'Cloud-Aufnahmen', cp_no_records:'Keine Cloud-Aufnahmen', cp_refresh:'Aktualisieren', cp_download:'MP4 herunterladen', cp_downloading:'Lädt herunter…', cp_select_first:'Zuerst Clip wählen', cp_clip_too_long:'Clip zu lang (max. ~210s)', cp_clip_no_data:'Keine Daten in diesem Bereich', cp_clip_permission:'Download durch Browser blockiert', cp_clip_network:'Netzwerk- oder GraphQL-Fehler', cp_clip_failed:'Download fehlgeschlagen',
     pl_grid:'Raster', pl_single:'Einzeln', pl_pip:'BiB', pl_switch_hint:'Auf ein Unterbild klicken zum Fokussieren', pl_pip_drag:'Kleine Fenster ziehen zum Verschieben', ll_pip:'BiB', ll_grid:'Raster', ll_cycle_hint:'Layout wechseln', cp_trig:'Cloud-Aufnahme auslösen', cp_trig_ok:'Cloud-Aufnahme ausgelöst (Cloud + Notfall-Trigger müssen aktiv sein)', cp_trig_hint:'Aktuelles Segment manuell als Ereignis markieren und in die Cloud hochladen (Cloud-Aufnahme aktiv und Notfall-Trigger an erforderlich)',
     nw_rtsp_title:'RTSP-Informationen', nw_rtsp_enable:'RTSP aktiv',
     nw_rtsp_video_type:'Videotyp', nw_rtsp_main:'Haupt', nw_rtsp_sub:'Sub',
@@ -11784,7 +11793,7 @@ const I18N_INDEX = {
     cr_title:'Enregistrement cloud', cr_col_param:'Paramètre', cr_col_value:'Valeur', cr_enable:'Enregistrement cloud activé', cr_stream_type:'Flux d\'envoi', cr_retention_hours:'Conservation', cr_duration_sec:'Durée du clip', cr_ret_2h:'2 heures', cr_ret_12h:'12 heures', cr_ret_1d:'1 jour', cr_ret_1w:'1 semaine', cr_ret_1mo:'1 mois', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 mois', cr_ret_1y:'1 an', cr_ret_2y:'2 ans', cr_trig_emr:'Déclenchement sur urgence', cr_trig_prerecord:'Déclenchement sur pré-enregistrement', cr_stream_name:'Nom du flux', cr_region:'Région', cr_save:'Enregistrer',
     cd_title:'Données cloud', cd_endpoint:'Point de terminaison AppSync', cd_api_key:'Clé API', cd_region:'Région', cd_auth_mode:'Mode d\'authentification', cd_direct_enable:'Écriture directe activée', cd_save:'Enregistrer',
     s3_title:'Stockage de fichiers', s3_enable:'Téléversement auto', s3_bucket:'Bucket', s3_region:'Région', s3_prefix:'Préfixe de clé', s3_role_alias:'Alias de rôle', s3_url:'Dernière URL téléversée', s3_save:'Enregistrer', s3_upload_now:'Téléverser l\'instantané actuel', s3_uploading:'Téléversement...', opt_on:'Activé', opt_off:'Désactivé',
-    nav_cloud_playback:'Lecture cloud', cp_title:'Lecture cloud', cp_stream_name:'Nom du flux', cp_region:'Région', cp_start:'Heure de début', cp_end:'Heure de fin', cp_play:'Lire', cp_list:'Enregistrements cloud', cp_no_records:'Aucun enregistrement cloud', cp_refresh:'Actualiser',
+    nav_cloud_playback:'Lecture cloud', cp_title:'Lecture cloud', cp_stream_name:'Nom du flux', cp_region:'Région', cp_start:'Heure de début', cp_end:'Heure de fin', cp_play:'Lire', cp_list:'Enregistrements cloud', cp_no_records:'Aucun enregistrement cloud', cp_refresh:'Actualiser', cp_download:'Télécharger MP4', cp_downloading:'Téléchargement…', cp_select_first:'Sélectionnez un clip', cp_clip_too_long:'Clip trop long (max ~210s)', cp_clip_no_data:'Aucune donnée pour cette plage', cp_clip_permission:'Téléchargement bloqué', cp_clip_network:'Erreur réseau / GraphQL', cp_clip_failed:'Échec du téléchargement',
     pl_grid:'Grille', pl_single:'Unique', pl_pip:'PiP', pl_switch_hint:'Cliquez une sous-vue pour la focaliser', pl_pip_drag:'Glisser les petites vues', ll_pip:'PiP', ll_grid:'Grille', ll_cycle_hint:'changer la disposition', cp_trig:'Déclencher enreg. cloud', cp_trig_ok:'Enregistrement cloud déclenché (cloud + déclencheur urgence requis)', cp_trig_hint:'Marquer manuellement le segment actuel comme événement et l envoyer au cloud (enregistrement cloud activé et déclencheur urgence requis)',
     nw_rtsp_title:'Infos RTSP', nw_rtsp_enable:'RTSP activé',
     nw_rtsp_video_type:'Type vidéo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secondaire',
@@ -11952,7 +11961,7 @@ const I18N_INDEX = {
     cr_title:'Grabación en la nube', cr_col_param:'Parámetro', cr_col_value:'Valor', cr_enable:'Grabación en la nube activada', cr_stream_type:'Flujo de subida', cr_retention_hours:'Retención', cr_duration_sec:'Duración del clip', cr_ret_2h:'2 horas', cr_ret_12h:'12 horas', cr_ret_1d:'1 día', cr_ret_1w:'1 semana', cr_ret_1mo:'1 mes', cr_ret_1q:'1 trimestre', cr_ret_6mo:'6 meses', cr_ret_1y:'1 año', cr_ret_2y:'2 años', cr_trig_emr:'Activar en emergencia', cr_trig_prerecord:'Activar en pre-grabación', cr_stream_name:'Nombre del flujo', cr_region:'Región', cr_save:'Guardar',
     cd_title:'Datos en la nube', cd_endpoint:'Endpoint de AppSync', cd_api_key:'Clave API', cd_region:'Región', cd_auth_mode:'Modo de autenticación', cd_direct_enable:'Escritura directa activada', cd_save:'Guardar',
     s3_title:'Almacenamiento de archivos', s3_enable:'Subida automática', s3_bucket:'Bucket', s3_region:'Región', s3_prefix:'Prefijo de clave', s3_role_alias:'Alias de rol', s3_url:'Última URL subida', s3_save:'Guardar', s3_upload_now:'Subir captura actual', s3_uploading:'Subiendo...', opt_on:'Activado', opt_off:'Desactivado',
-    nav_cloud_playback:'Reproducción en la nube', cp_title:'Reproducción en la nube', cp_stream_name:'Nombre del flujo', cp_region:'Región', cp_start:'Hora de inicio', cp_end:'Hora de fin', cp_play:'Reproducir', cp_list:'Grabaciones en la nube', cp_no_records:'Sin grabaciones en la nube', cp_refresh:'Actualizar',
+    nav_cloud_playback:'Reproducción en la nube', cp_title:'Reproducción en la nube', cp_stream_name:'Nombre del flujo', cp_region:'Región', cp_start:'Hora de inicio', cp_end:'Hora de fin', cp_play:'Reproducir', cp_list:'Grabaciones en la nube', cp_no_records:'Sin grabaciones en la nube', cp_refresh:'Actualizar', cp_download:'Descargar MP4', cp_downloading:'Descargando…', cp_select_first:'Seleccione un clip', cp_clip_too_long:'Clip demasiado largo (máx. ~210s)', cp_clip_no_data:'Sin datos en este rango', cp_clip_permission:'Descarga bloqueada', cp_clip_network:'Error de red / GraphQL', cp_clip_failed:'Error al descargar',
     pl_grid:'Cuadrícula', pl_single:'Único', pl_pip:'PiP', pl_switch_hint:'Haga clic en una subvista para enfocarla', pl_pip_drag:'Arrastre las ventanas PiP', ll_pip:'PiP', ll_grid:'Cuadrícula', ll_cycle_hint:'cambiar diseño', cp_trig:'Activar grab. nube', cp_trig_ok:'Grabación en la nube activada (requiere nube + disparador de emergencia)', cp_trig_hint:'Marcar manualmente el segmento actual como evento y subirlo a la nube (requiere grabación en la nube activa y disparador de emergencia)',
     nw_rtsp_title:'Info RTSP', nw_rtsp_enable:'RTSP activo',
     nw_rtsp_video_type:'Tipo vídeo', nw_rtsp_main:'Principal', nw_rtsp_sub:'Secundario',
@@ -13338,7 +13347,7 @@ document.addEventListener('DOMContentLoaded', function() {
             s3UploadResult: { uploading: false, url: '', error: '' },
 
             cloudPlayback: {
-                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', buffering: false, _appsyncThumbCache: null, _appsyncThumbDay: '' },
+                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', buffering: false, downloading: false, downloadProgress: 0, _appsyncThumbCache: null, _appsyncThumbDay: '' },
 
             scanService:  {
                 scan_service_enable:  false,
@@ -17978,6 +17987,53 @@ async _execSystemServiceAction(action) {
                 this.cloudPlayback.startStr = fmtLocalSec(start);
                 this.cloudPlayback.endStr = fmtLocalSec(end);
                 await this.playCloudRecording();
+            },
+
+
+            async downloadSelectedCloudClip() {
+                if (this.cloudPlayback.downloading) return;
+                const r = this.cloudPlayback.selected;
+                if (!r) {
+                    this.cloudPlayback.error = this.tIdx('cp_select_first') || 'Select a clip first';
+                    return;
+                }
+                const api = window.__kvsClip;
+                if (!api || typeof api.downloadCloudClip !== 'function') {
+                    this.cloudPlayback.error = this.tIdx('cp_clip_network') || 'Clip download module not loaded';
+                    return;
+                }
+                const uuid = (r.deviceID || r.deviceId)
+                    || this.deviceGeneralInformation.deviceUuid
+                    || this.webrtcInformation.awsIotCoreThingName
+                    || '';
+                const ch = (r.channel != null) ? r.channel
+                    : (r.RecordIndexInformationCameraIndex != null) ? r.RecordIndexInformationCameraIndex
+                    : this.cloudPlayback.channel;
+                this.cloudPlayback.downloading = true;
+                this.cloudPlayback.downloadProgress = 0;
+                this.cloudPlayback.error = '';
+                try {
+                    await api.downloadCloudClip({
+                        record: r,
+                        deviceId: uuid,
+                        channel: ch,
+                        region: this.cloudPlayback.region || undefined,
+                        onProgress: (p) => { this.cloudPlayback.downloadProgress = (p == null) ? 0 : p; },
+                    });
+                } catch (e) {
+                    const key = api.clipErrorMessage ? api.clipErrorMessage(e && e.code) : 'clip_failed';
+                    const map = {
+                        clip_too_long: 'cp_clip_too_long',
+                        clip_no_data: 'cp_clip_no_data',
+                        clip_permission: 'cp_clip_permission',
+                        clip_network: 'cp_clip_network',
+                        clip_failed: 'cp_clip_failed',
+                    };
+                    this.cloudPlayback.error = this.tIdx(map[key] || 'cp_clip_failed') || ((e && e.message) || String(e));
+                } finally {
+                    this.cloudPlayback.downloading = false;
+                    this.cloudPlayback.downloadProgress = 0;
+                }
             },
 
             // ───── 云回放页：套用本地回放页设计（按天时间轴 + 点击定位，前端合成，不改固件）─────

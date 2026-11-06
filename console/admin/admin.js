@@ -20,6 +20,7 @@ import { signS3MediaUrl } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
 import { playCloudClip, destroyDash } from '../lib/kvs-dash.js';
+import { downloadCloudClip, clipErrorMessage } from '../lib/kvs-clip.js';
 import {
   t, applyTheme, applyLang, setLangChangeHandler, switcherBar, regionSwitcher, tabDefs, regionLabel, getTheme,
 } from './i18n.js';
@@ -1815,7 +1816,7 @@ function closeRecPlay() {
 
 function openRecPlay(record) {
   if (!record) return;
-  state.recPlay = { record, busy: true, err: '', started: false };
+  state.recPlay = { record, busy: true, err: '', started: false, downloading: false };
   render();
   // 等 DOM 挂上 video 再播
   queueMicrotask(() => { startRecPlay(); });
@@ -1940,10 +1941,35 @@ function renderRecPlay() {
         ) : null,
       ),
       h('div', { class: 'row-actions rec-play-actions' },
+        h('button', {
+          class: 'gbtn primary',
+          disabled: !!rp.downloading,
+          onclick: () => downloadRecPlayClip(),
+        }, fa(rp.downloading ? 'fa-circle-notch fa-spin' : 'fa-download'),
+          ' ' + (rp.downloading ? t('clipDownloading') : t('clipDownload'))),
         h('button', { class: 'gbtn', onclick: close }, t('close')),
       ),
     ),
   );
+}
+
+async function downloadRecPlayClip() {
+  const rp = state.recPlay;
+  if (!rp || !rp.record || rp.downloading) return;
+  rp.downloading = true;
+  render();
+  try {
+    await downloadCloudClip({ record: rp.record });
+    toast(t('clipDownloaded'));
+  } catch (e) {
+    const key = clipErrorMessage(e && e.code);
+    toast(t(key) || ((e && e.message) || String(e)), 'err');
+  } finally {
+    if (state.recPlay === rp) {
+      rp.downloading = false;
+      render();
+    }
+  }
 }
 
 function viewRecords() {
