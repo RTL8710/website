@@ -18040,6 +18040,7 @@ async _execSystemServiceAction(action) {
                         onProgress: (p) => { this.cloudPlayback.downloadProgress = (p == null) ? 0 : p; },
                     });
                 } catch (e) {
+                    console.error('[AHS][CloudPlayback] download failed:', e);
                     const key = api.clipErrorMessage ? api.clipErrorMessage(e && e.code) : 'clip_failed';
                     const map = {
                         clip_too_long: 'cp_clip_too_long',
@@ -18048,7 +18049,9 @@ async _execSystemServiceAction(action) {
                         clip_network: 'cp_clip_network',
                         clip_failed: 'cp_clip_failed',
                     };
-                    this.cloudPlayback.error = this.tIdx(map[key] || 'cp_clip_failed') || ((e && e.message) || String(e));
+                    const tip = this.tIdx(map[key] || 'cp_clip_failed') || key;
+                    const detail = (e && e.message) ? String(e.message).slice(0, 160) : '';
+                    this.cloudPlayback.error = detail ? (tip + ' — ' + detail) : tip;
                 } finally {
                     this.cloudPlayback.downloading = false;
                     this.cloudPlayback.downloadProgress = 0;

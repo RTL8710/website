@@ -66,6 +66,74 @@ export async function sigv4PostJson(creds, { host, path, service, region, body, 
   return JSON.parse(text);
 }
 
+/**
+ * SigV4 POST，返回二进制（KVS GetClip → MP4）。
+ * 浏览器勿用 App 那套预签名 URL 直 POST GetClip（CORS/签名易挂）；用 Cognito 临时凭证现签。
+ */
+export async function sigv4PostBinary(creds, { host, path, service, region, body, endpoint, onProgress }) {
+  const C = window.CryptoJS;
+  const hmac = (key, data) => C.HmacSHA256(data, key);
+  const sha = (d) => C.SHA256(d).toString(C.enc.Hex);
+  const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amz.slice(0, 8);
+  const scope = `${date}/${region}/${service}/aws4_request`;
+  const payload = typeof body === 'string' ? body : JSON.stringify(body);
+
+  const headers = { 'content-type': 'application/json', 'host': host, 'x-amz-date': amz };
+  if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
+  const signed = Object.keys(headers).sort();
+  const signedHeaders = signed.join(';');
+  const canonHeaders = signed.map((k) => k + ':' + headers[k] + '\n').join('');
+  const canon = `POST\n${path}\n\n${canonHeaders}\n${signedHeaders}\n${sha(payload)}`;
+  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${sha(canon)}`;
+  const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), service), 'aws4_request');
+  const sig = hmac(kSigning, sts).toString(C.enc.Hex);
+  const auth = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
+
+  const h = { 'Content-Type': 'application/json', 'X-Amz-Date': amz, 'Authorization': auth };
+  if (creds.sessionToken) h['X-Amz-Security-Token'] = creds.sessionToken;
+  const res = await fetch((endpoint || `https://${host}`) + path, { method: 'POST', headers: h, body: payload });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const err = new Error(`${res.status}: ${text.slice(0, 200)}`);
+    err.code = (res.status === 400 || /fragment|Limit|too large|NoData/i.test(text))
+      ? 'CLIP_TOO_LONG'
+      : 'NETWORK';
+    throw err;
+  }
+  if (!onProgress || !res.body || !res.body.getReader) {
+    const buf = await res.arrayBuffer();
+    if (!buf || !buf.byteLength) {
+      const err = new Error('NO_DATA');
+      err.code = 'NO_DATA';
+      throw err;
+    }
+    return buf;
+  }
+  const total = Number(res.headers.get('Content-Length')) || 0;
+  const reader = res.body.getReader();
+  const chunks = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.byteLength;
+    if (total > 0) onProgress(Math.min(1, received / total));
+    else onProgress(null);
+  }
+  if (!received) {
+    const err = new Error('NO_DATA');
+    err.code = 'NO_DATA';
+    throw err;
+  }
+  if (typeof onProgress === 'function') onProgress(1);
+  const out = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) { out.set(c, offset); offset += c.byteLength; }
+  return out.buffer;
+}
+
 
 // S3 PUT（Identity 临时凭证 + SigV4 header）。body 为 Blob/ArrayBuffer/File。
 // 大文件用 UNSIGNED-PAYLOAD，避免浏览器整包哈希。
