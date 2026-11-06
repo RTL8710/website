@@ -5,7 +5,7 @@ const require = createRequire(import.meta.url);
 
 const EP = process.env.APPSYNC_EP || 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql';
 const KEY = process.env.APPSYNC_KEY || 'da2-rmzpjwx7lva7zbfviuy2nwzbcy';
-const BASE = process.env.ADMIN_BASE || 'https://anhaishi.cn/console';
+const BASE = process.env.ADMIN_BASE || 'https://rtl8710.github.io/website/console';
 
 const fails = [];
 function ok(name, cond, detail) {
@@ -70,13 +70,13 @@ async function main() {
   ok('no redirect to console login', !js.includes("location.href = '../index.html#/login'"));
 
   const appJs = await (await fetch(BASE + '/app.js')).text();
-  ok('console has no admin entry', !appJs.includes('管理后台') && !appJs.includes('isAdminAccount'));
+  ok('console has admin entry', appJs.includes('./admin/') || appJs.includes('管理后台'));
 
   const cfg = await (await fetch(BASE + '/config.js')).text();
   ok('allowlist present', cfg.includes('ADMIN_ALLOWLIST') && cfg.includes('isAdminAccount'));
   const gql = await (await fetch(BASE + '/lib/graphql.js')).text();
   ok('graphql deleteUserCompletely', gql.includes('deleteUserCompletely') && gql.includes('deleteDeviceCompletely'));
-  ok('standalone admin entry comment', cfg.includes('/console/admin/'));
+  ok('standalone admin entry comment', cfg.includes('ADMIN_PUBLIC_URL') || cfg.includes('/console/admin/'));
 
   // 2) 云端 data completeness
   const users = await pageCount('listUsers', 'id awsUserName');

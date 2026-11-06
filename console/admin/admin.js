@@ -1,6 +1,7 @@
 // 云端管理后台 — 顶级客户向：功能完整、路径最短
 import {
   COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, getRegion, setRegion, REGIONS, REGION_ORDER, isAdminAccount,
+  ADMIN_PUBLIC_URL, CONSOLE_PUBLIC_URL,
 } from '../config.js';
 import { signIn, restoreSession, resolvedCreds, signOut, warmupAuth, currentIdToken } from '../lib/auth.js';
 import {
@@ -5739,12 +5740,13 @@ function viewDenied(session) {
       h('div', { style: { fontWeight: 800, fontSize: '18px', marginBottom: '8px' } }, t('noPermTitle')),
       h('div', { class: 'faint', style: { fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' } },
         '当前账号 ', h('strong', {}, account || '—'),
-        ' 不是运维白名单。管理后台须用独立运维账号(如 admin)登录,与 App 个人账号无关。请打开本页 ',
-        h('code', {}, '/console/admin/'), ' 并用 ADMIN_ALLOWLIST 中的账号登录。'),
+        ' 不是运维白名单。管理后台须用独立运维账号登录,与 App 个人账号无关。入口：',
+        h('code', {}, ADMIN_PUBLIC_URL || location.href),
+      ),
       h('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } },
         h('button', { class: 'gbtn primary', onclick: async () => { iotDisconnect(); await signOut(); clearAdminPersist(); state.session = null; viewLogin(); } },
           t('reLogin')),
-        h('a', { class: 'gbtn btn-sm', href: '../index.html#/devices', style: { textDecoration: 'none', opacity: '0.75' } },
+        h('a', { class: 'gbtn btn-sm', href: (CONSOLE_PUBLIC_URL || '../') + '#/devices', style: { textDecoration: 'none', opacity: '0.75' } },
           t('backConsole')),
       ),
     )));

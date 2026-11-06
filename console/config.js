@@ -86,6 +86,10 @@ export const DEPS = {
   cognitoIdentityJs: new URL('./vendor/amazon-cognito-identity-js.esm.js', import.meta.url).href,
 };
 
+// 运维后台正式入口（anhaishi.cn/console 已 302 到此；外链请用绝对 URL，免多跳）
+export const CONSOLE_PUBLIC_URL = 'https://rtl8710.github.io/website/console/';
+export const ADMIN_PUBLIC_URL = 'https://rtl8710.github.io/website/console/admin/';
+
 // 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
 // 铁律:admin 与终端用户账号解耦——勿把 App 个人账号(如 lvjinhui)放进名单。
 // 入口仅独立页 /console/admin/(本页自带登录);设备控制台 app.js 无「管理后台」按钮。

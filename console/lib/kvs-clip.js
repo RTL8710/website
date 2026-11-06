@@ -138,6 +138,26 @@ export async function fetchClipMp4ViaCognito({
   return new Blob([buf], { type: 'video/mp4' });
 }
 
+
+/** 文件名用可读墙钟时间（录像 dateTime），勿用 epoch 秒 */
+export function clipFileTimeStamp(dateTime, startSec) {
+  const d = parseWallClockDate(dateTime);
+  const t = (d && !Number.isNaN(d.getTime()))
+    ? d
+    : (startSec > 0 ? new Date(startSec * 1000) : new Date());
+  if (Number.isNaN(t.getTime())) return String(Date.now());
+  const p = (n) => String(n).padStart(2, '0');
+  return (
+    t.getFullYear()
+    + p(t.getMonth() + 1)
+    + p(t.getDate())
+    + '_'
+    + p(t.getHours())
+    + p(t.getMinutes())
+    + p(t.getSeconds())
+  );
+}
+
 export function triggerBrowserDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -192,9 +212,11 @@ export async function downloadCloudClip({
     err.code = 'NO_DATA';
     throw err;
   }
-  const name = filename || `cloud_${streamName}_${range.startSec}.mp4`;
+  const stamp = clipFileTimeStamp(dt, range.startSec);
+  const safeStream = String(streamName || 'clip').replace(/[^a-zA-Z0-9._-]+/g, '_');
+  const name = filename || (`cloud_${safeStream}_${stamp}.mp4`);
   triggerBrowserDownload(blob, name);
-  return { blob, streamName, range };
+  return { blob, streamName, range, filename: name };
 }
 
 export function clipErrorMessage(code, fallback) {
@@ -221,6 +243,7 @@ if (typeof window !== 'undefined') {
     cloudRecordStreamName,
     resolveKvsRegion,
     clipWallClockRange,
+    clipFileTimeStamp,
     KVS_CLIP_MAX_RANGE_SEC,
     clipErrorMessage,
   };
