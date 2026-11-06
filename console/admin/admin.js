@@ -1970,7 +1970,20 @@ async function downloadRecPlayClip() {
   const rp = state.recPlay;
   if (!rp || !rp.record || rp.downloading) return;
   rp.downloading = true;
-  render();
+  // 勿 render()：会拆掉 modal 里的 <video>，DASH 直接黑屏
+  const btn = document.querySelector('.rec-play-actions button.gbtn.primary');
+  const setBtn = (busy) => {
+    if (!btn) return;
+    btn.disabled = !!busy;
+    btn.replaceChildren(
+      fa(busy ? 'fa-circle-notch fa-spin' : 'fa-download'),
+      document.createTextNode(' ' + (busy ? t('clipDownloading') : t('clipDownload'))),
+    );
+  };
+  setBtn(true);
+  const videoEl = document.getElementById('adminRecPlayVideo');
+  const wasPaused = videoEl ? videoEl.paused : true;
+  const t0 = videoEl ? videoEl.currentTime : 0;
   try {
     await downloadCloudClip({ record: rp.record });
     toast(t('clipDownloaded'));
@@ -1978,10 +1991,13 @@ async function downloadRecPlayClip() {
     const key = clipErrorMessage(e && e.code);
     toast(t(key) || ((e && e.message) || String(e)), 'err');
   } finally {
-    if (state.recPlay === rp) {
-      rp.downloading = false;
-      render();
-    }
+    if (state.recPlay === rp) rp.downloading = false;
+    setBtn(false);
+    try {
+      const v = document.getElementById('adminRecPlayVideo');
+      if (v && t0 > 0) { try { v.currentTime = t0; } catch (_) {} }
+      if (v && !wasPaused && v.paused) v.play().catch(() => {});
+    } catch (_) {}
   }
 }
 

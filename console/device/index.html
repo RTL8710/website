@@ -7247,21 +7247,21 @@ window.__presignThumbUrl = function (raw) {
                                         <span><i class="fa-solid fa-video me-1"></i><span data-i18n="cp_stream_name">Stream Name</span>: <b x-text="cloudPlayback.streamName"></b></span>
                                         <span><i class="fa-solid fa-earth-asia me-1"></i><span data-i18n="cp_region">Region</span>: <b x-text="cloudPlayback.region"></b></span>
                                         <button type="button" class="btn btn-sm btn-outline-primary ms-auto"
+                                                id="cpDlBtn"
                                                 :disabled="!cloudPlayback.selected || cloudPlayback.downloading"
                                                 @click="downloadSelectedCloudClip()">
                                             <i class="fa-solid" :class="cloudPlayback.downloading ? 'fa-circle-notch fa-spin' : 'fa-download'"></i>
                                             <span x-text="cloudPlayback.downloading ? tIdx('cp_downloading') : tIdx('cp_download')"></span>
-                                            <span x-show="cloudPlayback.downloading && cloudPlayback.downloadProgress>0"
-                                                  x-text="' ' + Math.round((cloudPlayback.downloadProgress||0)*100) + '%'"></span>
+                                            <span id="cpDlPct"></span>
                                         </button>
                                         <span x-show="cloudPlayback.error" x-text="cloudPlayback.error" style="color:#d63939"></span>
                                     </div>
                                     <div class="cp-video-wrap">
+                                        <!-- x-ignore：下载进度等 Alpine 更新勿重绑 video（否则 DASH 黑屏） -->
+                                        <div x-ignore>
                                         <video id="cloudPlaybackVideo" controls autoplay playsinline
-                                               :poster="cloudPlayback.posterThumb"
-                                               @playing="cloudPlayback.buffering=false"
-                                               @error="cloudPlayback.buffering=false"
                                                style="width:100%;background:var(--video-bg, var(--bg-card2));display:block;border-radius:6px;"></video>
+                                        </div>
                                         <!-- dash.js 挂载后原生 poster 会立刻消失；加载期用选中缩略图遮罩避免黑屏 -->
                                         <div class="cp-video-cover" x-show="cloudPlayback.buffering" x-cloak>
                                             <img x-show="cloudPlayback.posterThumb" :src="cloudPlayback.posterThumb" alt="" decoding="async">
@@ -17990,6 +17990,13 @@ async _execSystemServiceAction(action) {
 
                 this.cloudPlayback.selected = r;
                 if (r && r._thumb) this.cloudPlayback.posterThumb = r._thumb;   // 选中段封面作播放器 poster
+                try {
+                    const v = document.getElementById('cloudPlaybackVideo');
+                    if (v) {
+                        if (r && r._thumb) v.setAttribute('poster', r._thumb);
+                        else v.removeAttribute('poster');
+                    }
+                } catch (_) {}
                 this.cloudPlayback.buffering = true; // 立刻盖上缩略图，等 DASH 首帧
                 // r.RecordIndexInformationDateTime 为设备本地时间 "YYYY-MM-DD HH:MM:SS"
                 const dt = r.RecordIndexInformationDateTime || '';
@@ -18029,15 +18036,24 @@ async _execSystemServiceAction(action) {
                     : (r.RecordIndexInformationCameraIndex != null) ? r.RecordIndexInformationCameraIndex
                     : this.cloudPlayback.channel;
                 this.cloudPlayback.downloading = true;
-                this.cloudPlayback.downloadProgress = 0;
                 this.cloudPlayback.error = '';
+                const pctEl = document.getElementById('cpDlPct');
+                if (pctEl) pctEl.textContent = '';
+                // 记住播放位置，下载后若被打断可尝试恢复
+                const videoEl = document.getElementById('cloudPlaybackVideo');
+                const wasPaused = videoEl ? videoEl.paused : true;
+                const t0 = videoEl ? videoEl.currentTime : 0;
                 try {
                     await api.downloadCloudClip({
                         record: r,
                         deviceId: uuid,
                         channel: ch,
                         region: this.cloudPlayback.region || undefined,
-                        onProgress: (p) => { this.cloudPlayback.downloadProgress = (p == null) ? 0 : p; },
+                        // 进度只写 DOM，勿频繁改 Alpine 状态（会重绘导致 DASH 黑屏）
+                        onProgress: (p) => {
+                            if (!pctEl) return;
+                            pctEl.textContent = (p == null || !(p > 0)) ? '' : (' ' + Math.round(p * 100) + '%');
+                        },
                     });
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] download failed:', e);
@@ -18054,7 +18070,19 @@ async _execSystemServiceAction(action) {
                     this.cloudPlayback.error = detail ? (tip + ' — ' + detail) : tip;
                 } finally {
                     this.cloudPlayback.downloading = false;
-                    this.cloudPlayback.downloadProgress = 0;
+                    if (pctEl) pctEl.textContent = '';
+                    // 若下载期间 video 仍在且未在播，尝试恢复
+                    try {
+                        const v = document.getElementById('cloudPlaybackVideo');
+                        if (v && this._dashPlayer) {
+                            if (t0 > 0 && Math.abs((v.currentTime || 0) - t0) > 0.5) {
+                                try { v.currentTime = t0; } catch (_) {}
+                            }
+                            if (!wasPaused && v.paused) {
+                                v.play().catch(() => {});
+                            }
+                        }
+                    } catch (_) {}
                 }
             },
 
