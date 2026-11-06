@@ -1,7 +1,7 @@
 // 控制台入口:路由 + 登录门禁 + 视图
 import { COGNITO, IOT_ENDPOINT, S3_BUCKET, APPSYNC, REGIONS, REGION_ORDER, getRegion, setRegion } from './config.js';
 import { signIn, restoreSession, signOut, resolvedCreds, warmupAuth } from './lib/auth.js';
-import { fetchMyDevices, fetchCloudRecords } from './lib/graphql.js';
+import { fetchMyDevices, fetchCloudRecordsPage } from './lib/graphql.js';
 import { getHlsUrl, playHls, destroyHls } from './lib/kvs-hls.js';
 import { downloadCloudClip, clipErrorMessage } from './lib/kvs-clip.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from './lib/iot-rpc.js';
@@ -305,8 +305,8 @@ async function resolveDeviceCover(d, creds) {
     try {
       const end = new Date(Date.now() + 864e5).toISOString();
       const start = new Date(Date.now() - 7 * 864e5).toISOString();
-      const recs = await fetchCloudRecords(d.uuid || d.id, start, end);
-      const withThumb = recs.find((r) => r.thumbnailUrl);
+      const page = await fetchCloudRecordsPage(d.uuid || d.id, start, end, { limit: 20 });
+      const withThumb = (page.items || []).find((r) => r.thumbnailUrl);
       if (withThumb) raw = withThumb.thumbnailUrl;
     } catch (e) { /* 兜底失败保持无封面 */ }
   }
@@ -528,17 +528,38 @@ function cloudPlayback(dev) {
     icon('cloud'), h('span', { class: 'muted', style: { fontSize: '13px' } }, '云端录像'),
     dateInput, countChip, dlBtn, statusSpan, h('span', { class: 'spacer', style: { flex: 1 } }));
 
-  async function load() {
-    mount(listBox, loading('查询云端录像…'));
-    selectedRec = null;
-    refreshDl();
+  let loaded = [];
+  let nextTok = null;
+  let loadingMore = false;
+  async function load(opts) {
+    const append = !!(opts && opts.append);
+    if (!append) {
+      mount(listBox, loading('查询云端录像…'));
+      selectedRec = null;
+      refreshDl();
+      loaded = [];
+      nextTok = null;
+    }
     try {
       const [s, e] = dayRange(dateInput.value);
-      const recs = await fetchCloudRecords(dev.id, s, e);
-      countChip.textContent = String(recs.length);
-      if (!recs.length) { mount(listBox, emptyState('这一天没有云端录像')); return; }
-      const rows = recs.map((r) => recRow(dev, r));
-      mount(listBox, h('div', { class: 'rec-list' }, ...rows));
+      const res = await fetchCloudRecordsPage(dev.id, s, e, { limit: 50, nextToken: append ? nextTok : null });
+      const batch = res.items || [];
+      nextTok = res.nextToken || null;
+      loaded = append ? loaded.concat(batch) : batch;
+      countChip.textContent = String(loaded.length) + (nextTok ? '+' : '');
+      if (!loaded.length) { mount(listBox, emptyState('这一天没有云端录像')); return; }
+      const rows = loaded.map((r) => recRow(dev, r));
+      const more = nextTok ? h('button', {
+        type: 'button', class: 'gbtn btn-sm', style: { marginTop: '10px', width: '100%' },
+        disabled: loadingMore,
+        onclick: async () => {
+          if (loadingMore || !nextTok) return;
+          loadingMore = true;
+          try { await load({ append: true }); }
+          finally { loadingMore = false; }
+        },
+      }, loadingMore ? '加载中…' : '加载更多') : null;
+      mount(listBox, h('div', {}, h('div', { class: 'rec-list' }, ...rows), more));
     } catch (err) {
       mount(listBox, errorBox('录像查询失败', err));
     }

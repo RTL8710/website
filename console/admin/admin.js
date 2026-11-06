@@ -944,7 +944,9 @@ function cloudRecordWallClockIso(d = new Date()) {
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}.${p3(d.getMilliseconds())}Z`;
 }
 
-async function loadRecords() {
+async function loadRecords(opts) {
+  const o = opts || {};
+  const append = !!o.append && Array.isArray(state.records);
   const days = Math.max(1, Number(state.recDays) || 7);
   const end = new Date();
   const start = new Date(Date.now() - days * 864e5);
@@ -952,8 +954,19 @@ async function loadRecords() {
   const endQ = new Date(end.getTime() + 60e3);
   const filter = { and: [{ dateTime: { between: [cloudRecordWallClockIso(start), cloudRecordWallClockIso(endQ)] } }] };
   if (state.recDeviceId.trim()) filter.and.push({ deviceID: { eq: state.recDeviceId.trim() } });
-  const res = await listCloudRecordsAdmin({ filter, limit: 200, maxPages: 15 });
-  state.records = res.items;
+  const token = append && state.recordsMeta ? (state.recordsMeta.nextToken || null) : null;
+  if (append && !token) return;
+  const res = await listCloudRecordsAdmin({
+    filter, limit: 50, maxPages: 1, nextToken: token,
+  });
+  // 续页时按 id 去重，避免 token 边界重复
+  if (append) {
+    const seen = new Set((state.records || []).map((r) => r && r.id).filter(Boolean));
+    const extra = (res.items || []).filter((r) => r && r.id && !seen.has(r.id));
+    state.records = (state.records || []).concat(extra);
+  } else {
+    state.records = res.items;
+  }
   state.recordsMeta = res;
   state.recordsLite = false;
 }
@@ -967,7 +980,7 @@ async function refreshOverviewSecondary() {
     const endQ = new Date(end.getTime() + 60e3);
     const filter = { and: [{ dateTime: { between: [cloudRecordWallClockIso(start), cloudRecordWallClockIso(endQ)] } }] };
     if (state.recDeviceId.trim()) filter.and.push({ deviceID: { eq: state.recDeviceId.trim() } });
-    const res = await listCloudRecordsAdmin({ filter, limit: 100, maxPages: 1 });
+    const res = await listCloudRecordsAdmin({ filter, limit: 50, maxPages: 1 });
     state.records = res.items;
     state.recordsMeta = res;
     state.recordsLite = true;
@@ -2043,6 +2056,25 @@ function viewRecords() {
           );
         }));
 
+  const loadMore = trunc ? h('div', { class: 'row-actions', style: { justifyContent: 'center', marginTop: '12px' } },
+    h('button', {
+      class: 'gbtn primary btn-sm',
+      disabled: !!state.recordsLoadingMore,
+      onclick: async () => {
+        state.recordsLoadingMore = true; render();
+        try {
+          await loadRecords({ append: true });
+          toast(t('dataRefreshed'));
+        } catch (e) {
+          toast((e && e.message) || String(e), 'err');
+        } finally {
+          state.recordsLoadingMore = false; render();
+        }
+      },
+    }, fa(state.recordsLoadingMore ? 'fa-circle-notch fa-spin' : 'fa-angles-down'),
+      ' ' + (state.recordsLoadingMore ? t('loading') : t('recordsLoadMore'))),
+  ) : null;
+
   return h('div', { class: 'records-page logs-page' },
     h('div', { class: 'glass logs-hero' },
       h('div', {},
@@ -2062,19 +2094,20 @@ function viewRecords() {
       studioSearch(t('recordsSearch')),
       deviceSel, daysSel,
       h('button', { class: 'gbtn primary btn-sm', onclick: async () => {
-        state.records = null; render();
+        state.records = null; state.recordsMeta = null; render();
         try { await loadRecords(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
       } }, t('recordsQuery')),
       h('button', { class: 'gbtn btn-sm', onclick: async () => {
-        state.records = null; render();
+        state.records = null; state.recordsMeta = null; render();
         try { await loadRecords(); toast(t('dataRefreshed')); }
         catch (e) { toast((e && e.message) || String(e), 'err'); }
         render();
       } }, fa('fa-rotate'), ' ' + t('refresh')),
     ),
     stream,
+    loadMore,
   );
 }
 

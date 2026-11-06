@@ -219,14 +219,17 @@ window.cloudRecordStreamName = function (deviceId, channel) {
   if (cam === 1) return id + '-cam2';
   return id + '-cam' + (cam + 1);
 };
-window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso) {
+window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso, opts) {
+  var o = opts || {};
+  var limit = (o.limit > 0) ? o.limit : 50;
+  var maxPages = (o.maxPages > 0) ? o.maxPages : 1; // 默认单页，避免整天扫穿
   var creds = window.__otaCredsBundle ? window.__otaCredsBundle() : {};
   if (!creds.appsyncEndpoint || !creds.appsyncApiKey || !deviceId) return [];
   var q = 'query ListCloudRecords($filter: ModelCloudRecordFilterInput, $limit: Int, $nextToken: String) {\n'
     + '  listCloudRecords(filter: $filter, limit: $limit, nextToken: $nextToken) {\n'
     + '    items { id dateTime duration deviceID type channel resolution thumbnailUrl expireAt }\n'
     + '    nextToken\n  }\n}';
-  var items = [], token = null;
+  var items = [], token = null, pages = 0;
   var filter = { and: [
     { deviceID: { eq: String(deviceId) } },
     { dateTime: { between: [startIso, endIso] } }
@@ -235,14 +238,15 @@ window.__fetchAppSyncCloudRecords = async function (deviceId, startIso, endIso) 
     var res = await fetch(creds.appsyncEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': creds.appsyncApiKey },
-      body: JSON.stringify({ query: q, variables: { filter: filter, limit: 200, nextToken: token } })
+      body: JSON.stringify({ query: q, variables: { filter: filter, limit: limit, nextToken: token } })
     });
     var json = await res.json();
     if (json.errors && json.errors.length) throw new Error(json.errors.map(function (e) { return e.message; }).join('; '));
     var conn = (json.data && json.data.listCloudRecords) || {};
     items = items.concat(conn.items || []);
     token = conn.nextToken || null;
-  } while (token);
+    pages += 1;
+  } while (token && pages < maxPages);
   var now = Date.now();
   return items
     .filter(function (r) { return !r.expireAt || new Date(r.expireAt).getTime() > now; })
@@ -7311,7 +7315,7 @@ window.__presignThumbUrl = function (raw) {
                                         <div class="col-12 d-flex align-items-center justify-content-between mt-2" x-show="(cloudPlayback.records||[]).length">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="(cloudPlayback.listPage||1)<=1" @click="cloudListShiftPage(-1)"><i class="fa fa-chevron-left"></i></button>
                                             <span class="text-muted" style="font-size:11px;"
-                                                  x-text="tIdx('cm_page')+' '+(cloudPlayback.listPage||1)+' / '+cloudListPageCount()+' · '+(cloudPlayback.records||[]).length"></span>
+                                                  x-text="tIdx('cm_page')+' '+(cloudPlayback.listPage||1)+' / '+cloudListPageCount()+' · '+(cloudPlayback.totalRecords||(cloudPlayback.records||[]).length)"></span>
                                             <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="(cloudPlayback.listPage||1)>=cloudListPageCount()" @click="cloudListShiftPage(1)"><i class="fa fa-chevron-right"></i></button>
                                         </div>
                                         <div x-show="!cloudPlayback.records.length" class="col-12 text-muted text-center py-3" data-i18n="cp_no_records">No cloud recordings</div>
@@ -13347,7 +13351,7 @@ document.addEventListener('DOMContentLoaded', function() {
             s3UploadResult: { uploading: false, url: '', error: '' },
 
             cloudPlayback: {
-                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', buffering: false, downloading: false, downloadProgress: 0, _appsyncThumbCache: null, _appsyncThumbDay: '' },
+                channel: 0, streamName: '', region: '', startStr: '', endStr: '', error: '', records: [], pageSize: 20, pageNumber: 1, listPage: 1, loading: false, selected: null, posterThumb: '', buffering: false, downloading: false, downloadProgress: 0, totalRecords: 0, _appsyncThumbCache: null, _appsyncThumbDay: '' },
 
             scanService:  {
                 scan_service_enable:  false,
@@ -17789,8 +17793,10 @@ async _execSystemServiceAction(action) {
                     this.cloudPlayback.buffering = false;
                 }
             },
-            // 拉取云录像元数据（可多页拼整天供时间轴）；缩略图只挂「当前列表页」
-            async fetchCloudRecords() {
+            // 按页拉取云录像（服务端 pageNumber/pageSize）；翻页再请求，不再循环拼整天
+            async fetchCloudRecords(opts) {
+                const o = opts || {};
+                const resetPage = !!o.resetPage;
                 this.cloudPlayback.error = '';
                 const fmtLocal = (date) => {
                     const tz = date.getTimezoneOffset() * 60000;
@@ -17805,72 +17811,77 @@ async _execSystemServiceAction(action) {
                     endTime = fmtLocal(now);
                 }
                 const deviceID = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                if (resetPage) this.cloudPlayback.listPage = 1;
+                const pageSize = Math.max(1, Number(this.cloudPlayback.pageSize) || 20);
+                let pageNumber = Math.max(1, Number(this.cloudPlayback.listPage) || 1);
                 this.cloudPlayback.loading = true;
                 try {
-                    // 元数据分页拼整天（≤60/页），不在这里拉 JPEG
-                    const metaPageSize = 60;
-                    let page = 1, all = [], total = null;
-                    while (page <= 40) {
-                        const response = await fetch('/getDeviceCommand', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                method: 'getCloudRecordListCommand',
-                                params: {
-                                    deviceID: deviceID,
-                                    startTime: startTime,
-                                    endTime: endTime,
-                                    pageSize: metaPageSize,
-                                    pageNumber: page,
-                                    slim: true,
-                                },
-                                requestId: 'cloudRecList_' + Date.now() + '_' + page,
-                            }),
-                        });
-                        const result = await response.json();
-                        const p = (result && result.params) || {};
-                        const batch = p.records || [];
-                        if (typeof p.totalRecords === 'number') total = p.totalRecords;
-                        all = all.concat(batch);
-                        if (!batch.length || batch.length < metaPageSize) break;
-                        if (total != null && all.length >= total) break;
-                        page += 1;
+                    const response = await fetch('/getDeviceCommand', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: 'getCloudRecordListCommand',
+                            params: {
+                                deviceID: deviceID,
+                                startTime: startTime,
+                                endTime: endTime,
+                                pageSize: pageSize,
+                                pageNumber: pageNumber,
+                                slim: true,
+                            },
+                            requestId: 'cloudRecList_' + Date.now() + '_p' + pageNumber,
+                        }),
+                    });
+                    const result = await response.json();
+                    const p = (result && result.params) || {};
+                    const batch = p.records || [];
+                    const total = (typeof p.totalRecords === 'number') ? p.totalRecords : batch.length;
+                    const maxPage = Math.max(1, Math.ceil(total / pageSize) || 1);
+                    if (pageNumber > maxPage) {
+                        this.cloudPlayback.listPage = maxPage;
+                        pageNumber = maxPage;
+                        if (maxPage !== Number(p.currentPage) && total > 0) {
+                            // 页码越界时重拉最后一页
+                            this.cloudPlayback.loading = false;
+                            return this.fetchCloudRecords();
+                        }
                     }
-                    this.cloudPlayback.records = all;
-                    this.cloudPlayback.listPage = 1;
+                    this.cloudPlayback.records = batch;
+                    this.cloudPlayback.totalRecords = total;
                     this.cloudPlayback._appsyncThumbCache = null;
                     this.cloudPlayback._appsyncThumbDay = '';
                 } catch (e) {
                     console.error('[AHS][CloudPlayback] list error:', e);
                     this.cloudPlayback.error = (e && (e.message || e)) || String(e);
                     this.cloudPlayback.records = [];
+                    this.cloudPlayback.totalRecords = 0;
                 } finally {
                     this.buildCloudTimeline();
                     this.cloudPlayback.loading = false;
-                    this.attachCloudThumbs(); // 只给当前列表页补缩略图
+                    this.attachCloudThumbs();
                 }
             },
             cloudListPageCount() {
-                const n = (this.cloudPlayback.records || []).length;
+                const total = Number(this.cloudPlayback.totalRecords);
+                const n = (total >= 0 && !Number.isNaN(total))
+                    ? total
+                    : (this.cloudPlayback.records || []).length;
                 const ps = Math.max(1, Number(this.cloudPlayback.pageSize) || 20);
-                return Math.max(1, Math.ceil(n / ps));
+                return Math.max(1, Math.ceil(n / ps) || 1);
             },
             cloudListPageRecords() {
-                const ps = Math.max(1, Number(this.cloudPlayback.pageSize) || 20);
-                let pn = Math.max(1, Number(this.cloudPlayback.listPage) || 1);
-                const max = this.cloudListPageCount();
-                if (pn > max) pn = max;
-                const start = (pn - 1) * ps;
-                return (this.cloudPlayback.records || []).slice(start, start + ps);
+                // records 已是当前服务端页，不再二次 slice
+                return this.cloudPlayback.records || [];
             },
             cloudListShiftPage(delta) {
+                if (this.cloudPlayback.loading) return;
                 const max = this.cloudListPageCount();
                 let pn = Math.max(1, Number(this.cloudPlayback.listPage) || 1) + (delta || 0);
                 if (pn < 1) pn = 1;
                 if (pn > max) pn = max;
                 if (pn === this.cloudPlayback.listPage) return;
                 this.cloudPlayback.listPage = pn;
-                this.attachCloudThumbs();
+                this.fetchCloudRecords();
             },
             // Thumbnails: only current list page (avoid hundreds of S3 JPEGs for a full day).
             // WAN: AppSync thumbnailUrl for that day; LAN: local index nearest match.
@@ -17890,18 +17901,26 @@ async _execSystemServiceAction(action) {
                     const uuid = this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
                     const day = this.timelineDate || (this.cloudPlayback.startStr || '').slice(0, 10);
                     let cloud = this.cloudPlayback._appsyncThumbCache;
-                    if (!cloud || this.cloudPlayback._appsyncThumbDay !== day) {
+                    // 只按当前列表页时间窗拉缩略图元数据（单页），避免整天全量 AppSync
+                    const cacheKey = day + '#p' + (this.cloudPlayback.listPage || 1);
+                    if (!cloud || this.cloudPlayback._appsyncThumbDay !== cacheKey) {
                         try {
-                            const startIso = day
-                                ? new Date(day + 'T00:00:00').toISOString()
-                                : new Date(Date.now() - 864e5).toISOString();
-                            const endIso = day
-                                ? new Date(new Date(day + 'T00:00:00').getTime() + 864e5).toISOString()
-                                : new Date(Date.now() + 864e5).toISOString();
-                            cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso);
+                            let tMin = Infinity, tMax = -Infinity;
+                            for (const r of page) {
+                                const t0 = msOf(r.RecordIndexInformationDateTime);
+                                if (!isNaN(t0)) { if (t0 < tMin) tMin = t0; if (t0 > tMax) tMax = t0; }
+                            }
+                            const padMs = 5 * 60 * 1000;
+                            const startIso = (tMin < Infinity)
+                                ? new Date(tMin - padMs).toISOString()
+                                : (day ? new Date(day + 'T00:00:00').toISOString() : new Date(Date.now() - 864e5).toISOString());
+                            const endIso = (tMax > -Infinity)
+                                ? new Date(tMax + padMs).toISOString()
+                                : (day ? new Date(new Date(day + 'T00:00:00').getTime() + 864e5).toISOString() : new Date(Date.now() + 864e5).toISOString());
+                            cloud = await window.__fetchAppSyncCloudRecords(uuid, startIso, endIso, { maxPages: 1, limit: 100 });
                         } catch (e) { cloud = []; }
                         this.cloudPlayback._appsyncThumbCache = cloud;
-                        this.cloudPlayback._appsyncThumbDay = day;
+                        this.cloudPlayback._appsyncThumbDay = cacheKey;
                     }
                     for (const r of page) {
                         if (r._thumb) continue;
@@ -18079,7 +18098,7 @@ async _execSystemServiceAction(action) {
                 this.cloudPlayback.startStr = this.timelineDate + 'T00:00';
                 this.cloudPlayback.endStr = this.timelineDate + 'T23:59';
                 this.tlClickSecs = -1;
-                await this.fetchCloudRecords();
+                await this.fetchCloudRecords({ resetPage: true });
             },
             // ◀▶ 翻天（仿本地 timelineShiftDay，但调云 fetch，不打本地 getRecordTimelineCommand）
             cloudShiftDay(delta) {

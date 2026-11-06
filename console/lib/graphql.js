@@ -151,6 +151,20 @@ export async function fetchCloudRecords(deviceId, startIso, endIso) {
 }
 
 
+
+/** 单页云录像（设备控制台按页用）。返回 { items, nextToken, truncated } */
+export async function fetchCloudRecordsPage(deviceId, startIso, endIso, {
+  limit = 50, nextToken = null,
+} = {}) {
+  const filter = {
+    and: [
+      { deviceID: { eq: deviceId } },
+      { dateTime: { between: [startIso, endIso] } },
+    ],
+  };
+  return listCloudRecordsAdmin({ filter, limit, maxPages: 1, nextToken });
+}
+
 // ── Admin: 全表数据（API Key public）──────────────────────────────────────────
 const Q_LIST_USERS_FULL = /* GraphQL */ `
   query ListUsers($filter: ModelUserFilterInput, $limit: Int, $nextToken: String) {
@@ -267,13 +281,15 @@ export async function deleteDeviceUpgrade(id) {
   return !!(data && data.deleteDeviceUpgrade);
 }
 
-// 云录像：支持 filter + 可选 maxPages 防止全表扫描卡死（默认最多 20 页 × limit）
-export async function listCloudRecordsAdmin({ filter = null, limit = 200, maxPages = 20 } = {}) {
-  let token = null, out = [], pages = 0;
+// 云录像：按页拉取。传 nextToken 续页；maxPages 默认 1（按页），勿再默认扫十几页。
+export async function listCloudRecordsAdmin({
+  filter = null, limit = 50, maxPages = 1, nextToken: startToken = null,
+} = {}) {
+  let token = startToken || null, out = [], pages = 0;
   do {
     const data = await gql(Q_LIST_CLOUDRECORDS, { filter, limit, nextToken: token });
     const conn = data.listCloudRecords || {};
-    out = out.concat(conn.items || []);
+    out = out.concat((conn.items || []).filter((x) => x != null));
     token = conn.nextToken || null;
     pages += 1;
   } while (token && pages < maxPages);
