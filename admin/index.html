@@ -1,14 +1,46 @@
 <!doctype html>
-<html lang="zh">
+<html lang="zh" class="admin-booting">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="0;url=https://rtl8710.github.io/website/console/admin/">
-<link rel="canonical" href="https://rtl8710.github.io/website/console/admin/">
-<title>Redirecting…</title>
-<script>location.replace('https://rtl8710.github.io/website/console/admin/');</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="canonical" href="/admin/">
+<script>
+(function(){
+  var p=location.pathname||'';
+  if(!/\/$/.test(p) && !/\.html?$/i.test(p)){
+    location.replace(p+'/'+(location.search||'')+(location.hash||''));
+  }
+})();
+</script>
+<script>try{var _th=localStorage.getItem('dv_theme')||'dark';document.documentElement.setAttribute('data-theme',_th);var _lg=localStorage.getItem('dv_lang');if(_lg)document.documentElement.lang=_lg;}catch(e){}</script>
+<title>Admin Console</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<script>window.global=window.globalThis||window;</script>
+<link rel="modulepreload" href="../console/vendor/amazon-cognito-identity-js.esm.js">
+<link rel="modulepreload" href="../console/admin/admin.js?v=1793937580">
+<link rel="preload" href="../console/device/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../console/device/fonts/noto-sans-sc-cn-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../console/device/fonts/fonts.css">
+<link rel="stylesheet" href="../console/styles.css">
+<link rel="preload" href="../console/device/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../console/device/css/all.min.css">
+<link rel="stylesheet" href="../console/admin/admin.css?v=1793937580">
+<script src="../console/vendor/crypto.js"></script>
+<script src="../console/vendor/mqtt.min.js"></script>
 </head>
 <body>
-<p>管理后台已迁至 <a href="https://rtl8710.github.io/website/console/admin/">GitHub Pages</a>…</p>
+<div id="admin-boot-overlay" role="status" aria-live="polite" aria-busy="true">
+  <div class="admin-boot-grid" aria-hidden="true"></div>
+  <div class="admin-boot-stage">
+    <div class="admin-boot-orb" aria-hidden="true"><span></span></div>
+    <div class="admin-boot-brand">ADMIN</div>
+    <div class="admin-boot-title">云端管理后台</div>
+    <div class="admin-boot-sub">正在连接云端…</div>
+    <div class="admin-boot-bar"><i></i></div>
+  </div>
+</div>
+<div id="app"></div>
+<script type="module" src="../console/admin/admin.js?v=1793937580"></script>
 </body>
 </html>

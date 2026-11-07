@@ -12080,6 +12080,10 @@ const STATUS = Object.freeze({
     GET_SYSTEM_CRASH: 1114,  // 系统 Crash / 重启事件
     GET_LIVE_PREVIEW_SESSION: 1115, SET_LIVE_PREVIEW_SESSION: 1116,  // Agora 按需推流会话
     GET_LICENSE_SERVICE: 1117, SET_LICENSE_SERVICE: 1118,  // 出厂授权 LicenseService
+    UPLOAD_LOCAL_RECORD_TO_S3: 1119,  // 本地录像上传 S3（App 远程下相册）
+    UPDATE_LOCAL_RECORD_UPLOAD_STATUS: 1120,  // 设备 MQTT 推送上传进度/结果
+    GET_LOCAL_RECORD_UPLOAD_STATUS: 1121,  // 查询最近一次上传状态
+    CANCEL_LOCAL_RECORD_UPLOAD: 1122,  // 取消进行中的本地录像上传
     REINDEX_LOCAL_RECORD_INDEX: 1111,  // 回放页一键补回丢失索引
 });
 

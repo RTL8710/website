@@ -86,13 +86,13 @@ export const DEPS = {
   cognitoIdentityJs: new URL('./vendor/amazon-cognito-identity-js.esm.js', import.meta.url).href,
 };
 
-// 运维后台正式入口（anhaishi.cn/console 已 302 到此；外链请用绝对 URL，免多跳）
-export const CONSOLE_PUBLIC_URL = 'https://rtl8710.github.io/website/console/';
-export const ADMIN_PUBLIC_URL = 'https://rtl8710.github.io/website/console/admin/';
+// 运维/管理入口：跟随当前站点源（anhaishi.cn 或 Pages 备份），禁止写死跨域跳转
+export const CONSOLE_PUBLIC_URL = new URL('./', import.meta.url).href;
+export const ADMIN_PUBLIC_URL = new URL('../admin/', import.meta.url).href;
 
 // 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
 // 铁律:admin 与终端用户账号解耦——勿把 App 个人账号(如 lvjinhui)放进名单。
-// 入口仅独立页 /console/admin/(本页自带登录);设备控制台 app.js 无「管理后台」按钮。
+// 入口 /admin/（壳页加载 console/admin 逻辑，自带登录）；/console/admin/ 为本机同页。
 // 当前白名单仅 lvjinhui;User 表只需有档案行,
 // 不需要绑定 DeviceUser(管理后台走 listAll* 全库,与「我的设备」无关)。
 // 非名单账号直链 admin/ 也会被拦(本页提示无权限)。

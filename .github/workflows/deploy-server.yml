@@ -48,9 +48,9 @@ jobs:
           BR: ${{ github.ref_name }}
           WEBROOT: /var/www/website
         run: |
-          REMOTE="git config --global --add safe.directory $WEBROOT && git -C $WEBROOT fetch --depth 1 origin $BR && git -C $WEBROOT reset --hard origin/$BR && git -C $WEBROOT rev-parse --short HEAD"
+          REMOTE="git config --global --add safe.directory $WEBROOT && git -C $WEBROOT fetch --depth 1 origin $BR && git -C $WEBROOT reset --hard origin/$BR && git -C $WEBROOT rev-parse --short HEAD && bash $WEBROOT/deploy/disable-github-console-redirect.sh"
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password -o ConnectTimeout=30 -p "$PORT" "$USER@$HOST" "$REMOTE"
 
       - name: 完成
         if: steps.cfg.outputs.configured == 'true'
-        run: echo "✅ 已同步到自建服务器 https://${{ secrets.SERVER_HOST }}/(仅静态文件,nginx/SSL 未动)"
+        run: echo "✅ 已同步到自建服务器 https://${{ secrets.SERVER_HOST }}/（静态文件 + 去掉 /console→GitHub 302）"

@@ -76,7 +76,7 @@ async function main() {
   ok('allowlist present', cfg.includes('ADMIN_ALLOWLIST') && cfg.includes('isAdminAccount'));
   const gql = await (await fetch(BASE + '/lib/graphql.js')).text();
   ok('graphql deleteUserCompletely', gql.includes('deleteUserCompletely') && gql.includes('deleteDeviceCompletely'));
-  ok('standalone admin entry comment', cfg.includes('ADMIN_PUBLIC_URL') || cfg.includes('/console/admin/'));
+  ok('standalone admin entry comment', cfg.includes('ADMIN_PUBLIC_URL') && cfg.includes("new URL('../admin/'"));
 
   // 2) 云端 data completeness
   const users = await pageCount('listUsers', 'id awsUserName');

@@ -2546,7 +2546,7 @@ async function openDevice(dev) {
       return cands[0] || 'admin';
     })());
     // 从管理后台进入：Logout 回到 admin，而不是用户控制台
-    sessionStorage.setItem('dv_return', '../admin/');
+    sessionStorage.setItem('dv_return', ADMIN_PUBLIC_URL || '../../admin/');
     state.enteringDevice = null;
     render();
     location.href = '../device/index.html?deviceId=' + encodeURIComponent(uuid);
