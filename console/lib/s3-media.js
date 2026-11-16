@@ -43,18 +43,74 @@ export function resolveS3HttpsUrl(raw, opts) {
   return `https://${bucket}.s3.${region}.amazonaws.com/${path}`;
 }
 
-/** 给 <img src> / 新窗口用的可加载 URL */
+function isAlreadySigned(url) {
+  const s = String(url || '');
+  return s.includes('X-Amz-') || s.includes('Signature=');
+}
+
+/**
+ * 给 <img src> / 新窗口用的可加载 URL。
+ * S3 对象无 creds 时返回空串（禁止退回裸 amazonaws 链 → 403）。
+ * 非 S3 的 http(s) 原样返回。
+ */
 export function signS3MediaUrl(creds, raw, expiresSec) {
   if (!raw) return '';
   const s = String(raw).trim();
   if (!s) return '';
+  if (isAlreadySigned(s) && /amazonaws\.com/i.test(s)) return s;
   const https = resolveS3HttpsUrl(s);
   if (!https) return '';
-  if (!creds || !creds.accessKeyId) return https;
   // 非 S3：不签
   if (!/amazonaws\.com/i.test(https)) return https;
+  if (!creds || !creds.accessKeyId) return '';
   const region = (COGNITO && COGNITO.region) || creds.region || 'ap-northeast-1';
   return presignS3Get(Object.assign({}, creds, { region }), https, expiresSec || 3600);
 }
 
-// fix typo in generator - will fix below
+/**
+ * 预签名后 fetch blob 触发浏览器下载。禁止导航到未签名 amazonaws URL。
+ * @param {{creds: object, raw: string, filename?: string, expiresSec?: number}} opts
+ */
+export async function downloadS3Object(opts) {
+  const o = opts || {};
+  const raw = o.raw == null ? '' : String(o.raw).trim();
+  if (!raw) throw new Error('NO_S3_KEY');
+  const creds = o.creds;
+  let downloadUrl = '';
+  if (isAlreadySigned(raw) && /amazonaws\.com/i.test(raw)) {
+    downloadUrl = raw;
+  } else {
+    if (!creds || !creds.accessKeyId) throw new Error('NO_CREDS');
+    const https = resolveS3HttpsUrl(raw, o);
+    if (!https) throw new Error('INVALID_S3_RAW');
+    if (!/amazonaws\.com/i.test(https)) {
+      downloadUrl = https;
+    } else {
+      const region = (COGNITO && COGNITO.region) || creds.region || 'ap-northeast-1';
+      downloadUrl = presignS3Get(Object.assign({}, creds, { region }), https, o.expiresSec || 3600);
+      if (!downloadUrl || !isAlreadySigned(downloadUrl)) throw new Error('PRESIGN_FAILED');
+    }
+  }
+  const resp = await fetch(downloadUrl);
+  if (!resp.ok) throw new Error('HTTP_' + resp.status);
+  const blob = await resp.blob();
+  if (!blob || blob.size <= 0) throw new Error('EMPTY_DOWNLOAD');
+  let name = (o.filename || '').trim();
+  if (!name) {
+    const key = s3ObjectKeyFromRaw(raw) || '';
+    name = key.split('/').pop() || ('download_' + Date.now());
+  }
+  const objUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => { try { URL.revokeObjectURL(objUrl); } catch (_) {} }, 2000);
+  }
+  return { key: s3ObjectKeyFromRaw(raw) || '', bytes: blob.size };
+}

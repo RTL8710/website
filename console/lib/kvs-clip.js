@@ -1,9 +1,10 @@
 // 云录像下载（Web）—— 浏览器用 Cognito 临时凭证 SigV4 调 GetClip → 本机 MP4。
 // App 仍走 AppSync getKvsClip 预签名 POST（无 CORS）；浏览器不能照搬那条路。
 // 禁止前端长期 AK。
-import { APPSYNC, getRegion, REGIONS, resolveKvsRegion as resolveKvsRegionFromConfig, COGNITO } from '../config.js';
-import { resolvedCreds } from './auth.js';
-import { sigv4PostJson, sigv4PostBinary } from './sigv4.js';
+// ?v= 防 nginx max-age=7d 把旧 sigv4（无 sigv4PostBinary）与新 kvs-clip 拼在一起 → SyntaxError
+import { APPSYNC, getRegion, REGIONS, resolveKvsRegion as resolveKvsRegionFromConfig, COGNITO } from '../config.js?v=20261109';
+import { resolvedCreds } from './auth.js?v=20261109';
+import { sigv4PostJson, sigv4PostBinary } from './sigv4.js?v=20261109';
 
 export const KVS_CLIP_MAX_RANGE_SEC = 210;
 

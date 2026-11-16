@@ -17,7 +17,7 @@ import {
   listDeviceLicensesByBatch, activateDeviceLicense,
 } from '../lib/graphql.js';
 import { putS3Object, presignS3Get, listS3Objects, deleteS3Object, getS3Object } from '../lib/sigv4.js';
-import { signS3MediaUrl } from '../lib/s3-media.js';
+import { signS3MediaUrl, downloadS3Object, s3ObjectKeyFromRaw } from '../lib/s3-media.js';
 import { sendCommand as iotSend, disconnect as iotDisconnect } from '../lib/iot-rpc.js';
 import { h, mount, loading, emptyState } from '../lib/ui.js';
 import { playCloudClip, destroyDash } from '../lib/kvs-dash.js';
@@ -365,9 +365,10 @@ function mediaThumb(raw, opts) {
     return box;
   }
   resolvedCreds().then((c) => {
-    paint(signS3MediaUrl(c, s, 3600));
+    const url = signS3MediaUrl(c, s, 3600);
+    if (url) paint(url);
   }).catch(() => {
-    paint(signS3MediaUrl(null, s, 3600));
+    // 无私有桶凭证时不退回裸 amazonaws（会 403）
   });
   return box;
 }
@@ -1817,11 +1818,24 @@ async function resolveRecThumbUrl(raw) {
   if (/^https?:\/\//i.test(s) && !s.includes('amazonaws.com')) return s;
   try {
     const c = await resolvedCreds();
-    return signS3MediaUrl(c, s, 3600) || s;
+    return signS3MediaUrl(c, s, 3600) || '';
   } catch (_) {
-    return signS3MediaUrl(null, s, 3600) || s;
+    return '';
   }
 }
+
+
+async function downloadRecThumb(raw, filename) {
+  if (!raw) return;
+  const creds = await resolvedCreds();
+  let name = (filename || '').trim();
+  if (!name) {
+    const key = (typeof s3ObjectKeyFromRaw === 'function' && s3ObjectKeyFromRaw(raw)) || '';
+    name = (key && key.split('/').pop()) || 'thumb.jpg';
+  }
+  await downloadS3Object({ creds, raw, filename: name, expiresSec: 3600 });
+}
+
 
 function closeRecPlay() {
   try { destroyDash(); } catch (_) {}
@@ -1945,7 +1959,7 @@ function renderRecPlay() {
           autoplay: true,
         }),
         rp.busy ? h('div', { class: 'rec-play-overlay has-thumb' },
-          r.thumbnailUrl ? h('img', { class: 'rec-play-cover', src: signS3MediaUrl(null, r.thumbnailUrl, 3600) || r.thumbnailUrl, alt: '', decoding: 'async' }) : null,
+          // 封面由 startRecPlay → resolveRecThumbUrl 预签名后注入；此处禁止裸 S3 src
           h('div', { class: 'rec-play-spin' }, fa('fa-circle-notch fa-spin')),
           h('div', {}, t('recordsPlayLoading')),
         ) : null,
