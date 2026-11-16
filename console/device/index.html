@@ -6654,7 +6654,7 @@ window.__presignThumbUrl = function (raw) {
 
                 <!-- 视频回放页面 -->
                                 <!-- Playback：Video / Image / Cloud 分段 Tab -->
-                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="dvWhenPage('playback', () => { if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { getCloudRecordService(); initCloudPlayback(); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })" @pagechange.window="onPlaybackPageChange($event.detail.pageId)">
+                <div class="page-section" id="playback" x-data="deviceSettings()" x-init="dvWhenPage('playback', () => { if (window.__pendingPlaybackTab) { playbackTab = window.__pendingPlaybackTab; delete window.__pendingPlaybackTab; } if (playbackTab==='image') { fetchImages(false); initTimeline(); } else if (playbackTab==='cloud') { Promise.resolve(initDeviceGeneralInformation()).then(() => getCloudRecordService()).then(() => initCloudPlayback()); } else { fetchRecords(false); initTimeline(); initVedioSettings(0); initPlaybackIdleThumbs(); } })" @pagechange.window="onPlaybackPageChange($event.detail.pageId)">
                     <div class="playback-inner">
                         <header class="log-page-hero">
                             <div class="log-page-hero-main">
@@ -13604,7 +13604,7 @@ document.addEventListener('DOMContentLoaded', function() {
             webrtcInformation: {
                 WEBRTCServerAddress: "47.242.54.179",
                 WEBRTCTurnServer: "47.242.54.179",
-                WEBRTCDeviceUuid: "00000000-0000-0000-0000-000000000006",
+                WEBRTCDeviceUuid: "",
                 WEBRTCSolutionType: "agora",
                 awsAccessKeyId: "",          // 已移除静态根密钥；KVS viewer 改用临时凭证(Cognito iot_creds / 设备 /api/kvsCreds)
                 awsSecretAccessKey: "",      // 同上，禁止再硬编码 AK/SK
@@ -13615,7 +13615,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 enableFileLogging: "false",
                 awsIotCoreCert: "/config/cloud/00000000-0000-0000-0000-000000000006.pem.crt",
                 awsIotCorePrivateKey: "/config/cloud/00000000-0000-0000-0000-000000000006.pem.key",
-                awsIotCoreThingName: "00000000-0000-0000-0000-000000000006",
+                awsIotCoreThingName: "",
                 awsIotCoreRoleAlias: "ipcamera_event_rule_alias",
                 awsIotCoreThingModel: "MODEL_Y"
             },
@@ -14092,7 +14092,9 @@ document.addEventListener('DOMContentLoaded', function() {
             resolveDeviceUuidForLogUpload() {
                 const pick = (v) => {
                     const s = String(v || '').trim();
+                    // default/unknown + Fleet claim 占位(全0 UUID) 都不能当 KVS 流名
                     if (!s || s === 'default' || s === 'unknown') return '';
+                    if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(s)) return '';
                     return s;
                 };
                 return pick(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
@@ -17821,7 +17823,13 @@ async _execSystemServiceAction(action) {
                 }
 
                 // 云端回放页：展示用 stream/region（缺失时回退 webrtcInformation）
-                this.cloudPlayback.streamName = this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName || '';
+                const _sn = (this.cloudRecordService.stream_name || '').trim();
+                const _bad = !_sn || _sn === 'default' || /^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(_sn);
+                this.cloudPlayback.streamName = _bad
+                    ? ((this.deviceGeneralInformation.deviceUuid || '').trim() || '')
+                    : _sn;
+                if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(this.cloudPlayback.streamName) || this.cloudPlayback.streamName === 'default')
+                    this.cloudPlayback.streamName = '';
                 this.cloudPlayback.region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion || '';
             },
 
@@ -18014,10 +18022,20 @@ async _execSystemServiceAction(action) {
                 this.cloudPlayback.error = '';
                 this.cloudPlayback.buffering = true;
                 try {
-                    const streamName = this.cloudPlayback.streamName
-                        || (window.cloudRecordStreamName
-                            ? window.cloudRecordStreamName(this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName, this.cloudPlayback.channel)
-                            : (this.cloudRecordService.stream_name || this.webrtcInformation.awsIotCoreThingName));
+                    const pickBase = (v) => {
+                        const s = String(v || '').trim();
+                        if (!s || s === 'default' || s === 'unknown') return '';
+                        if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(s)) return '';
+                        return s;
+                    };
+                    const baseUuid = pickBase(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                        || pickBase(this.cloudRecordService && this.cloudRecordService.stream_name)
+                        || pickBase((this.cloudPlayback.streamName || '').replace(/-cam\d+$/i, ''))
+                        || pickBase(this.webrtcInformation && this.webrtcInformation.awsIotCoreThingName);
+                    if (!baseUuid) throw new Error('Device UUID unavailable (refusing claim/default id)');
+                    const streamName = window.cloudRecordStreamName
+                        ? window.cloudRecordStreamName(baseUuid, this.cloudPlayback.channel)
+                        : baseUuid;
                     const region = this.cloudRecordService.region || this.webrtcInformation.awsDefaultRegion;
                     if (!streamName) throw new Error('Stream name unavailable');
                     if (!region) throw new Error('Region unavailable');
@@ -18261,7 +18279,26 @@ async _execSystemServiceAction(action) {
             },
             // 点击列表项播放：把记录时间换算为 datetime-local 本地字符串后复用 DASH 播放流程
             async playCloudRecord(r) {
-                const uuid = (r && (r.deviceID || r.deviceId)) || this.deviceGeneralInformation.deviceUuid || this.webrtcInformation.awsIotCoreThingName || '';
+                // slim 列表曾省略 deviceID；页面占位 uuid 是 "default"/claim(全0) → 错误流名 *-cam2 AccessDenied
+                const pickUuid = (v) => {
+                    const s = String(v || '').trim();
+                    if (!s || s === 'default' || s === 'unknown') return '';
+                    if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/i.test(s)) return '';
+                    return s;
+                };
+                // 先确保 deviceGeneral 真 UUID 到位（不要用 webrtc Alpine claim 默认值）
+                try {
+                    if (!pickUuid(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                        || !pickUuid(this.cloudRecordService && this.cloudRecordService.stream_name)) {
+                        await this.initDeviceGeneralInformation();
+                        await this.getCloudRecordService();
+                    }
+                } catch (e) {}
+                let uuid = pickUuid(this.deviceGeneralInformation && this.deviceGeneralInformation.deviceUuid)
+                    || pickUuid(this.cloudRecordService && this.cloudRecordService.stream_name)
+                    || (typeof this.resolveDeviceUuidForLogUpload === 'function' ? this.resolveDeviceUuidForLogUpload() : '')
+                    || pickUuid(r && (r.deviceID || r.deviceId));
+                if (!uuid) { this.cloudPlayback.error = 'Device UUID unavailable'; this.cloudPlayback.buffering = false; return; }
                 // AppSync CloudRecord.channel；本地云段索引用 CameraIndex
                 const ch = (r && (r.channel != null)) ? r.channel
                     : (r && r.RecordIndexInformationCameraIndex != null) ? r.RecordIndexInformationCameraIndex
@@ -18407,7 +18444,13 @@ async _execSystemServiceAction(action) {
                 });
             },
             // 进页面：定位到今天并拉当天云列表
-            initCloudPlayback() {
+            async initCloudPlayback() {
+                // 云回放页原先不拉设备信息，deviceUuid 停在 "default" → GetDataEndpoint(default-cam2) AccessDenied
+                try {
+                    const cur = (typeof this.resolveDeviceUuidForLogUpload === 'function')
+                        ? this.resolveDeviceUuidForLogUpload() : '';
+                    if (!cur) await this.initDeviceGeneralInformation();
+                } catch (e) {}
                 const now = new Date();
                 const tz = now.getTimezoneOffset() * 60000;
                 this.timelineDate = new Date(now.getTime() - tz).toISOString().slice(0, 10);
