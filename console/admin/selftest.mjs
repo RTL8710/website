@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 // Admin console self-test — data plane + static deploy markers
+// 默认 Gen1 生产 tokyo；联调 Gen2 tokyomig：
+//   USE_GEN2_TOKYOMIG=1 node selftest.mjs
+// 或显式：APPSYNC_EP=... APPSYNC_KEY=... node selftest.mjs
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-const EP = process.env.APPSYNC_EP || 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql';
-const KEY = process.env.APPSYNC_KEY || 'da2-rmzpjwx7lva7zbfviuy2nwzbcy';
+const GEN2_EP = 'https://qbtq7qvhtbg2viv36ksueqdw24.appsync-api.ap-northeast-1.amazonaws.com/graphql';
+const GEN2_KEY = 'da2-acz2gm2ngjbzbm7cp6zhuolzmy';
+const GEN1_EP = 'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql';
+const GEN1_KEY = 'da2-rmzpjwx7lva7zbfviuy2nwzbcy';
+const useGen2 = process.env.USE_GEN2_TOKYOMIG === '1' || process.env.USE_GEN2_TOKYOMIG === 'true';
+const EP = process.env.APPSYNC_EP || (useGen2 ? GEN2_EP : GEN1_EP);
+const KEY = process.env.APPSYNC_KEY || (useGen2 ? GEN2_KEY : GEN1_KEY);
 const BASE = process.env.ADMIN_BASE || 'https://rtl8710.github.io/website/console';
 
 const fails = [];
@@ -40,7 +48,8 @@ async function pageCount(root, itemHint = 'id') {
 }
 
 async function main() {
-  console.log('=== Admin self-test ===', new Date().toISOString());
+  console.log('=== Admin self-test ===', new Date().toISOString(), useGen2 ? 'USE_GEN2_TOKYOMIG' : 'GEN1');
+  console.log('AppSync EP', EP);
 
   // 1) Deployed assets
   for (const path of ['/admin/', '/admin/admin.js', '/admin/admin.css', '/config.js', '/app.js']) {
@@ -74,9 +83,12 @@ async function main() {
 
   const cfg = await (await fetch(BASE + '/config.js')).text();
   ok('allowlist present', cfg.includes('ADMIN_ALLOWLIST') && cfg.includes('isAdminAccount'));
+  ok('ap-mig region present', cfg.includes("'ap-mig'") && cfg.includes('ap-northeast-1_q3SOvdshp'));
   const gql = await (await fetch(BASE + '/lib/graphql.js')).text();
   ok('graphql deleteUserCompletely', gql.includes('deleteUserCompletely') && gql.includes('deleteDeviceCompletely'));
+  ok('graphql flat DeviceUser hydrate', gql.includes('hydrateDeviceUsers') && gql.includes('getDevice(id:') && !gql.includes('device {\n          id\n          ownerUserId'));
   ok('standalone admin entry comment', cfg.includes('ADMIN_PUBLIC_URL') && cfg.includes("new URL('../admin/'"));
+  console.log('AppSync target', useGen2 ? 'Gen2 tokyomig' : 'Gen1 tokyo', EP);
 
   // 2) 云端 data completeness
   const users = await pageCount('listUsers', 'id awsUserName');

@@ -58,23 +58,80 @@ export async function resolveUserRow(cognitoSub) {
   return items[0]; // { id, awsUserID, email, ... }
 }
 
-// ── 2. 我的设备(DeviceUser join,filter userId eq User.id)────────────────────
+// ── 2. 我的设备(DeviceUser 扁平 deviceId/userId，再 getDevice hydrate)────────
+// Gen2 DeviceUser 已去掉 user/device 嵌套关系字段；Gen1 同样兼容扁平+hydrate。
 const Q_LIST_DEVICEUSERS = /* GraphQL */ `
   query ListDeviceUsers($filter: ModelDeviceUserFilterInput, $limit: Int, $nextToken: String) {
     listDeviceUsers(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items {
-        id
-        device {
-          id
-          ownerUserId
-          deviceConnectStatus
-          devicePicture
-          deviceGeneralInformation
-        }
-      }
+      items { id userId deviceId createdAt }
       nextToken
     }
   }`;
+
+const Q_GET_DEVICE = /* GraphQL */ `
+  query GetDevice($id: ID!) {
+    getDevice(id: $id) {
+      id ownerUserId deviceConnectStatus devicePicture deviceGeneralInformation
+      createdAt updatedAt
+    }
+  }`;
+
+const Q_GET_USER = /* GraphQL */ `
+  query GetUser($id: ID!) {
+    getUser(id: $id) {
+      id awsUserID awsUserName phoneNumber email picture region createdAt updatedAt
+    }
+  }`;
+
+async function getDeviceById(id) {
+  if (!id) return null;
+  try {
+    const data = await gql(Q_GET_DEVICE, { id });
+    return (data && data.getDevice) || null;
+  } catch (e) {
+    console.warn('[graphql] getDevice', id, e);
+    return null;
+  }
+}
+
+async function getUserById(id) {
+  if (!id) return null;
+  try {
+    const data = await gql(Q_GET_USER, { id });
+    return (data && data.getUser) || null;
+  } catch (e) {
+    console.warn('[graphql] getUser', id, e);
+    return null;
+  }
+}
+
+/** 扁平 DeviceUser 行 → 挂上 device/user（对齐 App device_repository._hydrateDeviceUsers） */
+async function hydrateDeviceUsers(rows) {
+  const list = (rows || []).filter(Boolean);
+  if (!list.length) return [];
+  const deviceIds = [...new Set(list.map((r) => r.deviceId).filter(Boolean))];
+  const userIds = [...new Set(list.map((r) => r.userId).filter(Boolean))];
+  const devices = {};
+  const users = {};
+  await Promise.all([
+    ...deviceIds.map(async (id) => {
+      const d = await getDeviceById(id);
+      if (d) devices[id] = d;
+    }),
+    ...userIds.map(async (id) => {
+      const u = await getUserById(id);
+      if (u) users[id] = u;
+    }),
+  ]);
+  return list.map((raw) => {
+    const did = raw.deviceId || '';
+    const uid = raw.userId || '';
+    return Object.assign({}, raw, {
+      device: devices[did] || (did ? { id: did } : null),
+      user: users[uid] || (uid ? { id: uid } : null),
+    });
+  });
+}
 
 export async function fetchMyDevices(userRowId) {
   const rows = await pageAll(
@@ -82,7 +139,8 @@ export async function fetchMyDevices(userRowId) {
     { filter: { userId: { eq: userRowId } } },
     (d) => d.listDeviceUsers,
   );
-  const devices = rows.map((r) => r.device).filter(Boolean).map(normalizeDevice).filter(Boolean);
+  const hydrated = await hydrateDeviceUsers(rows);
+  const devices = hydrated.map((r) => r.device).filter(Boolean).map(normalizeDevice).filter(Boolean);
   // 在线优先排序(移植 device_list_controller)
   devices.sort((a, b) => (b.online - a.online));
   return devices;
@@ -208,18 +266,14 @@ export async function listAllDevices(filter) {
 const Q_LIST_DEVICEUSERS_FULL = /* GraphQL */ `
   query ListDeviceUsers($filter: ModelDeviceUserFilterInput, $limit: Int, $nextToken: String) {
     listDeviceUsers(filter: $filter, limit: $limit, nextToken: $nextToken) {
-      items {
-        id userId deviceId createdAt
-        user { id awsUserName email }
-        device { id ownerUserId deviceConnectStatus deviceGeneralInformation }
-      }
+      items { id userId deviceId createdAt }
       nextToken
     }
   }`;
 
 export async function listAllDeviceUsers(filter) {
   const items = await pageAll(Q_LIST_DEVICEUSERS_FULL, { filter: filter || null }, (d) => d.listDeviceUsers);
-  return (items || []).filter(Boolean);
+  return hydrateDeviceUsers((items || []).filter(Boolean));
 }
 
 const Q_LIST_UPGRADES = /* GraphQL */ `

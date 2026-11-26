@@ -1,7 +1,7 @@
 // 按当前门户区域拼 S3 URL + SigV4 预签名（对齐 App Amplify.Storage.getUrl）
 // devicePicture / 云录像 thumbnailUrl / 本地录像图：库里可能是完整 URL 或相对 key；
 // 一律抽出 object key，再用当前 REGIONS 的 bucket+region 重签，避免错区 403。
-import { COGNITO, S3_BUCKET } from '../config.js';
+import { COGNITO, S3_BUCKET, S3_MEDIA_BUCKET } from '../config.js';
 import { presignS3Get } from './sigv4.js';
 
 /** 从 raw 取出 Amplify Storage object key；非 S3 的 http(s) 返回 null */
@@ -25,7 +25,7 @@ export function s3ObjectKeyFromRaw(raw) {
 /** 相对 key / S3 URL → 当前区域桶的 https 对象 URL（未签名） */
 export function resolveS3HttpsUrl(raw, opts) {
   const o = opts || {};
-  const bucket = o.bucket || S3_BUCKET;
+  const bucket = o.bucket || S3_MEDIA_BUCKET || S3_BUCKET;
   const region = o.region || (COGNITO && COGNITO.region) || 'ap-northeast-1';
   if (!raw) return '';
   const s = String(raw).trim();

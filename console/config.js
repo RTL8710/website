@@ -1,8 +1,10 @@
 // 设备管理控制台 — 非敏感配置(这些 ID 在 Flutter App 内已公开,可提交)
-// 多区域:东南亚(ap/Tokyo)/ 美洲(us/Ohio)/ 欧洲(eu/Paris),对齐手机 App region_config.dart。
+// 多区域:东南亚(ap/Tokyo Gen1)/ 美洲(us/Ohio)/ 欧洲(eu/Paris)/ Gen2 演练(ap-mig/tokyomig)。
+// 对齐手机 App region_config.dart；App kUseGen2Tokyomig=true 时与 ap-mig 同库联调。
 // 登录页选区域 → 用对应区域的 Cognito/AppSync/S3/IoT/KVS 配置。凭证/KVS/IoT 全走裸 fetch + CryptoJS SigV4。
-// 注:仅 Tokyo 有验证过的 web client(coot74);Ohio/Paris 用 App 的 native client 试浏览器 SRP
+// 注:仅 Tokyo Gen1 有验证过的 web client(coot74);Ohio/Paris/ap-mig 用 App 的 native client 试浏览器 SRP
 //     (Cognito app client 无 client secret 时浏览器 SRP 可用;若某区域登录失败需在 AWS 侧建 web client)。
+// 铁律:勿把 ap-mig 配置覆盖生产 ap，也勿把 mig 静态站误推 anhaishi.cn 生产。
 
 export const REGIONS = {
   ap: {
@@ -35,9 +37,24 @@ export const REGIONS = {
     iotEndpoint: 'atwwuuu2m6zxs-ats.iot.eu-west-3.amazonaws.com',
     kvsRegion: 'eu-west-3',
   },
+  // Gen2 tokyomig（App amplify_outputs_tokyomig / RegionConfig.kUseGen2Tokyomig）
+  // Cognito/AppSync 与生产 ap 分离；Dynamo *-tokyomig 表与 App 共用。
+  // OTA/费用缓存写 Gen2 桶；设备缩略图仍多在 Gen1 tokyo 桶 → s3MediaBucket。
+  // IoT/KVS 未随 Gen2 auth 迁，沿用东京生产端点。
+  'ap-mig': {
+    code: 'ap-mig', label: '东京 Gen2(mig)', region: 'ap-northeast-1',
+    userPoolId: 'ap-northeast-1_q3SOvdshp', userPoolClientId: '185rhthht7ogldb06kpakmctbk',
+    identityPoolId: 'ap-northeast-1:14370b08-3464-4aa4-b4ad-35c107f4050a',
+    appsync: 'https://qbtq7qvhtbg2viv36ksueqdw24.appsync-api.ap-northeast-1.amazonaws.com/graphql',
+    apiKey: 'da2-acz2gm2ngjbzbm7cp6zhuolzmy',
+    s3Bucket: 'amplify-d1l47uy5wsd3qr-to-anhaivisionwebsitestorag-nkhegmseqsdr',
+    s3MediaBucket: 'anhaivisionwebsite-storage-77a56c21232245-tokyo',
+    iotEndpoint: 'atwwuuu2m6zxs-ats.iot.ap-northeast-1.amazonaws.com',
+    kvsRegion: 'ap-northeast-1',
+  },
 };
-// 登录页区域选择显示顺序(对齐 App 的 [美洲, 东南亚, 欧洲])
-export const REGION_ORDER = ['us', 'ap', 'eu'];
+// 登录页区域选择显示顺序(生产三区在前；ap-mig 演练末尾，勿当默认)
+export const REGION_ORDER = ['us', 'ap', 'eu', 'ap-mig'];
 
 let _region = 'ap';
 try { const r = localStorage.getItem('dv_region'); if (r && REGIONS[r]) _region = r; } catch (e) {}
@@ -63,10 +80,20 @@ export let REGION = REGIONS[_region].region;
 export let COGNITO = _mkCognito(_region);
 export let APPSYNC = _mkAppsync(_region);
 export let S3_BUCKET = REGIONS[_region].s3Bucket;
+/** 媒体/缩略图桶；缺省与 S3_BUCKET 相同。ap-mig：OTA 写 Gen2，缩略图读 Gen1 tokyo。 */
+export let S3_MEDIA_BUCKET = REGIONS[_region].s3MediaBucket || REGIONS[_region].s3Bucket;
 export let IOT_ENDPOINT = REGIONS[_region].iotEndpoint;
 function _mkCognito(r) { const c = REGIONS[r]; return { region: c.region, userPoolId: c.userPoolId, userPoolClientId: c.userPoolClientId, identityPoolId: c.identityPoolId }; }
 function _mkAppsync(r) { const c = REGIONS[r]; return { endpoint: c.appsync, region: c.region, apiKey: c.apiKey }; }
-function _refresh() { REGION = REGIONS[_region].region; COGNITO = _mkCognito(_region); APPSYNC = _mkAppsync(_region); S3_BUCKET = REGIONS[_region].s3Bucket; IOT_ENDPOINT = REGIONS[_region].iotEndpoint; }
+function _refresh() {
+  const c = REGIONS[_region];
+  REGION = c.region;
+  COGNITO = _mkCognito(_region);
+  APPSYNC = _mkAppsync(_region);
+  S3_BUCKET = c.s3Bucket;
+  S3_MEDIA_BUCKET = c.s3MediaBucket || c.s3Bucket;
+  IOT_ENDPOINT = c.iotEndpoint;
+}
 
 // KVS 区域解析(移植 kvsApi.dart:cn→cn-north-1, us→us-east-2, eu→eu-west-3, 默认→ap-northeast-1)
 export function resolveKvsRegion(regionCode) {
@@ -96,6 +123,7 @@ export const ADMIN_PUBLIC_URL = new URL('../admin/', import.meta.url).href;
 // 当前白名单仅 lvjinhui;User 表只需有档案行,
 // 不需要绑定 DeviceUser(管理后台走 listAll* 全库,与「我的设备」无关)。
 // 非名单账号直链 admin/ 也会被拦(本页提示无权限)。
+// ap-mig：白名单账号必须在 Gen2 Pool ap-northeast-1_q3SOvdshp 中存在，否则登不上。
 export const ADMIN_ALLOWLIST = [
   'lvjinhui',
 ];
