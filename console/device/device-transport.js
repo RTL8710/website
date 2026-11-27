@@ -346,7 +346,7 @@ window.DeviceTransport = {
             try {
                 var creds = self.iotCreds();
                 var url = self._iotSignedUrl(creds);
-                var clientId = 'web_' + self.rtmUserId + '_' + Math.random().toString(36).slice(2, 6);
+                var clientId = self.rtmUserId + '_' + Math.random().toString(36).slice(2, 6); // rtmUserId 已是 web_*，对齐 IoT policy client/web_*
                 client = window.mqtt.connect(url, { clientId: clientId, keepalive: 60, reconnectPeriod: 0, protocolVersion: 4 });
                 await new Promise(function (resolve, reject) {
                     var to = setTimeout(function () { reject(new Error('IoT 连接超时')); }, 20000);

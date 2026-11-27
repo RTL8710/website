@@ -101,6 +101,7 @@ export async function signOut() {
 }
 
 export function currentIdToken() { return _idToken; }
+export function currentIdentityId() { return _identityId; }
 
 // Cognito Identity 服务裸调用(AWS JSON 1.1,登录 token 授权,无需签名)
 async function cognitoIdentityCall(target, body) {
@@ -166,8 +167,57 @@ async function fetchAwsCreds(forceNewIdentity) {
     secretAccessKey: c.SecretKey,
     sessionToken: c.SessionToken || '',
     expiration: c.Expiration ? c.Expiration * 1000 : (Date.now() + 3000000),
+    identityId: _identityId,
+    region: COGNITO.region,
   };
+  // Cognito Identity 连 IoT MQTT 必须挂 IoT Policy（仅 IAM 不够）。幂等 attach，失败不挡登录。
+  try { await ensureWebConsoleIotPolicy(_creds, _identityId); } catch (e) {
+    console.warn('[auth] attach webConsoleIot failed:', e && e.message ? e.message : e);
+  }
   return _creds;
+}
+
+// 把 webConsoleIot 挂到当前 Cognito Identity（Gen2 新 identity 否则 IoT WSS 超时）
+async function ensureWebConsoleIotPolicy(creds, identityId) {
+  if (!identityId || !creds || !creds.accessKeyId) return;
+  const region = COGNITO.region || 'ap-northeast-1';
+  const flag = 'dv_iot_policy_' + identityId;
+  try { if (sessionStorage.getItem(flag) === '1') return; } catch (_) {}
+  const account = '196773672762';
+  const target = account + ':' + identityId;
+  const host = 'iot.' + region + '.amazonaws.com';
+  await sigv4IotAttachPolicy(creds, { host, region, policyName: 'webConsoleIot', target });
+  try { sessionStorage.setItem(flag, '1'); } catch (_) {}
+}
+
+async function sigv4IotAttachPolicy(creds, { host, region, policyName, target }) {
+  const CJ = window.CryptoJS;
+  if (!CJ) throw new Error('CryptoJS missing for IoT AttachPolicy');
+  const hmac = (key, data) => CJ.HmacSHA256(data, key);
+  const sha = (d) => CJ.SHA256(d).toString(CJ.enc.Hex);
+  const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amz.slice(0, 8);
+  const service = 'iot';
+  const scope = `${date}/${region}/${service}/aws4_request`;
+  const path = '/target-policies/' + encodeURIComponent(policyName);
+  const payload = JSON.stringify({ target });
+  const headers = { 'content-type': 'application/json', host, 'x-amz-date': amz };
+  if (creds.sessionToken) headers['x-amz-security-token'] = creds.sessionToken;
+  const signed = Object.keys(headers).sort();
+  const signedHeaders = signed.join(';');
+  const canonHeaders = signed.map((k) => k + ':' + headers[k] + '\n').join('');
+  const canon = `PUT\n${path}\n\n${canonHeaders}\n${signedHeaders}\n${sha(payload)}`;
+  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${sha(canon)}`;
+  const kSigning = hmac(hmac(hmac(hmac('AWS4' + creds.secretAccessKey, date), region), service), 'aws4_request');
+  const sig = hmac(kSigning, sts).toString(CJ.enc.Hex);
+  const authHdr = `AWS4-HMAC-SHA256 Credential=${creds.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${sig}`;
+  const h = { 'Content-Type': 'application/json', 'X-Amz-Date': amz, Authorization: authHdr };
+  if (creds.sessionToken) h['X-Amz-Security-Token'] = creds.sessionToken;
+  const r = await fetch('https://' + host + path, { method: 'PUT', headers: h, body: payload });
+  if (r.status === 204 || r.ok) return;
+  const text = await r.text().catch(() => '');
+  if (r.status === 409 || /ResourceAlreadyExists|already/i.test(text)) return;
+  throw new Error('AttachPolicy HTTP ' + r.status + ': ' + text.slice(0, 180));
 }
 
 // 临时 AWS 凭证 { accessKeyId, secretAccessKey, sessionToken }(供 IoT/KVS SigV4)。
