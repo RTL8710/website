@@ -60,20 +60,19 @@
 <script>
 /* 云端 OTA（对齐 App CLOUD_ONLY v3）：AppSync 取最新包 → S3 预签名 → setRemoteOta；外网禁止 /upgrade 推包 */
 window.__OTA_REGION_FALLBACK = {
-  ap: { region:'ap-northeast-1', s3Bucket:'anhaivisionwebsite-storage-77a56c21232245-tokyo',
-        appsyncEndpoint:'https://hpuaoablfjgfhjrbpdy3a3u7la.appsync-api.ap-northeast-1.amazonaws.com/graphql',
-        appsyncApiKey:'da2-rmzpjwx7lva7zbfviuy2nwzbcy' },
+  /* ap = Gen2 tokyomig 主环境；ohio/paris 仍 Gen1 */
+  ap: { region:'ap-northeast-1', s3Bucket:'anhaivisionwebsite-storage-77a56c21009c2-tokyomig',
+        appsyncEndpoint:'https://qbtq7qvhtbg2viv36ksueqdw24.appsync-api.ap-northeast-1.amazonaws.com/graphql',
+        appsyncApiKey:'da2-acz2gm2ngjbzbm7cp6zhuolzmy' },
+  'ap-mig': { region:'ap-northeast-1', s3Bucket:'anhaivisionwebsite-storage-77a56c21009c2-tokyomig',
+        appsyncEndpoint:'https://qbtq7qvhtbg2viv36ksueqdw24.appsync-api.ap-northeast-1.amazonaws.com/graphql',
+        appsyncApiKey:'da2-acz2gm2ngjbzbm7cp6zhuolzmy' },
   us: { region:'us-east-2', s3Bucket:'anhaivisionwebsite-storage-77a56c21111855-ohio',
         appsyncEndpoint:'https://hyyc4pqt5zhftaxg7su3mirkxm.appsync-api.us-east-2.amazonaws.com/graphql',
         appsyncApiKey:'da2-f6g7opuzyfazlihpyv6nzejn2e' },
   eu: { region:'eu-west-3', s3Bucket:'anhaivisionwebsite-storage-77a56c2193636-paris',
         appsyncEndpoint:'https://ehyxqkbrzzan7o2fz5mhhstzqq.appsync-api.eu-west-3.amazonaws.com/graphql',
-        appsyncApiKey:'da2-cep3asdgp5gopnr4qizhnxon4i' },
-  /* Gen2 tokyomig：AppSync/OTA 桶走 Gen2；勿覆盖生产 ap */
-  'ap-mig': { region:'ap-northeast-1',
-        s3Bucket:'amplify-d1l47uy5wsd3qr-to-anhaivisionwebsitestorag-nkhegmseqsdr',
-        appsyncEndpoint:'https://qbtq7qvhtbg2viv36ksueqdw24.appsync-api.ap-northeast-1.amazonaws.com/graphql',
-        appsyncApiKey:'da2-acz2gm2ngjbzbm7cp6zhuolzmy' }
+        appsyncApiKey:'da2-cep3asdgp5gopnr4qizhnxon4i' }
 };
 window.isCloudOtaMode = function () {
   try {

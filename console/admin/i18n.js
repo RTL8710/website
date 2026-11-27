@@ -24,7 +24,6 @@ const REGION_I18N = {
   ap: { zh: '东南亚', en: 'Asia Pacific', ja: 'アジア太平洋', de: 'Asien-Pazifik', fr: 'Asie-Pacifique', es: 'Asia-Pacífico' },
   us: { zh: '美洲', en: 'Americas', ja: 'アメリカ', de: 'Amerika', fr: 'Amériques', es: 'América' },
   eu: { zh: '欧洲', en: 'Europe', ja: 'ヨーロッパ', de: 'Europa', fr: 'Europe', es: 'Europa' },
-  'ap-mig': { zh: '东京 Gen2(mig)', en: 'Tokyo Gen2 (mig)', ja: '東京 Gen2(mig)', de: 'Tokio Gen2 (mig)', fr: 'Tokyo Gen2 (mig)', es: 'Tokio Gen2 (mig)' },
 };
 export const LANGS = [
   { v: 'en', label: 'English', flag: '🇺🇸', short: 'EN' },
