@@ -3281,6 +3281,19 @@ function viewOta() {
   );
 }
 
+async function ensureAwsCredsForUpload() {
+  if (currentIdToken()) return resolvedCreds();
+  // 等 boot restoreSession / Cognito getSession；切 Gen2 后 admin_session 可先 paint 但尚无 token
+  const ready = await waitForIdToken(8000);
+  if (!ready) {
+    try { await restoreSession(); } catch (_) {}
+  }
+  if (!currentIdToken()) {
+    throw new Error('登录已失效（Cognito 会话丢失）。请重新登录后再上传 OTA。');
+  }
+  return resolvedCreds();
+}
+
 async function doUpload() {
   const u = state.upload;
   u.err = ''; u.msg = '';
@@ -3296,7 +3309,7 @@ async function doUpload() {
   }
   u.busy = true; u.progress = 0; render();
   try {
-    const creds = await resolvedCreds();
+    const creds = await ensureAwsCredsForUpload();
     if (!creds.accessKeyId) throw new Error('无临时凭证，请重新登录');
     const key = `public/${u.upgradeType}/${u.deviceType}/${u.file.name}`;
     const isApk = /\.apk$/i.test(u.file.name || '');
@@ -3350,6 +3363,13 @@ async function doUpload() {
     console.error('[admin] upload', e);
     u.err = (e && e.message) || String(e);
     toast(u.err, 'err');
+    if (/未登录|登录已失效|无法获取 AWS 凭证/.test(u.err)) {
+      try { await signOut(); } catch (_) {}
+      state.session = null;
+      clearAdminPersist();
+      viewLogin();
+      return;
+    }
   } finally {
     u.busy = false; u.progress = 0; render();
   }
@@ -5918,8 +5938,15 @@ function viewLogin(preErr) {
   warmupAuth();
   const cached = peekAdminSession();
   const lastUser = peekCognitoLastUser();
+  // 必须有当前 UserPoolClient 的 Cognito LastAuthUser，才允许用 admin_session 先 paint。
+  // Gen1→Gen2 切 client 后旧 admin_session 仍在、但无 idToken → OTA/S3 会报「未登录」。
   const stub = lastUser ? { account: lastUser, userRow: { awsUserName: lastUser } } : null;
-  const paint = (cached && isAdminAccount(cached)) ? cached : ((stub && isAdminAccount(stub)) ? stub : null);
+  const paint = lastUser
+    ? ((cached && isAdminAccount(cached)) ? cached : ((stub && isAdminAccount(stub)) ? stub : null))
+    : null;
+  if (!lastUser && cached) {
+    try { localStorage.removeItem(adminPersistKey('session')); } catch (_) {}
+  }
   if (paint) {
     state.session = paint;
     hydrateAdminSnap();
@@ -5939,6 +5966,7 @@ function viewLogin(preErr) {
     if (state.session) {
       state.session = null;
       clearAdminDataCache();
+      clearAdminPersist();
       viewLogin();
     }
     return;

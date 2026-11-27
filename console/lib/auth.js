@@ -174,7 +174,11 @@ async function fetchAwsCreds(forceNewIdentity) {
 // 裸 GetId + GetCredentialsForIdentity —— 不用 @aws-sdk(其 esm.sh 版会拉 node fs 在浏览器崩)。
 // 缓存到过期前；并发合并为单次请求；僵死 identityId / 过期 token 自动清缓存重试。
 export async function resolvedCreds() {
-  if (!_idToken) throw new Error('未登录,无法获取 AWS 凭证。');
+  // 切池 / 首屏 paint 后 _idToken 可能尚未落入内存：先从 Cognito 会话补一次
+  if (!_idToken) {
+    const ok = await refreshIdTokenIfPossible();
+    if (!ok) throw new Error('未登录,无法获取 AWS 凭证。请重新登录后再试。');
+  }
   if (_creds && _creds.expiration && Date.now() < _creds.expiration - 60000) return _creds;
   if (_credsInflight) return _credsInflight;
   _credsInflight = (async () => {
