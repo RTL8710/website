@@ -1,6 +1,6 @@
 // 设备管理控制台 — 非敏感配置(这些 ID 在 Flutter App 内已公开,可提交)
 // 多区域:东南亚(ap/Tokyo Gen2 tokyomig)/ 美洲(us/Ohio)/ 欧洲(eu/Paris)。
-// ap = Gen2 主环境（App RegionConfig.kUseGen2Tokyomig）；旧 Gen1 tokyo 已弃用。
+// ap = Gen2 主环境（与 App amplifyOutputsTokyomig 对齐）；旧 Gen1 tokyo 已弃用。
 // 登录页选区域 → 用对应区域的 Cognito/AppSync/S3/IoT/KVS 配置。凭证/KVS/IoT 全走裸 fetch + CryptoJS SigV4。
 // Ohio/Paris 仍 Gen1；浏览器 SRP 需无 client secret 的 app client。
 
@@ -107,25 +107,44 @@ export const DEPS = {
 export const CONSOLE_PUBLIC_URL = new URL('./', import.meta.url).href;
 export const ADMIN_PUBLIC_URL = new URL('../admin/', import.meta.url).href;
 
-// 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email，大小写不敏感）
-// 铁律:admin 与终端用户账号解耦——勿把 App 个人账号(如 lvjinhui)放进名单。
+// 云端管理后台白名单（匹配 Cognito 用户名 / awsUserName / email / 手机号，大小写不敏感）
+// 铁律:admin 与终端用户账号解耦——运维白名单 ≠ App「我的设备」账号体系；可同一人两用但须显式列入。
 // 入口 /admin/（壳页加载 console/admin 逻辑，自带登录）；/console/admin/ 为本机同页。
-// 当前白名单仅 lvjinhui;User 表只需有档案行,
+// Gen2 Pool 当前运维 Cognito 用户名是手机号 13826173658（User.awsUserName 档案为 lvjinhui）。
 // 不需要绑定 DeviceUser(管理后台走 listAll* 全库,与「我的设备」无关)。
 // 非名单账号直链 admin/ 也会被拦(本页提示无权限)。
 // ap：白名单账号必须在 Gen2 Pool ap-northeast-1_Jgtqw8WRV 中存在，否则登不上。
 export const ADMIN_ALLOWLIST = [
   'lvjinhui',
+  '13826173658',
 ];
+function _adminNorm(s) {
+  let x = String(s || '').trim().toLowerCase();
+  if (!x) return [];
+  const out = [x];
+  if (x.indexOf('@') >= 0) out.push(x.split('@')[0]);
+  // +8613826173658 / 8613826173658 → 13826173658
+  const digits = x.replace(/\D+/g, '');
+  if (digits) {
+    out.push(digits);
+    if (digits.length === 13 && digits.indexOf('86') === 0) out.push(digits.slice(2));
+    if (digits.length === 11) out.push(digits);
+  }
+  return out;
+}
 export function isAdminAccount(session) {
   if (!session) return false;
-  const cands = [
+  const raw = [
     session.account,
     session.email,
     session.userRow && session.userRow.awsUserName,
     session.userRow && session.userRow.email,
-  ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
-  const allow = ADMIN_ALLOWLIST.map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+    session.userRow && session.userRow.phoneNumber,
+  ].filter(Boolean);
+  const cands = [];
+  raw.forEach((v) => { _adminNorm(v).forEach((x) => { if (cands.indexOf(x) < 0) cands.push(x); }); });
+  const allow = [];
+  ADMIN_ALLOWLIST.forEach((v) => { _adminNorm(v).forEach((x) => { if (allow.indexOf(x) < 0) allow.push(x); }); });
   if (!allow.length) return false;
-  return cands.some((c) => allow.includes(c) || allow.includes(c.split('@')[0]));
+  return cands.some((c) => allow.indexOf(c) >= 0);
 }
